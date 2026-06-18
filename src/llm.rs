@@ -7,6 +7,8 @@ pub enum LlmProvider {
         base_url: String,
         api_key: String,
         model: String,
+        max_tokens: u32,
+        temperature: f64,
         client: reqwest::Client,
     },
 }
@@ -30,6 +32,8 @@ impl LlmProvider {
                     base_url: base_url.trim_end_matches('/').to_string(),
                     api_key,
                     model: config.model.clone(),
+                    max_tokens: config.max_tokens,
+                    temperature: config.temperature,
                     client: reqwest::Client::new(),
                 })
             }
@@ -48,6 +52,8 @@ impl LlmProvider {
                 base_url,
                 api_key,
                 model,
+                max_tokens,
+                temperature,
                 client,
             } => {
                 let url = format!("{base_url}/chat/completions");
@@ -57,8 +63,8 @@ impl LlmProvider {
                     "messages": [
                         {"role": "user", "content": prompt}
                     ],
-                    "max_tokens": 300,
-                    "temperature": 0.7
+                    "max_tokens": max_tokens,
+                    "temperature": temperature
                 });
 
                 let response = client
