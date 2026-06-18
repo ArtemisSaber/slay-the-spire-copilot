@@ -1,0 +1,62 @@
+use crate::llm::LlmProvider;
+use std::collections::HashMap;
+use std::fs;
+use std::io::Write;
+use std::path::Path;
+
+pub struct AdviceCache {
+    cache: HashMap<String, String>,
+}
+
+impl AdviceCache {
+    pub fn new() -> Self {
+        AdviceCache {
+            cache: HashMap::new(),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn get_cached(&self, hash: &str) -> Option<&str> {
+        self.cache.get(hash).map(|s| s.as_str())
+    }
+
+    pub async fn get_or_compute(
+        &mut self,
+        hash: &str,
+        prompt: &str,
+        provider: &LlmProvider,
+    ) -> String {
+        if let Some(cached) = self.cache.get(hash) {
+            return cached.clone();
+        }
+
+        let advice = match provider.query(prompt).await {
+            Ok(text) => text,
+            Err(e) => {
+                tracing::error!("LLM call failed: {e}");
+                "LLM 调用失败，请检查配置。".to_string()
+            }
+        };
+
+        self.cache.insert(hash.to_string(), advice.clone());
+        advice
+    }
+
+    pub fn write_advice(&self, advice: &str) {
+        let output_dir = Path::new("output");
+        if !output_dir.exists() {
+            let _ = fs::create_dir_all(output_dir);
+        }
+
+        let path = output_dir.join("advice.txt");
+        if let Ok(mut file) = fs::File::create(&path) {
+            let _ = file.write_all(advice.as_bytes());
+        }
+    }
+}
+
+impl Default for AdviceCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
