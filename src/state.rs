@@ -20,8 +20,32 @@ pub struct MonsterInfo {
 }
 
 #[derive(Debug, Clone)]
+pub struct PowerInfo {
+    pub name: String,
+    pub amount: i64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DangerLevel {
+    Safe,
+    Caution,
+    Danger,
+}
+
+#[derive(Debug, Clone)]
+pub struct DangerFlags {
+    pub hp_critical: bool,
+    pub incoming_lethal: bool,
+    pub no_block_against_hit: bool,
+    pub any_monster_attacking: bool,
+    pub wrath_stance: bool,
+    pub level: DangerLevel,
+}
+
+#[derive(Debug, Clone)]
 pub struct NormalizedState {
     pub screen_type: Option<String>,
+    pub room_type: Option<String>,
     pub character: Option<String>,
     pub floor: Option<i64>,
     pub current_hp: Option<i64>,
@@ -35,12 +59,10 @@ pub struct NormalizedState {
     pub card_reward_choices: Vec<String>,
     pub relics: Vec<String>,
     pub potions: Vec<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PowerInfo {
-    pub name: String,
-    pub amount: i64,
+    pub deck_names: Vec<String>,
+    pub incoming_damage: i64,
+    pub rest_options: Vec<String>,
+    pub danger: DangerFlags,
 }
 
 impl NormalizedState {
@@ -49,6 +71,11 @@ impl NormalizedState {
 
         let screen_type = gs
             .and_then(|g| g.get("screen_type"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let room_type = gs
+            .and_then(|g| g.get("room_type"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
@@ -72,7 +99,7 @@ impl NormalizedState {
             .and_then(|v| v.as_i64());
         let block = player.and_then(|p| p.get("block")).and_then(|v| v.as_i64());
 
-        let powers = player
+        let powers: Vec<PowerInfo> = player
             .and_then(|p| p.get("powers"))
             .and_then(|v| v.as_array())
             .map(|arr| {
@@ -116,7 +143,7 @@ impl NormalizedState {
             })
             .unwrap_or_default();
 
-        let monsters = combat
+        let monsters: Vec<MonsterInfo> = combat
             .and_then(|c| c.get("monsters"))
             .and_then(|v| v.as_array())
             .map(|arr| {
@@ -140,6 +167,41 @@ impl NormalizedState {
             })
             .unwrap_or_default();
 
+        let incoming_damage = monsters
+            .iter()
+            .filter(|m| m.intent.as_deref() != Some("NONE"))
+            .filter_map(|m| m.damage)
+            .sum();
+
+        let wrath_stance = powers.iter().any(|p| p.name == "Wrath" && p.amount > 0);
+
+        let hp = current_hp.unwrap_or(0);
+        let max_hp_val = max_hp.unwrap_or(1);
+        let block_val = block.unwrap_or(0);
+
+        let hp_critical = max_hp_val > 0 && (hp as f64 / max_hp_val as f64) < 0.3;
+        let incoming_lethal = incoming_damage > hp + block_val;
+        let no_block_against_hit = block_val == 0 && incoming_damage > 0;
+        let low_hp = max_hp_val > 0 && (hp as f64 / max_hp_val as f64) < 0.6;
+        let any_monster_attacking = monsters.iter().any(|m| m.intent.as_deref() != Some("NONE"));
+
+        let level = if hp_critical || incoming_lethal {
+            DangerLevel::Danger
+        } else if low_hp || no_block_against_hit || any_monster_attacking {
+            DangerLevel::Caution
+        } else {
+            DangerLevel::Safe
+        };
+
+        let danger = DangerFlags {
+            hp_critical,
+            incoming_lethal,
+            no_block_against_hit,
+            any_monster_attacking,
+            wrath_stance,
+            level,
+        };
+
         let card_reward_choices = gs
             .and_then(|g| g.get("screen_state"))
             .and_then(|s| s.get("cards"))
@@ -152,6 +214,17 @@ impl NormalizedState {
                             .unwrap_or("?")
                             .to_string()
                     })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let rest_options: Vec<String> = gs
+            .and_then(|g| g.get("screen_state"))
+            .and_then(|s| s.get("rest_options"))
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|o| o.as_str().map(|s| s.to_string()))
                     .collect()
             })
             .unwrap_or_default();
@@ -192,11 +265,28 @@ impl NormalizedState {
             })
             .unwrap_or_default();
 
+        let mut deck_names: Vec<String> = gs
+            .and_then(|g| g.get("deck"))
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .map(|c| {
+                        c.get("name")
+                            .and_then(|n| n.as_str())
+                            .unwrap_or("?")
+                            .to_string()
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
         relics.sort();
         potions.sort();
+        deck_names.sort();
 
         NormalizedState {
             screen_type,
+            room_type,
             character,
             floor,
             current_hp,
@@ -210,6 +300,10 @@ impl NormalizedState {
             card_reward_choices,
             relics,
             potions,
+            deck_names,
+            incoming_damage,
+            rest_options,
+            danger,
         }
     }
 
@@ -226,6 +320,9 @@ impl NormalizedState {
 
         if let Some(ref v) = self.screen_type {
             map.insert("screen_type".to_string(), Value::String(v.clone()));
+        }
+        if let Some(ref v) = self.room_type {
+            map.insert("room_type".to_string(), Value::String(v.clone()));
         }
         if let Some(ref v) = self.character {
             map.insert("character".to_string(), Value::String(v.clone()));
@@ -248,6 +345,11 @@ impl NormalizedState {
         if let Some(v) = self.block {
             map.insert("block".to_string(), Value::Number(v.into()));
         }
+
+        map.insert(
+            "incoming_damage".to_string(),
+            Value::Number(self.incoming_damage.into()),
+        );
 
         let mut sorted_powers = self.powers.clone();
         sorted_powers.sort_by(|a, b| a.name.cmp(&b.name));
@@ -322,6 +424,20 @@ impl NormalizedState {
             Value::Array(sorted_potions.into_iter().map(Value::String).collect()),
         );
 
+        let mut sorted_deck = self.deck_names.clone();
+        sorted_deck.sort();
+        map.insert(
+            "deck_names".to_string(),
+            Value::Array(sorted_deck.into_iter().map(Value::String).collect()),
+        );
+
+        let mut sorted_rest = self.rest_options.clone();
+        sorted_rest.sort();
+        map.insert(
+            "rest_options".to_string(),
+            Value::Array(sorted_rest.into_iter().map(Value::String).collect()),
+        );
+
         Value::Object(map)
     }
 }
@@ -353,8 +469,12 @@ mod tests {
         assert_eq!(state.hand.len(), 3);
         assert_eq!(state.monsters.len(), 1);
         assert_eq!(state.relics.len(), 2);
-        assert_eq!(state.potions.len(), 1); // Potion Slot is filtered out
+        assert_eq!(state.potions.len(), 1);
         assert!(state.card_reward_choices.is_empty());
+
+        assert_eq!(state.incoming_damage, 12);
+        assert_eq!(state.danger.level, DangerLevel::Caution);
+        assert!(state.danger.any_monster_attacking);
 
         let jaw_worm = &state.monsters[0];
         assert_eq!(jaw_worm.name, "Jaw Worm");
@@ -374,6 +494,55 @@ mod tests {
 
         assert!(state.hand.is_empty());
         assert!(state.monsters.is_empty());
+        assert_eq!(state.incoming_damage, 0);
+        assert_eq!(state.danger.level, DangerLevel::Safe);
+    }
+
+    #[test]
+    fn danger_detects_low_hp() {
+        let d = compute_danger(10, 80, 0, 0, false, &[]);
+        assert!(d.hp_critical);
+        assert!(!d.incoming_lethal);
+        assert_eq!(d.level, DangerLevel::Danger);
+    }
+
+    #[test]
+    fn danger_detects_incoming_lethal() {
+        let d = compute_danger(20, 80, 5, 30, false, &[]);
+        assert!(d.incoming_lethal);
+        assert_eq!(d.level, DangerLevel::Danger);
+    }
+
+    fn compute_danger(
+        hp: i64,
+        max_hp: i64,
+        block: i64,
+        incoming: i64,
+        wrath: bool,
+        intents: &[&str],
+    ) -> DangerFlags {
+        let hp_critical = max_hp > 0 && (hp as f64 / max_hp as f64) < 0.3;
+        let incoming_lethal = incoming > hp + block;
+        let no_block_against_hit = block == 0 && incoming > 0;
+        let low_hp = max_hp > 0 && (hp as f64 / max_hp as f64) < 0.6;
+        let any_monster_attacking = intents.iter().any(|i| *i != "NONE");
+
+        let level = if hp_critical || incoming_lethal {
+            DangerLevel::Danger
+        } else if low_hp || no_block_against_hit || any_monster_attacking {
+            DangerLevel::Caution
+        } else {
+            DangerLevel::Safe
+        };
+
+        DangerFlags {
+            hp_critical,
+            incoming_lethal,
+            no_block_against_hit,
+            any_monster_attacking,
+            wrath_stance: wrath,
+            level,
+        }
     }
 
     #[test]

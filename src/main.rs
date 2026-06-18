@@ -60,6 +60,8 @@ async fn main() {
             continue;
         }
 
+        tracing::debug!("received {} bytes", trimmed.len());
+
         let raw: serde_json::Value = match serde_json::from_str(trimmed) {
             Ok(v) => v,
             Err(e) => {
@@ -74,17 +76,49 @@ async fn main() {
         }
 
         if !is_in_game(&raw) {
+            tracing::debug!("skipping non-game state");
             continue;
         }
 
+        let screen_type = raw
+            .pointer("/game_state/screen_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?");
+        let room_type = raw
+            .pointer("/game_state/room_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?");
+
         let normalized = state::NormalizedState::from_raw(&raw);
         let hash = normalized.stable_hash();
+
+        tracing::info!(
+            "state screen={screen_type} room={room_type} floor={} hp={}/{} block={} energy={} hand={} mons={} deck={} incoming={} danger={:?}",
+            normalized.floor.map_or("?".to_string(), |v| v.to_string()),
+            normalized
+                .current_hp
+                .map_or("?".to_string(), |v| v.to_string()),
+            normalized.max_hp.map_or("?".to_string(), |v| v.to_string()),
+            normalized.block.map_or("?".to_string(), |v| v.to_string()),
+            normalized.energy.map_or("?".to_string(), |v| v.to_string()),
+            normalized.hand.len(),
+            normalized.monsters.len(),
+            normalized.deck_names.len(),
+            normalized.incoming_damage,
+            normalized.danger.level,
+        );
+
         let prompt = prompt::build_prompt(&normalized);
+        tracing::debug!(
+            "prompt ({} chars): {}",
+            prompt.len(),
+            &prompt[..prompt.len().min(200)]
+        );
 
         let advice = cache.get_or_compute(&hash, &prompt, &provider).await;
 
+        tracing::info!("wrote advice ({} chars hash={})", advice.len(), &hash[..16]);
         cache.write_advice(&advice);
-        tracing::info!("wrote advice (hash={})", &hash[..16]);
     }
 
     tracing::info!("stdin closed, exiting");
