@@ -10,12 +10,29 @@ pub fn send_wait_to(writer: &mut impl Write) {
     let _ = writer.flush();
 }
 
+pub fn send_state_to(writer: &mut impl Write) {
+    let _ = writeln!(writer, "STATE");
+    let _ = writer.flush();
+}
+
 pub fn send_ready() {
     send_ready_to(&mut io::stdout().lock());
 }
 
 pub fn send_wait() {
     send_wait_to(&mut io::stdout().lock());
+}
+
+pub fn send_state() {
+    send_state_to(&mut io::stdout().lock());
+}
+
+pub fn send_response(can_wait: bool) {
+    if can_wait {
+        send_wait();
+    } else {
+        send_state();
+    }
 }
 
 #[cfg(test)]
@@ -36,6 +53,14 @@ mod tests {
         send_wait_to(&mut buf);
         let output = String::from_utf8(buf).unwrap();
         assert_eq!(output, "WAIT 30\n");
+    }
+
+    #[test]
+    fn state_output_is_correct() {
+        let mut buf = Vec::new();
+        send_state_to(&mut buf);
+        let output = String::from_utf8(buf).unwrap();
+        assert_eq!(output, "STATE\n");
     }
 
     #[test]

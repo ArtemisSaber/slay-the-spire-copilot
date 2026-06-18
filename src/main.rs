@@ -10,6 +10,23 @@ mod state;
 use advice::AdviceCache;
 use std::io::{self, BufRead, Write};
 
+fn can_wait(raw: &serde_json::Value) -> bool {
+    raw.get("available_commands")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().any(|c| c.as_str() == Some("wait")))
+        .unwrap_or(false)
+}
+
+fn is_in_game(raw: &serde_json::Value) -> bool {
+    raw.get("in_game")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+fn is_error(raw: &serde_json::Value) -> bool {
+    raw.get("error").is_some()
+}
+
 #[tokio::main]
 async fn main() {
     logging::init();
@@ -41,14 +58,14 @@ async fn main() {
             Ok(l) => l,
             Err(e) => {
                 tracing::error!("failed to read stdin: {e}");
-                protocol::send_wait();
+                protocol::send_response(false);
                 continue;
             }
         };
 
         let trimmed = line.trim();
         if trimmed.is_empty() {
-            protocol::send_wait();
+            protocol::send_response(false);
             continue;
         }
 
@@ -56,18 +73,19 @@ async fn main() {
             Ok(v) => v,
             Err(e) => {
                 tracing::error!("failed to parse JSON: {e}");
-                protocol::send_wait();
+                protocol::send_response(false);
                 continue;
             }
         };
 
-        let in_game = raw
-            .get("in_game")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        if is_error(&raw) {
+            tracing::warn!("received error from CommunicationMod: {}", trimmed);
+            protocol::send_response(false);
+            continue;
+        }
 
-        if !in_game {
-            protocol::send_wait();
+        if !is_in_game(&raw) {
+            protocol::send_response(can_wait(&raw));
             continue;
         }
 
@@ -84,7 +102,7 @@ async fn main() {
         cache.write_advice(&advice);
         tracing::info!("wrote advice (hash={})", &hash[..16]);
 
-        protocol::send_wait();
+        protocol::send_response(can_wait(&raw));
     }
 
     tracing::info!("stdin closed, exiting");
