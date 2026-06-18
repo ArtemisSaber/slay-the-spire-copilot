@@ -4,6 +4,7 @@ mod llm;
 mod logging;
 mod prompt;
 mod protocol;
+mod startup;
 mod state;
 
 use advice::AdviceCache;
@@ -13,6 +14,8 @@ use std::io::{self, BufRead, Write};
 async fn main() {
     logging::init();
     dotenvy::dotenv().ok();
+
+    startup::ensure_config();
 
     let config = config::Config::from_env();
     tracing::info!("provider={} model={}", config.provider, config.model);
