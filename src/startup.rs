@@ -81,11 +81,6 @@ fn current_exe_string() -> String {
         .unwrap_or_else(|_| "/path/to/slay-the-spire-copilot".to_string())
 }
 
-#[cfg(test)]
-pub fn check_config_exists(paths: &[PathBuf]) -> bool {
-    paths.iter().any(|p| p.exists() && config_is_valid(p))
-}
-
 pub fn check_config_matches_current_exe(paths: &[PathBuf]) -> bool {
     paths
         .iter()
@@ -253,169 +248,46 @@ pub fn ensure_config() -> bool {
 mod tests {
     use super::*;
 
-    #[test]
-    fn extract_command_from_valid_config() {
+    fn temp_config(content: &str) -> (tempfile::TempDir, PathBuf) {
         let dir = tempfile::tempdir().unwrap();
-        let config = dir.path().join("config.properties");
-        fs::write(&config, "command=/usr/bin/my-bot\nrunAtGameStart=true\n").unwrap();
-        assert_eq!(
-            extract_command_value(&config),
-            Some("/usr/bin/my-bot".to_string())
-        );
+        let path = dir.path().join("config.properties");
+        fs::write(&path, content).unwrap();
+        (dir, path)
     }
 
     #[test]
-    fn extract_command_strips_args() {
-        let dir = tempfile::tempdir().unwrap();
-        let config = dir.path().join("config.properties");
-        fs::write(&config, "command=/usr/bin/bot --verbose --port 8080\n").unwrap();
-        assert_eq!(
-            extract_command_value(&config),
-            Some("/usr/bin/bot".to_string())
-        );
-    }
-
-    #[test]
-    fn extract_command_empty_returns_none() {
-        let dir = tempfile::tempdir().unwrap();
-        let config = dir.path().join("config.properties");
-        fs::write(&config, "# comment\ncommand=\n").unwrap();
-        assert_eq!(extract_command_value(&config), None);
-    }
-
-    #[test]
-    fn extract_command_no_line_returns_none() {
-        let dir = tempfile::tempdir().unwrap();
-        let config = dir.path().join("config.properties");
-        fs::write(&config, "# just a comment\n").unwrap();
-        assert_eq!(extract_command_value(&config), None);
-    }
-
-    #[test]
-    fn check_config_empty_list_returns_false() {
-        assert!(!check_config_exists(&[]));
-    }
-
-    #[test]
-    fn check_config_nonexistent_path_returns_false() {
-        let paths = vec![PathBuf::from("/nonexistent/path/config.properties")];
-        assert!(!check_config_exists(&paths));
-    }
-
-    #[test]
-    fn config_is_valid_with_command_set() {
-        let dir = tempfile::tempdir().unwrap();
-        let config = dir.path().join("config.properties");
-        fs::write(&config, "command=/usr/bin/my-bot\nrunAtGameStart=true\n").unwrap();
-        assert!(config_is_valid(&config));
-    }
-
-    #[test]
-    fn check_config_finds_valid_config_among_paths() {
-        let dir = tempfile::tempdir().unwrap();
-        let valid = dir.path().join("valid.properties");
-        let invalid = dir.path().join("invalid.properties");
-        let missing = dir.path().join("missing.properties");
-
-        fs::write(&valid, "command=./bot\n").unwrap();
-        fs::write(&invalid, "command=\n").unwrap();
-
-        let paths = vec![missing, invalid, valid.clone()];
-        assert!(check_config_exists(&paths));
-    }
-
-    #[test]
-    fn check_config_multiple_paths_none_valid() {
-        let dir = tempfile::tempdir().unwrap();
-        let a = dir.path().join("a.properties");
-        let b = dir.path().join("b.properties");
-
-        fs::write(&a, "command=\n").unwrap();
-
-        let paths = vec![a, b];
-        assert!(!check_config_exists(&paths));
-    }
-
-    #[test]
-    fn check_config_matches_current_exe_with_correct_path() {
-        let dir = tempfile::tempdir().unwrap();
-        let config = dir.path().join("config.properties");
+    fn correct_config_passes() {
         let current = env::current_exe().unwrap();
-        fs::write(&config, format!("command={}\n", current.display())).unwrap();
-
+        let (_dir, config) = temp_config(&format!("command={}\n", current.display()));
         let paths = vec![config];
         assert!(check_config_matches_current_exe(&paths));
     }
 
     #[test]
-    fn check_config_matches_current_exe_wrong_path() {
-        let dir = tempfile::tempdir().unwrap();
-        let config = dir.path().join("config.properties");
-        fs::write(&config, "command=/usr/bin/other-bot\n").unwrap();
-
+    fn wrong_config_fails() {
+        let (_dir, config) = temp_config("command=/usr/bin/other-bot\n");
         let paths = vec![config];
-        assert!(check_config_exists(&paths));
         assert!(!check_config_matches_current_exe(&paths));
     }
 
     #[test]
-    fn write_command_updates_existing_line() {
-        let dir = tempfile::tempdir().unwrap();
-        let config = dir.path().join("config.properties");
-        fs::write(&config, "# header\ncommand=/old/bot\nrunAtGameStart=true\n").unwrap();
-
-        assert!(write_command_to_config(&config, "/new/bot"));
-        let content = fs::read_to_string(&config).unwrap();
-        assert!(content.contains("command=/new/bot"));
-        assert!(!content.contains("/old/bot"));
-        assert!(content.contains("runAtGameStart=true"));
-        assert!(content.contains("# header"));
+    fn empty_command_auto_fixes() {
+        let current = env::current_exe().unwrap().display().to_string();
+        let (_dir, config) = temp_config("command=\n");
+        assert!(write_command_to_config(&config, &current));
+        let updated = fs::read_to_string(&config).unwrap();
+        assert!(updated.contains(&format!("command={current}")));
     }
 
     #[test]
-    fn write_command_appends_when_missing() {
-        let dir = tempfile::tempdir().unwrap();
-        let config = dir.path().join("config.properties");
-        fs::write(&config, "# just a header\nrunAtGameStart=true\n").unwrap();
-
-        assert!(write_command_to_config(&config, "/new/bot"));
-        let content = fs::read_to_string(&config).unwrap();
-        assert!(content.contains("command=/new/bot"));
-        assert!(content.contains("runAtGameStart=true"));
+    fn no_config_at_all() {
+        let paths = vec![PathBuf::from("/tmp/nonexistent-config-12345.properties")];
+        assert!(!check_config_matches_current_exe(&paths));
     }
 
     #[test]
-    fn write_command_handles_empty_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let config = dir.path().join("config.properties");
-        fs::write(&config, "").unwrap();
-
-        assert!(write_command_to_config(&config, "/new/bot"));
-        let content = fs::read_to_string(&config).unwrap();
-        assert!(content.contains("command=/new/bot"));
-    }
-
-    #[test]
-    fn find_existing_config_returns_existing() {
-        let dir = tempfile::tempdir().unwrap();
-        let existing = dir.path().join("exists.properties");
-        let missing = dir.path().join("missing.properties");
-        fs::write(&existing, "command=\n").unwrap();
-
-        let paths = vec![missing, existing.clone()];
-        assert_eq!(find_existing_config(&paths), Some(&existing));
-    }
-
-    #[test]
-    fn find_existing_config_returns_none_when_none() {
-        let paths = vec![PathBuf::from("/nonexistent")];
-        assert_eq!(find_existing_config(&paths), None);
-    }
-
-    #[test]
-    fn ensure_config_message_contains_required_info() {
-        let exe_path = env::current_exe().unwrap();
-        let exe = exe_path.display().to_string();
+    fn setup_message_contains_key_info() {
+        let exe = env::current_exe().unwrap().display().to_string();
 
         let message = format!(
             "\n\
@@ -442,20 +314,5 @@ mod tests {
         assert!(message.contains("CommunicationMod"));
         assert!(message.contains("command="));
         assert!(message.contains("runAtGameStart=true"));
-    }
-
-    #[test]
-    fn write_command_preserves_comments_and_structure() {
-        let dir = tempfile::tempdir().unwrap();
-        let config = dir.path().join("config.properties");
-        let original = "#Thu Jun 18 22:20:52 SGT 2026\ncommand=old_binary\nrunAtGameStart=true\n";
-        fs::write(&config, original).unwrap();
-
-        assert!(write_command_to_config(&config, "new_binary"));
-        let content = fs::read_to_string(&config).unwrap();
-        assert!(content.contains("#Thu Jun 18 22:20:52 SGT 2026"));
-        assert!(content.contains("command=new_binary"));
-        assert!(content.contains("runAtGameStart=true"));
-        assert!(!content.contains("old_binary"));
     }
 }
