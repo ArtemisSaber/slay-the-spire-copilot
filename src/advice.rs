@@ -41,8 +41,10 @@ impl AdviceCache {
         let _ = fs::create_dir_all(&output_dir);
 
         let path = output_dir.join("advice.txt");
-        if let Ok(mut file) = fs::File::create(&path) {
-            let _ = file.write_all(advice.as_bytes());
+        let entry = format!("{advice}\n---\n");
+
+        if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&path) {
+            let _ = file.write_all(entry.as_bytes());
         }
     }
 }
@@ -73,14 +75,16 @@ mod tests {
     }
 
     #[test]
-    fn write_advice_creates_file() {
+    fn write_advice_appends() {
         let cache = AdviceCache::new();
-        cache.write_advice("test advice text");
+        cache.write_advice("first");
+        cache.write_advice("second");
 
         let path = crate::logging::project_root()
             .join("output")
             .join("advice.txt");
         let content = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(content, "test advice text");
+        assert!(content.contains("first"));
+        assert!(content.contains("second"));
     }
 }
