@@ -15,7 +15,9 @@ async fn main() {
     logging::init();
     dotenvy::dotenv().ok();
 
-    startup::ensure_config();
+    if !startup::ensure_config() {
+        return;
+    }
 
     let config = config::Config::from_env();
     tracing::info!("provider={} model={}", config.provider, config.model);
