@@ -325,3 +325,84 @@ impl NormalizedState {
         Value::Object(map)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn load_fixture(name: &str) -> Value {
+        let path = format!("tests/fixtures/{name}");
+        let content = std::fs::read_to_string(&path).unwrap();
+        serde_json::from_str(&content).unwrap()
+    }
+
+    #[test]
+    fn normalize_combat_state() {
+        let raw = load_fixture("combat-state.json");
+        let state = NormalizedState::from_raw(&raw);
+
+        assert_eq!(state.screen_type.as_deref(), Some("NONE"));
+        assert_eq!(state.character.as_deref(), Some("IRONCLAD"));
+        assert_eq!(state.floor, Some(1));
+        assert_eq!(state.current_hp, Some(68));
+        assert_eq!(state.max_hp, Some(75));
+        assert_eq!(state.gold, Some(99));
+        assert_eq!(state.energy, Some(3));
+        assert_eq!(state.block, Some(6));
+
+        assert_eq!(state.hand.len(), 3);
+        assert_eq!(state.monsters.len(), 1);
+        assert_eq!(state.relics.len(), 2);
+        assert_eq!(state.potions.len(), 1); // Potion Slot is filtered out
+        assert!(state.card_reward_choices.is_empty());
+
+        let jaw_worm = &state.monsters[0];
+        assert_eq!(jaw_worm.name, "Jaw Worm");
+        assert_eq!(jaw_worm.intent.as_deref(), Some("ATTACK"));
+    }
+
+    #[test]
+    fn normalize_card_reward_state() {
+        let raw = load_fixture("card-reward-state.json");
+        let state = NormalizedState::from_raw(&raw);
+
+        assert_eq!(state.screen_type.as_deref(), Some("CARD_REWARD"));
+        assert_eq!(state.card_reward_choices.len(), 3);
+        assert!(state.card_reward_choices.contains(&"Uppercut".to_string()));
+        assert!(state.card_reward_choices.contains(&"Anger".to_string()));
+        assert!(state.card_reward_choices.contains(&"Headbutt".to_string()));
+
+        assert!(state.hand.is_empty());
+        assert!(state.monsters.is_empty());
+    }
+
+    #[test]
+    fn stable_hash_same_state_same_hash() {
+        let raw = load_fixture("combat-state.json");
+        let state1 = NormalizedState::from_raw(&raw);
+        let state2 = NormalizedState::from_raw(&raw);
+
+        assert_eq!(state1.stable_hash(), state2.stable_hash());
+    }
+
+    #[test]
+    fn stable_hash_different_state_different_hash() {
+        let combat = load_fixture("combat-state.json");
+        let reward = load_fixture("card-reward-state.json");
+
+        let state1 = NormalizedState::from_raw(&combat);
+        let state2 = NormalizedState::from_raw(&reward);
+
+        assert_ne!(state1.stable_hash(), state2.stable_hash());
+    }
+
+    #[test]
+    fn stable_hash_produces_hex() {
+        let raw = load_fixture("combat-state.json");
+        let state = NormalizedState::from_raw(&raw);
+        let hash = state.stable_hash();
+
+        assert_eq!(hash.len(), 64);
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+}

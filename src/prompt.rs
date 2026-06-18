@@ -100,3 +100,36 @@ fn translate_class(class: &str) -> &str {
         _ => class,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::NormalizedState;
+
+    #[test]
+    fn prompt_includes_required_chinese_fields() {
+        let state = NormalizedState {
+            screen_type: Some("NONE".to_string()),
+            character: Some("IRONCLAD".to_string()),
+            floor: Some(1),
+            current_hp: Some(68),
+            max_hp: Some(75),
+            gold: Some(99),
+            energy: Some(3),
+            block: Some(6),
+            powers: vec![],
+            hand: vec![],
+            monsters: vec![],
+            card_reward_choices: vec![],
+            relics: vec![],
+            potions: vec![],
+        };
+
+        let prompt = build_prompt(&state);
+
+        assert!(prompt.contains("推荐："), "prompt must contain 推荐：");
+        assert!(prompt.contains("理由："), "prompt must contain 理由：");
+        assert!(prompt.contains("风险："), "prompt must contain 风险：");
+        assert!(prompt.contains("吐槽："), "prompt must contain 吐槽：");
+    }
+}

@@ -60,3 +60,32 @@ impl Default for AdviceCache {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::llm::LlmProvider;
+
+    #[tokio::test]
+    async fn cache_returns_cached_value() {
+        let provider = LlmProvider::Mock;
+        let mut cache = AdviceCache::new();
+
+        let hash = "abc123";
+        let prompt = "test prompt";
+
+        let first = cache.get_or_compute(hash, prompt, &provider).await;
+        let second = cache.get_or_compute(hash, prompt, &provider).await;
+
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn write_advice_creates_file() {
+        let cache = AdviceCache::new();
+        cache.write_advice("test advice text");
+
+        let content = std::fs::read_to_string("output/advice.txt").unwrap();
+        assert_eq!(content, "test advice text");
+    }
+}

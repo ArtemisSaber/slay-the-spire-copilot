@@ -90,3 +90,16 @@ impl LlmProvider {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn mock_provider_returns_non_empty() {
+        let provider = LlmProvider::Mock;
+        let result = provider.query("test prompt").await;
+        assert!(result.is_ok());
+        assert!(!result.unwrap().is_empty());
+    }
+}
