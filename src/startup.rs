@@ -81,7 +81,7 @@ fn current_exe_string() -> String {
         .unwrap_or_else(|_| "/path/to/slay-the-spire-copilot".to_string())
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn check_config_exists(paths: &[PathBuf]) -> bool {
     paths.iter().any(|p| p.exists() && config_is_valid(p))
 }

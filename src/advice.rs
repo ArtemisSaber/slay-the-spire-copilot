@@ -15,11 +15,6 @@ impl AdviceCache {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn get_cached(&self, hash: &str) -> Option<&str> {
-        self.cache.get(hash).map(|s| s.as_str())
-    }
-
     pub async fn get_or_compute(
         &mut self,
         hash: &str,

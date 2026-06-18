@@ -10,7 +10,7 @@ pub fn send_wait_to(writer: &mut impl Write) {
     let _ = writer.flush();
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn send_state_to(writer: &mut impl Write) {
     let _ = writeln!(writer, "STATE");
     let _ = writer.flush();
