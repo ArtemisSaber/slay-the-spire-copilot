@@ -2,7 +2,6 @@ use crate::llm::LlmProvider;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
-use std::path::Path;
 
 pub struct AdviceCache {
     cache: HashMap<String, String>,
@@ -38,10 +37,8 @@ impl AdviceCache {
     }
 
     pub fn write_advice(&self, advice: &str) {
-        let output_dir = Path::new("output");
-        if !output_dir.exists() {
-            let _ = fs::create_dir_all(output_dir);
-        }
+        let output_dir = crate::logging::project_root().join("output");
+        let _ = fs::create_dir_all(&output_dir);
 
         let path = output_dir.join("advice.txt");
         if let Ok(mut file) = fs::File::create(&path) {
@@ -80,7 +77,10 @@ mod tests {
         let cache = AdviceCache::new();
         cache.write_advice("test advice text");
 
-        let content = std::fs::read_to_string("output/advice.txt").unwrap();
+        let path = crate::logging::project_root()
+            .join("output")
+            .join("advice.txt");
+        let content = std::fs::read_to_string(&path).unwrap();
         assert_eq!(content, "test advice text");
     }
 }

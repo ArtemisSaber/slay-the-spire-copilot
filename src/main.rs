@@ -28,7 +28,7 @@ fn is_error(raw: &serde_json::Value) -> bool {
 
 #[tokio::main]
 async fn main() {
-    logging::init();
+    let _guard = logging::init();
     dotenvy::dotenv().ok();
 
     if !startup::ensure_config() {
