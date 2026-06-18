@@ -8,16 +8,10 @@ mod startup;
 mod state;
 
 use advice::AdviceCache;
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufRead};
 
 fn is_in_game(raw: &serde_json::Value) -> bool {
     raw.get("in_game")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false)
-}
-
-fn ready_for_command(raw: &serde_json::Value) -> bool {
-    raw.get("ready_for_command")
         .and_then(|v| v.as_bool())
         .unwrap_or(false)
 }
@@ -89,16 +83,8 @@ async fn main() {
 
         let advice = cache.get_or_compute(&hash, &prompt, &provider).await;
 
-        if let Err(e) = std::io::stdout().flush() {
-            tracing::error!("failed to flush stdout before writing advice: {e}");
-        }
-
         cache.write_advice(&advice);
         tracing::info!("wrote advice (hash={})", &hash[..16]);
-
-        if ready_for_command(&raw) {
-            protocol::send_wait();
-        }
     }
 
     tracing::info!("stdin closed, exiting");

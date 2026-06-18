@@ -5,6 +5,7 @@ pub fn send_ready_to(writer: &mut impl Write) {
     let _ = writer.flush();
 }
 
+#[cfg(test)]
 pub fn send_wait_to(writer: &mut impl Write) {
     let _ = writeln!(writer, "WAIT 30");
     let _ = writer.flush();
@@ -18,10 +19,6 @@ pub fn send_state_to(writer: &mut impl Write) {
 
 pub fn send_ready() {
     send_ready_to(&mut io::stdout().lock());
-}
-
-pub fn send_wait() {
-    send_wait_to(&mut io::stdout().lock());
 }
 
 #[cfg(test)]
