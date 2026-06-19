@@ -1,15 +1,38 @@
 use crate::config::Config;
 use anyhow::Context;
 
+#[derive(Clone, Copy)]
+pub enum Effort {
+    Fast,
+    Medium,
+    Heavy,
+}
+
+impl Effort {
+    pub fn from_screen_type(st: &str) -> Self {
+        match st {
+            "CARD_REWARD" => Effort::Heavy,
+            "NONE" => Effort::Fast,
+            _ => Effort::Medium,
+        }
+    }
+}
+
+pub(crate) struct OpenAiConfig {
+    model: String,
+    max_tokens: u32,
+}
+
 pub enum LlmProvider {
     Mock,
     OpenAiCompatible {
         base_url: String,
         api_key: String,
-        model: String,
-        max_tokens: u32,
         temperature: f64,
         client: reqwest::Client,
+        fast: OpenAiConfig,
+        medium: OpenAiConfig,
+        heavy: OpenAiConfig,
     },
 }
 
@@ -31,17 +54,27 @@ impl LlmProvider {
                 Ok(LlmProvider::OpenAiCompatible {
                     base_url: base_url.trim_end_matches('/').to_string(),
                     api_key,
-                    model: config.model.clone(),
-                    max_tokens: config.max_tokens,
                     temperature: config.temperature,
                     client: reqwest::Client::new(),
+                    fast: OpenAiConfig {
+                        model: config.model_fast.clone(),
+                        max_tokens: config.max_tokens_fast,
+                    },
+                    medium: OpenAiConfig {
+                        model: config.model_medium.clone(),
+                        max_tokens: config.max_tokens_medium,
+                    },
+                    heavy: OpenAiConfig {
+                        model: config.model_heavy.clone(),
+                        max_tokens: config.max_tokens_heavy,
+                    },
                 })
             }
             other => anyhow::bail!("unknown LLM_PROVIDER: {other}"),
         }
     }
 
-    pub async fn query(&self, prompt: &str) -> anyhow::Result<String> {
+    pub async fn query(&self, prompt: &str, effort: Effort) -> anyhow::Result<String> {
         match self {
             LlmProvider::Mock => Ok("推荐：出防御牌，注意格挡。\n\
                  理由：怪物意图攻击且你HP较低。\n\
@@ -51,19 +84,26 @@ impl LlmProvider {
             LlmProvider::OpenAiCompatible {
                 base_url,
                 api_key,
-                model,
-                max_tokens,
                 temperature,
                 client,
+                fast,
+                medium,
+                heavy,
             } => {
+                let cfg = match effort {
+                    Effort::Fast => fast,
+                    Effort::Medium => medium,
+                    Effort::Heavy => heavy,
+                };
+
                 let url = format!("{base_url}/chat/completions");
 
                 let body = serde_json::json!({
-                    "model": model,
+                    "model": cfg.model,
                     "messages": [
                         {"role": "user", "content": prompt}
                     ],
-                    "max_tokens": max_tokens,
+                    "max_tokens": cfg.max_tokens,
                     "temperature": temperature
                 });
 
@@ -104,7 +144,7 @@ mod tests {
     #[tokio::test]
     async fn mock_provider_returns_non_empty() {
         let provider = LlmProvider::Mock;
-        let result = provider.query("test prompt").await;
+        let result = provider.query("test prompt", Effort::Fast).await;
         assert!(result.is_ok());
         assert!(!result.unwrap().is_empty());
     }

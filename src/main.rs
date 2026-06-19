@@ -8,6 +8,7 @@ mod startup;
 mod state;
 
 use advice::AdviceCache;
+use llm::Effort;
 use std::io::{self, BufRead};
 
 fn is_in_game(raw: &serde_json::Value) -> bool {
@@ -30,7 +31,14 @@ async fn main() {
     }
 
     let config = config::Config::from_env();
-    tracing::info!("provider={} model={}", config.provider, config.model);
+    tracing::info!(
+        "provider={} fast={} medium={} heavy={} max_tokens={}",
+        config.provider,
+        config.model_fast,
+        config.model_medium,
+        config.model_heavy,
+        config.max_tokens_heavy,
+    );
 
     let provider = match llm::LlmProvider::from_config(&config) {
         Ok(p) => p,
@@ -108,6 +116,8 @@ async fn main() {
             normalized.danger.level,
         );
 
+        let effort = Effort::from_screen_type(screen_type);
+
         let prompt = prompt::build_prompt(&normalized);
         tracing::debug!(
             "prompt ({} chars): {}",
@@ -115,7 +125,9 @@ async fn main() {
             &prompt[..prompt.len().min(200)]
         );
 
-        let advice = cache.get_or_compute(&hash, &prompt, &provider).await;
+        let advice = cache
+            .get_or_compute(&hash, &prompt, effort, &provider)
+            .await;
 
         tracing::info!("wrote advice ({} chars hash={})", advice.len(), &hash[..16]);
         cache.write_advice(&advice);

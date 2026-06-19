@@ -1,4 +1,4 @@
-use crate::llm::LlmProvider;
+use crate::llm::{Effort, LlmProvider};
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -18,13 +18,14 @@ impl AdviceCache {
         &mut self,
         hash: &str,
         prompt: &str,
+        effort: Effort,
         provider: &LlmProvider,
     ) -> String {
         if let Some(cached) = self.cache.get(hash) {
             return cached.clone();
         }
 
-        let advice = match provider.query(prompt).await {
+        let advice = match provider.query(prompt, effort).await {
             Ok(text) => text,
             Err(e) => {
                 tracing::error!("LLM call failed: {e}");
@@ -58,7 +59,7 @@ impl Default for AdviceCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::llm::LlmProvider;
+    use crate::llm::{Effort, LlmProvider};
 
     #[tokio::test]
     async fn cache_returns_cached_value() {
@@ -68,8 +69,12 @@ mod tests {
         let hash = "abc123";
         let prompt = "test prompt";
 
-        let first = cache.get_or_compute(hash, prompt, &provider).await;
-        let second = cache.get_or_compute(hash, prompt, &provider).await;
+        let first = cache
+            .get_or_compute(hash, prompt, Effort::Fast, &provider)
+            .await;
+        let second = cache
+            .get_or_compute(hash, prompt, Effort::Fast, &provider)
+            .await;
 
         assert_eq!(first, second);
     }
