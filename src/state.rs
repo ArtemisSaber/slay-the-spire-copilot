@@ -13,24 +13,55 @@ macro_rules! i18n_name {
             .to_string()
     }};
 }
+
 #[derive(Debug, Clone, Serialize)]
 pub struct CardInfo {
     pub name: String,
     pub cost: i64,
     pub card_type: String,
     pub upgraded: bool,
+    pub uuid: Option<String>,
+}
+
+impl CardInfo {
+    fn from_json(c: &Value, i18n: &I18n) -> Self {
+        CardInfo {
+            name: i18n_name!(c, i18n, card),
+            cost: c.get("cost").and_then(|n| n.as_i64()).unwrap_or(0),
+            card_type: c
+                .get("type")
+                .and_then(|n| n.as_str())
+                .unwrap_or("?")
+                .to_string(),
+            upgraded: c
+                .get("upgrades")
+                .and_then(|n| n.as_i64())
+                .map(|u| u > 0)
+                .unwrap_or(false),
+            uuid: c
+                .get("uuid")
+                .and_then(|n| n.as_str())
+                .map(|s| s.to_string()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct MonsterInfo {
     pub name: String,
+    pub index: usize,
     pub current_hp: Option<i64>,
     pub max_hp: Option<i64>,
+    pub block: Option<i64>,
     pub intent: Option<String>,
     pub damage: Option<i64>,
+    pub hits: Option<i64>,
+    pub monster_powers: Vec<PowerInfo>,
+    pub can_be_killed: bool,
+    pub is_scaling: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PowerInfo {
     pub name: String,
     pub amount: i64,
@@ -67,13 +98,36 @@ pub struct NormalizedState {
     pub powers: Vec<PowerInfo>,
     pub hand: Vec<CardInfo>,
     pub monsters: Vec<MonsterInfo>,
-    pub card_reward_choices: Vec<String>,
+    pub card_reward_choices: Vec<CardInfo>,
     pub relics: Vec<String>,
     pub potions: Vec<String>,
     pub deck_names: Vec<String>,
     pub incoming_damage: i64,
     pub rest_options: Vec<String>,
     pub danger: DangerFlags,
+
+    pub hand_cards: Vec<CardInfo>,
+    pub draw_pile: Vec<CardInfo>,
+    pub discard_pile: Vec<CardInfo>,
+    pub exhaust_cards: Vec<CardInfo>,
+    pub master_cards: Vec<CardInfo>,
+}
+
+fn extract_cards(arr: &[Value], i18n: &I18n) -> Vec<CardInfo> {
+    arr.iter().map(|c| CardInfo::from_json(c, i18n)).collect()
+}
+
+fn extract_powers(arr: &[Value], i18n: &I18n) -> Vec<PowerInfo> {
+    arr.iter()
+        .map(|p| PowerInfo {
+            name: i18n_name!(p, i18n, power),
+            amount: p.get("amount").and_then(|n| n.as_i64()).unwrap_or(0),
+        })
+        .collect()
+}
+
+fn extract_card_names(arr: &[Value], i18n: &I18n) -> Vec<String> {
+    arr.iter().map(|c| i18n_name!(c, i18n, card)).collect()
 }
 
 impl NormalizedState {
@@ -113,54 +167,88 @@ impl NormalizedState {
         let powers: Vec<PowerInfo> = player
             .and_then(|p| p.get("powers"))
             .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .map(|p| PowerInfo {
-                        name: i18n_name!(p, i18n, power),
-                        amount: p.get("amount").and_then(|n| n.as_i64()).unwrap_or(0),
-                    })
-                    .collect()
-            })
+            .map(|arr| extract_powers(arr, i18n))
             .unwrap_or_default();
 
-        let hand = combat
+        let hand: Vec<CardInfo> = combat
             .and_then(|c| c.get("hand"))
             .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .map(|c| CardInfo {
-                        name: i18n_name!(c, i18n, card),
-                        cost: c.get("cost").and_then(|n| n.as_i64()).unwrap_or(0),
-                        card_type: c
-                            .get("type")
-                            .and_then(|n| n.as_str())
-                            .unwrap_or("?")
-                            .to_string(),
-                        upgraded: c
-                            .get("upgrades")
-                            .and_then(|n| n.as_i64())
-                            .map(|u| u > 0)
-                            .unwrap_or(false),
-                    })
-                    .collect()
-            })
+            .map(|arr| extract_cards(arr, i18n))
             .unwrap_or_default();
 
-        let monsters: Vec<MonsterInfo> = combat
-            .and_then(|c| c.get("monsters"))
+        let hand_cards = hand.clone();
+
+        let draw_pile: Vec<CardInfo> = combat
+            .and_then(|c| c.get("draw_pile"))
             .and_then(|v| v.as_array())
+            .map(|arr| extract_cards(arr, i18n))
+            .unwrap_or_default();
+
+        let discard_pile: Vec<CardInfo> = combat
+            .and_then(|c| c.get("discard_pile"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_cards(arr, i18n))
+            .unwrap_or_default();
+
+        let exhaust_cards: Vec<CardInfo> = combat
+            .and_then(|c| c.get("exhaust_pile"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_cards(arr, i18n))
+            .unwrap_or_default();
+
+        let total_hand_atk: i64 = hand_cards
+            .iter()
+            .filter(|c| c.card_type == "ATTACK")
+            .map(|c| c.cost.min(1) * 6) // rough estimate: 6 dmg per attack
+            .sum();
+
+        let monster_arr = combat
+            .and_then(|c| c.get("monsters"))
+            .and_then(|v| v.as_array());
+
+        let monsters: Vec<MonsterInfo> = monster_arr
             .map(|arr| {
                 arr.iter()
-                    .filter(|m| !m.get("is_gone").and_then(|g| g.as_bool()).unwrap_or(false))
-                    .map(|m| MonsterInfo {
-                        name: i18n_name!(m, i18n, monster),
-                        current_hp: m.get("current_hp").and_then(|n| n.as_i64()),
-                        max_hp: m.get("max_hp").and_then(|n| n.as_i64()),
-                        intent: m
-                            .get("intent")
-                            .and_then(|n| n.as_str())
-                            .map(|s| s.to_string()),
-                        damage: m.get("move_adjusted_damage").and_then(|n| n.as_i64()),
+                    .enumerate()
+                    .filter(|(_, m)| !m.get("is_gone").and_then(|g| g.as_bool()).unwrap_or(false))
+                    .map(|(idx, m)| {
+                        let hp = m.get("current_hp").and_then(|n| n.as_i64());
+                        let is_scaling = m
+                            .get("powers")
+                            .and_then(|v| v.as_array())
+                            .map(|parr| {
+                                parr.iter().any(|p| {
+                                    let id = p.get("id").and_then(|i| i.as_str()).unwrap_or("");
+                                    id == "Strength"
+                                        || id == "Regeneration"
+                                        || id == "Metallicize"
+                                        || id == "Plated Armor"
+                                })
+                            })
+                            .unwrap_or(false);
+
+                        let can_be_killed = hp.map(|h| h <= total_hand_atk).unwrap_or(false);
+
+                        MonsterInfo {
+                            name: i18n_name!(m, i18n, monster),
+                            index: idx,
+                            current_hp: hp,
+                            max_hp: m.get("max_hp").and_then(|n| n.as_i64()),
+                            block: m.get("block").and_then(|n| n.as_i64()),
+                            intent: m
+                                .get("intent")
+                                .and_then(|n| n.as_str())
+                                .map(|s| s.to_string()),
+                            damage: m.get("move_adjusted_damage").and_then(|n| n.as_i64()),
+                            hits: m.get("move_hits").and_then(|n| n.as_i64()),
+                            monster_powers: m
+                                .get("powers")
+                                .and_then(|v| v.as_array())
+                                .map(|arr| extract_powers(arr, i18n))
+                                .unwrap_or_default(),
+                            can_be_killed,
+                            is_scaling,
+                        }
                     })
                     .collect()
             })
@@ -201,11 +289,11 @@ impl NormalizedState {
             level,
         };
 
-        let card_reward_choices = gs
+        let card_reward_choices: Vec<CardInfo> = gs
             .and_then(|g| g.get("screen_state"))
             .and_then(|s| s.get("cards"))
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().map(|c| i18n_name!(c, i18n, card)).collect())
+            .map(|arr| extract_cards(arr, i18n))
             .unwrap_or_default();
 
         let rest_options: Vec<String> = gs
@@ -217,6 +305,12 @@ impl NormalizedState {
                     .filter_map(|o| o.as_str().map(|s| s.to_string()))
                     .collect()
             })
+            .unwrap_or_default();
+
+        let master_cards: Vec<CardInfo> = gs
+            .and_then(|g| g.get("deck"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_cards(arr, i18n))
             .unwrap_or_default();
 
         let mut relics: Vec<String> = gs
@@ -244,7 +338,7 @@ impl NormalizedState {
         let mut deck_names: Vec<String> = gs
             .and_then(|g| g.get("deck"))
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().map(|c| i18n_name!(c, i18n, card)).collect())
+            .map(|arr| extract_card_names(arr, i18n))
             .unwrap_or_default();
 
         relics.sort();
@@ -271,6 +365,11 @@ impl NormalizedState {
             incoming_damage,
             rest_options,
             danger,
+            hand_cards,
+            draw_pile,
+            discard_pile,
+            exhaust_cards,
+            master_cards,
         }
     }
 
@@ -371,11 +470,16 @@ impl NormalizedState {
         map.insert("monsters".to_string(), Value::Array(monster_arr));
 
         let mut sorted_choices = self.card_reward_choices.clone();
-        sorted_choices.sort();
-        map.insert(
-            "card_reward_choices".to_string(),
-            Value::Array(sorted_choices.into_iter().map(Value::String).collect()),
-        );
+        sorted_choices.sort_by(|a, b| a.name.cmp(&b.name));
+        let choices_arr: Vec<Value> = sorted_choices
+            .iter()
+            .map(|c| {
+                let mut cm = serde_json::Map::new();
+                cm.insert("name".to_string(), Value::String(c.name.clone()));
+                Value::Object(cm)
+            })
+            .collect();
+        map.insert("card_reward_choices".to_string(), Value::Array(choices_arr));
 
         let mut sorted_relics = self.relics.clone();
         sorted_relics.sort();
@@ -450,7 +554,15 @@ mod tests {
 
         let jaw_worm = &state.monsters[0];
         assert_eq!(jaw_worm.name, "大颚虫");
+        assert_eq!(jaw_worm.index, 0);
         assert_eq!(jaw_worm.intent.as_deref(), Some("ATTACK"));
+        assert!(jaw_worm.is_scaling);
+
+        assert_eq!(state.hand_cards.len(), 3);
+        assert_eq!(state.draw_pile.len(), 2);
+        assert_eq!(state.discard_pile.len(), 0);
+        assert_eq!(state.exhaust_cards.len(), 0);
+        assert_eq!(state.master_cards.len(), 1);
     }
 
     #[test]
@@ -461,14 +573,16 @@ mod tests {
 
         assert_eq!(state.screen_type.as_deref(), Some("CARD_REWARD"));
         assert_eq!(state.card_reward_choices.len(), 3);
-        assert!(state.card_reward_choices.contains(&"上勾拳".to_string()));
-        assert!(state.card_reward_choices.contains(&"愤怒".to_string()));
-        assert!(state.card_reward_choices.contains(&"头槌".to_string()));
+        assert!(state.card_reward_choices.iter().any(|c| c.name == "上勾拳"));
+        assert!(state.card_reward_choices.iter().any(|c| c.name == "愤怒"));
+        assert!(state.card_reward_choices.iter().any(|c| c.name == "头槌"));
 
         assert!(state.hand.is_empty());
         assert!(state.monsters.is_empty());
         assert_eq!(state.incoming_damage, 0);
         assert_eq!(state.danger.level, DangerLevel::Safe);
+
+        assert_eq!(state.master_cards.len(), 1);
     }
 
     #[test]

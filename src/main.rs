@@ -120,7 +120,7 @@ async fn main() {
 
         let effort = Effort::from_screen_type(screen_type);
 
-        let prompt = prompt::build_prompt(&normalized);
+        let prompt = prompt::build_prompt(&normalized, &i18n_data);
         tracing::debug!(
             "prompt ({} chars): {}",
             prompt.len(),

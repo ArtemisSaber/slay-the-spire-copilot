@@ -6,6 +6,7 @@ pub struct I18n {
     monsters: HashMap<String, String>,
     powers: HashMap<String, String>,
     potions: HashMap<String, String>,
+    card_descs: HashMap<String, String>,
 }
 
 impl I18n {
@@ -16,6 +17,7 @@ impl I18n {
             monsters: serde_json::from_str(include_str!("monsters.json")).unwrap(),
             powers: serde_json::from_str(include_str!("powers.json")).unwrap(),
             potions: serde_json::from_str(include_str!("potions.json")).unwrap(),
+            card_descs: serde_json::from_str(include_str!("card_desc.json")).unwrap(),
         }
     }
 
@@ -37,6 +39,10 @@ impl I18n {
 
     pub fn potion(&self, id: &str) -> Option<&str> {
         self.potions.get(id).map(|s| s.as_str())
+    }
+
+    pub fn card_desc(&self, id: &str) -> Option<&str> {
+        self.card_descs.get(id).map(|s| s.as_str())
     }
 }
 
@@ -191,6 +197,20 @@ mod tests {
         assert_eq!(translate_rest_option("rest"), "休息(回30%血)");
         assert_eq!(translate_rest_option("smith"), "锻造(升级)");
         assert_eq!(translate_rest_option("toke"), "回忆(移除一张牌)");
+    }
+
+    #[test]
+    fn card_desc_returns_chinese() {
+        let i = i18n();
+        assert!(i.card_desc("Uppercut").unwrap().contains("伤害"));
+        assert!(i.card_desc("Strike_R").unwrap().contains("伤害"));
+        assert!(i.card_desc("Defend_R").unwrap().contains("格挡"));
+    }
+
+    #[test]
+    fn unknown_card_desc_returns_none() {
+        let i = i18n();
+        assert_eq!(i.card_desc("NonexistentCard"), None);
     }
 
     #[test]
