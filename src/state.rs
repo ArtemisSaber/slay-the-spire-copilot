@@ -77,14 +77,14 @@ pub struct PowerInfo {
     pub amount: i64,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum DangerLevel {
     Safe,
     Caution,
     Danger,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DangerFlags {
     pub hp_critical: bool,
     pub incoming_lethal: bool,
@@ -133,7 +133,7 @@ impl DangerFlags {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NormalizedState {
     pub screen_type: Option<String>,
     pub room_type: Option<String>,

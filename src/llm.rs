@@ -78,6 +78,14 @@ impl Effort {
             _ => Effort::Medium,
         }
     }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Effort::Fast => "fast",
+            Effort::Medium => "medium",
+            Effort::Heavy => "heavy",
+        }
+    }
 }
 
 #[derive(Debug)]

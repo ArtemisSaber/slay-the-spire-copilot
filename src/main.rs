@@ -1,6 +1,7 @@
 mod advice;
 mod config;
 mod i18n;
+mod journal;
 mod llm;
 mod logging;
 mod prompt;
@@ -84,6 +85,8 @@ async fn main() {
 
     let i18n_data = i18n::I18n::load();
     let mut cache = AdviceCache::new();
+    let mut journal = journal::Journal::new();
+    journal.log_run_started();
     let stdin = io::stdin();
 
     for line in stdin.lock().lines() {
@@ -129,13 +132,14 @@ async fn main() {
             .and_then(|v| v.as_str())
             .unwrap_or("?");
 
+        let normalized = state::NormalizedState::from_raw(&raw, &i18n_data);
+        let hash = normalized.stable_hash();
+        journal.log_state_change(&hash, &normalized);
+
         if !should_generate_advice(screen_type, &raw) {
             tracing::debug!("skipping screen type: {screen_type}");
             continue;
         }
-
-        let normalized = state::NormalizedState::from_raw(&raw, &i18n_data);
-        let hash = normalized.stable_hash();
 
         tracing::info!(
             "state screen={screen_type} room={room_type} floor={} hp={}/{} block={} energy={} hand={} mons={} deck={} incoming={} danger={:?}",
@@ -166,10 +170,12 @@ async fn main() {
             .get_or_compute(&hash, &prompt, effort, &provider)
             .await;
 
+        journal.log_advice(&hash, effort, &prompt, &advice);
         tracing::info!("wrote advice ({} chars hash={})", advice.len(), &hash[..16]);
         cache.write_advice(&advice);
     }
 
+    journal.log_run_ended("stdin_closed");
     tracing::info!("stdin closed, exiting");
 }
 
