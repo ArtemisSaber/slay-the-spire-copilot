@@ -418,33 +418,28 @@ fn build_rest(state: &NormalizedState, i18n_data: &I18n) -> String {
         status_line(state),
         String::new(),
         "=== 任务 ===".to_string(),
-        "请在篝火选项中做决定。明确比较休息、锻造和特殊选项的收益，并说明当前血量是否允许贪长期收益。".to_string(),
+        "请在篝火选项中做决定。明确比较休息、锻造和特殊选项的收益，并说明当前血量是否允许贪长期收益。如果推荐锻造，必须写出要升级哪张牌。".to_string(),
         String::new(),
     ];
 
     // Upgradeable cards (unupgraded cards in master deck)
-    let upgradeable: Vec<&str> = state
+    let mut seen_upgradeable = std::collections::HashSet::new();
+    let mut upgradeable: Vec<&CardInfo> = state
         .master_cards
         .iter()
         .filter(|c| !c.upgraded && c.card_type != "CURSE" && c.card_type != "STATUS")
-        .map(|c| c.id.as_str())
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
+        .filter(|c| seen_upgradeable.insert(c.id.as_str()))
         .take(10)
         .collect();
-    let mut upgradeable: Vec<(&&str, &str)> = upgradeable
-        .iter()
-        .map(|id| (id, i18n_data.card(id).unwrap_or(*id)))
-        .collect();
-    upgradeable.sort_by_key(|(_, display)| *display);
+    upgradeable.sort_by_key(|c| i18n_data.card(&c.id).unwrap_or(&c.name).to_string());
 
     if !upgradeable.is_empty() {
-        let names: Vec<&str> = upgradeable
+        let names: Vec<String> = upgradeable
             .into_iter()
-            .map(|(_, display)| display)
+            .map(|c| format_card(c, i18n_data))
             .collect();
-        lines.push("=== 可升级卡牌 ===".to_string());
-        lines.push(names.join(" "));
+        lines.push("=== 可锻造升级目标 ===".to_string());
+        lines.extend(names);
         lines.push(String::new());
     }
 
@@ -469,6 +464,62 @@ fn build_rest(state: &NormalizedState, i18n_data: &I18n) -> String {
         } else if pct > 0.7 {
             lines.push("血量健康，可考虑锻造或挖遗物。".to_string());
         }
+    }
+
+    lines.push(format_line().to_string());
+    lines.join("\n")
+}
+
+fn build_boss_relic(state: &NormalizedState, i18n_data: &I18n) -> String {
+    let mut lines: Vec<String> = vec![
+        "=== 当前状态 ===".to_string(),
+        status_line(state),
+        String::new(),
+        "=== 任务 ===".to_string(),
+        "请从 Boss 遗物中选择一个。重点比较能量、过牌、卡组方向、已有遗物、药水、下一幕压力和副作用。".to_string(),
+        String::new(),
+        format_deck_section(&state.master_cards, i18n_data),
+    ];
+
+    if !state.boss_relic_choices.is_empty() {
+        lines.push("=== Boss 遗物 ===".to_string());
+        for (i, relic) in state.boss_relic_choices.iter().enumerate() {
+            let label = (b'A' + i as u8) as char;
+            lines.push(format!("{label}. {relic}"));
+        }
+        lines.push(String::new());
+    }
+
+    lines.push(format_line().to_string());
+    lines.join("\n")
+}
+
+fn build_event_choice(state: &NormalizedState, _i18n_data: &I18n) -> String {
+    let mut lines: Vec<String> = vec![
+        "=== 当前状态 ===".to_string(),
+        status_line(state),
+        String::new(),
+        "=== 任务 ===".to_string(),
+        "请在事件选项中做决定。比较血量、金币、卡组质量、遗物、诅咒/删牌/升级收益和长期风险；信息不足时明确说明不确定。".to_string(),
+        String::new(),
+    ];
+
+    if let Some(name) = &state.event_name {
+        lines.push("=== 事件 ===".to_string());
+        lines.push(name.clone());
+    }
+    if let Some(body) = &state.event_body {
+        lines.push(body.clone());
+        lines.push(String::new());
+    }
+
+    if !state.event_choices.is_empty() {
+        lines.push("=== 选项 ===".to_string());
+        for (i, choice) in state.event_choices.iter().enumerate() {
+            let label = (b'A' + i as u8) as char;
+            lines.push(format!("{label}. {choice}"));
+        }
+        lines.push(String::new());
     }
 
     lines.push(format_line().to_string());
@@ -519,7 +570,9 @@ fn format_line() -> &'static str {
 pub fn build_prompt(state: &NormalizedState, i18n_data: &I18n) -> String {
     match state.screen_type.as_deref() {
         Some("CARD_REWARD") => build_card_reward(state, i18n_data),
+        Some("BOSS_REWARD") => build_boss_relic(state, i18n_data),
         Some("REST") => build_rest(state, i18n_data),
+        Some("EVENT") => build_event_choice(state, i18n_data),
         _ if !state.monsters.is_empty() => build_combat(state, i18n_data),
         _ => build_generic(state, i18n_data),
     }

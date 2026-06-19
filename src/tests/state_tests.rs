@@ -97,6 +97,75 @@ fn normalize_rest_state() {
 }
 
 #[test]
+fn normalize_boss_relic_choices() {
+    let i18n = load_i18n();
+    let raw = serde_json::json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "BOSS_REWARD",
+            "screen_state": {
+                "relics": [
+                    {"id": "Snecko Eye", "name": "Snecko Eye"},
+                    {"id": "Runic Dome", "name": "Runic Dome"},
+                    {"id": "Cursed Key", "name": "Cursed Key"}
+                ]
+            },
+            "deck": [],
+            "relics": [],
+            "current_hp": 70,
+            "max_hp": 75,
+            "floor": 17,
+            "class": "IRONCLAD"
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, &i18n);
+
+    assert_eq!(state.screen_type.as_deref(), Some("BOSS_REWARD"));
+    assert_eq!(state.boss_relic_choices.len(), 3);
+    assert!(state.boss_relic_choices.iter().any(|r| r == "异蛇之眼"));
+    assert!(state.boss_relic_choices.iter().any(|r| r == "符文圆顶"));
+    assert!(state.boss_relic_choices.iter().any(|r| r == "诅咒钥匙"));
+}
+
+#[test]
+fn normalize_event_choices() {
+    let i18n = load_i18n();
+    let raw = serde_json::json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "EVENT",
+            "screen_state": {
+                "event_name": "Golden Idol",
+                "body": "A golden idol sits on a pedestal.",
+                "options": [
+                    {"label": "Take"},
+                    {"label": "Leave"}
+                ]
+            },
+            "deck": [],
+            "relics": [],
+            "current_hp": 52,
+            "max_hp": 75,
+            "gold": 120,
+            "floor": 8,
+            "class": "IRONCLAD"
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, &i18n);
+
+    assert_eq!(state.screen_type.as_deref(), Some("EVENT"));
+    assert_eq!(state.event_name.as_deref(), Some("Golden Idol"));
+    assert_eq!(
+        state.event_body.as_deref(),
+        Some("A golden idol sits on a pedestal.")
+    );
+    assert_eq!(
+        state.event_choices,
+        vec!["Take".to_string(), "Leave".to_string()]
+    );
+}
+
+#[test]
 fn danger_detects_low_hp() {
     let d = compute_danger(10, 80, 0, 0, false, &[]);
     assert!(d.hp_critical);

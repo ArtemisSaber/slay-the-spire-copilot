@@ -76,6 +76,19 @@ fn card_reward_still_generates_advice() {
 }
 
 #[test]
+fn boss_reward_generates_advice() {
+    assert!(should_generate_advice(
+        "BOSS_REWARD",
+        &no_combat_state("BOSS_REWARD")
+    ));
+}
+
+#[test]
+fn event_generates_advice() {
+    assert!(should_generate_advice("EVENT", &no_combat_state("EVENT")));
+}
+
+#[test]
 fn combat_entry_generates_advice_on_first_combat_state() {
     let mut gate = AdviceGate::new();
     let state = with_monsters("NONE");
@@ -166,8 +179,6 @@ fn screens_not_in_config_dont_generate() {
     let unconfigured = &[
         "COMBAT_REWARD",
         "SHOP",
-        "BOSS_REWARD",
-        "EVENT",
         "MAP",
         "GAME_OVER",
         "HAND_SELECT",

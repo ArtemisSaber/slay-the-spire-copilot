@@ -34,6 +34,10 @@ fn test_state() -> NormalizedState {
         hand: vec![],
         monsters: vec![],
         card_reward_choices: vec![],
+        boss_relic_choices: vec![],
+        event_name: None,
+        event_body: None,
+        event_choices: vec![],
         relics: vec![],
         potions: vec![],
         deck_names: vec![],
@@ -379,6 +383,63 @@ fn rest_prompt_marks_campfire_decision_task() {
 }
 
 #[test]
+fn rest_prompt_requires_smith_upgrade_target() {
+    let i18n = load_i18n();
+    let state = NormalizedState {
+        screen_type: Some("REST".into()),
+        rest_options: vec!["smith".into()],
+        master_cards: vec![
+            card("Bash", "Bash", 2, "ATTACK"),
+            card("Armaments", "Armaments", 1, "SKILL"),
+        ],
+        ..test_state()
+    };
+
+    let prompt = build_prompt(&state, &i18n);
+    assert!(prompt.contains("必须写出要升级哪张牌"));
+    assert!(prompt.contains("=== 可锻造升级目标 ==="));
+    assert!(prompt.contains("痛击"));
+    assert!(prompt.contains("武装"));
+}
+
+#[test]
+fn boss_relic_prompt_lists_choices() {
+    let i18n = load_i18n();
+    let state = NormalizedState {
+        screen_type: Some("BOSS_REWARD".into()),
+        boss_relic_choices: vec!["蛇眼".into(), "符文圆顶".into(), "诅咒钥匙".into()],
+        master_cards: vec![card("Bash", "Bash", 2, "ATTACK")],
+        ..test_state()
+    };
+
+    let prompt = build_prompt(&state, &i18n);
+    assert!(prompt.contains("=== Boss 遗物 ==="));
+    assert!(prompt.contains("A. 蛇眼"));
+    assert!(prompt.contains("B. 符文圆顶"));
+    assert!(prompt.contains("C. 诅咒钥匙"));
+    assert!(prompt.contains("副作用"));
+}
+
+#[test]
+fn event_prompt_lists_event_text_and_choices() {
+    let i18n = load_i18n();
+    let state = NormalizedState {
+        screen_type: Some("EVENT".into()),
+        event_name: Some("金神像".into()),
+        event_body: Some("一个金色神像闪闪发光。".into()),
+        event_choices: vec!["拿走神像".into(), "离开".into()],
+        ..test_state()
+    };
+
+    let prompt = build_prompt(&state, &i18n);
+    assert!(prompt.contains("=== 事件 ==="));
+    assert!(prompt.contains("金神像"));
+    assert!(prompt.contains("一个金色神像闪闪发光。"));
+    assert!(prompt.contains("A. 拿走神像"));
+    assert!(prompt.contains("B. 离开"));
+}
+
+#[test]
 fn generic_prompt_shows_status_and_format() {
     let i18n = load_i18n();
     let state = NormalizedState {
@@ -651,6 +712,30 @@ fn build_prompt_routes_rest() {
 }
 
 #[test]
+fn build_prompt_routes_boss_relic() {
+    let i18n = load_i18n();
+    let state = NormalizedState {
+        screen_type: Some("BOSS_REWARD".into()),
+        boss_relic_choices: vec!["蛇眼".into()],
+        ..test_state()
+    };
+    let prompt = build_prompt(&state, &i18n);
+    assert!(prompt.contains("Boss 遗物"));
+}
+
+#[test]
+fn build_prompt_routes_event_choice() {
+    let i18n = load_i18n();
+    let state = NormalizedState {
+        screen_type: Some("EVENT".into()),
+        event_choices: vec!["离开".into()],
+        ..test_state()
+    };
+    let prompt = build_prompt(&state, &i18n);
+    assert!(prompt.contains("事件选项"));
+}
+
+#[test]
 fn build_prompt_routes_combat_when_monsters_present() {
     let i18n = load_i18n();
     let state = NormalizedState {
@@ -800,7 +885,7 @@ fn rest_shows_upgradeable_cards() {
         ..test_state()
     };
     let prompt = build_prompt(&state, &i18n);
-    assert!(prompt.contains("=== 可升级卡牌 ==="));
+    assert!(prompt.contains("=== 可锻造升级目标 ==="));
 }
 
 #[test]

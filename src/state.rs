@@ -150,6 +150,10 @@ pub struct NormalizedState {
     pub hand: Vec<CardInfo>,
     pub monsters: Vec<MonsterInfo>,
     pub card_reward_choices: Vec<CardInfo>,
+    pub boss_relic_choices: Vec<String>,
+    pub event_name: Option<String>,
+    pub event_body: Option<String>,
+    pub event_choices: Vec<String>,
     pub relics: Vec<String>,
     pub potions: Vec<String>,
     pub deck_names: Vec<String>,
@@ -180,6 +184,48 @@ fn extract_powers(arr: &[Value], i18n: &I18n) -> Vec<PowerInfo> {
 
 fn extract_card_names(arr: &[Value], i18n: &I18n) -> Vec<String> {
     arr.iter().map(|c| i18n_name!(c, i18n, card)).collect()
+}
+
+fn first_array<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a Vec<Value>> {
+    keys.iter()
+        .find_map(|key| value.get(key).and_then(|v| v.as_array()))
+}
+
+fn first_string(value: &Value, keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| {
+        value
+            .get(key)
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+    })
+}
+
+fn extract_relic_names(arr: &[Value], i18n: &I18n) -> Vec<String> {
+    arr.iter()
+        .map(|r| match r {
+            Value::String(name) => name.clone(),
+            Value::Object(_) => i18n_name!(r, i18n, relic),
+            _ => "?".to_string(),
+        })
+        .collect()
+}
+
+fn extract_event_choice(option: &Value) -> Option<String> {
+    match option {
+        Value::String(text) => Some(text.clone()),
+        Value::Object(_) => first_string(
+            option,
+            &[
+                "label",
+                "text",
+                "name",
+                "choice_text",
+                "button_text",
+                "description",
+            ],
+        ),
+        _ => None,
+    }
 }
 
 impl NormalizedState {
@@ -338,6 +384,27 @@ impl NormalizedState {
             .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
+        let boss_relic_choices: Vec<String> = screen_state
+            .and_then(|s| first_array(s, &["relics", "boss_relics", "relic_options"]))
+            .map(|arr| extract_relic_names(arr, i18n))
+            .unwrap_or_default();
+
+        let event_name = screen_state
+            .and_then(|s| first_string(s, &["event_name", "name", "title"]))
+            .or_else(|| {
+                gs.and_then(|g| g.get("screen_name"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+            });
+
+        let event_body =
+            screen_state.and_then(|s| first_string(s, &["body", "event_text", "description"]));
+
+        let event_choices: Vec<String> = screen_state
+            .and_then(|s| first_array(s, &["options", "choices", "buttons"]))
+            .map(|arr| arr.iter().filter_map(extract_event_choice).collect())
+            .unwrap_or_default();
+
         let rest_options: Vec<String> = screen_state
             .and_then(|s| s.get("rest_options"))
             .and_then(|v| v.as_array())
@@ -402,6 +469,10 @@ impl NormalizedState {
             hand,
             monsters,
             card_reward_choices,
+            boss_relic_choices,
+            event_name,
+            event_body,
+            event_choices,
             relics,
             potions,
             deck_names,
@@ -536,6 +607,31 @@ impl NormalizedState {
             })
             .collect();
         map.insert("card_reward_choices".to_string(), Value::Array(choices_arr));
+
+        let mut sorted_boss_relics = self.boss_relic_choices.clone();
+        sorted_boss_relics.sort();
+        map.insert(
+            "boss_relic_choices".to_string(),
+            Value::Array(sorted_boss_relics.into_iter().map(Value::String).collect()),
+        );
+
+        if let Some(ref v) = self.event_name {
+            map.insert("event_name".to_string(), Value::String(v.clone()));
+        }
+        if let Some(ref v) = self.event_body {
+            map.insert("event_body".to_string(), Value::String(v.clone()));
+        }
+        let mut sorted_event_choices = self.event_choices.clone();
+        sorted_event_choices.sort();
+        map.insert(
+            "event_choices".to_string(),
+            Value::Array(
+                sorted_event_choices
+                    .into_iter()
+                    .map(Value::String)
+                    .collect(),
+            ),
+        );
 
         let mut sorted_relics = self.relics.clone();
         sorted_relics.sort();

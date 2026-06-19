@@ -6,7 +6,9 @@ fn scenario_system_prompts_are_defined() {
     for scenario in [
         AdviceScenario::CardReward,
         AdviceScenario::BossCardReward,
+        AdviceScenario::BossRelic,
         AdviceScenario::Rest,
+        AdviceScenario::EventChoice,
         AdviceScenario::CombatEntry,
         AdviceScenario::Generic,
     ] {
@@ -61,6 +63,10 @@ fn test_state() -> NormalizedState {
         hand: vec![],
         monsters: vec![],
         card_reward_choices: vec![],
+        boss_relic_choices: vec![],
+        event_name: None,
+        event_body: None,
+        event_choices: vec![],
         relics: vec![],
         potions: vec![],
         deck_names: vec![],
@@ -134,6 +140,32 @@ fn scenario_resolver_detects_rest() {
         ..test_state()
     };
     assert_eq!(AdviceScenario::from_state(&state), AdviceScenario::Rest);
+}
+
+#[test]
+fn scenario_resolver_detects_boss_relic() {
+    let state = NormalizedState {
+        screen_type: Some("BOSS_REWARD".into()),
+        boss_relic_choices: vec!["符文圆顶".into()],
+        ..test_state()
+    };
+    assert_eq!(
+        AdviceScenario::from_state(&state),
+        AdviceScenario::BossRelic
+    );
+}
+
+#[test]
+fn scenario_resolver_detects_event_choice() {
+    let state = NormalizedState {
+        screen_type: Some("EVENT".into()),
+        event_choices: vec!["获得遗物".into()],
+        ..test_state()
+    };
+    assert_eq!(
+        AdviceScenario::from_state(&state),
+        AdviceScenario::EventChoice
+    );
 }
 
 #[test]

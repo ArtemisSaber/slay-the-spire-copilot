@@ -96,10 +96,10 @@ struct ScreenConfig {
 }
 
 const SCREEN_CONFIG: ScreenConfig = ScreenConfig {
-    generate: &["CARD_REWARD", "REST"],
+    generate: &["CARD_REWARD", "BOSS_REWARD", "EVENT", "REST"],
     generate_on_combat: &[],
     // Future screens to add to `generate`:
-    // "REST", "SHOP", "BOSS_REWARD", "EVENT", "HAND_SELECT", "GRID",
+    // "SHOP", "HAND_SELECT", "GRID",
 };
 
 struct AdviceGate {

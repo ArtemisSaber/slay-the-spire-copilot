@@ -61,6 +61,7 @@ const REST_SYSTEM_PROMPT: &str = "\
 - 只做玩家视角的建议
 - 称呼卡牌用提供的名字，不要用游戏内部ID
 - 明确比较休息、锻造和特殊选项的收益
+- 如果推荐锻造，必须明确写出要升级哪张牌
 - 当前血量可以作为是否贪长期收益的关键参考
 - 不要编造未给出的遗物、事件或后续路线
 
@@ -82,6 +83,37 @@ const COMBAT_ENTRY_SYSTEM_PROMPT: &str = "\
 
 回复格式（中文，140字以内）：
 推荐：（总体打法）
+理由：（为什么）
+风险：（需要注意的风险）
+吐槽：（轻松评价，可选）";
+
+const BOSS_RELIC_SYSTEM_PROMPT: &str = "\
+你是一个《杀戮尖塔》Boss 遗物选择助手。请根据当前游戏状态给出建议。
+
+规则：
+- 只做玩家视角的建议
+- 称呼遗物和卡牌用提供的名字，不要用游戏内部ID
+- 重点比较能量、抽牌、卡组方向、已有遗物、药水、下一幕压力和副作用
+- 明确说明最推荐的 Boss 遗物，以及为什么其他选项较差
+- 不要编造未给出的地图、遗物或卡牌信息
+
+回复格式（中文，140字以内）：
+推荐：（选A/B/C）
+理由：（为什么）
+风险：（需要注意的风险）
+吐槽：（轻松评价，可选）";
+
+const EVENT_CHOICE_SYSTEM_PROMPT: &str = "\
+你是一个《杀戮尖塔》事件选择助手。请根据当前事件和游戏状态给出建议。
+
+规则：
+- 只做玩家视角的建议
+- 只基于给出的事件文本、选项和当前状态判断
+- 比较当前血量、金币、卡组质量、遗物、诅咒/删牌/升级收益和长期风险
+- 如果事件文本信息不足，明确说不确定，不要编造隐藏选项或奖励
+
+回复格式（中文，140字以内）：
+推荐：（选项名称）
 理由：（为什么）
 风险：（需要注意的风险）
 吐槽：（轻松评价，可选）";
@@ -150,6 +182,7 @@ impl Effort {
     pub fn from_screen_type(st: &str) -> Self {
         match st {
             "CARD_REWARD" => Effort::Heavy,
+            "BOSS_REWARD" => Effort::Heavy,
             "NONE" => Effort::Fast,
             _ => Effort::Medium,
         }
@@ -168,7 +201,9 @@ impl Effort {
 pub enum AdviceScenario {
     CardReward,
     BossCardReward,
+    BossRelic,
     Rest,
+    EventChoice,
     CombatEntry,
     Generic,
     Postmortem,
@@ -179,7 +214,9 @@ impl AdviceScenario {
         match state.screen_type.as_deref() {
             Some("CARD_REWARD") if state.is_boss_card_reward() => AdviceScenario::BossCardReward,
             Some("CARD_REWARD") => AdviceScenario::CardReward,
+            Some("BOSS_REWARD") => AdviceScenario::BossRelic,
             Some("REST") => AdviceScenario::Rest,
+            Some("EVENT") => AdviceScenario::EventChoice,
             _ if state.has_active_monsters() => AdviceScenario::CombatEntry,
             _ => AdviceScenario::Generic,
         }
@@ -189,7 +226,9 @@ impl AdviceScenario {
         match self {
             AdviceScenario::CardReward => "card_reward",
             AdviceScenario::BossCardReward => "boss_card_reward",
+            AdviceScenario::BossRelic => "boss_relic",
             AdviceScenario::Rest => "rest",
+            AdviceScenario::EventChoice => "event_choice",
             AdviceScenario::CombatEntry => "combat_entry",
             AdviceScenario::Generic => "generic",
             AdviceScenario::Postmortem => "postmortem",
@@ -200,7 +239,9 @@ impl AdviceScenario {
         match self {
             AdviceScenario::CardReward => CARD_REWARD_SYSTEM_PROMPT,
             AdviceScenario::BossCardReward => BOSS_CARD_REWARD_SYSTEM_PROMPT,
+            AdviceScenario::BossRelic => BOSS_RELIC_SYSTEM_PROMPT,
             AdviceScenario::Rest => REST_SYSTEM_PROMPT,
+            AdviceScenario::EventChoice => EVENT_CHOICE_SYSTEM_PROMPT,
             AdviceScenario::CombatEntry => COMBAT_ENTRY_SYSTEM_PROMPT,
             AdviceScenario::Generic => GENERIC_SYSTEM_PROMPT,
             AdviceScenario::Postmortem => POSTMORTEM_SYSTEM_PROMPT,
