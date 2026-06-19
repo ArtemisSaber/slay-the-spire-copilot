@@ -22,6 +22,8 @@ fn test_state() -> NormalizedState {
         screen_type: Some("NONE".to_string()),
         room_type: Some("MonsterRoom".to_string()),
         character: Some("IRONCLAD".to_string()),
+        seed: Some(-3047511808784702860),
+        ascension_level: Some(20),
         floor: Some(1),
         current_hp: Some(68),
         max_hp: Some(75),
@@ -84,6 +86,33 @@ fn combat_prompt_shows_all_three_piles() {
     assert!(prompt.contains("打击"));
     assert!(prompt.contains("防御"));
     assert!(prompt.contains("痛击"));
+}
+
+#[test]
+fn combat_prompt_marks_entry_plan_task() {
+    let i18n = load_i18n();
+    let state = NormalizedState {
+        monsters: vec![MonsterInfo {
+            name: "大颚虫".into(),
+            index: 0,
+            current_hp: Some(44),
+            max_hp: Some(46),
+            block: Some(0),
+            intent: Some("ATTACK".into()),
+            damage: Some(12),
+            hits: Some(1),
+            monster_powers: vec![],
+            can_be_killed: false,
+            is_scaling: false,
+        }],
+        ..test_state()
+    };
+
+    let prompt = build_prompt(&state, &i18n);
+    assert!(prompt.contains("=== 任务 ==="));
+    assert!(prompt.contains("进入战斗"));
+    assert!(prompt.contains("整体打法"));
+    assert!(prompt.contains("不要逐回合假设后续抽牌"));
 }
 
 #[test]
@@ -184,13 +213,72 @@ fn card_reward_shows_card_choices() {
 }
 
 #[test]
+fn card_reward_prompt_marks_pick_or_skip_task() {
+    let i18n = load_i18n();
+    let state = NormalizedState {
+        screen_type: Some("CARD_REWARD".into()),
+        floor: Some(14),
+        card_reward_choices: vec![card("Uppercut", "Uppercut", 2, "ATTACK")],
+        skip_available: true,
+        ..test_state()
+    };
+
+    let prompt = build_prompt(&state, &i18n);
+    assert!(prompt.contains("=== 任务 ==="));
+    assert!(prompt.contains("选择一张牌"));
+    assert!(prompt.contains("推荐跳过"));
+}
+
+#[test]
+fn boss_card_reward_prompt_includes_full_heal_note() {
+    let i18n = load_i18n();
+    let state = NormalizedState {
+        screen_type: Some("CARD_REWARD".into()),
+        floor: Some(17),
+        current_hp: Some(3),
+        max_hp: Some(75),
+        card_reward_choices: vec![card("Demon Form", "Demon Form", 3, "POWER")],
+        skip_available: true,
+        ..test_state()
+    };
+
+    let prompt = build_prompt(&state, &i18n);
+    assert!(
+        prompt.contains(
+            "注意：这是 Boss 战后的选牌。下一幕开始会回满血，不要把当前血量当成选牌依据。"
+        )
+    );
+    assert!(prompt.contains("下一幕"));
+    assert!(prompt.contains("卡组方向"));
+}
+
+#[test]
+fn ordinary_card_reward_prompt_omits_full_heal_note() {
+    let i18n = load_i18n();
+    let state = NormalizedState {
+        screen_type: Some("CARD_REWARD".into()),
+        floor: Some(14),
+        current_hp: Some(3),
+        max_hp: Some(75),
+        card_reward_choices: vec![card("Uppercut", "Uppercut", 2, "ATTACK")],
+        skip_available: true,
+        ..test_state()
+    };
+
+    let prompt = build_prompt(&state, &i18n);
+    assert!(
+        !prompt.contains(
+            "注意：这是 Boss 战后的选牌。下一幕开始会回满血，不要把当前血量当成选牌依据。"
+        )
+    );
+}
+
+#[test]
 fn card_reward_shows_skip_when_available() {
     let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
-        card_reward_choices: vec![
-            card("Uppercut", "Uppercut", 2, "ATTACK"),
-        ],
+        card_reward_choices: vec![card("Uppercut", "Uppercut", 2, "ATTACK")],
         master_cards: vec![card("Strike_R", "Strike", 1, "ATTACK")],
         skip_available: true,
         ..test_state()
@@ -205,9 +293,7 @@ fn card_reward_no_skip_when_unavailable() {
     let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
-        card_reward_choices: vec![
-            card("Uppercut", "Uppercut", 2, "ATTACK"),
-        ],
+        card_reward_choices: vec![card("Uppercut", "Uppercut", 2, "ATTACK")],
         master_cards: vec![card("Strike_R", "Strike", 1, "ATTACK")],
         skip_available: false,
         ..test_state()
@@ -272,6 +358,22 @@ fn rest_prompt_has_translated_options() {
     };
 
     let prompt = build_prompt(&state, &i18n);
+    assert!(prompt.contains("休息"));
+    assert!(prompt.contains("锻造"));
+}
+
+#[test]
+fn rest_prompt_marks_campfire_decision_task() {
+    let i18n = load_i18n();
+    let state = NormalizedState {
+        screen_type: Some("REST".into()),
+        rest_options: vec!["rest".into(), "smith".into()],
+        ..test_state()
+    };
+
+    let prompt = build_prompt(&state, &i18n);
+    assert!(prompt.contains("=== 任务 ==="));
+    assert!(prompt.contains("篝火选项"));
     assert!(prompt.contains("休息"));
     assert!(prompt.contains("锻造"));
 }
@@ -413,7 +515,12 @@ fn resolve_substitutes_m() {
 #[test]
 fn resolve_strips_keyword_markers() {
     let i18n = load_i18n();
-    let out = resolve_description("PathToVictory", false, "给予 !M! 层 *印记* 。 NL 所有拥有 *印记* 的敌人，失去与层数相等的生命。", &i18n);
+    let out = resolve_description(
+        "PathToVictory",
+        false,
+        "给予 !M! 层 *印记* 。 NL 所有拥有 *印记* 的敌人，失去与层数相等的生命。",
+        &i18n,
+    );
     assert!(!out.contains('*'));
     assert!(out.contains("印记"));
 }
@@ -421,21 +528,36 @@ fn resolve_strips_keyword_markers() {
 #[test]
 fn resolve_replaces_nl_with_newline() {
     let i18n = load_i18n();
-    let out = resolve_description("IronWave", false, "获得 !B! 点 格挡 。 NL 造成 !D! 点伤害。", &i18n);
+    let out = resolve_description(
+        "IronWave",
+        false,
+        "获得 !B! 点 格挡 。 NL 造成 !D! 点伤害。",
+        &i18n,
+    );
     assert_eq!(out, "获得 5 点 格挡 。\n造成 5 点伤害。");
 }
 
 #[test]
 fn resolve_uses_upgraded_values() {
     let i18n = load_i18n();
-    let out = resolve_description("Hemokinesis", true, "失去 !M! 点生命。 NL 造成 !D! 点伤害。", &i18n);
+    let out = resolve_description(
+        "Hemokinesis",
+        true,
+        "失去 !M! 点生命。 NL 造成 !D! 点伤害。",
+        &i18n,
+    );
     assert_eq!(out, "失去 2 点生命。\n造成 20 点伤害。");
 }
 
 #[test]
 fn resolve_uses_base_values_when_not_upgraded() {
     let i18n = load_i18n();
-    let out = resolve_description("Hemokinesis", false, "失去 !M! 点生命。 NL 造成 !D! 点伤害。", &i18n);
+    let out = resolve_description(
+        "Hemokinesis",
+        false,
+        "失去 !M! 点生命。 NL 造成 !D! 点伤害。",
+        &i18n,
+    );
     assert_eq!(out, "失去 2 点生命。\n造成 15 点伤害。");
 }
 
@@ -449,14 +571,24 @@ fn resolve_skips_zero_values() {
 #[test]
 fn resolve_replaces_energy_tokens() {
     let i18n = load_i18n();
-    let out = resolve_description("Bloodletting", false, "获得 [R] [R] 。 NL 失去 3 点生命。", &i18n);
+    let out = resolve_description(
+        "Bloodletting",
+        false,
+        "获得 [R] [R] 。 NL 失去 3 点生命。",
+        &i18n,
+    );
     assert_eq!(out, "获得 能量2 。\n失去 3 点生命。");
 }
 
 #[test]
 fn resolve_compacts_multiple_energy_tokens() {
     let i18n = load_i18n();
-    let out = resolve_description("Offering", false, "失去 6 点生命。 NL 获得 [R] [R] 。 NL 抽 !M! 张牌。 NL 消耗 。", &i18n);
+    let out = resolve_description(
+        "Offering",
+        false,
+        "失去 6 点生命。 NL 获得 [R] [R] 。 NL 抽 !M! 张牌。 NL 消耗 。",
+        &i18n,
+    );
     assert_eq!(out, "失去 6 点生命。\n获得 能量2 。\n抽 3 张牌。\n消耗 。");
 }
 

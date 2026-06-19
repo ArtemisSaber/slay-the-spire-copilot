@@ -6,6 +6,8 @@ fn make_state(screen_type: &str, monsters: Option<Vec<serde_json::Value>>) -> se
         "in_game": true,
         "game_state": {
             "screen_type": screen_type,
+            "floor": 1,
+            "room_type": "MonsterRoom",
         }
     });
     if let Some(monster_list) = monsters {
@@ -61,6 +63,91 @@ fn generate_screens_produce_advice() {
 }
 
 #[test]
+fn rest_screen_generates_advice() {
+    assert!(should_generate_advice("REST", &no_combat_state("REST")));
+}
+
+#[test]
+fn card_reward_still_generates_advice() {
+    assert!(should_generate_advice(
+        "CARD_REWARD",
+        &no_combat_state("CARD_REWARD")
+    ));
+}
+
+#[test]
+fn combat_entry_generates_advice_on_first_combat_state() {
+    let mut gate = AdviceGate::new();
+    let state = with_monsters("NONE");
+
+    assert!(gate.should_generate("NONE", &state));
+}
+
+#[test]
+fn combat_followup_state_does_not_generate_advice() {
+    let mut gate = AdviceGate::new();
+    let state = with_monsters("NONE");
+
+    assert!(gate.should_generate("NONE", &state));
+    assert!(!gate.should_generate("NONE", &state));
+}
+
+#[test]
+fn combat_entry_requires_active_monsters() {
+    let mut gate = AdviceGate::new();
+
+    assert!(!gate.should_generate("NONE", &without_monsters("NONE")));
+    assert!(!gate.should_generate("NONE", &make_state("NONE", Some(vec![gone_monster()]))));
+}
+
+#[test]
+fn startup_check_enabled_by_default() {
+    let opts = runtime_options_from([], None);
+    assert!(!opts.skip_startup_check);
+    assert!(!opts.force_mock_provider);
+}
+
+#[test]
+fn startup_check_skipped_by_no_startup_check_flag() {
+    let opts = runtime_options_from(["--no-startup-check"], None);
+    assert!(opts.skip_startup_check);
+    assert!(!opts.force_mock_provider);
+}
+
+#[test]
+fn startup_check_skipped_by_env_var() {
+    let opts = runtime_options_from([], Some("1"));
+    assert!(opts.skip_startup_check);
+}
+
+#[test]
+fn stdin_test_mode_uses_mock_provider_by_default() {
+    let opts = runtime_options_from(["--stdin-test"], None);
+    assert!(opts.skip_startup_check);
+    assert!(opts.force_mock_provider);
+}
+
+#[test]
+fn postmortem_mode_uses_ai_by_default() {
+    let opts = runtime_options_from(["postmortem", "runs/test/events.jsonl"], None);
+    assert_eq!(
+        opts.postmortem_path.as_deref(),
+        Some("runs/test/events.jsonl")
+    );
+    assert!(!opts.postmortem_plain);
+}
+
+#[test]
+fn postmortem_plain_flag_disables_ai_rewrite() {
+    let opts = runtime_options_from(["postmortem", "--plain", "runs/test/events.jsonl"], None);
+    assert_eq!(
+        opts.postmortem_path.as_deref(),
+        Some("runs/test/events.jsonl")
+    );
+    assert!(opts.postmortem_plain);
+}
+
+#[test]
 fn generate_on_combat_screens_need_monsters() {
     for &screen in SCREEN_CONFIG.generate_on_combat {
         assert!(
@@ -78,7 +165,6 @@ fn generate_on_combat_screens_need_monsters() {
 fn screens_not_in_config_dont_generate() {
     let unconfigured = &[
         "COMBAT_REWARD",
-        "REST",
         "SHOP",
         "BOSS_REWARD",
         "EVENT",

@@ -1,4 +1,4 @@
-use crate::llm::{Effort, LlmProvider};
+use crate::llm::{AdviceScenario, Effort, LlmProvider};
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -19,13 +19,14 @@ impl AdviceCache {
         hash: &str,
         prompt: &str,
         effort: Effort,
+        scenario: AdviceScenario,
         provider: &LlmProvider,
     ) -> String {
         if let Some(cached) = self.cache.get(hash) {
             return cached.clone();
         }
 
-        let advice = match provider.query(prompt, effort).await {
+        let advice = match provider.query_advice(prompt, effort, scenario).await {
             Ok(text) => text,
             Err(e) => {
                 tracing::error!("LLM call failed: {e}");
@@ -42,10 +43,15 @@ impl AdviceCache {
         let _ = fs::create_dir_all(&output_dir);
 
         let path = output_dir.join("advice.txt");
-        let entry = format!("{advice}\n---\n");
+        let latest = format!("{advice}\n");
 
-        if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&path) {
-            let _ = file.write_all(entry.as_bytes());
+        if let Ok(mut file) = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&path)
+        {
+            let _ = file.write_all(latest.as_bytes());
         }
     }
 }

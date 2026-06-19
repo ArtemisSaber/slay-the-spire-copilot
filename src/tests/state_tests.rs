@@ -20,6 +20,8 @@ fn normalize_combat_state() {
 
     assert_eq!(state.screen_type.as_deref(), Some("NONE"));
     assert_eq!(state.character.as_deref(), Some("IRONCLAD"));
+    assert_eq!(state.seed, Some(-3047511808784702860));
+    assert_eq!(state.ascension_level, Some(20));
     assert_eq!(state.floor, Some(1));
     assert_eq!(state.current_hp, Some(68));
     assert_eq!(state.max_hp, Some(75));
@@ -233,27 +235,101 @@ fn stable_hash_produces_hex() {
 }
 
 #[test]
+fn observation_hash_changes_when_draw_pile_changes() {
+    let i18n = load_i18n();
+    let raw1 = load_fixture("combat-state.json");
+    let mut raw2 = raw1.clone();
+    raw2["game_state"]["combat_state"]["draw_pile"][0]["uuid"] =
+        Value::String("changed-draw".into());
+
+    let state1 = NormalizedState::from_raw(&raw1, &i18n);
+    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+
+    assert_ne!(state1.observation_hash(), state2.observation_hash());
+}
+
+#[test]
+fn observation_hash_changes_when_discard_pile_changes() {
+    let i18n = load_i18n();
+    let raw1 = load_fixture("combat-state.json");
+    let mut raw2 = raw1.clone();
+    raw2["game_state"]["combat_state"]["discard_pile"] = serde_json::json!([
+        {"id":"Strike_R","name":"Strike","cost":1,"type":"ATTACK","uuid":"discarded-card","upgrades":0}
+    ]);
+
+    let state1 = NormalizedState::from_raw(&raw1, &i18n);
+    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+
+    assert_ne!(state1.observation_hash(), state2.observation_hash());
+}
+
+#[test]
+fn observation_hash_changes_when_monster_block_changes() {
+    let i18n = load_i18n();
+    let raw1 = load_fixture("combat-state.json");
+    let mut raw2 = raw1.clone();
+    raw2["game_state"]["combat_state"]["monsters"][0]["block"] = Value::Number(7.into());
+
+    let state1 = NormalizedState::from_raw(&raw1, &i18n);
+    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+
+    assert_ne!(state1.observation_hash(), state2.observation_hash());
+}
+
+#[test]
+fn observation_hash_changes_when_monster_power_changes() {
+    let i18n = load_i18n();
+    let raw1 = load_fixture("combat-state.json");
+    let mut raw2 = raw1.clone();
+    raw2["game_state"]["combat_state"]["monsters"][0]["powers"][0]["amount"] =
+        Value::Number(9.into());
+
+    let state1 = NormalizedState::from_raw(&raw1, &i18n);
+    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+
+    assert_ne!(state1.observation_hash(), state2.observation_hash());
+}
+
+#[test]
+fn observation_hash_changes_when_card_uuid_changes() {
+    let i18n = load_i18n();
+    let raw1 = load_fixture("combat-state.json");
+    let mut raw2 = raw1.clone();
+    raw2["game_state"]["combat_state"]["hand"][0]["uuid"] =
+        Value::String("changed-hand-card".into());
+
+    let state1 = NormalizedState::from_raw(&raw1, &i18n);
+    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+
+    assert_ne!(state1.observation_hash(), state2.observation_hash());
+}
+
+#[test]
 fn card_reward_filters_potion_slot() {
     let i18n = load_i18n();
     let raw = load_fixture("card-reward-state.json");
     let state = NormalizedState::from_raw(&raw, &i18n);
-    assert!(!state.potions.iter().any(|p| p.contains("Potion Slot") || p == "?"));
+    assert!(
+        !state
+            .potions
+            .iter()
+            .any(|p| p.contains("Potion Slot") || p == "?")
+    );
 }
 
 #[test]
 fn card_info_upgraded() {
     let json: Value = serde_json::from_str(
-        r#"{"id":"Strike_R","name":"Strike","cost":1,"type":"ATTACK","upgrades":1}"#
-    ).unwrap();
+        r#"{"id":"Strike_R","name":"Strike","cost":1,"type":"ATTACK","upgrades":1}"#,
+    )
+    .unwrap();
     let card = CardInfo::from_json(&json);
     assert!(card.upgraded);
 }
 
 #[test]
 fn card_info_missing_cost_and_type() {
-    let json: Value = serde_json::from_str(
-        r#"{"id":"Strike_R","name":"Strike"}"#
-    ).unwrap();
+    let json: Value = serde_json::from_str(r#"{"id":"Strike_R","name":"Strike"}"#).unwrap();
     let card = CardInfo::from_json(&json);
     assert_eq!(card.cost, 0);
     assert_eq!(card.card_type, "?");
@@ -261,23 +337,15 @@ fn card_info_missing_cost_and_type() {
 
 #[test]
 fn card_info_uuid() {
-    let json: Value = serde_json::from_str(
-        r#"{"id":"Strike_R","name":"Strike","uuid":"abc-123"}"#
-    ).unwrap();
+    let json: Value =
+        serde_json::from_str(r#"{"id":"Strike_R","name":"Strike","uuid":"abc-123"}"#).unwrap();
     let card = CardInfo::from_json(&json);
     assert_eq!(card.uuid.as_deref(), Some("abc-123"));
 }
 
 #[test]
 fn danger_none_hp_uses_fallback() {
-    let d = DangerFlags::compute(
-        None,
-        None,
-        None,
-        0,
-        &[],
-        &[],
-    );
+    let d = DangerFlags::compute(None, None, None, 0, &[], &[]);
     assert!(d.hp_critical);
     assert!(!d.incoming_lethal);
     assert_eq!(d.level, DangerLevel::Danger);

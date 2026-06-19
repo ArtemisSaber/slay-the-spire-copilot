@@ -100,9 +100,15 @@ fn resolve_description(id: &str, upgraded: bool, raw: &str, i18n_data: &I18n) ->
         let d = if upgraded { val.du } else { val.d };
         let b = if upgraded { val.bu } else { val.b };
         let m = if upgraded { val.mu } else { val.m };
-        if d > 0 { result = result.replace("!D!", &d.to_string()); }
-        if b > 0 { result = result.replace("!B!", &b.to_string()); }
-        if m > 0 { result = result.replace("!M!", &m.to_string()); }
+        if d > 0 {
+            result = result.replace("!D!", &d.to_string());
+        }
+        if b > 0 {
+            result = result.replace("!B!", &b.to_string());
+        }
+        if m > 0 {
+            result = result.replace("!M!", &m.to_string());
+        }
     }
     result = result.replace(" NL ", "\n");
     result = result.replace('*', "");
@@ -126,7 +132,12 @@ fn format_card(c: &CardInfo, i18n_data: &I18n) -> String {
     let display_name = i18n_data.card(&c.id).unwrap_or(&c.name);
     let desc = i18n_data
         .card_desc(&c.id)
-        .map(|raw| format!(" — {}", resolve_description(&c.id, c.upgraded, raw, i18n_data)))
+        .map(|raw| {
+            format!(
+                " — {}",
+                resolve_description(&c.id, c.upgraded, raw, i18n_data)
+            )
+        })
         .unwrap_or_default();
     format!(
         "{up}{name}({cost}费/{ctype}){desc}",
@@ -274,9 +285,7 @@ fn format_deck_section(cards: &[CardInfo], i18n_data: &I18n) -> String {
     for &t in &type_order {
         if let Some(group) = by_type.get(t) {
             let mut entries: Vec<(&&str, &(usize, i64, bool))> = group.iter().collect();
-            entries.sort_by_key(|(id, _)| {
-                i18n_data.card(id).unwrap_or(*id)
-            });
+            entries.sort_by_key(|(id, _)| i18n_data.card(id).unwrap_or(*id));
 
             let header = type_headers.get(t).unwrap_or(&t);
             let total: usize = entries.iter().map(|(_, (count, _, _))| count).sum();
@@ -291,7 +300,9 @@ fn format_deck_section(cards: &[CardInfo], i18n_data: &I18n) -> String {
                 if *count == 1 {
                     lines.push(format!("  {prefix}{display}({cost}费){desc}"));
                 } else {
-                    lines.push(format!("  {prefix}{display}({cost}费)（共{count}张）{desc}"));
+                    lines.push(format!(
+                        "  {prefix}{display}({cost}费)（共{count}张）{desc}"
+                    ));
                 }
             }
         }
@@ -302,11 +313,14 @@ fn format_deck_section(cards: &[CardInfo], i18n_data: &I18n) -> String {
 }
 
 fn build_combat(state: &NormalizedState, i18n_data: &I18n) -> String {
-    let mut lines: Vec<String> = Vec::new();
-
-    lines.push("=== 当前状态 ===".to_string());
-    lines.push(status_line(state));
-    lines.push(String::new());
+    let mut lines: Vec<String> = vec![
+        "=== 当前状态 ===".to_string(),
+        status_line(state),
+        String::new(),
+        "=== 任务 ===".to_string(),
+        "这是进入战斗时的一次性建议。请给出整体打法：优先击杀目标、防守底线、药水/遗物注意点；不要逐回合假设后续抽牌。".to_string(),
+        String::new(),
+    ];
 
     if state.danger.no_block_against_hit {
         lines.push("注意：当前无格挡！".to_string());
@@ -341,11 +355,28 @@ fn build_combat(state: &NormalizedState, i18n_data: &I18n) -> String {
 }
 
 fn build_card_reward(state: &NormalizedState, i18n_data: &I18n) -> String {
-    let mut lines: Vec<String> = Vec::new();
+    let task = if state.is_boss_card_reward() {
+        "请从 Boss 战后的奖励中选择一张牌，或推荐跳过。重点比较：下一幕卡组方向、成长、AOE、过牌、能量、格挡体系、Boss 遗物兼容性和卡组膨胀风险。"
+    } else {
+        "请从奖励中选择一张牌，或推荐跳过。重点比较：当前卡组缺口、费用曲线、攻防比例、遗物协同和短期生存压力。"
+    };
 
-    lines.push("=== 当前状态 ===".to_string());
-    lines.push(status_line(state));
-    lines.push(String::new());
+    let mut lines: Vec<String> = vec![
+        "=== 当前状态 ===".to_string(),
+        status_line(state),
+        String::new(),
+        "=== 任务 ===".to_string(),
+        task.to_string(),
+        String::new(),
+    ];
+
+    if state.is_boss_card_reward() {
+        lines.push(
+            "注意：这是 Boss 战后的选牌。下一幕开始会回满血，不要把当前血量当成选牌依据。"
+                .to_string(),
+        );
+        lines.push(String::new());
+    }
 
     lines.push(format_deck_section(&state.master_cards, i18n_data));
 
@@ -357,7 +388,12 @@ fn build_card_reward(state: &NormalizedState, i18n_data: &I18n) -> String {
             let display = i18n_data.card(&c.id).unwrap_or(&c.name);
             let desc = i18n_data
                 .card_desc(&c.id)
-                .map(|raw| format!(" — {}", resolve_description(&c.id, c.upgraded, raw, i18n_data)))
+                .map(|raw| {
+                    format!(
+                        " — {}",
+                        resolve_description(&c.id, c.upgraded, raw, i18n_data)
+                    )
+                })
                 .unwrap_or_default();
             lines.push(format!(
                 "{label}. {name}({cost}费/{ctype}){desc}",
@@ -377,11 +413,14 @@ fn build_card_reward(state: &NormalizedState, i18n_data: &I18n) -> String {
 }
 
 fn build_rest(state: &NormalizedState, i18n_data: &I18n) -> String {
-    let mut lines: Vec<String> = Vec::new();
-
-    lines.push("=== 当前状态 ===".to_string());
-    lines.push(status_line(state));
-    lines.push(String::new());
+    let mut lines: Vec<String> = vec![
+        "=== 当前状态 ===".to_string(),
+        status_line(state),
+        String::new(),
+        "=== 任务 ===".to_string(),
+        "请在篝火选项中做决定。明确比较休息、锻造和特殊选项的收益，并说明当前血量是否允许贪长期收益。".to_string(),
+        String::new(),
+    ];
 
     // Upgradeable cards (unupgraded cards in master deck)
     let upgradeable: Vec<&str> = state
@@ -400,7 +439,10 @@ fn build_rest(state: &NormalizedState, i18n_data: &I18n) -> String {
     upgradeable.sort_by_key(|(_, display)| *display);
 
     if !upgradeable.is_empty() {
-        let names: Vec<&str> = upgradeable.into_iter().map(|(_, display)| display).collect();
+        let names: Vec<&str> = upgradeable
+            .into_iter()
+            .map(|(_, display)| display)
+            .collect();
         lines.push("=== 可升级卡牌 ===".to_string());
         lines.push(names.join(" "));
         lines.push(String::new());
@@ -434,11 +476,14 @@ fn build_rest(state: &NormalizedState, i18n_data: &I18n) -> String {
 }
 
 fn build_generic(state: &NormalizedState, i18n_data: &I18n) -> String {
-    let mut lines: Vec<String> = Vec::new();
-
-    lines.push("=== 当前状态 ===".to_string());
-    lines.push(status_line(state));
-    lines.push(String::new());
+    let mut lines: Vec<String> = vec![
+        "=== 当前状态 ===".to_string(),
+        status_line(state),
+        String::new(),
+        "=== 任务 ===".to_string(),
+        "请基于当前状态给出一个简短、可执行的下一步建议。".to_string(),
+        String::new(),
+    ];
 
     if !state.monsters.is_empty() {
         lines.push(build_monsters_section(state));
@@ -468,7 +513,7 @@ fn build_generic(state: &NormalizedState, i18n_data: &I18n) -> String {
 }
 
 fn format_line() -> &'static str {
-    "\n请按格式用中文回复（120字内）：\n推荐：\n理由：\n风险：\n吐槽："
+    "\n请按格式用中文回复（120字内，直接给结论）：\n推荐：\n理由：\n风险：\n吐槽："
 }
 
 pub fn build_prompt(state: &NormalizedState, i18n_data: &I18n) -> String {

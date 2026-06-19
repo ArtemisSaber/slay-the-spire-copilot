@@ -1,4 +1,5 @@
-use crate::llm::Effort;
+use crate::config::Config;
+use crate::llm::{AdviceScenario, Effort};
 use crate::state::NormalizedState;
 use serde_json::json;
 use std::fs;
@@ -6,10 +7,13 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const SCHEMA_VERSION: u32 = 1;
+
 pub struct Journal {
     run_id: String,
     path: PathBuf,
-    last_state_hash: Option<String>,
+    last_observation_hash: Option<String>,
+    wrote_run_metadata: bool,
 }
 
 impl Journal {
@@ -18,18 +22,24 @@ impl Journal {
         Self::new_at(crate::logging::project_root().join("runs"), run_id)
     }
 
-    pub fn log_state_change(&mut self, hash: &str, state: &NormalizedState) {
-        if self.last_state_hash.as_deref() == Some(hash) {
+    pub fn log_state_change(&mut self, advice_hash: &str, state: &NormalizedState) {
+        self.log_first_observed_metadata(state);
+
+        let observation_hash = state.observation_hash();
+        if self.last_observation_hash.as_deref() == Some(&observation_hash) {
             return;
         }
 
-        self.last_state_hash = Some(hash.to_string());
+        self.last_observation_hash = Some(observation_hash.clone());
 
         let event = json!({
+            "schema_version": SCHEMA_VERSION,
             "ts_ms": timestamp_ms(),
             "run_id": self.run_id,
             "event": "state_changed",
-            "hash": hash,
+            "hash": advice_hash,
+            "advice_hash": advice_hash,
+            "observation_hash": observation_hash,
             "screen_type": state.screen_type,
             "room_type": state.room_type,
             "floor": state.floor,
@@ -38,8 +48,10 @@ impl Journal {
         self.append_event(&event);
     }
 
+    #[cfg(test)]
     pub fn log_run_started(&self) {
         let event = json!({
+            "schema_version": SCHEMA_VERSION,
             "ts_ms": timestamp_ms(),
             "run_id": self.run_id,
             "event": "run_started",
@@ -47,8 +59,24 @@ impl Journal {
         self.append_event(&event);
     }
 
+    pub fn log_run_started_with_config(&self, config: &Config) {
+        let event = json!({
+            "schema_version": SCHEMA_VERSION,
+            "ts_ms": timestamp_ms(),
+            "run_id": self.run_id,
+            "event": "run_started",
+            "provider": config.provider,
+            "model_fast": config.model_fast,
+            "model_medium": config.model_medium,
+            "model_heavy": config.model_heavy,
+            "app_version": env!("CARGO_PKG_VERSION"),
+        });
+        self.append_event(&event);
+    }
+
     pub fn log_run_ended(&self, reason: &str) {
         let event = json!({
+            "schema_version": SCHEMA_VERSION,
             "ts_ms": timestamp_ms(),
             "run_id": self.run_id,
             "event": "run_ended",
@@ -57,13 +85,23 @@ impl Journal {
         self.append_event(&event);
     }
 
-    pub fn log_advice(&self, state_hash: &str, effort: Effort, prompt: &str, advice: &str) {
+    pub fn log_advice(
+        &self,
+        state_hash: &str,
+        effort: Effort,
+        scenario: AdviceScenario,
+        prompt: &str,
+        advice: &str,
+    ) {
         let event = json!({
+            "schema_version": SCHEMA_VERSION,
             "ts_ms": timestamp_ms(),
             "run_id": self.run_id,
             "event": "advice",
             "state_hash": state_hash,
+            "advice_hash": state_hash,
             "effort": effort.as_str(),
+            "scenario": scenario.as_str(),
             "prompt": prompt,
             "advice": advice,
         });
@@ -89,8 +127,28 @@ impl Journal {
         Journal {
             run_id,
             path: dir.join("events.jsonl"),
-            last_state_hash: None,
+            last_observation_hash: None,
+            wrote_run_metadata: false,
         }
+    }
+
+    fn log_first_observed_metadata(&mut self, state: &NormalizedState) {
+        if self.wrote_run_metadata {
+            return;
+        }
+        self.wrote_run_metadata = true;
+
+        let event = json!({
+            "schema_version": SCHEMA_VERSION,
+            "ts_ms": timestamp_ms(),
+            "run_id": self.run_id,
+            "event": "run_metadata",
+            "character": state.character,
+            "ascension_level": state.ascension_level,
+            "seed": state.seed,
+            "floor": state.floor,
+        });
+        self.append_event(&event);
     }
 
     fn append_event(&self, event: &serde_json::Value) {

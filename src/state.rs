@@ -138,6 +138,8 @@ pub struct NormalizedState {
     pub screen_type: Option<String>,
     pub room_type: Option<String>,
     pub character: Option<String>,
+    pub seed: Option<i64>,
+    pub ascension_level: Option<i64>,
     pub floor: Option<i64>,
     pub current_hp: Option<i64>,
     pub max_hp: Option<i64>,
@@ -164,7 +166,7 @@ pub struct NormalizedState {
 }
 
 fn extract_cards(arr: &[Value]) -> Vec<CardInfo> {
-    arr.iter().map(|c| CardInfo::from_json(c)).collect()
+    arr.iter().map(CardInfo::from_json).collect()
 }
 
 fn extract_powers(arr: &[Value], i18n: &I18n) -> Vec<PowerInfo> {
@@ -199,6 +201,10 @@ impl NormalizedState {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
+        let seed = gs.and_then(|g| g.get("seed")).and_then(|v| v.as_i64());
+        let ascension_level = gs
+            .and_then(|g| g.get("ascension_level"))
+            .and_then(|v| v.as_i64());
         let floor = gs.and_then(|g| g.get("floor")).and_then(|v| v.as_i64());
         let current_hp = gs
             .and_then(|g| g.get("current_hp"))
@@ -384,6 +390,8 @@ impl NormalizedState {
             screen_type,
             room_type,
             character,
+            seed,
+            ascension_level,
             floor,
             current_hp,
             max_hp,
@@ -412,9 +420,21 @@ impl NormalizedState {
     pub fn stable_hash(&self) -> String {
         let json_value = self.to_stable_value();
         let json_bytes = serde_json::to_string(&json_value).unwrap_or_default();
-        let mut hasher = Sha256::new();
-        hasher.update(json_bytes.as_bytes());
-        hex::encode(hasher.finalize())
+        hash_bytes(json_bytes.as_bytes())
+    }
+
+    pub fn observation_hash(&self) -> String {
+        let json_bytes = serde_json::to_string(self).unwrap_or_default();
+        hash_bytes(json_bytes.as_bytes())
+    }
+
+    pub fn has_active_monsters(&self) -> bool {
+        !self.monsters.is_empty()
+    }
+
+    pub fn is_boss_card_reward(&self) -> bool {
+        self.screen_type.as_deref() == Some("CARD_REWARD")
+            && matches!(self.floor, Some(17 | 34 | 51))
     }
 
     fn to_stable_value(&self) -> Value {
@@ -552,6 +572,12 @@ impl NormalizedState {
 
         Value::Object(map)
     }
+}
+
+fn hash_bytes(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hex::encode(hasher.finalize())
 }
 
 #[cfg(test)]
