@@ -1,7 +1,18 @@
+use crate::i18n::I18n;
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+macro_rules! i18n_name {
+    ($item:expr, $i18n:expr, $method:ident) => {{
+        let id = $item.get("id").and_then(|v| v.as_str());
+        let name = $item.get("name").and_then(|v| v.as_str());
+        id.and_then(|i| $i18n.$method(i))
+            .or(name)
+            .unwrap_or("?")
+            .to_string()
+    }};
+}
 #[derive(Debug, Clone, Serialize)]
 pub struct CardInfo {
     pub name: String,
@@ -66,7 +77,7 @@ pub struct NormalizedState {
 }
 
 impl NormalizedState {
-    pub fn from_raw(raw: &Value) -> Self {
+    pub fn from_raw(raw: &Value, i18n: &I18n) -> Self {
         let gs = raw.get("game_state");
 
         let screen_type = gs
@@ -105,11 +116,7 @@ impl NormalizedState {
             .map(|arr| {
                 arr.iter()
                     .map(|p| PowerInfo {
-                        name: p
-                            .get("name")
-                            .and_then(|n| n.as_str())
-                            .unwrap_or("?")
-                            .to_string(),
+                        name: i18n_name!(p, i18n, power),
                         amount: p.get("amount").and_then(|n| n.as_i64()).unwrap_or(0),
                     })
                     .collect()
@@ -122,11 +129,7 @@ impl NormalizedState {
             .map(|arr| {
                 arr.iter()
                     .map(|c| CardInfo {
-                        name: c
-                            .get("name")
-                            .and_then(|n| n.as_str())
-                            .unwrap_or("?")
-                            .to_string(),
+                        name: i18n_name!(c, i18n, card),
                         cost: c.get("cost").and_then(|n| n.as_i64()).unwrap_or(0),
                         card_type: c
                             .get("type")
@@ -150,11 +153,7 @@ impl NormalizedState {
                 arr.iter()
                     .filter(|m| !m.get("is_gone").and_then(|g| g.as_bool()).unwrap_or(false))
                     .map(|m| MonsterInfo {
-                        name: m
-                            .get("name")
-                            .and_then(|n| n.as_str())
-                            .unwrap_or("?")
-                            .to_string(),
+                        name: i18n_name!(m, i18n, monster),
                         current_hp: m.get("current_hp").and_then(|n| n.as_i64()),
                         max_hp: m.get("max_hp").and_then(|n| n.as_i64()),
                         intent: m
@@ -206,16 +205,7 @@ impl NormalizedState {
             .and_then(|g| g.get("screen_state"))
             .and_then(|s| s.get("cards"))
             .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .map(|c| {
-                        c.get("name")
-                            .and_then(|n| n.as_str())
-                            .unwrap_or("?")
-                            .to_string()
-                    })
-                    .collect()
-            })
+            .map(|arr| arr.iter().map(|c| i18n_name!(c, i18n, card)).collect())
             .unwrap_or_default();
 
         let rest_options: Vec<String> = gs
@@ -232,16 +222,7 @@ impl NormalizedState {
         let mut relics: Vec<String> = gs
             .and_then(|g| g.get("relics"))
             .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .map(|r| {
-                        r.get("name")
-                            .and_then(|n| n.as_str())
-                            .unwrap_or("?")
-                            .to_string()
-                    })
-                    .collect()
-            })
+            .map(|arr| arr.iter().map(|r| i18n_name!(r, i18n, relic)).collect())
             .unwrap_or_default();
 
         let mut potions: Vec<String> = gs
@@ -255,12 +236,7 @@ impl NormalizedState {
                             .map(|id| id != "Potion Slot")
                             .unwrap_or(true)
                     })
-                    .map(|p| {
-                        p.get("name")
-                            .and_then(|n| n.as_str())
-                            .unwrap_or("?")
-                            .to_string()
-                    })
+                    .map(|p| i18n_name!(p, i18n, potion))
                     .collect()
             })
             .unwrap_or_default();
@@ -268,16 +244,7 @@ impl NormalizedState {
         let mut deck_names: Vec<String> = gs
             .and_then(|g| g.get("deck"))
             .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .map(|c| {
-                        c.get("name")
-                            .and_then(|n| n.as_str())
-                            .unwrap_or("?")
-                            .to_string()
-                    })
-                    .collect()
-            })
+            .map(|arr| arr.iter().map(|c| i18n_name!(c, i18n, card)).collect())
             .unwrap_or_default();
 
         relics.sort();
@@ -446,6 +413,10 @@ impl NormalizedState {
 mod tests {
     use super::*;
 
+    fn load_i18n() -> I18n {
+        I18n::load()
+    }
+
     fn load_fixture(name: &str) -> Value {
         let path = format!("tests/fixtures/{name}");
         let content = std::fs::read_to_string(&path).unwrap();
@@ -454,8 +425,9 @@ mod tests {
 
     #[test]
     fn normalize_combat_state() {
+        let i18n = load_i18n();
         let raw = load_fixture("combat-state.json");
-        let state = NormalizedState::from_raw(&raw);
+        let state = NormalizedState::from_raw(&raw, &i18n);
 
         assert_eq!(state.screen_type.as_deref(), Some("NONE"));
         assert_eq!(state.character.as_deref(), Some("IRONCLAD"));
@@ -477,20 +449,21 @@ mod tests {
         assert!(state.danger.any_monster_attacking);
 
         let jaw_worm = &state.monsters[0];
-        assert_eq!(jaw_worm.name, "Jaw Worm");
+        assert_eq!(jaw_worm.name, "大颚虫");
         assert_eq!(jaw_worm.intent.as_deref(), Some("ATTACK"));
     }
 
     #[test]
     fn normalize_card_reward_state() {
+        let i18n = load_i18n();
         let raw = load_fixture("card-reward-state.json");
-        let state = NormalizedState::from_raw(&raw);
+        let state = NormalizedState::from_raw(&raw, &i18n);
 
         assert_eq!(state.screen_type.as_deref(), Some("CARD_REWARD"));
         assert_eq!(state.card_reward_choices.len(), 3);
-        assert!(state.card_reward_choices.contains(&"Uppercut".to_string()));
-        assert!(state.card_reward_choices.contains(&"Anger".to_string()));
-        assert!(state.card_reward_choices.contains(&"Headbutt".to_string()));
+        assert!(state.card_reward_choices.contains(&"上勾拳".to_string()));
+        assert!(state.card_reward_choices.contains(&"愤怒".to_string()));
+        assert!(state.card_reward_choices.contains(&"头槌".to_string()));
 
         assert!(state.hand.is_empty());
         assert!(state.monsters.is_empty());
@@ -547,28 +520,31 @@ mod tests {
 
     #[test]
     fn stable_hash_same_state_same_hash() {
+        let i18n = load_i18n();
         let raw = load_fixture("combat-state.json");
-        let state1 = NormalizedState::from_raw(&raw);
-        let state2 = NormalizedState::from_raw(&raw);
+        let state1 = NormalizedState::from_raw(&raw, &i18n);
+        let state2 = NormalizedState::from_raw(&raw, &i18n);
 
         assert_eq!(state1.stable_hash(), state2.stable_hash());
     }
 
     #[test]
     fn stable_hash_different_state_different_hash() {
+        let i18n = load_i18n();
         let combat = load_fixture("combat-state.json");
         let reward = load_fixture("card-reward-state.json");
 
-        let state1 = NormalizedState::from_raw(&combat);
-        let state2 = NormalizedState::from_raw(&reward);
+        let state1 = NormalizedState::from_raw(&combat, &i18n);
+        let state2 = NormalizedState::from_raw(&reward, &i18n);
 
         assert_ne!(state1.stable_hash(), state2.stable_hash());
     }
 
     #[test]
     fn stable_hash_produces_hex() {
+        let i18n = load_i18n();
         let raw = load_fixture("combat-state.json");
-        let state = NormalizedState::from_raw(&raw);
+        let state = NormalizedState::from_raw(&raw, &i18n);
         let hash = state.stable_hash();
 
         assert_eq!(hash.len(), 64);

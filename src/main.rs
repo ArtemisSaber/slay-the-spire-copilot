@@ -1,5 +1,6 @@
 mod advice;
 mod config;
+mod i18n;
 mod llm;
 mod logging;
 mod prompt;
@@ -51,6 +52,7 @@ async fn main() {
     protocol::send_ready();
     tracing::info!("sent ready");
 
+    let i18n_data = i18n::I18n::load();
     let mut cache = AdviceCache::new();
     let stdin = io::stdin();
 
@@ -97,7 +99,7 @@ async fn main() {
             .and_then(|v| v.as_str())
             .unwrap_or("?");
 
-        let normalized = state::NormalizedState::from_raw(&raw);
+        let normalized = state::NormalizedState::from_raw(&raw, &i18n_data);
         let hash = normalized.stable_hash();
 
         tracing::info!(

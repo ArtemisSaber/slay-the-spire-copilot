@@ -1,3 +1,4 @@
+use crate::i18n;
 use crate::state::{DangerLevel, MonsterInfo, NormalizedState};
 
 pub struct DeckAnalysis {
@@ -83,29 +84,6 @@ fn danger_prefix(state: &NormalizedState) -> String {
     }
 }
 
-fn translate_class(class: &str) -> &str {
-    match class {
-        "IRONCLAD" => "铁甲战士",
-        "THE_SILENT" => "猎人",
-        "DEFECT" => "机器人",
-        "WATCHER" => "观者",
-        _ => class,
-    }
-}
-
-fn translate_rest_option(opt: &str) -> &str {
-    match opt {
-        "rest" => "休息(回30%血)",
-        "smith" => "锻造(升级)",
-        "toke" => "回忆(移除一张牌)",
-        "dig" => "挖遗物",
-        "lift" => "举重(永久+1力量)",
-        "recall" => "回忆钥匙",
-        "girya" => "深蹲(力量)",
-        _ => opt,
-    }
-}
-
 fn header_line(state: &NormalizedState) -> String {
     let mut parts: Vec<String> = Vec::new();
 
@@ -113,7 +91,7 @@ fn header_line(state: &NormalizedState) -> String {
     parts.push(prefix);
 
     if let Some(ref c) = state.character {
-        parts.push(format!("角色：{}", translate_class(c)));
+        parts.push(format!("角色：{}", i18n::translate_class(c)));
     }
     if let Some(f) = state.floor {
         parts.push(format!("层数：{f}"));
@@ -164,22 +142,11 @@ fn hand_line(state: &NormalizedState) -> Option<String> {
                 "{up}{}({}费/{})",
                 c.name,
                 c.cost,
-                translate_type(&c.card_type)
+                i18n::translate_type(&c.card_type)
             )
         })
         .collect();
     Some(format!("手牌：{}", cards.join(" ")))
-}
-
-fn translate_type(t: &str) -> &str {
-    match t {
-        "ATTACK" => "攻击",
-        "SKILL" => "技能",
-        "POWER" => "能力",
-        "CURSE" => "诅咒",
-        "STATUS" => "状态",
-        _ => t,
-    }
 }
 
 fn monsters_line(state: &NormalizedState) -> Option<String> {
@@ -196,35 +163,12 @@ fn format_monster(m: &MonsterInfo) -> String {
         s.push_str(&format!("({cur}/{max})"));
     }
     if let Some(ref intent) = m.intent {
-        s.push_str(&format!("[{}]", translate_intent(intent)));
+        s.push_str(&format!("[{}]", i18n::translate_intent(intent)));
     }
     if let Some(dmg) = m.damage {
         s.push_str(&format!("[{dmg}伤]"));
     }
     s
-}
-
-fn translate_intent(intent: &str) -> &str {
-    match intent {
-        "ATTACK" => "攻击",
-        "ATTACK_BUFF" => "攻击+增益",
-        "ATTACK_DEBUFF" => "攻击+减益",
-        "ATTACK_DEFEND" => "攻击+防御",
-        "BUFF" => "增益",
-        "DEBUFF" => "减益",
-        "STRONG_DEBUFF" => "强力减益",
-        "DEBUG" => "调试",
-        "DEFEND" => "防御",
-        "DEFEND_DEBUFF" => "防御+减益",
-        "DEFEND_BUFF" => "防御+增益",
-        "ESCAPE" => "逃跑",
-        "MAGIC" => "法术",
-        "NONE" => "无",
-        "SLEEP" => "睡眠",
-        "STUN" => "眩晕",
-        "UNKNOWN" => "未知",
-        _ => intent,
-    }
 }
 
 fn deck_summary(state: &NormalizedState) -> Option<String> {
@@ -308,7 +252,7 @@ fn build_card_reward(state: &NormalizedState) -> String {
     let mut parts: Vec<String> = Vec::new();
     parts.push(danger_prefix(state));
     if let Some(ref c) = state.character {
-        parts.push(format!("角色：{}", translate_class(c)));
+        parts.push(format!("角色：{}", i18n::translate_class(c)));
     }
     if let Some(f) = state.floor {
         parts.push(format!("层数：{f}"));
@@ -358,7 +302,7 @@ fn build_rest(state: &NormalizedState) -> String {
         let opts: Vec<String> = state
             .rest_options
             .iter()
-            .map(|o| translate_rest_option(o).to_string())
+            .map(|o| i18n::translate_rest_option(o).to_string())
             .collect();
         lines.push(format!("选项：{}", opts.join("  ")));
     }
