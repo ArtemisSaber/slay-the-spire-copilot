@@ -22,10 +22,40 @@ fn is_error(raw: &serde_json::Value) -> bool {
     raw.get("error").is_some()
 }
 
+fn has_monsters(raw: &serde_json::Value) -> bool {
+    raw.pointer("/game_state/combat_state/monsters")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().any(|m| !m.get("is_gone").and_then(|g| g.as_bool()).unwrap_or(false)))
+        .unwrap_or(false)
+}
+
+struct ScreenConfig {
+    generate: &'static [&'static str],
+    generate_on_combat: &'static [&'static str],
+}
+
+const SCREEN_CONFIG: ScreenConfig = ScreenConfig {
+    generate: &["CARD_REWARD"],
+    generate_on_combat: &["NONE"],
+    // Future screens to add to `generate`:
+    // "REST", "SHOP", "BOSS_REWARD", "EVENT", "HAND_SELECT", "GRID",
+};
+
+fn should_generate_advice(screen_type: &str, raw: &serde_json::Value) -> bool {
+    if SCREEN_CONFIG.generate.contains(&screen_type) {
+        return true;
+    }
+    if SCREEN_CONFIG.generate_on_combat.contains(&screen_type) && has_monsters(raw) {
+        return true;
+    }
+    false
+}
+
 #[tokio::main]
 async fn main() {
     let _guard = logging::init();
-    dotenvy::dotenv().ok();
+    let project_root = logging::project_root();
+    let _ = dotenvy::from_path(project_root.join(".env"));
 
     if !startup::ensure_config() {
         return;
@@ -99,6 +129,11 @@ async fn main() {
             .and_then(|v| v.as_str())
             .unwrap_or("?");
 
+        if !should_generate_advice(screen_type, &raw) {
+            tracing::debug!("skipping screen type: {screen_type}");
+            continue;
+        }
+
         let normalized = state::NormalizedState::from_raw(&raw, &i18n_data);
         let hash = normalized.stable_hash();
 
@@ -137,3 +172,7 @@ async fn main() {
 
     tracing::info!("stdin closed, exiting");
 }
+
+#[cfg(test)]
+#[path = "tests/main_tests.rs"]
+mod tests;

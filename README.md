@@ -64,7 +64,7 @@ command=/path/to/slay-the-spire-copilot/target/release/slay-the-spire-copilot
 
 The binary communicates with CommunicationMod via stdin/stdout:
 
-- **stdout** → `ready\n` (on startup) → `WAIT 30\n` (after each state)
+- **stdout** → `ready\n` (on startup)
 - **stdin** → line-delimited JSON game state from CommunicationMod
 
 All logs go to `logs/sts-ai.log`. stdout is reserved exclusively for CommunicationMod protocol commands.

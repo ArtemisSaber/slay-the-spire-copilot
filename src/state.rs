@@ -84,6 +84,45 @@ pub struct DangerFlags {
     pub level: DangerLevel,
 }
 
+impl DangerFlags {
+    pub fn compute(
+        current_hp: Option<i64>,
+        max_hp: Option<i64>,
+        block: Option<i64>,
+        incoming_damage: i64,
+        monsters: &[MonsterInfo],
+        powers: &[PowerInfo],
+    ) -> Self {
+        let hp = current_hp.unwrap_or(0);
+        let max_hp_val = max_hp.unwrap_or(1);
+        let block_val = block.unwrap_or(0);
+
+        let hp_critical = max_hp_val > 0 && (hp as f64 / max_hp_val as f64) < 0.3;
+        let incoming_lethal = incoming_damage > hp + block_val;
+        let no_block_against_hit = block_val == 0 && incoming_damage > 0;
+        let low_hp = max_hp_val > 0 && (hp as f64 / max_hp_val as f64) < 0.6;
+        let any_monster_attacking = monsters.iter().any(|m| m.intent.as_deref() != Some("NONE"));
+        let wrath_stance = powers.iter().any(|p| p.name == "Wrath" && p.amount > 0);
+
+        let level = if hp_critical || incoming_lethal {
+            DangerLevel::Danger
+        } else if low_hp || no_block_against_hit || any_monster_attacking {
+            DangerLevel::Caution
+        } else {
+            DangerLevel::Safe
+        };
+
+        DangerFlags {
+            hp_critical,
+            incoming_lethal,
+            no_block_against_hit,
+            any_monster_attacking,
+            wrath_stance,
+            level,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct NormalizedState {
     pub screen_type: Option<String>,
@@ -260,34 +299,14 @@ impl NormalizedState {
             .filter_map(|m| m.damage)
             .sum();
 
-        let wrath_stance = powers.iter().any(|p| p.name == "Wrath" && p.amount > 0);
-
-        let hp = current_hp.unwrap_or(0);
-        let max_hp_val = max_hp.unwrap_or(1);
-        let block_val = block.unwrap_or(0);
-
-        let hp_critical = max_hp_val > 0 && (hp as f64 / max_hp_val as f64) < 0.3;
-        let incoming_lethal = incoming_damage > hp + block_val;
-        let no_block_against_hit = block_val == 0 && incoming_damage > 0;
-        let low_hp = max_hp_val > 0 && (hp as f64 / max_hp_val as f64) < 0.6;
-        let any_monster_attacking = monsters.iter().any(|m| m.intent.as_deref() != Some("NONE"));
-
-        let level = if hp_critical || incoming_lethal {
-            DangerLevel::Danger
-        } else if low_hp || no_block_against_hit || any_monster_attacking {
-            DangerLevel::Caution
-        } else {
-            DangerLevel::Safe
-        };
-
-        let danger = DangerFlags {
-            hp_critical,
-            incoming_lethal,
-            no_block_against_hit,
-            any_monster_attacking,
-            wrath_stance,
-            level,
-        };
+        let danger = DangerFlags::compute(
+            current_hp,
+            max_hp,
+            block,
+            incoming_damage,
+            &monsters,
+            &powers,
+        );
 
         let card_reward_choices: Vec<CardInfo> = gs
             .and_then(|g| g.get("screen_state"))
@@ -514,154 +533,5 @@ impl NormalizedState {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn load_i18n() -> I18n {
-        I18n::load()
-    }
-
-    fn load_fixture(name: &str) -> Value {
-        let path = format!("tests/fixtures/{name}");
-        let content = std::fs::read_to_string(&path).unwrap();
-        serde_json::from_str(&content).unwrap()
-    }
-
-    #[test]
-    fn normalize_combat_state() {
-        let i18n = load_i18n();
-        let raw = load_fixture("combat-state.json");
-        let state = NormalizedState::from_raw(&raw, &i18n);
-
-        assert_eq!(state.screen_type.as_deref(), Some("NONE"));
-        assert_eq!(state.character.as_deref(), Some("IRONCLAD"));
-        assert_eq!(state.floor, Some(1));
-        assert_eq!(state.current_hp, Some(68));
-        assert_eq!(state.max_hp, Some(75));
-        assert_eq!(state.gold, Some(99));
-        assert_eq!(state.energy, Some(3));
-        assert_eq!(state.block, Some(6));
-
-        assert_eq!(state.hand.len(), 3);
-        assert_eq!(state.monsters.len(), 1);
-        assert_eq!(state.relics.len(), 2);
-        assert_eq!(state.potions.len(), 1);
-        assert!(state.card_reward_choices.is_empty());
-
-        assert_eq!(state.incoming_damage, 12);
-        assert_eq!(state.danger.level, DangerLevel::Caution);
-        assert!(state.danger.any_monster_attacking);
-
-        let jaw_worm = &state.monsters[0];
-        assert_eq!(jaw_worm.name, "大颚虫");
-        assert_eq!(jaw_worm.index, 0);
-        assert_eq!(jaw_worm.intent.as_deref(), Some("ATTACK"));
-        assert!(jaw_worm.is_scaling);
-
-        assert_eq!(state.hand_cards.len(), 3);
-        assert_eq!(state.draw_pile.len(), 2);
-        assert_eq!(state.discard_pile.len(), 0);
-        assert_eq!(state.exhaust_cards.len(), 0);
-        assert_eq!(state.master_cards.len(), 1);
-    }
-
-    #[test]
-    fn normalize_card_reward_state() {
-        let i18n = load_i18n();
-        let raw = load_fixture("card-reward-state.json");
-        let state = NormalizedState::from_raw(&raw, &i18n);
-
-        assert_eq!(state.screen_type.as_deref(), Some("CARD_REWARD"));
-        assert_eq!(state.card_reward_choices.len(), 3);
-        assert!(state.card_reward_choices.iter().any(|c| c.name == "上勾拳"));
-        assert!(state.card_reward_choices.iter().any(|c| c.name == "愤怒"));
-        assert!(state.card_reward_choices.iter().any(|c| c.name == "头槌"));
-
-        assert!(state.hand.is_empty());
-        assert!(state.monsters.is_empty());
-        assert_eq!(state.incoming_damage, 0);
-        assert_eq!(state.danger.level, DangerLevel::Safe);
-
-        assert_eq!(state.master_cards.len(), 1);
-    }
-
-    #[test]
-    fn danger_detects_low_hp() {
-        let d = compute_danger(10, 80, 0, 0, false, &[]);
-        assert!(d.hp_critical);
-        assert!(!d.incoming_lethal);
-        assert_eq!(d.level, DangerLevel::Danger);
-    }
-
-    #[test]
-    fn danger_detects_incoming_lethal() {
-        let d = compute_danger(20, 80, 5, 30, false, &[]);
-        assert!(d.incoming_lethal);
-        assert_eq!(d.level, DangerLevel::Danger);
-    }
-
-    fn compute_danger(
-        hp: i64,
-        max_hp: i64,
-        block: i64,
-        incoming: i64,
-        wrath: bool,
-        intents: &[&str],
-    ) -> DangerFlags {
-        let hp_critical = max_hp > 0 && (hp as f64 / max_hp as f64) < 0.3;
-        let incoming_lethal = incoming > hp + block;
-        let no_block_against_hit = block == 0 && incoming > 0;
-        let low_hp = max_hp > 0 && (hp as f64 / max_hp as f64) < 0.6;
-        let any_monster_attacking = intents.iter().any(|i| *i != "NONE");
-
-        let level = if hp_critical || incoming_lethal {
-            DangerLevel::Danger
-        } else if low_hp || no_block_against_hit || any_monster_attacking {
-            DangerLevel::Caution
-        } else {
-            DangerLevel::Safe
-        };
-
-        DangerFlags {
-            hp_critical,
-            incoming_lethal,
-            no_block_against_hit,
-            any_monster_attacking,
-            wrath_stance: wrath,
-            level,
-        }
-    }
-
-    #[test]
-    fn stable_hash_same_state_same_hash() {
-        let i18n = load_i18n();
-        let raw = load_fixture("combat-state.json");
-        let state1 = NormalizedState::from_raw(&raw, &i18n);
-        let state2 = NormalizedState::from_raw(&raw, &i18n);
-
-        assert_eq!(state1.stable_hash(), state2.stable_hash());
-    }
-
-    #[test]
-    fn stable_hash_different_state_different_hash() {
-        let i18n = load_i18n();
-        let combat = load_fixture("combat-state.json");
-        let reward = load_fixture("card-reward-state.json");
-
-        let state1 = NormalizedState::from_raw(&combat, &i18n);
-        let state2 = NormalizedState::from_raw(&reward, &i18n);
-
-        assert_ne!(state1.stable_hash(), state2.stable_hash());
-    }
-
-    #[test]
-    fn stable_hash_produces_hex() {
-        let i18n = load_i18n();
-        let raw = load_fixture("combat-state.json");
-        let state = NormalizedState::from_raw(&raw, &i18n);
-        let hash = state.stable_hash();
-
-        assert_eq!(hash.len(), 64);
-        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
-    }
-}
+#[path = "tests/state_tests.rs"]
+mod tests;

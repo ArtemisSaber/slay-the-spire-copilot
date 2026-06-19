@@ -116,7 +116,7 @@ fn write_command_to_config(path: &Path, command: &str) -> bool {
     fs::write(path, &new_content).is_ok()
 }
 
-fn show_setup_message(config_path: &str, exe_path: &str) {
+fn show_setup_message_to(writer: &mut impl Write, config_path: &str, exe_path: &str) {
     let message = format!(
         "\n\
          ╔═══════════════════════════════════════════════╗\n\
@@ -134,12 +134,15 @@ fn show_setup_message(config_path: &str, exe_path: &str) {
             runAtGameStart=true\n\n\
          4. 通过 ModTheSpire 启动游戏并启用 CommunicationMod\n\n\
          也可以手动测试（mock provider）：\n\
-           echo '{{\"in_game\":true,...}}' | {exe_path}\n"
+            echo '{{\"in_game\":true,...}}' | {exe_path}\n"
     );
 
-    let mut stdout = std::io::stdout().lock();
-    let _ = writeln!(stdout, "{message}");
-    let _ = stdout.flush();
+    let _ = writeln!(writer, "{message}");
+    let _ = writer.flush();
+}
+
+fn show_setup_message(config_path: &str, exe_path: &str) {
+    show_setup_message_to(&mut std::io::stdout().lock(), config_path, exe_path);
 }
 
 fn restart_hint() {
@@ -245,74 +248,5 @@ pub fn ensure_config() -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn temp_config(content: &str) -> (tempfile::TempDir, PathBuf) {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.properties");
-        fs::write(&path, content).unwrap();
-        (dir, path)
-    }
-
-    #[test]
-    fn correct_config_passes() {
-        let current = env::current_exe().unwrap();
-        let (_dir, config) = temp_config(&format!("command={}\n", current.display()));
-        let paths = vec![config];
-        assert!(check_config_matches_current_exe(&paths));
-    }
-
-    #[test]
-    fn wrong_config_fails() {
-        let (_dir, config) = temp_config("command=/usr/bin/other-bot\n");
-        let paths = vec![config];
-        assert!(!check_config_matches_current_exe(&paths));
-    }
-
-    #[test]
-    fn empty_command_auto_fixes() {
-        let current = env::current_exe().unwrap().display().to_string();
-        let (_dir, config) = temp_config("command=\n");
-        assert!(write_command_to_config(&config, &current));
-        let updated = fs::read_to_string(&config).unwrap();
-        assert!(updated.contains(&format!("command={current}")));
-    }
-
-    #[test]
-    fn no_config_at_all() {
-        let paths = vec![PathBuf::from("/tmp/nonexistent-config-12345.properties")];
-        assert!(!check_config_matches_current_exe(&paths));
-    }
-
-    #[test]
-    fn setup_message_contains_key_info() {
-        let exe = env::current_exe().unwrap().display().to_string();
-
-        let message = format!(
-            "\n\
-             ╔═══════════════════════════════════════════════╗\n\
-             ║   Slay the Spire AI Copilot — 尚未配置       ║\n\
-             ╚═══════════════════════════════════════════════╝\n\n\
-             尚未找到指向当前二进制文件的 CommunicationMod 配置。\n\n\
-             配置步骤：\n\
-             1. 安装 ModTheSpire 和 CommunicationMod\n\
-                https://github.com/kiooeht/ModTheSpire\n\
-                https://github.com/ForgottenArbiter/CommunicationMod\n\n\
-             2. 编辑配置文件：\n\
-                /test/config/path\n\n\
-             3. 添加以下内容（确保 command 指向当前二进制文件）：\n\
-                command={exe}\n\
-                runAtGameStart=true\n\n\
-             4. 通过 ModTheSpire 启动游戏并启用 CommunicationMod\n\n\
-             也可以手动测试（mock provider）：\n\
-               echo '{{\"in_game\":true,...}}' | {exe}\n"
-        );
-
-        assert!(message.contains("尚未配置"));
-        assert!(message.contains("ModTheSpire"));
-        assert!(message.contains("CommunicationMod"));
-        assert!(message.contains("command="));
-        assert!(message.contains("runAtGameStart=true"));
-    }
-}
+#[path = "tests/startup_tests.rs"]
+mod tests;

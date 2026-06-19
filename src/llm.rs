@@ -1,6 +1,15 @@
 use crate::config::Config;
 use anyhow::Context;
 
+const SYSTEM_PROMPT: &str = "\
+你是一个《杀戮尖塔》策略助手。根据当前游戏状态给出简洁建议。
+
+回复格式（中文，120字以内）：
+推荐：（具体行动建议）
+理由：（为什么）
+风险：（需要注意的风险）
+吐槽：（轻松评价，可选）";
+
 #[derive(Clone, Copy)]
 pub enum Effort {
     Fast,
@@ -101,6 +110,7 @@ impl LlmProvider {
                 let body = serde_json::json!({
                     "model": cfg.model,
                     "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": prompt}
                     ],
                     "max_tokens": cfg.max_tokens,
@@ -138,14 +148,5 @@ impl LlmProvider {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn mock_provider_returns_non_empty() {
-        let provider = LlmProvider::Mock;
-        let result = provider.query("test prompt", Effort::Fast).await;
-        assert!(result.is_ok());
-        assert!(!result.unwrap().is_empty());
-    }
-}
+#[path = "tests/llm_tests.rs"]
+mod tests;
