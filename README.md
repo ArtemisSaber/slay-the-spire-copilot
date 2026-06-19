@@ -45,6 +45,27 @@ Windows builds produce:
 target/release/slay-the-spire-copilot.exe
 ```
 
+### Developer Git Hook / 开发者 Git Hook
+
+Enable the versioned pre-commit hook once per clone:
+
+每次克隆仓库后执行一次，启用仓库内置的 pre-commit hook：
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Before each commit, the hook runs the same local CI flow as GitHub Actions:
+
+每次提交前，hook 会运行与 GitHub Actions 相同的本地 CI 流程：
+
+```bash
+cargo fmt --check
+cargo clippy -- -D warnings
+cargo test
+cargo build --release
+```
+
 ## Environment File / 创建环境变量文件
 
 Copy `.env.example` to `.env` in the same directory where you run the binary.
