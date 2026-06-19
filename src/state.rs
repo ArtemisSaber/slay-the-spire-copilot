@@ -429,20 +429,15 @@ impl NormalizedState {
             .and_then(|s| first_raw_string(s, &["event_id", "eventId", "id"]))
             .filter(|s| is_readable_text(s));
 
-        let event_name = screen_state
-            .and_then(|s| first_string(s, &["event_name", "name", "title"]))
-            .or_else(|| {
-                gs.and_then(|g| g.get("screen_name"))
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| is_readable_text(s) && s != "EVENT")
-            });
+        let event_name =
+            screen_state.and_then(|s| first_string(s, &["event_name", "name", "title"]));
 
-        let event_body =
-            screen_state.and_then(|s| first_string(s, &["body", "event_text", "description"]));
+        let event_body = screen_state
+            .and_then(|s| first_string(s, &["body", "body_text", "event_text", "description"]));
 
         let event_choices: Vec<String> = screen_state
             .and_then(|s| first_array(s, &["options", "choices", "buttons"]))
+            .or_else(|| gs.and_then(|g| first_array(g, &["choice_list"])))
             .map(|arr| {
                 arr.iter()
                     .enumerate()

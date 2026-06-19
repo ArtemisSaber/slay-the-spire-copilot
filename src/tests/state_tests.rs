@@ -207,6 +207,61 @@ fn normalize_event_choices_replaces_unreadable_locale_garble() {
 }
 
 #[test]
+fn normalize_event_payload_from_communication_mod_log() {
+    let i18n = load_i18n();
+    let raw = serde_json::json!({
+        "available_commands": ["choose", "key", "click", "wait", "state"],
+        "ready_for_command": true,
+        "in_game": true,
+        "game_state": {
+            "choice_list": ["??? 3 ?????????? 1 ???", "????? +7"],
+            "screen_type": "EVENT",
+            "screen_state": {
+                "event_id": "Neow Event",
+                "body_text": "",
+                "options": [
+                    {
+                        "choice_index": 0,
+                        "disabled": false,
+                        "text": "[ ??? 3 ?????????? 1 ??? ]",
+                        "label": "??? 3 ?????????? 1 ???"
+                    },
+                    {
+                        "choice_index": 1,
+                        "disabled": false,
+                        "text": "[ ????? +7 ]",
+                        "label": "????? +7"
+                    }
+                ],
+                "event_name": "??"
+            },
+            "screen_name": "NONE",
+            "room_type": "NeowRoom",
+            "deck": [],
+            "relics": [{"name": "????", "id": "PureWater", "counter": -1}],
+            "current_hp": 72,
+            "max_hp": 72,
+            "gold": 99,
+            "floor": 0,
+            "class": "WATCHER"
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, &i18n);
+
+    assert_eq!(state.event_id.as_deref(), Some("Neow Event"));
+    assert!(state.event_name.is_none());
+    assert!(state.event_body.is_none());
+    assert_eq!(
+        state.event_choices,
+        vec![
+            "选项 1（事件文本不可读，请在游戏内核对按钮）".to_string(),
+            "选项 2（事件文本不可读，请在游戏内核对按钮）".to_string(),
+        ]
+    );
+    assert_eq!(state.relics, vec!["至纯之水".to_string()]);
+}
+
+#[test]
 fn danger_detects_low_hp() {
     let d = compute_danger(10, 80, 0, 0, false, &[]);
     assert!(d.hp_critical);
