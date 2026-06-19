@@ -10,9 +10,10 @@ const SYSTEM_PROMPT: &str = "\
 - 只做玩家视角的建议
 - 称呼卡牌用提供的名字，不要用游戏内部ID
 - 吐槽可以毒舌、风趣，但不要攻击玩家
+- 选牌时可推荐「跳过」，表示不选任何牌
 
 回复格式（中文，140字以内）：
-推荐：（具体行动建议）
+推荐：（选A/B/C...，或跳过）
 理由：（为什么）
 风险：（需要注意的风险）
 吐槽：（轻松评价，可选）
@@ -40,20 +41,21 @@ const SYSTEM_PROMPT: &str = "\
 A. 残杀(2费/攻击) — 造成20点伤害
 B. 武装(1费/技能) — 升级手牌中一张卡牌
 C. 飞身踢(1费/攻击) — 造成5点伤害。若敌人有易伤，抽1牌
+跳过. 都不选
 
 推荐：B.武装
 理由：攻击牌占比过高(10/16)，需要技能牌来平衡攻防节奏。武装的低费和升级能力能提升整副卡组的质量。
 风险：武装前期抽到且手牌无高价值目标时会卡手。
 吐槽：这卡组攻击力爆表但像个莽夫！学点生存技巧吧，别光想着打打打！";
 
-fn log_prompt(user_prompt: &str) {
+fn log_prompt(user_prompt: &str, response: &str) {
     let root = crate::logging::project_root();
     let log_dir = root.join("logs");
     let _ = fs::create_dir_all(&log_dir);
     let path = log_dir.join("prompts.log");
 
     let entry = format!(
-        "[system]\n{SYSTEM_PROMPT}\n\n[user]\n{user_prompt}\n---\n",
+        "[system]\n{SYSTEM_PROMPT}\n\n[user]\n{user_prompt}\n\n[assistant]\n{response}\n---\n",
     );
 
     if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&path) {
@@ -78,13 +80,17 @@ impl Effort {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct OpenAiConfig {
     model: String,
     max_tokens: u32,
 }
 
+#[derive(Debug)]
 pub enum LlmProvider {
     Mock,
+    #[allow(dead_code)]
+    MockError,
     OpenAiCompatible {
         base_url: String,
         api_key: String,
@@ -135,12 +141,15 @@ impl LlmProvider {
     }
 
     pub async fn query(&self, prompt: &str, effort: Effort) -> anyhow::Result<String> {
-        match self {
-            LlmProvider::Mock => Ok("推荐：出防御牌，注意格挡。\n\
-                 理由：怪物意图攻击且你HP较低。\n\
-                 风险：如果不出防御牌可能被斩杀。\n\
-                 吐槽：这手牌是真的烂。"
-                .to_string()),
+        let result: String = match self {
+            LlmProvider::MockError => anyhow::bail!("mock error"),
+            LlmProvider::Mock => {
+                "推荐：出防御牌，注意格挡。\n\
+                  理由：怪物意图攻击且你HP较低。\n\
+                  风险：如果不出防御牌可能被斩杀。\n\
+                  吐槽：这手牌是真的烂。"
+                    .to_string()
+            }
             LlmProvider::OpenAiCompatible {
                 base_url,
                 api_key,
@@ -168,8 +177,6 @@ impl LlmProvider {
                     "temperature": temperature
                 });
 
-                log_prompt(prompt);
-
                 let response = client
                     .post(&url)
                     .header("Authorization", format!("Bearer {api_key}"))
@@ -190,13 +197,14 @@ impl LlmProvider {
                     .await
                     .context("failed to parse LLM response")?;
 
-                let content = json["choices"][0]["message"]["content"]
+                json["choices"][0]["message"]["content"]
                     .as_str()
-                    .context("missing content in LLM response")?;
-
-                Ok(content.to_string())
+                    .context("missing content in LLM response")?
+                    .to_string()
             }
-        }
+        };
+        log_prompt(prompt, &result);
+        Ok(result)
     }
 }
 

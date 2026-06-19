@@ -100,11 +100,25 @@ fn resolve_description(id: &str, upgraded: bool, raw: &str, i18n_data: &I18n) ->
         let d = if upgraded { val.du } else { val.d };
         let b = if upgraded { val.bu } else { val.b };
         let m = if upgraded { val.mu } else { val.m };
-        result = result.replace("!D!", &d.to_string());
-        result = result.replace("!B!", &b.to_string());
-        result = result.replace("!M!", &m.to_string());
+        if d > 0 { result = result.replace("!D!", &d.to_string()); }
+        if b > 0 { result = result.replace("!B!", &b.to_string()); }
+        if m > 0 { result = result.replace("!M!", &m.to_string()); }
     }
     result = result.replace(" NL ", "\n");
+    result = result.replace('*', "");
+    for (token, replacement) in &[
+        ("[R]", "能量"),
+        ("[G]", "能量"),
+        ("[B]", "能量"),
+        ("[W]", "能量"),
+    ] {
+        result = result.replace(token, replacement);
+    }
+    for n in (2..=10).rev() {
+        let pattern: String = (0..n).map(|_| "能量").collect::<Vec<_>>().join(" ");
+        let replacement = format!("能量{n}");
+        result = result.replace(&pattern, &replacement);
+    }
     result
 }
 
@@ -352,6 +366,9 @@ fn build_card_reward(state: &NormalizedState, i18n_data: &I18n) -> String {
                 ctype = i18n::translate_type(&c.card_type),
                 desc = desc,
             ));
+        }
+        if state.skip_available {
+            lines.push("跳过. 都不选".to_string());
         }
     }
 

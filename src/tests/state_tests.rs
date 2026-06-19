@@ -68,6 +68,7 @@ fn normalize_card_reward_state() {
     assert_eq!(state.danger.level, DangerLevel::Safe);
 
     assert_eq!(state.master_cards.len(), 1);
+    assert!(state.skip_available);
 }
 
 #[test]
@@ -229,4 +230,55 @@ fn stable_hash_produces_hex() {
 
     assert_eq!(hash.len(), 64);
     assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+}
+
+#[test]
+fn card_reward_filters_potion_slot() {
+    let i18n = load_i18n();
+    let raw = load_fixture("card-reward-state.json");
+    let state = NormalizedState::from_raw(&raw, &i18n);
+    assert!(!state.potions.iter().any(|p| p.contains("Potion Slot") || p == "?"));
+}
+
+#[test]
+fn card_info_upgraded() {
+    let json: Value = serde_json::from_str(
+        r#"{"id":"Strike_R","name":"Strike","cost":1,"type":"ATTACK","upgrades":1}"#
+    ).unwrap();
+    let card = CardInfo::from_json(&json);
+    assert!(card.upgraded);
+}
+
+#[test]
+fn card_info_missing_cost_and_type() {
+    let json: Value = serde_json::from_str(
+        r#"{"id":"Strike_R","name":"Strike"}"#
+    ).unwrap();
+    let card = CardInfo::from_json(&json);
+    assert_eq!(card.cost, 0);
+    assert_eq!(card.card_type, "?");
+}
+
+#[test]
+fn card_info_uuid() {
+    let json: Value = serde_json::from_str(
+        r#"{"id":"Strike_R","name":"Strike","uuid":"abc-123"}"#
+    ).unwrap();
+    let card = CardInfo::from_json(&json);
+    assert_eq!(card.uuid.as_deref(), Some("abc-123"));
+}
+
+#[test]
+fn danger_none_hp_uses_fallback() {
+    let d = DangerFlags::compute(
+        None,
+        None,
+        None,
+        0,
+        &[],
+        &[],
+    );
+    assert!(d.hp_critical);
+    assert!(!d.incoming_lethal);
+    assert_eq!(d.level, DangerLevel::Danger);
 }

@@ -113,3 +113,35 @@ fn unknown_values_pass_through_unchanged() {
     assert_eq!(translate_type("custom"), "custom");
     assert_eq!(translate_rest_option("custom"), "custom");
 }
+
+#[test]
+fn translate_intent_all_variants() {
+    let cases = [
+        ("ATTACK", "攻击"),
+        ("ATTACK_BUFF", "攻击+增益"),
+        ("ATTACK_DEBUFF", "攻击+减益"),
+        ("ATTACK_DEFEND", "攻击+防御"),
+        ("BUFF", "增益"),
+        ("DEBUFF", "减益"),
+        ("STRONG_DEBUFF", "强力减益"),
+        ("DEBUG", "调试"),
+        ("DEFEND", "防御"),
+        ("DEFEND_DEBUFF", "防御+减益"),
+        ("DEFEND_BUFF", "防御+增益"),
+        ("ESCAPE", "逃跑"),
+        ("MAGIC", "法术"),
+        ("NONE", "无"),
+        ("SLEEP", "睡眠"),
+        ("STUN", "眩晕"),
+        ("UNKNOWN", "未知"),
+    ];
+    for (input, expected) in cases {
+        assert_eq!(translate_intent(input), expected, "intent: {input}");
+    }
+}
+
+#[test]
+fn translate_type_all_variants() {
+    assert_eq!(translate_type("CURSE"), "诅咒");
+    assert_eq!(translate_type("STATUS"), "状态");
+}

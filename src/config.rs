@@ -15,6 +15,7 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Self {
+        #[cfg(not(test))]
         dotenvy::dotenv().ok();
 
         let provider = env::var("LLM_PROVIDER").unwrap_or_else(|_| "mock".to_string());
@@ -65,3 +66,7 @@ impl Config {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "tests/config_tests.rs"]
+mod tests;

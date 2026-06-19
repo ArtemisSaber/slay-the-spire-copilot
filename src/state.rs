@@ -154,6 +154,7 @@ pub struct NormalizedState {
     pub incoming_damage: i64,
     pub rest_options: Vec<String>,
     pub danger: DangerFlags,
+    pub skip_available: bool,
 
     pub hand_cards: Vec<CardInfo>,
     pub draw_pile: Vec<CardInfo>,
@@ -318,15 +319,20 @@ impl NormalizedState {
             &powers,
         );
 
-        let card_reward_choices: Vec<CardInfo> = gs
-            .and_then(|g| g.get("screen_state"))
+        let screen_state = gs.and_then(|g| g.get("screen_state"));
+
+        let skip_available = screen_state
+            .and_then(|s| s.get("skip_available"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        let card_reward_choices: Vec<CardInfo> = screen_state
             .and_then(|s| s.get("cards"))
             .and_then(|v| v.as_array())
             .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
-        let rest_options: Vec<String> = gs
-            .and_then(|g| g.get("screen_state"))
+        let rest_options: Vec<String> = screen_state
             .and_then(|s| s.get("rest_options"))
             .and_then(|v| v.as_array())
             .map(|arr| {
@@ -394,6 +400,7 @@ impl NormalizedState {
             incoming_damage,
             rest_options,
             danger,
+            skip_available,
             hand_cards,
             draw_pile,
             discard_pile,
@@ -536,6 +543,11 @@ impl NormalizedState {
         map.insert(
             "rest_options".to_string(),
             Value::Array(sorted_rest.into_iter().map(Value::String).collect()),
+        );
+
+        map.insert(
+            "skip_available".to_string(),
+            Value::Bool(self.skip_available),
         );
 
         Value::Object(map)

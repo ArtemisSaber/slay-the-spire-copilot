@@ -36,7 +36,7 @@ struct ScreenConfig {
 
 const SCREEN_CONFIG: ScreenConfig = ScreenConfig {
     generate: &["CARD_REWARD"],
-    generate_on_combat: &["NONE"],
+    generate_on_combat: &[],
     // Future screens to add to `generate`:
     // "REST", "SHOP", "BOSS_REWARD", "EVENT", "HAND_SELECT", "GRID",
 };

@@ -36,3 +36,13 @@ fn write_advice_appends() {
 
     let _ = std::fs::remove_file(&path);
 }
+
+#[tokio::test]
+async fn get_or_compute_llm_error_fallback() {
+    let provider = LlmProvider::MockError;
+    let mut cache = AdviceCache::new();
+    let result = cache
+        .get_or_compute("hash1", "test prompt", Effort::Fast, &provider)
+        .await;
+    assert_eq!(result, "LLM 调用失败，请检查配置。");
+}
