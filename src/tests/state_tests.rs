@@ -58,9 +58,9 @@ fn normalize_card_reward_state() {
 
     assert_eq!(state.screen_type.as_deref(), Some("CARD_REWARD"));
     assert_eq!(state.card_reward_choices.len(), 3);
-    assert!(state.card_reward_choices.iter().any(|c| c.name == "上勾拳"));
-    assert!(state.card_reward_choices.iter().any(|c| c.name == "愤怒"));
-    assert!(state.card_reward_choices.iter().any(|c| c.name == "头槌"));
+    assert!(state.card_reward_choices.iter().any(|c| c.id == "Uppercut"));
+    assert!(state.card_reward_choices.iter().any(|c| c.id == "Anger"));
+    assert!(state.card_reward_choices.iter().any(|c| c.id == "Headbutt"));
 
     assert!(state.hand.is_empty());
     assert!(state.monsters.is_empty());

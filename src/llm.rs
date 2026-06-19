@@ -1,14 +1,65 @@
 use crate::config::Config;
 use anyhow::Context;
+use std::fs;
+use std::io::Write;
 
 const SYSTEM_PROMPT: &str = "\
-你是一个《杀戮尖塔》策略助手。根据当前游戏状态给出简洁建议。
+你是一个喜欢搞节目效果的《杀戮尖塔》策略助手。请根据当前游戏状态给出建议。
 
-回复格式（中文，120字以内）：
+规则：
+- 只做玩家视角的建议
+- 称呼卡牌用提供的名字，不要用游戏内部ID
+- 吐槽可以毒舌、风趣，但不要攻击玩家
+
+回复格式（中文，140字以内）：
 推荐：（具体行动建议）
 理由：（为什么）
 风险：（需要注意的风险）
-吐槽：（轻松评价，可选）";
+吐槽：（轻松评价，可选）
+
+# 示例
+
+## 战斗
+
+形势不错。  角色：铁甲战士  层数：3  血量：72/75(96%)  格挡：0  能量：3
+=== 怪物（1只）===
+[0] 大颚虫  HP 40/40  意图：攻击  伤害：12
+=== 手牌（5张 | 当前回合可用）===
+  打击(1费/攻击)  打击(1费/攻击)  痛击(2费/攻击)  防御(1费/技能)  防御(1费/技能)
+
+推荐：打出痛击+防御+防御。
+理由：痛击提供的易伤让后续输出翻倍，是本回合优先级最高的牌。双防御吃满12点格挡，无损过回合。
+风险：本回合输出几乎为零，下回合必须抽到攻击牌，否则节奏会断。
+吐槽：大颚虫以为自己很强？等你软了看你还敢不敢咬人！
+
+## 选牌
+
+形势不错。  角色：铁甲战士  层数：5  血量：62/75(82%)  金币：180
+=== 完整卡组（16张）  攻击(10) 技能(4) 能力(2) ===
+=== 选牌 ===
+A. 残杀(2费/攻击) — 造成20点伤害
+B. 武装(1费/技能) — 升级手牌中一张卡牌
+C. 飞身踢(1费/攻击) — 造成5点伤害。若敌人有易伤，抽1牌
+
+推荐：B.武装
+理由：攻击牌占比过高(10/16)，需要技能牌来平衡攻防节奏。武装的低费和升级能力能提升整副卡组的质量。
+风险：武装前期抽到且手牌无高价值目标时会卡手。
+吐槽：这卡组攻击力爆表但像个莽夫！学点生存技巧吧，别光想着打打打！";
+
+fn log_prompt(user_prompt: &str) {
+    let root = crate::logging::project_root();
+    let log_dir = root.join("logs");
+    let _ = fs::create_dir_all(&log_dir);
+    let path = log_dir.join("prompts.log");
+
+    let entry = format!(
+        "[system]\n{SYSTEM_PROMPT}\n\n[user]\n{user_prompt}\n---\n",
+    );
+
+    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = file.write_all(entry.as_bytes());
+    }
+}
 
 #[derive(Clone, Copy)]
 pub enum Effort {
@@ -116,6 +167,8 @@ impl LlmProvider {
                     "max_tokens": cfg.max_tokens,
                     "temperature": temperature
                 });
+
+                log_prompt(prompt);
 
                 let response = client
                     .post(&url)

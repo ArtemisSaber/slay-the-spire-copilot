@@ -6,6 +6,17 @@ fn load_i18n() -> I18n {
     I18n::load()
 }
 
+fn card(id: &str, name: &str, cost: i64, card_type: &str) -> CardInfo {
+    CardInfo {
+        id: id.into(),
+        name: name.into(),
+        cost,
+        card_type: card_type.into(),
+        upgraded: false,
+        uuid: None,
+    }
+}
+
 fn test_state() -> NormalizedState {
     NormalizedState {
         screen_type: Some("NONE".to_string()),
@@ -59,27 +70,9 @@ fn combat_prompt_shows_all_three_piles() {
             can_be_killed: false,
             is_scaling: false,
         }],
-        hand_cards: vec![CardInfo {
-            name: "打击".into(),
-            cost: 1,
-            card_type: "ATTACK".into(),
-            upgraded: false,
-            uuid: None,
-        }],
-        draw_pile: vec![CardInfo {
-            name: "防御".into(),
-            cost: 1,
-            card_type: "SKILL".into(),
-            upgraded: false,
-            uuid: None,
-        }],
-        discard_pile: vec![CardInfo {
-            name: "痛击".into(),
-            cost: 2,
-            card_type: "ATTACK".into(),
-            upgraded: false,
-            uuid: None,
-        }],
+        hand_cards: vec![card("Strike_R", "Strike", 1, "ATTACK")],
+        draw_pile: vec![card("Defend_R", "Defend", 1, "SKILL")],
+        discard_pile: vec![card("Bash", "Bash", 2, "ATTACK")],
         ..test_state()
     };
 
@@ -175,31 +168,10 @@ fn card_reward_shows_card_choices() {
         current_hp: Some(62),
         max_hp: Some(75),
         card_reward_choices: vec![
-            CardInfo {
-                name: "上勾拳".into(),
-                cost: 2,
-                card_type: "ATTACK".into(),
-                upgraded: false,
-                uuid: None,
-            },
-            CardInfo {
-                name: "愤怒".into(),
-                cost: 1,
-                card_type: "ATTACK".into(),
-                upgraded: false,
-                uuid: None,
-            },
+            card("Uppercut", "Uppercut", 2, "ATTACK"),
+            card("Anger", "Anger", 1, "ATTACK"),
         ],
-        master_cards: vec![
-            CardInfo {
-                name: "打击".into(),
-                cost: 1,
-                card_type: "ATTACK".into(),
-                upgraded: false,
-                uuid: None,
-            };
-            4
-        ],
+        master_cards: vec![card("Strike_R", "Strike", 1, "ATTACK"); 4],
         ..test_state()
     };
 
@@ -211,50 +183,28 @@ fn card_reward_shows_card_choices() {
 }
 
 #[test]
-fn deck_analysis_counts_from_cards() {
-    let cards = vec![
-        CardInfo {
-            name: "打击".into(),
-            cost: 1,
-            card_type: "ATTACK".into(),
-            upgraded: false,
-            uuid: None,
-        };
-        5
-    ];
-    let deck = DeckAnalysis::from_cards(&cards);
-    assert_eq!(deck.attack_count, 5);
-    assert_eq!(deck.skill_count, 0);
-    assert_eq!(deck.total, 5);
+fn deck_section_groups_single_type() {
+    let i18n = load_i18n();
+    let cards = vec![card("Strike_R", "Strike", 1, "ATTACK"); 5];
+    let output = format_deck_section(&cards, &i18n);
+    assert!(output.contains("攻击（5张）："));
+    assert!(output.contains("打击(1费)（共5张）"));
+    assert!(!output.contains("技能"));
+    assert!(!output.contains("能力"));
 }
 
 #[test]
-fn deck_analysis_detects_duplicates() {
-    let mut cards = vec![
-        CardInfo {
-            name: "打击".into(),
-            cost: 1,
-            card_type: "ATTACK".into(),
-            upgraded: false,
-            uuid: None,
-        };
-        4
-    ];
-    cards.extend(vec![
-        CardInfo {
-            name: "防御".into(),
-            cost: 1,
-            card_type: "SKILL".into(),
-            upgraded: false,
-            uuid: None,
-        };
-        3
-    ]);
-    let deck = DeckAnalysis::from_cards(&cards);
-    assert_eq!(deck.duplicates.len(), 2);
-    let dup_names: Vec<&str> = deck.duplicates.iter().map(|(n, _)| n.as_str()).collect();
-    assert!(dup_names.contains(&"打击"));
-    assert!(dup_names.contains(&"防御"));
+fn deck_section_shows_cards_by_type_with_counts() {
+    let i18n = load_i18n();
+    let mut cards = vec![card("Strike_R", "Strike", 1, "ATTACK"); 4];
+    cards.extend(vec![card("Defend_R", "Defend", 1, "SKILL"); 2]);
+    let output = format_deck_section(&cards, &i18n);
+
+    assert!(output.contains("=== 卡组 ==="));
+    assert!(output.contains("攻击（4张）："));
+    assert!(output.contains("技能（2张）："));
+    assert!(output.contains("打击(1费)（共4张）"));
+    assert!(output.contains("防御(1费)（共2张）"));
 }
 
 #[test]
@@ -371,17 +321,9 @@ fn danger_prefix_shows_wrath_warning() {
 
 #[test]
 fn compact_pile_aggregates_duplicates() {
-    let cards = vec![
-        CardInfo {
-            name: "打击".into(),
-            cost: 1,
-            card_type: "ATTACK".into(),
-            upgraded: false,
-            uuid: None,
-        };
-        3
-    ];
-    let output = super::compact_pile("=== 抽牌堆", &cards);
+    let i18n = load_i18n();
+    let cards = vec![card("Strike_R", "Strike", 1, "ATTACK"); 3];
+    let output = super::compact_pile("=== 抽牌堆", &cards, &i18n);
     assert!(output.contains("抽牌堆（3张）"));
     assert!(output.contains("打击×3"));
 }

@@ -1,4 +1,18 @@
+use serde::Deserialize;
 use std::collections::HashMap;
+
+#[derive(Deserialize)]
+pub struct CardValue {
+    pub d: i64,
+    pub b: i64,
+    pub m: i64,
+    #[serde(rename = "d+")]
+    pub du: i64,
+    #[serde(rename = "b+")]
+    pub bu: i64,
+    #[serde(rename = "m+")]
+    pub mu: i64,
+}
 
 pub struct I18n {
     cards: HashMap<String, String>,
@@ -7,6 +21,7 @@ pub struct I18n {
     powers: HashMap<String, String>,
     potions: HashMap<String, String>,
     card_descs: HashMap<String, String>,
+    pub card_values: HashMap<String, CardValue>,
 }
 
 impl I18n {
@@ -18,6 +33,7 @@ impl I18n {
             powers: serde_json::from_str(include_str!("powers.json")).unwrap(),
             potions: serde_json::from_str(include_str!("potions.json")).unwrap(),
             card_descs: serde_json::from_str(include_str!("card_desc.json")).unwrap(),
+            card_values: serde_json::from_str(include_str!("../card_values.json")).unwrap(),
         }
     }
 

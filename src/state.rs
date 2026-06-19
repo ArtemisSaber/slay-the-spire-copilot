@@ -16,6 +16,7 @@ macro_rules! i18n_name {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CardInfo {
+    pub id: String,
     pub name: String,
     pub cost: i64,
     pub card_type: String,
@@ -24,9 +25,18 @@ pub struct CardInfo {
 }
 
 impl CardInfo {
-    fn from_json(c: &Value, i18n: &I18n) -> Self {
+    fn from_json(c: &Value) -> Self {
         CardInfo {
-            name: i18n_name!(c, i18n, card),
+            id: c
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string(),
+            name: c
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string(),
             cost: c.get("cost").and_then(|n| n.as_i64()).unwrap_or(0),
             card_type: c
                 .get("type")
@@ -152,8 +162,8 @@ pub struct NormalizedState {
     pub master_cards: Vec<CardInfo>,
 }
 
-fn extract_cards(arr: &[Value], i18n: &I18n) -> Vec<CardInfo> {
-    arr.iter().map(|c| CardInfo::from_json(c, i18n)).collect()
+fn extract_cards(arr: &[Value]) -> Vec<CardInfo> {
+    arr.iter().map(|c| CardInfo::from_json(c)).collect()
 }
 
 fn extract_powers(arr: &[Value], i18n: &I18n) -> Vec<PowerInfo> {
@@ -212,7 +222,7 @@ impl NormalizedState {
         let hand: Vec<CardInfo> = combat
             .and_then(|c| c.get("hand"))
             .and_then(|v| v.as_array())
-            .map(|arr| extract_cards(arr, i18n))
+            .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
         let hand_cards = hand.clone();
@@ -220,19 +230,19 @@ impl NormalizedState {
         let draw_pile: Vec<CardInfo> = combat
             .and_then(|c| c.get("draw_pile"))
             .and_then(|v| v.as_array())
-            .map(|arr| extract_cards(arr, i18n))
+            .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
         let discard_pile: Vec<CardInfo> = combat
             .and_then(|c| c.get("discard_pile"))
             .and_then(|v| v.as_array())
-            .map(|arr| extract_cards(arr, i18n))
+            .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
         let exhaust_cards: Vec<CardInfo> = combat
             .and_then(|c| c.get("exhaust_pile"))
             .and_then(|v| v.as_array())
-            .map(|arr| extract_cards(arr, i18n))
+            .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
         let total_hand_atk: i64 = hand_cards
@@ -312,7 +322,7 @@ impl NormalizedState {
             .and_then(|g| g.get("screen_state"))
             .and_then(|s| s.get("cards"))
             .and_then(|v| v.as_array())
-            .map(|arr| extract_cards(arr, i18n))
+            .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
         let rest_options: Vec<String> = gs
@@ -329,7 +339,7 @@ impl NormalizedState {
         let master_cards: Vec<CardInfo> = gs
             .and_then(|g| g.get("deck"))
             .and_then(|v| v.as_array())
-            .map(|arr| extract_cards(arr, i18n))
+            .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
         let mut relics: Vec<String> = gs
@@ -450,12 +460,12 @@ impl NormalizedState {
         map.insert("powers".to_string(), Value::Array(powers_arr));
 
         let mut sorted_hand = self.hand.clone();
-        sorted_hand.sort_by(|a, b| a.name.cmp(&b.name));
+        sorted_hand.sort_by(|a, b| a.id.cmp(&b.id));
         let hand_arr: Vec<Value> = sorted_hand
             .iter()
             .map(|c| {
                 let mut cm = serde_json::Map::new();
-                cm.insert("name".to_string(), Value::String(c.name.clone()));
+                cm.insert("id".to_string(), Value::String(c.id.clone()));
                 cm.insert("cost".to_string(), Value::Number(c.cost.into()));
                 cm.insert("type".to_string(), Value::String(c.card_type.clone()));
                 cm.insert("upgraded".to_string(), Value::Bool(c.upgraded));
@@ -489,12 +499,12 @@ impl NormalizedState {
         map.insert("monsters".to_string(), Value::Array(monster_arr));
 
         let mut sorted_choices = self.card_reward_choices.clone();
-        sorted_choices.sort_by(|a, b| a.name.cmp(&b.name));
+        sorted_choices.sort_by(|a, b| a.id.cmp(&b.id));
         let choices_arr: Vec<Value> = sorted_choices
             .iter()
             .map(|c| {
                 let mut cm = serde_json::Map::new();
-                cm.insert("name".to_string(), Value::String(c.name.clone()));
+                cm.insert("id".to_string(), Value::String(c.id.clone()));
                 Value::Object(cm)
             })
             .collect();
