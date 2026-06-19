@@ -151,6 +151,7 @@ pub struct NormalizedState {
     pub monsters: Vec<MonsterInfo>,
     pub card_reward_choices: Vec<CardInfo>,
     pub boss_relic_choices: Vec<String>,
+    pub event_id: Option<String>,
     pub event_name: Option<String>,
     pub event_body: Option<String>,
     pub event_choices: Vec<String>,
@@ -196,8 +197,40 @@ fn first_string(value: &Value, keys: &[&str]) -> Option<String> {
         value
             .get(key)
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
+            .map(|s| s.trim().to_string())
+            .filter(|s| is_readable_text(s))
     })
+}
+
+fn first_raw_string(value: &Value, keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|key| {
+        value
+            .get(key)
+            .and_then(|v| v.as_str())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    })
+}
+
+fn is_readable_text(text: &str) -> bool {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    let total = trimmed.chars().filter(|c| !c.is_whitespace()).count();
+    if total == 0 {
+        return false;
+    }
+
+    let question_marks = trimmed.chars().filter(|c| *c == '?').count();
+    if question_marks >= 2 && question_marks * 3 >= total {
+        return false;
+    }
+
+    trimmed
+        .chars()
+        .any(|c| c.is_alphabetic() || ('\u{4e00}'..='\u{9fff}').contains(&c))
 }
 
 fn extract_relic_names(arr: &[Value], i18n: &I18n) -> Vec<String> {
@@ -212,7 +245,10 @@ fn extract_relic_names(arr: &[Value], i18n: &I18n) -> Vec<String> {
 
 fn extract_event_choice(option: &Value) -> Option<String> {
     match option {
-        Value::String(text) => Some(text.clone()),
+        Value::String(text) => {
+            let text = text.trim();
+            is_readable_text(text).then(|| text.to_string())
+        }
         Value::Object(_) => first_string(
             option,
             &[
@@ -389,12 +425,17 @@ impl NormalizedState {
             .map(|arr| extract_relic_names(arr, i18n))
             .unwrap_or_default();
 
+        let event_id = screen_state
+            .and_then(|s| first_raw_string(s, &["event_id", "eventId", "id"]))
+            .filter(|s| is_readable_text(s));
+
         let event_name = screen_state
             .and_then(|s| first_string(s, &["event_name", "name", "title"]))
             .or_else(|| {
                 gs.and_then(|g| g.get("screen_name"))
                     .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| is_readable_text(s) && s != "EVENT")
             });
 
         let event_body =
@@ -402,7 +443,16 @@ impl NormalizedState {
 
         let event_choices: Vec<String> = screen_state
             .and_then(|s| first_array(s, &["options", "choices", "buttons"]))
-            .map(|arr| arr.iter().filter_map(extract_event_choice).collect())
+            .map(|arr| {
+                arr.iter()
+                    .enumerate()
+                    .map(|(idx, choice)| {
+                        extract_event_choice(choice).unwrap_or_else(|| {
+                            format!("选项 {}（事件文本不可读，请在游戏内核对按钮）", idx + 1)
+                        })
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
 
         let rest_options: Vec<String> = screen_state
@@ -470,6 +520,7 @@ impl NormalizedState {
             monsters,
             card_reward_choices,
             boss_relic_choices,
+            event_id,
             event_name,
             event_body,
             event_choices,
@@ -617,6 +668,9 @@ impl NormalizedState {
 
         if let Some(ref v) = self.event_name {
             map.insert("event_name".to_string(), Value::String(v.clone()));
+        }
+        if let Some(ref v) = self.event_id {
+            map.insert("event_id".to_string(), Value::String(v.clone()));
         }
         if let Some(ref v) = self.event_body {
             map.insert("event_body".to_string(), Value::String(v.clone()));

@@ -35,6 +35,7 @@ fn test_state() -> NormalizedState {
         monsters: vec![],
         card_reward_choices: vec![],
         boss_relic_choices: vec![],
+        event_id: None,
         event_name: None,
         event_body: None,
         event_choices: vec![],
@@ -425,6 +426,7 @@ fn event_prompt_lists_event_text_and_choices() {
     let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("EVENT".into()),
+        event_id: None,
         event_name: Some("金神像".into()),
         event_body: Some("一个金色神像闪闪发光。".into()),
         event_choices: vec!["拿走神像".into(), "离开".into()],
@@ -437,6 +439,29 @@ fn event_prompt_lists_event_text_and_choices() {
     assert!(prompt.contains("一个金色神像闪闪发光。"));
     assert!(prompt.contains("A. 拿走神像"));
     assert!(prompt.contains("B. 离开"));
+}
+
+#[test]
+fn event_prompt_does_not_emit_question_mark_garble() {
+    let i18n = load_i18n();
+    let state = NormalizedState {
+        screen_type: Some("EVENT".into()),
+        room_type: Some("NeowRoom".into()),
+        event_id: None,
+        event_name: None,
+        event_body: None,
+        event_choices: vec![
+            "选项 1（事件文本不可读，请在游戏内核对按钮）".into(),
+            "选项 2（事件文本不可读，请在游戏内核对按钮）".into(),
+        ],
+        ..test_state()
+    };
+
+    let prompt = build_prompt(&state, &i18n);
+    assert!(prompt.contains("事件文本不可读（房间：NeowRoom）"));
+    assert!(prompt.contains("A. 选项 1（事件文本不可读，请在游戏内核对按钮）"));
+    assert!(prompt.contains("B. 选项 2（事件文本不可读，请在游戏内核对按钮）"));
+    assert!(!prompt.contains("???"));
 }
 
 #[test]

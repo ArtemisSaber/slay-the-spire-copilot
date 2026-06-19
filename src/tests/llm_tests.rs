@@ -64,6 +64,7 @@ fn test_state() -> NormalizedState {
         monsters: vec![],
         card_reward_choices: vec![],
         boss_relic_choices: vec![],
+        event_id: None,
         event_name: None,
         event_body: None,
         event_choices: vec![],

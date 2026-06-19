@@ -166,6 +166,47 @@ fn normalize_event_choices() {
 }
 
 #[test]
+fn normalize_event_choices_replaces_unreadable_locale_garble() {
+    let i18n = load_i18n();
+    let raw = serde_json::json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "EVENT",
+            "screen_name": "??",
+            "room_type": "NeowRoom",
+            "screen_state": {
+                "event_name": "??",
+                "body": "?????",
+                "options": [
+                    {"label": "??? 3 ?????????? 1 ???"},
+                    {"label": "????? +7"}
+                ]
+            },
+            "deck": [],
+            "relics": [],
+            "current_hp": 72,
+            "max_hp": 72,
+            "gold": 99,
+            "floor": 0,
+            "class": "WATCHER"
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, &i18n);
+
+    assert_eq!(state.screen_type.as_deref(), Some("EVENT"));
+    assert_eq!(state.room_type.as_deref(), Some("NeowRoom"));
+    assert!(state.event_name.is_none());
+    assert!(state.event_body.is_none());
+    assert_eq!(
+        state.event_choices,
+        vec![
+            "选项 1（事件文本不可读，请在游戏内核对按钮）".to_string(),
+            "选项 2（事件文本不可读，请在游戏内核对按钮）".to_string(),
+        ]
+    );
+}
+
+#[test]
 fn danger_detects_low_hp() {
     let d = compute_danger(10, 80, 0, 0, false, &[]);
     assert!(d.hp_critical);

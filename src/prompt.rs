@@ -500,13 +500,24 @@ fn build_event_choice(state: &NormalizedState, _i18n_data: &I18n) -> String {
         status_line(state),
         String::new(),
         "=== 任务 ===".to_string(),
-        "请在事件选项中做决定。比较血量、金币、卡组质量、遗物、诅咒/删牌/升级收益和长期风险；信息不足时明确说明不确定。".to_string(),
+        "请在事件选项中做决定。比较血量、金币、卡组质量、遗物、诅咒/删牌/升级收益和长期风险；信息不足或选项文本不可读时明确说明不确定，不要根据乱码猜测收益。".to_string(),
         String::new(),
     ];
 
-    if let Some(name) = &state.event_name {
+    if state.event_name.is_some() || state.event_id.is_some() || state.room_type.is_some() {
         lines.push("=== 事件 ===".to_string());
-        lines.push(name.clone());
+        if let Some(name) = &state.event_name {
+            lines.push(name.clone());
+        }
+        if let Some(id) = &state.event_id {
+            lines.push(format!("事件ID：{id}"));
+        }
+        if state.event_name.is_none()
+            && state.event_id.is_none()
+            && let Some(room_type) = &state.room_type
+        {
+            lines.push(format!("事件文本不可读（房间：{room_type}）"));
+        }
     }
     if let Some(body) = &state.event_body {
         lines.push(body.clone());
