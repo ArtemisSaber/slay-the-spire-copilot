@@ -10,7 +10,7 @@ mod protocol;
 mod startup;
 mod state;
 
-use advice::AdviceCache;
+use advice::{AdviceCache, OverlayMetadata};
 use llm::{AdviceScenario, Effort};
 use std::collections::HashSet;
 use std::io::{self, BufRead, IsTerminal, Write};
@@ -411,9 +411,27 @@ async fn main() {
             &prompt[..prompt.len().min(200)]
         );
 
+        let metadata = OverlayMetadata {
+            screen_type: Some(screen_type.to_string()),
+            scenario: scenario.as_str().to_string(),
+            in_combat: has_monsters(&raw),
+            state_hash: hash.clone(),
+            floor: normalized.floor,
+            character: normalized.character.clone(),
+        };
+        cache.write_overlay_loading(&metadata);
+
         let advice = cache
             .get_or_compute(&hash, &prompt, effort, scenario, &provider)
             .await;
+
+        let fields = advice::parse_advice_response(&advice);
+        let status = if advice.contains("LLM 调用失败") {
+            "error"
+        } else {
+            "ok"
+        };
+        cache.write_overlay_ready(status, &fields, &metadata);
 
         journal.log_advice(&hash, effort, scenario, &prompt, &advice);
         tracing::info!("wrote advice ({} chars hash={})", advice.len(), &hash[..16]);

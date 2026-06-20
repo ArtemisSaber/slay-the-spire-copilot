@@ -1,16 +1,124 @@
 use crate::llm::{AdviceScenario, Effort, LlmProvider};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct AdviceFields {
+    pub recommendation: String,
+    pub reason: String,
+    pub risk: String,
+    pub commentary: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OverlayOutput {
+    pub schema_version: u32,
+    pub status: String,
+    pub overlay_visibility: bool,
+    pub advice: AdviceFields,
+    pub screen_type: Option<String>,
+    pub scenario: String,
+    pub in_combat: bool,
+    pub state_hash: String,
+    pub floor: Option<i64>,
+    pub character: Option<String>,
+    pub timestamp_ms: u128,
+}
+
+pub struct OverlayMetadata {
+    pub screen_type: Option<String>,
+    pub scenario: String,
+    pub in_combat: bool,
+    pub state_hash: String,
+    pub floor: Option<i64>,
+    pub character: Option<String>,
+}
+
+fn timestamp_ms() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
+}
+
+pub fn parse_advice_response(raw: &str) -> AdviceFields {
+    let mut recommendation = String::new();
+    let mut reason = String::new();
+    let mut risk = String::new();
+    let mut commentary = String::new();
+
+    let mut current: Option<&mut String> = None;
+
+    for line in raw.lines() {
+        if let Some(rest) = line.strip_prefix("推荐：") {
+            recommendation.push_str(rest);
+            current = Some(&mut recommendation);
+        } else if let Some(rest) = line.strip_prefix("理由：") {
+            reason.push_str(rest);
+            current = Some(&mut reason);
+        } else if let Some(rest) = line.strip_prefix("风险：") {
+            risk.push_str(rest);
+            current = Some(&mut risk);
+        } else if let Some(rest) = line.strip_prefix("吐槽：") {
+            commentary.push_str(rest);
+            current = Some(&mut commentary);
+        } else if let Some(ref mut field) = current
+            && !line.is_empty()
+        {
+            if !field.is_empty() {
+                field.push('\n');
+            }
+            field.push_str(line);
+        }
+    }
+
+    AdviceFields {
+        recommendation,
+        reason,
+        risk,
+        commentary,
+    }
+}
+
+fn atomic_write_json(path: &std::path::Path, json: &str) {
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let tmp = path.with_extension("json.tmp");
+    if fs::write(&tmp, json).is_ok() {
+        if fs::rename(&tmp, path).is_err() {
+            // Windows: rename fails if target exists (Unix atomically replaces)
+            let _ = fs::remove_file(path);
+            let _ = fs::rename(&tmp, path);
+        }
+        let _ = fs::remove_file(&tmp);
+    }
+}
+
+fn write_overlay_json_to(path: &std::path::Path, output: &OverlayOutput) {
+    if let Ok(json) = serde_json::to_string_pretty(output) {
+        atomic_write_json(path, &json);
+    }
+}
 
 pub struct AdviceCache {
     cache: HashMap<String, String>,
+    hide_timer: Option<tokio::task::JoinHandle<()>>,
+    overlay_gen: Arc<Mutex<u64>>,
+    hide_delay: Duration,
 }
 
 impl AdviceCache {
     pub fn new() -> Self {
         AdviceCache {
             cache: HashMap::new(),
+            hide_timer: None,
+            overlay_gen: Arc::new(Mutex::new(0)),
+            hide_delay: Duration::from_secs(30),
         }
     }
 
@@ -52,6 +160,96 @@ impl AdviceCache {
             .open(&path)
         {
             let _ = file.write_all(latest.as_bytes());
+        }
+    }
+
+    pub fn write_overlay_loading(&mut self, metadata: &OverlayMetadata) {
+        self.cancel_hide_timer();
+
+        let output = OverlayOutput {
+            schema_version: 1,
+            status: "loading".to_string(),
+            overlay_visibility: true,
+            advice: AdviceFields::default(),
+            screen_type: metadata.screen_type.clone(),
+            scenario: metadata.scenario.clone(),
+            in_combat: metadata.in_combat,
+            state_hash: metadata.state_hash.clone(),
+            floor: metadata.floor,
+            character: metadata.character.clone(),
+            timestamp_ms: timestamp_ms(),
+        };
+
+        let overlay_path = crate::logging::advice_output_dir()
+            .join("output")
+            .join("overlay.json");
+        write_overlay_json_to(&overlay_path, &output);
+    }
+
+    pub fn write_overlay_ready(
+        &mut self,
+        status: &str,
+        fields: &AdviceFields,
+        metadata: &OverlayMetadata,
+    ) {
+        self.cancel_hide_timer();
+
+        let output = OverlayOutput {
+            schema_version: 1,
+            status: status.to_string(),
+            overlay_visibility: true,
+            advice: fields.clone(),
+            screen_type: metadata.screen_type.clone(),
+            scenario: metadata.scenario.clone(),
+            in_combat: metadata.in_combat,
+            state_hash: metadata.state_hash.clone(),
+            floor: metadata.floor,
+            character: metadata.character.clone(),
+            timestamp_ms: timestamp_ms(),
+        };
+
+        let overlay_path = crate::logging::advice_output_dir()
+            .join("output")
+            .join("overlay.json");
+        write_overlay_json_to(&overlay_path, &output);
+
+        // Start 30s hide timer
+        let ticket = {
+            let mut g = self.overlay_gen.lock().unwrap();
+            *g += 1;
+            *g
+        };
+
+        let path = overlay_path.clone();
+        let gen_counter = Arc::clone(&self.overlay_gen);
+        let delay = self.hide_delay;
+
+        let handle = tokio::spawn(async move {
+            tokio::time::sleep(delay).await;
+
+            let current_gen = *gen_counter.lock().unwrap();
+            if current_gen != ticket {
+                return;
+            }
+
+            {
+                if let Ok(content) = fs::read_to_string(&path)
+                    && let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&content)
+                {
+                    v["overlay_visibility"] = serde_json::Value::Bool(false);
+                    if let Ok(json) = serde_json::to_string_pretty(&v) {
+                        atomic_write_json(&path, &json);
+                    }
+                }
+            }
+        });
+
+        self.hide_timer = Some(handle);
+    }
+
+    fn cancel_hide_timer(&mut self) {
+        if let Some(handle) = self.hide_timer.take() {
+            handle.abort();
         }
     }
 }
