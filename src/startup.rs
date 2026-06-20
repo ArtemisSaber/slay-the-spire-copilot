@@ -4,6 +4,13 @@ use std::io::{BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 
 const COMMUNICATION_MOD_CONFIG_DIRS: &[&str] = &["CommunicationModCJK", "CommunicationMod"];
+const SLAY_THE_SPIRE_APP_ID: &str = "646570";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DetectedGameLanguage {
+    value: String,
+    source: String,
+}
 
 fn communication_mod_config_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
@@ -44,6 +51,178 @@ fn communication_mod_config_paths() -> Vec<PathBuf> {
     }
 
     paths
+}
+
+fn slay_the_spire_language_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    if let Ok(dir) = env::var("SLAY_THE_SPIRE_DIR") {
+        paths.push(
+            PathBuf::from(dir)
+                .join("preferences")
+                .join("STSGameplaySettings"),
+        );
+    }
+
+    if let Ok(home) = env::var("HOME") {
+        let home = PathBuf::from(home);
+        paths.push(
+            home.join(".local")
+                .join("share")
+                .join("Steam")
+                .join("steamapps")
+                .join("common")
+                .join("SlayTheSpire")
+                .join("preferences")
+                .join("STSGameplaySettings"),
+        );
+        paths.push(
+            home.join(".steam")
+                .join("steam")
+                .join("steamapps")
+                .join("common")
+                .join("SlayTheSpire")
+                .join("preferences")
+                .join("STSGameplaySettings"),
+        );
+        paths.push(
+            home.join("Library")
+                .join("Application Support")
+                .join("Steam")
+                .join("steamapps")
+                .join("common")
+                .join("SlayTheSpire")
+                .join("preferences")
+                .join("STSGameplaySettings"),
+        );
+    }
+
+    paths
+}
+
+fn steam_appmanifest_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    if let Ok(home) = env::var("HOME") {
+        let home = PathBuf::from(home);
+        paths.push(
+            home.join(".local")
+                .join("share")
+                .join("Steam")
+                .join("steamapps")
+                .join(format!("appmanifest_{SLAY_THE_SPIRE_APP_ID}.acf")),
+        );
+        paths.push(
+            home.join(".steam")
+                .join("steam")
+                .join("steamapps")
+                .join(format!("appmanifest_{SLAY_THE_SPIRE_APP_ID}.acf")),
+        );
+        paths.push(
+            home.join("Library")
+                .join("Application Support")
+                .join("Steam")
+                .join("steamapps")
+                .join(format!("appmanifest_{SLAY_THE_SPIRE_APP_ID}.acf")),
+        );
+    }
+
+    paths
+}
+
+fn read_gameplay_settings_language(path: &Path) -> Option<String> {
+    let content = fs::read_to_string(path).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&content).ok()?;
+    value
+        .get("LANGUAGE")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn extract_vdf_value(content: &str, key: &str) -> Option<String> {
+    for line in content.lines() {
+        let mut parts = line.split('"').filter(|part| !part.trim().is_empty());
+        let Some(found_key) = parts.next() else {
+            continue;
+        };
+        let Some(value) = parts.next() else {
+            continue;
+        };
+        if found_key.eq_ignore_ascii_case(key) {
+            return Some(value.trim().to_string());
+        }
+    }
+    None
+}
+
+fn read_steam_appmanifest_language(path: &Path) -> Option<String> {
+    let content = fs::read_to_string(path).ok()?;
+    extract_vdf_value(&content, "language").filter(|v| !v.is_empty())
+}
+
+fn detect_game_language() -> Option<DetectedGameLanguage> {
+    if let Ok(language) = env::var("SLAY_THE_SPIRE_LANGUAGE") {
+        let language = language.trim();
+        if !language.is_empty() {
+            return Some(DetectedGameLanguage {
+                value: language.to_string(),
+                source: "SLAY_THE_SPIRE_LANGUAGE".to_string(),
+            });
+        }
+    }
+
+    for path in slay_the_spire_language_paths() {
+        if let Some(language) = read_gameplay_settings_language(&path) {
+            return Some(DetectedGameLanguage {
+                value: language,
+                source: path.display().to_string(),
+            });
+        }
+    }
+
+    for path in steam_appmanifest_paths() {
+        if let Some(language) = read_steam_appmanifest_language(&path) {
+            return Some(DetectedGameLanguage {
+                value: language,
+                source: path.display().to_string(),
+            });
+        }
+    }
+
+    None
+}
+
+fn language_needs_cjk_mod(language: &str) -> bool {
+    let language = language
+        .trim()
+        .to_ascii_lowercase()
+        .replace(['-', '_', ' '], "");
+
+    matches!(
+        language.as_str(),
+        "zhs"
+            | "zht"
+            | "zh"
+            | "zhcn"
+            | "zhtw"
+            | "schinese"
+            | "tchinese"
+            | "chinesesimplified"
+            | "chinesetraditional"
+            | "jpn"
+            | "ja"
+            | "jp"
+            | "japanese"
+            | "kor"
+            | "ko"
+            | "kr"
+            | "korean"
+            | "koreana"
+    ) || language.starts_with("zh")
+        || language.starts_with("ja")
+        || language.starts_with("ko")
 }
 
 fn extract_command_value(path: &Path) -> Option<String> {
@@ -87,10 +266,24 @@ fn current_exe_string() -> String {
         .unwrap_or_else(|_| "/path/to/slay-the-spire-copilot".to_string())
 }
 
-pub fn check_config_matches_current_exe(paths: &[PathBuf]) -> bool {
+fn config_path_uses_cjk_mod(path: &Path) -> bool {
+    path.components().any(|component| {
+        component
+            .as_os_str()
+            .to_string_lossy()
+            .eq_ignore_ascii_case("CommunicationModCJK")
+    })
+}
+
+fn find_config_matching_current_exe(paths: &[PathBuf]) -> Option<&PathBuf> {
     paths
         .iter()
-        .any(|p| p.exists() && config_is_valid(p) && config_points_to_this_binary(p))
+        .find(|p| p.exists() && config_is_valid(p) && config_points_to_this_binary(p))
+}
+
+#[cfg(test)]
+pub fn check_config_matches_current_exe(paths: &[PathBuf]) -> bool {
+    find_config_matching_current_exe(paths).is_some()
 }
 
 fn find_existing_config(paths: &[PathBuf]) -> Option<&PathBuf> {
@@ -141,6 +334,33 @@ fn show_setup_message_to(writer: &mut impl Write, config_path: &str, exe_path: &
          4. 通过 ModTheSpire 启动游戏并启用 CommunicationMod\n\n\
          也可以手动测试（mock provider）：\n\
             echo '{{\"in_game\":true,...}}' | {exe_path}\n"
+    );
+
+    let _ = writeln!(writer, "{message}");
+    let _ = writer.flush();
+}
+
+fn cjk_mod_required_for_language(config_path: &Path, language: Option<&str>) -> bool {
+    language.is_some_and(language_needs_cjk_mod) && !config_path_uses_cjk_mod(config_path)
+}
+
+fn show_cjk_mod_language_message_to(
+    writer: &mut impl Write,
+    language: &DetectedGameLanguage,
+    config_path: &Path,
+    cjk_config_path: &Path,
+) {
+    let message = format!(
+        "\n\
+         检测到 Slay the Spire 当前语言为 `{}`（来源：{}）。\n\
+         这个语言需要非 ASCII 文本支持，请改用 Communication Mod CJK。\n\n\
+         当前配置路径：{}\n\
+         推荐配置路径：{}\n\n\
+         请在 ModTheSpire 中启用 Communication Mod CJK，然后重新启动游戏。\n",
+        language.value,
+        language.source,
+        config_path.display(),
+        cjk_config_path.display()
     );
 
     let _ = writeln!(writer, "{message}");
@@ -239,8 +459,30 @@ fn try_fix_config(paths: &[PathBuf], exe_path: &str) -> bool {
 /// this binary. If not, attempts to fix the config (auto-fix or interactive prompt).
 pub fn ensure_config() -> bool {
     let paths = communication_mod_config_paths();
+    let detected_language = detect_game_language();
 
-    if check_config_matches_current_exe(&paths) {
+    if let Some(config_path) = find_config_matching_current_exe(&paths) {
+        if let Some(language) = &detected_language
+            && cjk_mod_required_for_language(config_path, Some(&language.value))
+        {
+            let cjk_config_path = paths
+                .iter()
+                .find(|p| config_path_uses_cjk_mod(p))
+                .unwrap_or(config_path);
+            show_cjk_mod_language_message_to(
+                &mut std::io::stdout().lock(),
+                language,
+                config_path,
+                cjk_config_path,
+            );
+            tracing::warn!(
+                language = language.value,
+                source = language.source,
+                config = %config_path.display(),
+                "Communication Mod CJK is required for detected game language"
+            );
+            return false;
+        }
         tracing::info!("CommunicationMod config found and configured correctly");
         return true;
     }

@@ -17,6 +17,55 @@ fn communication_mod_cjk_config_dir_is_preferred() {
 }
 
 #[test]
+fn gameplay_settings_language_is_read_from_sts_preferences() {
+    let (_dir, settings) = temp_config(
+        r#"{
+          "LANGUAGE": "ZHS",
+          "Fast Mode": "true"
+        }"#,
+    );
+
+    assert_eq!(
+        read_gameplay_settings_language(&settings),
+        Some("ZHS".to_string())
+    );
+}
+
+#[test]
+fn cjk_languages_require_communication_mod_cjk() {
+    for language in [
+        "ZHS", "ZHT", "schinese", "tchinese", "Japanese", "koreana", "zh_CN", "ja-JP", "ko_KR",
+    ] {
+        assert!(
+            language_needs_cjk_mod(language),
+            "{language} should require Communication Mod CJK"
+        );
+    }
+}
+
+#[test]
+fn ascii_compatible_languages_do_not_require_communication_mod_cjk() {
+    for language in ["ENG", "english", "french", "deu", "spanish", "rus"] {
+        assert!(
+            !language_needs_cjk_mod(language),
+            "{language} should not require Communication Mod CJK"
+        );
+    }
+}
+
+#[test]
+fn original_communication_mod_config_requires_cjk_prompt_for_cjk_language() {
+    let path = PathBuf::from("/tmp/ModTheSpire/CommunicationMod/config.properties");
+    assert!(cjk_mod_required_for_language(&path, Some("ZHS")));
+}
+
+#[test]
+fn cjk_communication_mod_config_does_not_require_cjk_prompt() {
+    let path = PathBuf::from("/tmp/ModTheSpire/CommunicationModCJK/config.properties");
+    assert!(!cjk_mod_required_for_language(&path, Some("ZHS")));
+}
+
+#[test]
 fn correct_config_passes() {
     let current = env::current_exe().unwrap();
     let (_dir, config) = temp_config(&format!("command={}\n", current.display()));

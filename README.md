@@ -153,6 +153,14 @@ The app checks `CommunicationModCJK` first, then falls back to the original `Com
 
 程序会优先检查 `CommunicationModCJK` 配置目录，然后再回退检查原版 `CommunicationMod` 配置目录。
 
+If the game language is Chinese, Japanese, or Korean, the app will prompt you to use Communication Mod CJK instead of the original CommunicationMod. It checks Slay the Spire's `preferences/STSGameplaySettings` file first, especially the `LANGUAGE` value such as `ZHS`, `ZHT`, `JPN`, or `KOR`.
+
+如果游戏语言是中文、日文或韩文，程序会提示你改用 Communication Mod CJK，而不是原版 CommunicationMod。程序会优先读取 Slay the Spire 的 `preferences/STSGameplaySettings` 文件，尤其是其中的 `LANGUAGE` 值，例如 `ZHS`、`ZHT`、`JPN` 或 `KOR`。
+
+For non-standard install locations, set `SLAY_THE_SPIRE_DIR` to the game install directory. For manual testing, `SLAY_THE_SPIRE_LANGUAGE=ZHS` can force the CJK-language startup check.
+
+如果游戏安装在非标准位置，可以将 `SLAY_THE_SPIRE_DIR` 设置为游戏安装目录。手动测试时，也可以用 `SLAY_THE_SPIRE_LANGUAGE=ZHS` 强制触发 CJK 语言启动检查。
+
 The app also tries to detect and repair an empty or wrong `command=` value at startup.
 
 程序启动时也会尝试检测并修复空的或错误的 `command=` 配置。
