@@ -291,7 +291,7 @@ fn parse_command_value(value: &str) -> Option<String> {
     {
         let command = quoted[..end].trim();
         if !command.is_empty() {
-            return Some(command.to_string());
+            return Some(command.replace("\\\\", "\\"));
         }
     }
 
@@ -300,22 +300,24 @@ fn parse_command_value(value: &str) -> Option<String> {
     {
         let command = quoted[..end].trim();
         if !command.is_empty() {
-            return Some(command.to_string());
+            return Some(command.replace("\\\\", "\\"));
         }
     }
 
-    if Path::new(value).exists() {
-        return Some(value.to_string());
+    let normalized = value.replace("\\\\", "\\");
+
+    if Path::new(&normalized).exists() {
+        return Some(normalized);
     }
 
-    if let Some(exe_end) = value.to_ascii_lowercase().find(".exe") {
-        let command = value[..exe_end + 4].trim();
+    if let Some(exe_end) = normalized.to_ascii_lowercase().find(".exe") {
+        let command = normalized[..exe_end + 4].trim();
         if !command.is_empty() {
             return Some(command.to_string());
         }
     }
 
-    let first_token = value.split_whitespace().next().unwrap_or("");
+    let first_token = normalized.split_whitespace().next().unwrap_or("");
     if !first_token.is_empty() {
         return Some(first_token.to_string());
     }
