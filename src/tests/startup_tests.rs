@@ -129,6 +129,29 @@ fn command_parser_handles_quoted_windows_paths() {
 }
 
 #[test]
+fn command_parser_unescapes_java_properties_windows_paths() {
+    assert_eq!(
+        parse_command_value(
+            r#""G\:\\Barracuda\\Game files\\Slay the Spire\\slay the spire copilot\\slay-the-spire-copilot.exe""#
+        ),
+        Some(
+            r"G:\Barracuda\Game files\Slay the Spire\slay the spire copilot\slay-the-spire-copilot.exe"
+                .to_string()
+        )
+    );
+}
+
+#[test]
+fn command_parser_unescapes_unquoted_java_properties_windows_paths() {
+    assert_eq!(
+        parse_command_value(
+            r"G\:\\Barracuda\\Game files\\Slay the Spire\\slay-the-spire-copilot.exe"
+        ),
+        Some(r"G:\Barracuda\Game files\Slay the Spire\slay-the-spire-copilot.exe".to_string())
+    );
+}
+
+#[test]
 fn format_command_value_doubles_backslashes_for_properties() {
     assert_eq!(format_command_value("/usr/bin/copilot"), "/usr/bin/copilot");
 }

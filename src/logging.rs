@@ -5,21 +5,10 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 pub fn project_root() -> PathBuf {
-    let mut dir = std::env::current_exe()
+    std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_else(|| PathBuf::from("."));
-
-    loop {
-        if dir.join("Cargo.toml").exists() {
-            return dir;
-        }
-        if let Some(parent) = dir.parent() {
-            dir = parent.to_path_buf();
-        } else {
-            return PathBuf::from(".");
-        }
-    }
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 
 pub fn init() -> WorkerGuard {

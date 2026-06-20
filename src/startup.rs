@@ -291,7 +291,7 @@ fn parse_command_value(value: &str) -> Option<String> {
     {
         let command = quoted[..end].trim();
         if !command.is_empty() {
-            return Some(command.replace("\\\\", "\\"));
+            return Some(unescape_properties_command_value(command));
         }
     }
 
@@ -300,11 +300,11 @@ fn parse_command_value(value: &str) -> Option<String> {
     {
         let command = quoted[..end].trim();
         if !command.is_empty() {
-            return Some(command.replace("\\\\", "\\"));
+            return Some(unescape_properties_command_value(command));
         }
     }
 
-    let normalized = value.replace("\\\\", "\\");
+    let normalized = unescape_properties_command_value(value);
 
     if Path::new(&normalized).exists() {
         return Some(normalized);
@@ -323,6 +323,13 @@ fn parse_command_value(value: &str) -> Option<String> {
     }
 
     None
+}
+
+fn unescape_properties_command_value(value: &str) -> String {
+    value
+        .replace("\\\\", "\\")
+        .replace("\\:", ":")
+        .replace("\\=", "=")
 }
 
 fn extract_command_value(path: &Path) -> Option<String> {
