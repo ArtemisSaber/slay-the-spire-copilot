@@ -240,46 +240,46 @@ output/advice.txt
 
 ## Copilot Overlay Mod / 游戏内悬浮窗
 
-The [Copilot Overlay Mod](https://github.com/ArtemisSaber/slay-the-spire-copilot-overlay-mod) shows AI advice directly inside the game as a semi-transparent overlay in the top-right corner, so you don't need to Alt-Tab to read the suggestion.
+The [Copilot Overlay Mod](https://github.com/ArtemisSaber/slay-the-spire-copilot-overlay-mod) shows AI advice directly inside the game as a semi-transparent overlay in the top-right corner.
 
-[Copilot Overlay Mod](https://github.com/ArtemisSaber/slay-the-spire-copilot-overlay-mod) 是一个游戏内悬浮窗模组，会在画面右上角半透明显示 AI 建议，无需切出游戏查看。
+[Copilot Overlay Mod](https://github.com/ArtemisSaber/slay-the-spire-copilot-overlay-mod) 是一个游戏内悬浮窗模组，会在画面右上角半透明显示 AI 建议。
 
 ### Installation / 安装
 
-1. Download or build `CopilotOverlay.jar` from the [overlay mod repository](https://github.com/ArtemisSaber/slay-the-spire-copilot-overlay-mod).
-2. Place the `.jar` in your ModTheSpire mods directory.
-3. Enable it alongside Communication Mod CJK when launching through ModTheSpire.
+1. Download `CopilotOverlay.jar` from the [overlay mod releases](https://github.com/ArtemisSaber/slay-the-spire-copilot-overlay-mod/releases).
+2. Place it in your ModTheSpire mods directory.
+3. Enable **Copilot Overlay** alongside Communication Mod CJK when launching through ModTheSpire (requires BaseMod).
 
 安装步骤：
-1. 从[悬浮窗模组仓库](https://github.com/ArtemisSaber/slay-the-spire-copilot-overlay-mod)下载或构建 `CopilotOverlay.jar`。
-2. 将 `.jar` 放入 ModTheSpire 的 mods 目录。
-3. 通过 ModTheSpire 启动游戏时，同时启用该模组和 Communication Mod CJK。
+1. 从[悬浮窗模组 Releases](https://github.com/ArtemisSaber/slay-the-spire-copilot-overlay-mod/releases)下载 `CopilotOverlay.jar`。
+2. 放入 ModTheSpire 的 mods 目录。
+3. 通过 ModTheSpire 启动游戏时，同时启用 **Copilot Overlay** 和 Communication Mod CJK（需要 BaseMod）。
 
 ### File Path / 文件路径
 
-The overlay mod reads advice from `output/advice.txt` relative to the game's working directory. The copilot writes to this same file by default, so no extra configuration is needed.
+The overlay polls `output/advice.txt` every 500ms. Resolution order:
 
-悬浮窗从游戏工作目录下的 `output/advice.txt` 读取建议，与 copilot 的默认输出路径一致，无需额外配置。
+悬浮窗每 500ms 读取一次 `output/advice.txt`，路径查找顺序：
 
-If you need a custom path, set the environment variable before launching the game:
+1. `COPILOT_ADVICE_PATH` environment variable (absolute path)
+2. `output/advice.txt` relative to the game's working directory
 
-如果自定义路径，在启动游戏前设置环境变量：
+When used with CommunicationMod, the working directory is the Slay the Spire install directory — the same directory where the copilot writes `output/advice.txt` by default.
 
-```bash
-export COPILOT_ADVICE_PATH=/absolute/path/to/output/advice.txt
-```
+通过 CommunicationMod 使用时，工作目录就是 Slay the Spire 安装目录，与 copilot 默认写入 `output/advice.txt` 的目录一致。
 
-### Configuration / 配置
+### Behavior / 行为
 
-A `config.properties` file is created on the first launch inside the overlay mod's config directory. Available settings:
+- Hidden when no advice has been received yet.
+- Fades in at full opacity when fresh advice arrives.
+- When advice is stale (no update for 30 seconds), the overlay fades out over 2 seconds.
+- Uses Chinese field labels (`推荐`/`理由`/`风险`/`吐槽`) when the game language is Chinese, English labels otherwise.
 
-首次启动时会在悬浮窗模组的配置目录下创建 `config.properties` 文件。可配置项：
-
-| Setting / 设置 | Default / 默认 | Description / 说明 |
-|---|---|---|
-| `visible` | `true` | Show/hide the overlay |
-| `positionX` / `positionY` | `20` / `20` | Offset from top-right corner / 距离右上角的偏移 |
-| `hideDuringCombat` | `true` | Auto-hide during combat / 战斗中自动隐藏 |
+行为：
+- 若从未收到建议，悬浮窗保持隐藏。
+- 收到新建议时立即以完整不透明显示。
+- 若建议超过 30 秒未更新，悬浮窗在 2 秒内淡出消失。
+- 游戏语言为中文时使用中文标签（`推荐`/`理由`/`风险`/`吐槽`），否则使用英文标签。
 
 ## Postmortem / 复盘
 
