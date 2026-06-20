@@ -28,6 +28,21 @@ fn no_combat_state(screen_type: &str) -> serde_json::Value {
     make_state(screen_type, None)
 }
 
+fn event_state_with_choices(choices: Vec<&str>) -> serde_json::Value {
+    json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "EVENT",
+            "floor": 8,
+            "room_type": "EventRoom",
+            "screen_state": {
+                "text": "A strange event appears.",
+                "options": choices
+            }
+        }
+    })
+}
+
 fn with_monsters(screen_type: &str) -> serde_json::Value {
     make_state(screen_type, Some(vec![active_monster()]))
 }
@@ -84,6 +99,9 @@ fn menu_before_any_observed_state_does_not_end_run() {
 #[test]
 fn generate_screens_produce_advice() {
     for &screen in SCREEN_CONFIG.generate {
+        if screen == "EVENT" {
+            continue;
+        }
         assert!(
             should_generate_advice(screen, &no_combat_state(screen)),
             "{screen} should generate advice"
@@ -113,8 +131,19 @@ fn boss_reward_generates_advice() {
 }
 
 #[test]
-fn event_generates_advice() {
-    assert!(should_generate_advice("EVENT", &no_combat_state("EVENT")));
+fn event_with_multiple_choices_generates_advice() {
+    assert!(should_generate_advice(
+        "EVENT",
+        &event_state_with_choices(vec!["Take", "Leave"])
+    ));
+}
+
+#[test]
+fn event_with_single_choice_does_not_generate_advice() {
+    assert!(!should_generate_advice(
+        "EVENT",
+        &event_state_with_choices(vec!["Continue"])
+    ));
 }
 
 #[test]

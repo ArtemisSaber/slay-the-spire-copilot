@@ -166,6 +166,42 @@ fn normalize_event_choices() {
 }
 
 #[test]
+fn normalize_event_choices_prefer_option_text_for_full_description() {
+    let i18n = load_i18n();
+    let raw = serde_json::json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "EVENT",
+            "screen_state": {
+                "event_name": "World of Goop",
+                "body": "You fall into a puddle. It is made of slime goop.",
+                "options": [
+                    {"label": "Lose Gold", "text": "Lose 11 Gold."},
+                    {"label": "Lose HP", "text": "Lose 5 HP."}
+                ]
+            },
+            "deck": [],
+            "relics": [],
+            "current_hp": 52,
+            "max_hp": 75,
+            "gold": 120,
+            "floor": 8,
+            "class": "IRONCLAD"
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, &i18n);
+
+    assert_eq!(
+        state.event_body.as_deref(),
+        Some("You fall into a puddle. It is made of slime goop.")
+    );
+    assert_eq!(
+        state.event_choices,
+        vec!["Lose 11 Gold.".to_string(), "Lose 5 HP.".to_string()]
+    );
+}
+
+#[test]
 fn normalize_event_choices_replaces_unreadable_locale_garble() {
     let i18n = load_i18n();
     let raw = serde_json::json!({

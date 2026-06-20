@@ -10,34 +10,60 @@ The current implementation is a working prototype with a strong technical founda
 - JSON game-state parsing from stdin
 - normalized game-state model
 - Chinese i18n for cards, relics, monsters, powers, potions, and card descriptions
-- prompt generation for combat, card rewards, rest sites, and generic states
+- `card_values.json` for resolving description variables (`!D!`, `!B!`, `!M!`)
+- prompt generation for combat, card rewards, boss rewards, rest sites, events, and generic states
+- danger assessment (`DangerFlags`, `DangerLevel`) for context-aware prompts
 - mock and OpenAI-compatible LLM providers
+- effort-based model routing (Fast/Medium/Heavy) per screen type
 - advice caching by stable state hash
+- combat identity deduplication (advice once per floor:room_type per run)
 - advice output to `output/advice.txt`
 - structured JSONL journal under `runs/<run_id>/events.jsonl`
-- run lifecycle journal events: `run_started`, `run_ended`
-- state-change journal events
-- advice journal events
+- schema versioning (`schema_version: 1`) on all journal events
+- journal event types: `run_metadata`, `state_changed`, `run_started`, `run_ended`, `advice`
+- state-change deduplication via `observation_hash`
+- advice cache linkage via `state_hash`
+- CommunicationMod startup check, config validation, and auto-fix
+- CJK language detection and Communication Mod CJK recommendation
+- postmortem report generation (deterministic + AI-enhanced), with `--plain` flag
+- manual test modes: `--stdin-test`, `--no-startup-check`, `SKIP_COMM_CONFIG=1`
 - unit and integration test coverage across state, prompt, i18n, LLM, protocol, startup, advice, config, and journal modules
 
 ## Current Runtime Behavior
 
-The runtime only generates advice for `CARD_REWARD` screens.
+The runtime generates advice for these screens:
 
-Prompt builders already support more contexts, including combat and rest sites, but the main screen gate does not currently enable those advice paths.
+| Screen | Effort | Notes |
+|---|---|---|
+| `CARD_REWARD` | Heavy | Standard card picks |
+| `BOSS_REWARD` | Heavy | Boss card picks |
+| `EVENT` | Medium | Only when >1 available (non-disabled) choices exist |
+| `REST` | Medium | Campfire decisions (rest, smith, toke, dig, lift, recall, girya) |
+| `NONE` (combat) | Fast | Once per unique floor:room_type (entry-only, not per turn) |
 
 The journal records normalized state changes before advice gating, so screens that do not generate advice can still appear in the run timeline.
+
+Combat advice is intentionally entry-only. Turn-by-turn advice is deferred to Post-MVP (see below).
+
+Run end is detected on `GAME_OVER` screen type or when `in_game` transitions from `true` to `false`, triggering automatic postmortem generation.
 
 ## Current Files Of Interest
 
 - `src/main.rs`: application loop, screen gating, stdin processing
-- `src/state.rs`: normalized game-state extraction and stable hashing
+- `src/state.rs`: normalized game-state extraction, danger assessment, stable/observation hashing
 - `src/prompt.rs`: prompt formatting
-- `src/llm.rs`: provider abstraction and LLM calls
+- `src/llm.rs`: provider abstraction, effort routing, system prompts
 - `src/advice.rs`: advice cache and advice output
-- `src/journal.rs`: JSONL run journal
-- `src/startup.rs`: CommunicationMod config validation/fixup
-- `src/i18n/`: localization data
+- `src/journal.rs`: JSONL run journal with schema versioning
+- `src/postmortem.rs`: deterministic and AI-enhanced postmortem reports
+- `src/startup.rs`: CommunicationMod config validation, auto-fix, CJK detection
+- `src/protocol.rs`: CommunicationMod protocol messages
+- `src/config.rs`: environment variable loading
+- `src/logging.rs`: file-based tracing/logging
+- `src/i18n/`: localization data (cards, relics, monsters, powers, potions, card_desc)
+- `src/card_values.json`: numeric values for card description variables
+- `src/tests/`: embedded unit test modules
+- `tests/integration_test.rs`: integration test
 - `tests/fixtures/`: sample game states
 
 ## MVP Goal
@@ -50,116 +76,65 @@ The MVP should support this complete loop:
 4. Player finishes or stops the run.
 5. Copilot can generate a basic post-mortem from the recorded journal.
 
-## MVP Missing Features
+**Status: Achieved.** All five steps are functional.
+
+## MVP Completed Features
 
 ### 1. Full-Fidelity Journal Hash
 
-Current state-change dedupe uses `NormalizedState::stable_hash()`.
-
-That hash is designed for advice caching, not full replay fidelity. It intentionally omits or normalizes away details that matter for post-mortems, including some pile details, card UUIDs, monster block, monster powers, and card order.
-
-Needed:
-
-- add a separate `observation_hash`
-- base it on the full serialized normalized state
-- keep `stable_hash` for advice caching
-- journal both hashes:
-  - `observation_hash` for state-change dedupe and replay
-  - `advice_hash` or `state_hash` for advice cache linkage
+- Added `NormalizedState::observation_hash()` based on full serialized normalized state
+- `stable_hash()` is kept for advice caching only
+- Journal deduplication uses `observation_hash`
+- `state_hash` is recorded in advice events for cache linkage
+- Tests cover pile-only, monster-block, monster-power, and UUID-only state changes
 
 ### 2. Event Schema Versioning
 
-Journal records should include a schema version before the format becomes relied on by analysis tooling.
-
-Needed:
-
-- add `schema_version: 1` to all journal events
-- add tests that assert the field exists
+- `SCHEMA_VERSION: u32 = 1` defined in `journal.rs`
+- All journal events include `schema_version: 1`
 
 ### 3. More Advice Coverage
 
-The product is too narrow if it only advises on card rewards.
-
-Needed for MVP:
-
-- enable rest-site advice
-- enable combat-entry advice when a fight starts
-- keep boss relic, shop, map, events, and grid screens as post-MVP unless they become easy wins
-
-Combat advice should not run every turn for MVP. LLM latency is too high for the pace of combat, and repeated advice can interrupt gameplay. The MVP should give an initial fight plan when entering combat, then rely on the journal to support post-mortem analysis after the fight.
-
-Turn-by-turn combat advice can be revisited later if latency improves or if the app gains a faster local heuristic layer.
+- Enabled `CARD_REWARD` advice (Heavy effort)
+- Enabled `BOSS_REWARD` advice (Heavy effort)
+- Enabled `REST` site advice (Medium effort)
+- Enabled `EVENT` advice for >1 available choice (Medium effort)
+- Enabled combat-entry advice on new fights (Fast effort, deduplicated by floor:room_type)
+- Combat advice is entry-only; per-turn advice deferred to Post-MVP
 
 ### 4. Post-Mortem Report Command
 
-The journal is necessary but not enough. Users need a readable report.
-
-Needed:
-
-- add a command or mode that reads `runs/<run_id>/events.jsonl`
-- output a Markdown or plain-text summary
-- include:
+- Added `postmortem` CLI command that reads `runs/<run_id>/events.jsonl`
+- Outputs a Markdown summary including:
   - run start/end
   - last observed floor, HP, gold, deck size, relics
   - advice events by floor/screen
-  - card reward choices and inferred picks where possible
+  - card reward choices and inferred picks
   - major HP changes
   - final observed state
-
-Example target:
-
-```bash
-slay-the-spire-copilot postmortem runs/<run_id>/events.jsonl
-```
+- Added `--plain` flag to skip AI rewrite and print deterministic report directly
+- AI-enhanced reports use a coaching-style Chinese prompt for 2-4 improvement suggestions
+- Automatically generated when a run ends during normal operation
 
 ### 5. Manual/Test Run Mode
 
-The current startup flow validates CommunicationMod config before processing stdin. That can make fixture/manual testing awkward.
-
-Needed:
-
-- add a way to bypass CommunicationMod setup for local testing
-- possible options:
-  - `--stdin-test`
-  - `--no-startup-check`
-  - `SKIP_COMM_CONFIG=1`
-- update README examples accordingly
+- `--stdin-test`: skips CommunicationMod startup check and forces mock provider
+- `--no-startup-check`: skips CommunicationMod startup check only
+- `SKIP_COMM_CONFIG=1`: environment variable alternative for bypassing startup check
 
 ### 6. Run Metadata
 
-Run journals need enough metadata to be useful later.
-
-Needed:
-
-- provider name
-- model names
-- app version
-- start timestamp
-- first observed character
-- ascension, seed, or modifiers if CommunicationMod exposes them
+- `log_run_started_with_config` captures:
+  - provider name
+  - model names (fast, medium, heavy)
+  - app version
+  - start timestamp
+  - first observed character, ascension, seed (when CommunicationMod exposes them)
 
 ### 7. Output Behavior Cleanup
 
-`output/advice.txt` currently appends advice forever.
-
-For live use, the current advice should be easy to read.
-
-Needed:
-
-- decide whether `advice.txt` should contain only latest advice
-- keep historical advice in the JSONL journal
-- optionally add `output/advice-history.txt` if plain-text history is still useful
-
-## Recommended Implementation Order
-
-1. Add `schema_version` to journal events.
-2. Add full-fidelity `observation_hash` and use it for journal dedupe.
-3. Add tests for pile-only, monster-block, monster-power, and UUID-only state changes.
-4. Add manual stdin/test mode.
-5. Enable rest advice.
-6. Enable combat-entry advice only.
-7. Add post-mortem report command.
-8. Update README with the MVP workflow.
+- `output/advice.txt` now contains only the latest advice (overwrite, not append)
+- Full historical advice is preserved in the JSONL journal
 
 ## Post-MVP Ideas
 

@@ -27,9 +27,9 @@ fn boss_reward_system_prompt_ignores_current_hp() {
     assert!(prompt.contains("当前血量"));
     assert!(prompt.contains("不要"));
     assert!(prompt.contains("回满血"));
-    assert!(prompt.contains("17"));
-    assert!(prompt.contains("34"));
-    assert!(prompt.contains("51"));
+    assert!(prompt.contains("16"));
+    assert!(prompt.contains("33"));
+    assert!(prompt.contains("50"));
 }
 
 #[test]
@@ -108,7 +108,7 @@ fn monster() -> MonsterInfo {
 
 #[test]
 fn scenario_resolver_detects_boss_card_reward_floors() {
-    for floor in [17, 34, 51] {
+    for floor in [16, 33, 50] {
         let state = NormalizedState {
             screen_type: Some("CARD_REWARD".into()),
             floor: Some(floor),
