@@ -11,6 +11,10 @@ pub fn project_root() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
+pub fn advice_output_dir() -> PathBuf {
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
 pub fn init() -> WorkerGuard {
     let root = project_root();
     let log_dir = root.join("logs");

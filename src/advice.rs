@@ -39,7 +39,7 @@ impl AdviceCache {
     }
 
     pub fn write_advice(&self, advice: &str) {
-        let output_dir = crate::logging::project_root().join("output");
+        let output_dir = crate::logging::advice_output_dir().join("output");
         let _ = fs::create_dir_all(&output_dir);
 
         let path = output_dir.join("advice.txt");
