@@ -1,15 +1,15 @@
 # Slay the Spire AI Copilot
 
-A local CLI copilot for Slay the Spire. It reads game state from CommunicationMod, asks an LLM for advice, writes the latest suggestion to `output/advice.txt`, and records structured run history under `runs/<run_id>/events.jsonl` for postmortem analysis.
+A local CLI copilot for Slay the Spire. It reads game state from Communication Mod CJK (recommended) or the original CommunicationMod, asks an LLM for advice, writes the latest suggestion to `output/advice.txt`, and records structured run history under `runs/<run_id>/events.jsonl` for postmortem analysis.
 
-本项目是一个本地运行的《杀戮尖塔》AI 助手。它通过 CommunicationMod 读取游戏状态，调用 LLM 生成建议，把最新建议写入 `output/advice.txt`，并将结构化运行记录保存到 `runs/<run_id>/events.jsonl`，方便之后复盘。
+本项目是一个本地运行的《杀戮尖塔》AI 助手。它通过 Communication Mod CJK（推荐）或原版 CommunicationMod 读取游戏状态，调用 LLM 生成建议，把最新建议写入 `output/advice.txt`，并将结构化运行记录保存到 `runs/<run_id>/events.jsonl`，方便之后复盘。
 
 ## Requirements / 环境要求
 
 - Rust 1.85+ (edition 2024), if building from source
 - Slay the Spire
 - ModTheSpire
-- CommunicationMod
+- Communication Mod CJK (recommended) or CommunicationMod
 
 ## Download Or Build / 下载或构建
 
@@ -188,9 +188,9 @@ The app also tries to detect and repair an empty or wrong `command=` value at st
 
 ## Local Smoke Test / 本地快速测试
 
-Use `--stdin-test` to bypass CommunicationMod setup and force the mock provider:
+Use `--stdin-test` to bypass CommunicationMod setup and force the mock provider. Use `--no-startup-check` to skip config validation only, or set `SKIP_COMM_CONFIG=1`.
 
-使用 `--stdin-test` 可以跳过 CommunicationMod 配置检查，并强制使用 mock provider：
+使用 `--stdin-test` 可以跳过 CommunicationMod 配置检查，并强制使用 mock provider。使用 `--no-startup-check` 仅跳过配置校验，或设置 `SKIP_COMM_CONFIG=1`。
 
 ```bash
 echo '{"in_game":true,"game_state":{"screen_type":"CARD_REWARD","screen_state":{"cards":[{"id":"Uppercut","name":"Uppercut","cost":2,"type":"ATTACK","upgrades":0}],"skip_available":true},"class":"IRONCLAD","floor":1,"current_hp":68,"max_hp":75,"gold":99}}' \
@@ -222,8 +222,9 @@ output/advice.txt
 - latest advice is written to `output/advice.txt`.
 - durable run history is written to `runs/<run_id>/events.jsonl`.
 - when the run ends, a postmortem report is automatically written to `runs/<run_id>/postmortem.md`.
-- advice is generated for card rewards, rest sites, and once when entering combat.
-- combat advice is intentionally entry-only for MVP to avoid high latency every turn.
+- advice is generated for card rewards, boss card rewards, boss relics, rest sites, events (with multiple choices), and once when entering combat.
+- advice uses tiered model routing: Heavy for card/boss rewards, Medium for rest/events, Fast for combat entry.
+- combat advice is intentionally entry-only to avoid high latency every turn.
 
 运行行为：
 
@@ -233,8 +234,9 @@ output/advice.txt
 - 最新建议写入 `output/advice.txt`。
 - 持久化运行记录写入 `runs/<run_id>/events.jsonl`。
 - 本局结束时会自动生成复盘报告：`runs/<run_id>/postmortem.md`。
-- 当前会在选牌、篝火、进入战斗时生成建议。
-- MVP 阶段战斗建议只在进入战斗时生成一次，避免每回合 LLM 延迟影响游戏节奏。
+- 当前会在选牌、Boss 选牌、Boss 遗物、篝火、事件（多选项时）、进入战斗时生成建议。
+- 建议按场景分层使用不同模型：Heavy（选牌/Boss 选牌）、Medium（篝火/事件）、Fast（进入战斗）。
+- 战斗建议只在进入战斗时生成一次，避免每回合 LLM 延迟影响游戏节奏。
 
 ## Postmortem / 复盘
 
@@ -307,18 +309,25 @@ Release workflow 会构建并上传 Linux、macOS、Windows 的可下载压缩�
 
 ```text
 src/
-  main.rs        main loop, CLI modes, screen gating
-  config.rs      environment variable loading
-  protocol.rs    CommunicationMod protocol messages
-  state.rs       normalized game state, advice hash, observation hash
-  prompt.rs      Chinese LLM prompt builder
-  llm.rs         LLM provider abstraction
-  advice.rs      latest advice file output
-  journal.rs     JSONL run journal
-  postmortem.rs  postmortem report generation
-  logging.rs     file logger
+  main.rs          main loop, CLI modes, screen gating
+  config.rs        environment variable loading
+  protocol.rs      CommunicationMod protocol messages
+  state.rs         normalized game state, advice hash, observation hash, danger assessment
+  prompt.rs        Chinese LLM prompt builder
+  llm.rs           LLM provider abstraction, effort routing, system prompts
+  advice.rs        latest advice file output and cache
+  journal.rs       JSONL run journal with schema versioning
+  postmortem.rs    postmortem report generation
+  startup.rs       CommunicationMod config validation, auto-fix, CJK detection
+  logging.rs       file logger
+  i18n/            Chinese translations (cards, relics, monsters, powers, potions, card descriptions)
+  card_values.json numeric values for card description variables (!D!, !B!, !M!)
+  tests/           embedded unit test modules
 tests/
-  fixtures/      sample CommunicationMod JSON states
+  fixtures/        sample CommunicationMod JSON states
+  integration_test.rs
+docs/
+  mvp-roadmap.md
 ```
 
 ## License / 许可证

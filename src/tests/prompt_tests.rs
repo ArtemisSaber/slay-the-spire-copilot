@@ -239,7 +239,7 @@ fn boss_card_reward_prompt_includes_full_heal_note() {
     let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
-        floor: Some(17),
+        floor: Some(16),
         current_hp: Some(3),
         max_hp: Some(75),
         card_reward_choices: vec![card("Demon Form", "Demon Form", 3, "POWER")],

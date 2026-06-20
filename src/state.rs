@@ -551,7 +551,7 @@ impl NormalizedState {
 
     pub fn is_boss_card_reward(&self) -> bool {
         self.screen_type.as_deref() == Some("CARD_REWARD")
-            && matches!(self.floor, Some(17 | 34 | 51))
+            && matches!(self.floor, Some(16 | 33 | 50))
     }
 
     fn to_stable_value(&self) -> Value {
