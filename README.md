@@ -238,6 +238,49 @@ output/advice.txt
 - 建议按场景分层使用不同模型：Heavy（选牌/Boss 选牌）、Medium（篝火/事件）、Fast（进入战斗）。
 - 战斗建议只在进入战斗时生成一次，避免每回合 LLM 延迟影响游戏节奏。
 
+## Copilot Overlay Mod / 游戏内悬浮窗
+
+The [Copilot Overlay Mod](https://github.com/ArtemisSaber/slay-the-spire-copilot-overlay-mod) shows AI advice directly inside the game as a semi-transparent overlay in the top-right corner, so you don't need to Alt-Tab to read the suggestion.
+
+[Copilot Overlay Mod](https://github.com/ArtemisSaber/slay-the-spire-copilot-overlay-mod) 是一个游戏内悬浮窗模组，会在画面右上角半透明显示 AI 建议，无需切出游戏查看。
+
+### Installation / 安装
+
+1. Download or build `CopilotOverlay.jar` from the [overlay mod repository](https://github.com/ArtemisSaber/slay-the-spire-copilot-overlay-mod).
+2. Place the `.jar` in your ModTheSpire mods directory.
+3. Enable it alongside Communication Mod CJK when launching through ModTheSpire.
+
+安装步骤：
+1. 从[悬浮窗模组仓库](https://github.com/ArtemisSaber/slay-the-spire-copilot-overlay-mod)下载或构建 `CopilotOverlay.jar`。
+2. 将 `.jar` 放入 ModTheSpire 的 mods 目录。
+3. 通过 ModTheSpire 启动游戏时，同时启用该模组和 Communication Mod CJK。
+
+### File Path / 文件路径
+
+The overlay mod reads advice from `output/advice.txt` relative to the game's working directory. The copilot writes to this same file by default, so no extra configuration is needed.
+
+悬浮窗从游戏工作目录下的 `output/advice.txt` 读取建议，与 copilot 的默认输出路径一致，无需额外配置。
+
+If you need a custom path, set the environment variable before launching the game:
+
+如果自定义路径，在启动游戏前设置环境变量：
+
+```bash
+export COPILOT_ADVICE_PATH=/absolute/path/to/output/advice.txt
+```
+
+### Configuration / 配置
+
+A `config.properties` file is created on the first launch inside the overlay mod's config directory. Available settings:
+
+首次启动时会在悬浮窗模组的配置目录下创建 `config.properties` 文件。可配置项：
+
+| Setting / 设置 | Default / 默认 | Description / 说明 |
+|---|---|---|
+| `visible` | `true` | Show/hide the overlay |
+| `positionX` / `positionY` | `20` / `20` | Offset from top-right corner / 距离右上角的偏移 |
+| `hideDuringCombat` | `true` | Auto-hide during combat / 战斗中自动隐藏 |
+
 ## Postmortem / 复盘
 
 When launched by CommunicationMod, the app automatically generates a Markdown postmortem when the run ends. The report is saved next to the journal:
