@@ -1,8 +1,8 @@
 # Slay the Spire AI Copilot
 
-A local CLI copilot for Slay the Spire. It reads game state from Communication Mod CJK (recommended) or the original CommunicationMod, asks an LLM for advice, writes the latest suggestion to `output/advice.txt`, and records structured run history under `runs/<run_id>/events.jsonl` for postmortem analysis.
+A local CLI copilot for Slay the Spire. It reads game state from Communication Mod CJK (recommended) or the original CommunicationMod, asks an LLM for advice, writes the latest suggestion to `output/advice.txt` (plain text) and `output/overlay.json` (structured JSON), and records structured run history under `runs/<run_id>/events.jsonl` for postmortem analysis.
 
-本项目是一个本地运行的《杀戮尖塔》AI 助手。它通过 Communication Mod CJK（推荐）或原版 CommunicationMod 读取游戏状态，调用 LLM 生成建议，把最新建议写入 `output/advice.txt`，并将结构化运行记录保存到 `runs/<run_id>/events.jsonl`，方便之后复盘。
+本项目是一个本地运行的《杀戮尖塔》AI 助手。它通过 Communication Mod CJK（推荐）或原版 CommunicationMod 读取游戏状态，调用 LLM 生成建议，把最新建议写入 `output/advice.txt`（纯文本）和 `output/overlay.json`（结构化 JSON），并将结构化运行记录保存到 `runs/<run_id>/events.jsonl`，方便之后复盘。
 
 ## Requirements / 环境要求
 
@@ -211,7 +211,8 @@ Check the latest advice:
 查看最新建议：
 
 ```text
-output/advice.txt
+output/advice.txt    (plain text, backward compatible)
+output/overlay.json  (structured JSON, for overlay mod)
 ```
 
 ## Runtime Behavior / 运行行为
@@ -219,7 +220,7 @@ output/advice.txt
 - stdout is reserved for CommunicationMod protocol messages.
 - logs go to `logs/sts-ai.log`.
 - prompts and LLM responses are logged to `logs/prompts.log`.
-- latest advice is written to `output/advice.txt`.
+- latest advice is written to `output/advice.txt` (plain text) and `output/overlay.json` (structured JSON).
 - durable run history is written to `runs/<run_id>/events.jsonl`.
 - when the run ends, a postmortem report is automatically written to `runs/<run_id>/postmortem.md`.
 - advice is generated for card rewards, boss card rewards, boss relics, rest sites, events (with multiple choices), and once when entering combat.
@@ -231,7 +232,7 @@ output/advice.txt
 - stdout 专门用于 CommunicationMod 协议消息。
 - 普通日志写入 `logs/sts-ai.log`。
 - prompt 和 LLM 回复写入 `logs/prompts.log`。
-- 最新建议写入 `output/advice.txt`。
+- 最新建议写入 `output/advice.txt`（纯文本）和 `output/overlay.json`（结构化 JSON）。
 - 持久化运行记录写入 `runs/<run_id>/events.jsonl`。
 - 本局结束时会自动生成复盘报告：`runs/<run_id>/postmortem.md`。
 - 当前会在选牌、Boss 选牌、Boss 遗物、篝火、事件（多选项时）、进入战斗时生成建议。
@@ -257,29 +258,31 @@ The [Copilot Overlay Mod](https://github.com/ArtemisSaber/slay-the-spire-copilot
 
 ### File Path / 文件路径
 
-The overlay polls `output/advice.txt` every 500ms. Resolution order:
+The overlay polls `output/overlay.json` every 500ms. Resolution order:
 
-悬浮窗每 500ms 读取一次 `output/advice.txt`，路径查找顺序：
+悬浮窗每 500ms 读取一次 `output/overlay.json`，路径查找顺序：
 
-1. `COPILOT_ADVICE_PATH` environment variable (absolute path)
-2. `output/advice.txt` relative to the game's working directory
+1. `COPILOT_ADVICE_PATH` environment variable (absolute path to `output/overlay.json`)
+2. `output/overlay.json` relative to the game's working directory
 
-When used with CommunicationMod, the working directory is the Slay the Spire install directory — the same directory where the copilot writes `output/advice.txt` by default.
+When used with CommunicationMod, the working directory is the Slay the Spire install directory — the same directory where the copilot writes `output/overlay.json` by default.
 
-通过 CommunicationMod 使用时，工作目录就是 Slay the Spire 安装目录，与 copilot 默认写入 `output/advice.txt` 的目录一致。
+通过 CommunicationMod 使用时，工作目录就是 Slay the Spire 安装目录，与 copilot 默认写入 `output/overlay.json` 的目录一致。
 
 ### Behavior / 行为
 
-- Hidden when no advice has been received yet.
-- Fades in at full opacity when fresh advice arrives.
-- When advice is stale (no update for 30 seconds), the overlay fades out over 2 seconds.
-- Uses Chinese field labels (`推荐`/`理由`/`风险`/`吐槽`) when the game language is Chinese, English labels otherwise.
+- The copilot controls visibility via the `overlay_visibility` field in `output/overlay.json`.
+- `status: "loading"` — the copilot is waiting for the LLM; overlay may show a spinner.
+- `status: "ok"` — fresh advice available with structured `advice` fields (`recommendation`, `reason`, `risk`, `commentary`).
+- After 30 seconds, the copilot sets `overlay_visibility: false`; the overlay should hide.
+- Parsing Chinese labels (`推荐`/`理由`/`风险`/`吐槽`) from plain text is no longer needed — the JSON schema (`schemas/overlay.d.ts`) provides structured fields directly.
 
 行为：
-- 若从未收到建议，悬浮窗保持隐藏。
-- 收到新建议时立即以完整不透明显示。
-- 若建议超过 30 秒未更新，悬浮窗在 2 秒内淡出消失。
-- 游戏语言为中文时使用中文标签（`推荐`/`理由`/`风险`/`吐槽`），否则使用英文标签。
+- copilot 通过 `output/overlay.json` 中的 `overlay_visibility` 字段控制悬浮窗显隐。
+- `status: "loading"` — copilot 正在等待 LLM 回复，悬浮窗可显示加载状态。
+- `status: "ok"` — 新建议已就绪，`advice` 对象包含结构化字段（`recommendation`、`reason`、`risk`、`commentary`）。
+- 30 秒后，copilot 会将 `overlay_visibility` 设为 `false`，悬浮窗应隐藏。
+- 不再需要从纯文本中解析中文标签（`推荐`/`理由`/`风险`/`吐槽`）——JSON schema（`schemas/overlay.d.ts`）直接提供结构化字段。
 
 ## Postmortem / 复盘
 

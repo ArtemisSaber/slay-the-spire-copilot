@@ -16,7 +16,7 @@
 ## Architecture
 - **Single binary** — `main.rs` is the entrypoint. Modules are declared at the top.
 - **Output paths** all resolve relative to the binary's parent directory (`project_root()` in `logging.rs`):
-  - `logs/sts-ai.log`, `output/advice.txt`, `runs/<run_id>/events.jsonl`, `.env`
+  - `logs/sts-ai.log`, `output/advice.txt`, `output/overlay.json`, `runs/<run_id>/events.jsonl`, `.env`
 - **Log level** default is `info`. Set `RUST_LOG=debug` for verbose. Logs are file-only (no stdout).
 - **Advice gating** (`SCREEN_CONFIG`): `CARD_REWARD`, `BOSS_REWARD`, `EVENT` (>1 choice), `REST`. Combat entry is separate via `AdviceGate`.
 - **Boss card reward**: detected by `is_boss_card_reward()` — `CARD_REWARD` screen at floors 16, 33, 50.
