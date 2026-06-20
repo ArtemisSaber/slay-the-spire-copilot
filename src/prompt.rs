@@ -471,15 +471,21 @@ fn build_rest(state: &NormalizedState, i18n_data: &I18n) -> String {
 }
 
 fn build_boss_relic(state: &NormalizedState, i18n_data: &I18n) -> String {
-    let mut lines: Vec<String> = vec![
-        "=== 当前状态 ===".to_string(),
-        status_line(state),
-        String::new(),
-        "=== 任务 ===".to_string(),
-        "请从 Boss 遗物中选择一个。重点比较能量、过牌、卡组方向、已有遗物、药水、下一幕压力和副作用。".to_string(),
-        String::new(),
-        format_deck_section(&state.master_cards, i18n_data),
-    ];
+    let mut lines: Vec<String> = vec!["=== 当前状态 ===".to_string(), status_line(state)];
+
+    let is_act_end = matches!(state.floor, Some(16) | Some(33));
+    if is_act_end {
+        lines.push("注意：下一幕开始会回满血，不要把当前血量当成选遗物依据。".to_string());
+    }
+
+    lines.push(String::new());
+    lines.push("=== 任务 ===".to_string());
+    lines.push(
+        "请从 Boss 遗物中选择一个。重点比较能量、过牌、卡组方向、已有遗物、药水、下一幕压力和副作用。"
+            .to_string(),
+    );
+    lines.push(String::new());
+    lines.push(format_deck_section(&state.master_cards, i18n_data));
 
     if !state.boss_relic_choices.is_empty() {
         lines.push("=== Boss 遗物 ===".to_string());
