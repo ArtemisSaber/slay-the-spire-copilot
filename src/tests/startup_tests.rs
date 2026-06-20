@@ -129,6 +129,35 @@ fn command_parser_handles_quoted_windows_paths() {
 }
 
 #[test]
+fn format_command_value_doubles_backslashes_for_properties() {
+    assert_eq!(format_command_value("/usr/bin/copilot"), "/usr/bin/copilot");
+}
+
+#[test]
+fn format_command_value_doubles_windows_path_backslashes() {
+    assert_eq!(
+        format_command_value(r"G:\foo\bar\copilot.exe"),
+        r"G:\\foo\\bar\\copilot.exe"
+    );
+}
+
+#[test]
+fn format_command_value_quotes_paths_with_spaces_and_doubles_backslashes() {
+    assert_eq!(
+        format_command_value(r"G:\Program Files\Copilot\copilot.exe"),
+        r#""G:\\Program Files\\Copilot\\copilot.exe""#
+    );
+}
+
+#[test]
+fn format_command_value_preserves_already_quoted_value() {
+    assert_eq!(
+        format_command_value(r#""G:\foo\bar.exe""#),
+        r#""G:\\foo\\bar.exe""#
+    );
+}
+
+#[test]
 fn write_command_quotes_paths_with_spaces() {
     let (_dir, config) = temp_config("command=\n");
     let command = r"C:\Program Files\Slay Copilot\slay-the-spire-copilot.exe";
@@ -136,7 +165,7 @@ fn write_command_quotes_paths_with_spaces() {
     assert!(write_command_to_config(&config, command));
 
     let updated = fs::read_to_string(&config).unwrap();
-    assert!(updated.contains(&format!("command=\"{}\"", command.replace('\\', "\\\\"))));
+    assert!(updated.contains(&format!("command={}", format_command_value(command))));
 }
 
 #[test]
@@ -160,7 +189,7 @@ fn empty_command_auto_fixes() {
     let (_dir, config) = temp_config("command=\n");
     assert!(write_command_to_config(&config, &current));
     let updated = fs::read_to_string(&config).unwrap();
-    assert!(updated.contains(&format!("command={current}")));
+    assert!(updated.contains(&format!("command={}", format_command_value(&current))));
 }
 
 #[test]
