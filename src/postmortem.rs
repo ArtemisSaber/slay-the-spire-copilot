@@ -1,5 +1,27 @@
 use serde_json::Value;
 use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+pub const POSTMORTEM_FILE_NAME: &str = "postmortem.md";
+
+pub fn postmortem_path_for_journal(journal_path: &Path) -> PathBuf {
+    journal_path
+        .parent()
+        .map(|dir| dir.join(POSTMORTEM_FILE_NAME))
+        .unwrap_or_else(|| PathBuf::from(POSTMORTEM_FILE_NAME))
+}
+
+pub fn generate_report_from_journal_file(journal_path: &Path) -> Result<String, String> {
+    let content = fs::read_to_string(journal_path).map_err(|e| e.to_string())?;
+    generate_report_from_jsonl(&content)
+}
+
+pub fn write_report_for_journal(journal_path: &Path, report: &str) -> Result<PathBuf, String> {
+    let report_path = postmortem_path_for_journal(journal_path);
+    fs::write(&report_path, report).map_err(|e| e.to_string())?;
+    Ok(report_path)
+}
 
 pub fn generate_report_from_jsonl(input: &str) -> Result<String, String> {
     let mut events = Vec::new();

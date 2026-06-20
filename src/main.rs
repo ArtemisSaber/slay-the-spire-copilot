@@ -80,6 +80,26 @@ fn is_error(raw: &serde_json::Value) -> bool {
     raw.get("error").is_some()
 }
 
+fn is_game_over_state(raw: &serde_json::Value) -> bool {
+    raw.pointer("/game_state/screen_type")
+        .and_then(|v| v.as_str())
+        .is_some_and(|screen| screen == "GAME_OVER")
+}
+
+fn should_end_run(raw: &serde_json::Value, has_seen_game_state: bool) -> bool {
+    is_game_over_state(raw) || (has_seen_game_state && !is_in_game(raw))
+}
+
+fn run_end_reason(raw: &serde_json::Value, has_seen_game_state: bool) -> Option<&'static str> {
+    if is_game_over_state(raw) {
+        Some("game_over")
+    } else if has_seen_game_state && !is_in_game(raw) {
+        Some("left_game")
+    } else {
+        None
+    }
+}
+
 fn has_monsters(raw: &serde_json::Value) -> bool {
     raw.pointer("/game_state/combat_state/monsters")
         .and_then(|v| v.as_array())
@@ -146,6 +166,45 @@ fn should_generate_advice(screen_type: &str, raw: &serde_json::Value) -> bool {
         return true;
     }
     false
+}
+
+async fn postmortem_report_text(deterministic_report: &str, provider: &llm::LlmProvider) -> String {
+    let prompt = postmortem::build_ai_postmortem_prompt(deterministic_report);
+    match provider.query_postmortem(&prompt).await {
+        Ok(report) => report,
+        Err(e) => {
+            tracing::warn!("AI postmortem failed, saving deterministic report: {e}");
+            deterministic_report.to_string()
+        }
+    }
+}
+
+async fn finalize_run_once(
+    journal: &journal::Journal,
+    provider: &llm::LlmProvider,
+    reason: &str,
+    finalized: &mut bool,
+) {
+    if *finalized {
+        return;
+    }
+    *finalized = true;
+
+    journal.log_run_ended(reason);
+
+    let deterministic_report = match postmortem::generate_report_from_journal_file(journal.path()) {
+        Ok(report) => report,
+        Err(e) => {
+            tracing::error!("failed to generate postmortem report: {e}");
+            return;
+        }
+    };
+    let report = postmortem_report_text(&deterministic_report, provider).await;
+
+    match postmortem::write_report_for_journal(journal.path(), &report) {
+        Ok(path) => tracing::info!("wrote postmortem report to {}", path.display()),
+        Err(e) => tracing::error!("failed to write postmortem report: {e}"),
+    }
 }
 
 #[tokio::main]
@@ -227,6 +286,8 @@ async fn main() {
     let mut journal = journal::Journal::new();
     journal.log_run_started_with_config(&config);
     let mut advice_gate = AdviceGate::new();
+    let mut saw_game_state = false;
+    let mut run_finalized = false;
     let stdin = io::stdin();
 
     for line in stdin.lock().lines() {
@@ -259,9 +320,16 @@ async fn main() {
         }
 
         if !is_in_game(&raw) {
+            if should_end_run(&raw, saw_game_state) {
+                let reason = run_end_reason(&raw, saw_game_state).unwrap_or("left_game");
+                finalize_run_once(&journal, &provider, reason, &mut run_finalized).await;
+                break;
+            }
             tracing::debug!("skipping non-game state");
             continue;
         }
+
+        saw_game_state = true;
 
         let screen_type = raw
             .pointer("/game_state/screen_type")
@@ -275,6 +343,11 @@ async fn main() {
         let normalized = state::NormalizedState::from_raw(&raw, &i18n_data);
         let hash = normalized.stable_hash();
         journal.log_state_change(&hash, &normalized);
+
+        if is_game_over_state(&raw) {
+            finalize_run_once(&journal, &provider, "game_over", &mut run_finalized).await;
+            break;
+        }
 
         if !advice_gate.should_generate(screen_type, &raw) {
             tracing::debug!("skipping screen type: {screen_type}");
@@ -316,7 +389,7 @@ async fn main() {
         cache.write_advice(&advice);
     }
 
-    journal.log_run_ended("stdin_closed");
+    finalize_run_once(&journal, &provider, "stdin_closed", &mut run_finalized).await;
     tracing::info!("stdin closed, exiting");
 }
 

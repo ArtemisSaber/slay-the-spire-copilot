@@ -221,6 +221,7 @@ output/advice.txt
 - prompts and LLM responses are logged to `logs/prompts.log`.
 - latest advice is written to `output/advice.txt`.
 - durable run history is written to `runs/<run_id>/events.jsonl`.
+- when the run ends, a postmortem report is automatically written to `runs/<run_id>/postmortem.md`.
 - advice is generated for card rewards, rest sites, and once when entering combat.
 - combat advice is intentionally entry-only for MVP to avoid high latency every turn.
 
@@ -231,14 +232,27 @@ output/advice.txt
 - prompt 和 LLM 回复写入 `logs/prompts.log`。
 - 最新建议写入 `output/advice.txt`。
 - 持久化运行记录写入 `runs/<run_id>/events.jsonl`。
+- 本局结束时会自动生成复盘报告：`runs/<run_id>/postmortem.md`。
 - 当前会在选牌、篝火、进入战斗时生成建议。
 - MVP 阶段战斗建议只在进入战斗时生成一次，避免每回合 LLM 延迟影响游戏节奏。
 
 ## Postmortem / 复盘
 
-Generate a Markdown-style postmortem from a run journal:
+When launched by CommunicationMod, the app automatically generates a Markdown postmortem when the run ends. The report is saved next to the journal:
 
-从运行日志生成 Markdown 风格复盘。默认会调用当前配置的 LLM，把机器摘要改写成更适合玩家阅读的中文复盘：
+通过 CommunicationMod 启动时，程序会在本局结束时自动生成 Markdown 复盘。复盘会保存在对应日志旁边：
+
+```text
+runs/<run_id>/postmortem.md
+```
+
+The app first builds a deterministic report from `events.jsonl`, then asks the configured LLM to rewrite it into a more user-friendly Chinese report. If the AI call fails, the deterministic report is saved instead.
+
+程序会先根据 `events.jsonl` 生成确定性的机器摘要，再调用当前配置的 LLM 改写成更适合玩家阅读的中文复盘。如果 AI 调用失败，会保存机器摘要作为兜底。
+
+You can also manually regenerate a Markdown-style postmortem from a run journal:
+
+也可以手动从运行日志重新生成 Markdown 风格复盘：
 
 ```bash
 slay-the-spire-copilot postmortem runs/<run_id>/events.jsonl
@@ -259,10 +273,6 @@ To skip the AI rewrite and print the deterministic report directly:
 ```bash
 slay-the-spire-copilot postmortem --plain runs/<run_id>/events.jsonl
 ```
-
-The report uses the deterministic summary as source material, then asks the LLM to produce a user-friendly Chinese review. If the AI call fails, the app falls back to the deterministic report.
-
-复盘会先生成确定性的机器摘要，再让 LLM 改写为更友好的中文复盘。如果 AI 调用失败，程序会回退到机器摘要。
 
 ## Output Format / 建议格式
 

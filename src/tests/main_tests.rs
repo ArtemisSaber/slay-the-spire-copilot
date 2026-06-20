@@ -36,6 +36,10 @@ fn without_monsters(screen_type: &str) -> serde_json::Value {
     make_state(screen_type, Some(vec![]))
 }
 
+fn menu_state() -> serde_json::Value {
+    json!({"in_game": false})
+}
+
 #[test]
 fn has_monsters_detects_active() {
     assert!(has_monsters(&with_monsters("NONE")));
@@ -50,6 +54,31 @@ fn has_monsters_ignores_gone() {
 #[test]
 fn has_monsters_false_when_no_combat_state() {
     assert!(!has_monsters(&no_combat_state("NONE")));
+}
+
+#[test]
+fn game_over_screen_ends_run() {
+    let state = make_state("GAME_OVER", None);
+
+    assert!(is_game_over_state(&state));
+    assert!(should_end_run(&state, true));
+    assert_eq!(run_end_reason(&state, true), Some("game_over"));
+}
+
+#[test]
+fn leaving_game_after_observed_state_ends_run() {
+    let state = menu_state();
+
+    assert!(should_end_run(&state, true));
+    assert_eq!(run_end_reason(&state, true), Some("left_game"));
+}
+
+#[test]
+fn menu_before_any_observed_state_does_not_end_run() {
+    let state = menu_state();
+
+    assert!(!should_end_run(&state, false));
+    assert_eq!(run_end_reason(&state, false), None);
 }
 
 #[test]
@@ -158,6 +187,49 @@ fn postmortem_plain_flag_disables_ai_rewrite() {
         Some("runs/test/events.jsonl")
     );
     assert!(opts.postmortem_plain);
+}
+
+#[tokio::test]
+async fn finalize_run_writes_postmortem_report() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut journal = crate::journal::Journal::new_at(dir.path(), "run-1");
+    let config = crate::config::Config::from_env();
+    let i18n = crate::i18n::I18n::load();
+    let raw = serde_json::from_str::<serde_json::Value>(include_str!(
+        "../../tests/fixtures/combat-state.json"
+    ))
+    .unwrap();
+    let state = crate::state::NormalizedState::from_raw(&raw, &i18n);
+    let provider = crate::llm::LlmProvider::Mock;
+    let mut finalized = false;
+
+    journal.log_run_started_with_config(&config);
+    journal.log_state_change(&state.stable_hash(), &state);
+    finalize_run_once(&journal, &provider, "game_over", &mut finalized).await;
+
+    assert!(finalized);
+    let report = std::fs::read_to_string(dir.path().join("run-1").join("postmortem.md")).unwrap();
+    assert!(report.contains("# 本局复盘"));
+    let events = std::fs::read_to_string(journal.path()).unwrap();
+    assert!(events.contains("\"event\":\"run_ended\""));
+    assert!(events.contains("\"reason\":\"game_over\""));
+}
+
+#[tokio::test]
+async fn finalize_run_is_idempotent() {
+    let dir = tempfile::tempdir().unwrap();
+    let journal = crate::journal::Journal::new_at(dir.path(), "run-1");
+    let config = crate::config::Config::from_env();
+    let provider = crate::llm::LlmProvider::Mock;
+    let mut finalized = false;
+
+    journal.log_run_started_with_config(&config);
+    finalize_run_once(&journal, &provider, "game_over", &mut finalized).await;
+    finalize_run_once(&journal, &provider, "stdin_closed", &mut finalized).await;
+
+    let events = std::fs::read_to_string(journal.path()).unwrap();
+    assert_eq!(events.matches("\"event\":\"run_ended\"").count(), 1);
+    assert!(events.contains("\"reason\":\"game_over\""));
 }
 
 #[test]

@@ -171,7 +171,6 @@ impl Journal {
         }
     }
 
-    #[cfg(test)]
     pub fn path(&self) -> &Path {
         &self.path
     }

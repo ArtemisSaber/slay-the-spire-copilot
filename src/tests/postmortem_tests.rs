@@ -25,6 +25,34 @@ fn state_event(state: Value) -> String {
 }
 
 #[test]
+fn postmortem_path_sits_next_to_journal() {
+    let path = postmortem_path_for_journal(std::path::Path::new("runs/run-1/events.jsonl"));
+
+    assert_eq!(path, std::path::PathBuf::from("runs/run-1/postmortem.md"));
+}
+
+#[test]
+fn write_report_for_journal_writes_markdown_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let journal_path = dir.path().join("events.jsonl");
+    std::fs::write(
+        &journal_path,
+        event_line(json!({"schema_version":1,"event":"run_started","ts_ms":123})),
+    )
+    .unwrap();
+
+    let report = generate_report_from_journal_file(&journal_path).unwrap();
+    let report_path = write_report_for_journal(&journal_path, &report).unwrap();
+
+    assert_eq!(report_path, dir.path().join("postmortem.md"));
+    assert!(
+        std::fs::read_to_string(report_path)
+            .unwrap()
+            .contains("# Slay the Spire Postmortem")
+    );
+}
+
+#[test]
 fn postmortem_summarizes_run_start_and_end() {
     let input = [
         event_line(json!({"schema_version":1,"event":"run_started","ts_ms":123})),
