@@ -32,21 +32,49 @@ async fn cache_returns_cached_value() {
 }
 
 #[test]
-fn write_advice_replaces_latest_file() {
-    let path = crate::logging::project_root()
+fn advice_output_dir_is_current_working_directory() {
+    let dir = crate::logging::advice_output_dir();
+    let cwd = std::env::current_dir().unwrap();
+    assert_eq!(dir, cwd);
+}
+
+#[test]
+fn write_advice_output_path_behavior() {
+    let cwd_file = crate::logging::advice_output_dir()
         .join("output")
         .join("advice.txt");
-    let _ = std::fs::remove_file(&path);
+    let binary_file = crate::logging::project_root()
+        .join("output")
+        .join("advice.txt");
+
+    let _ = std::fs::remove_file(&cwd_file);
+    let _ = std::fs::remove_file(&binary_file);
+    let _ = std::fs::remove_dir_all(crate::logging::advice_output_dir().join("output"));
 
     let cache = AdviceCache::new();
+
     cache.write_advice("first");
+    assert!(
+        cwd_file.exists(),
+        "should create output/ dir and write to cwd"
+    );
+
+    if cwd_file != binary_file {
+        assert!(
+            !binary_file.exists(),
+            "should not write to binary's output/ when cwd differs"
+        );
+    }
+
     cache.write_advice("second");
-
-    let content = std::fs::read_to_string(&path).unwrap();
+    let content = std::fs::read_to_string(&cwd_file).unwrap();
+    assert!(
+        !content.contains("first"),
+        "latest write should replace previous"
+    );
     assert!(content.contains("second"));
-    assert!(!content.contains("first"));
 
-    let _ = std::fs::remove_file(&path);
+    let _ = std::fs::remove_file(&cwd_file);
 }
 
 #[test]
