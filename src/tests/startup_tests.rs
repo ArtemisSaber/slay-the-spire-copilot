@@ -136,7 +136,7 @@ fn write_command_quotes_paths_with_spaces() {
     assert!(write_command_to_config(&config, command));
 
     let updated = fs::read_to_string(&config).unwrap();
-    assert!(updated.contains(&format!("command=\"{command}\"")));
+    assert!(updated.contains(&format!("command=\"{}\"", command.replace('\\', "\\\\"))));
 }
 
 #[test]

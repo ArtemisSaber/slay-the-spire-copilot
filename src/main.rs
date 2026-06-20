@@ -13,7 +13,7 @@ mod state;
 use advice::AdviceCache;
 use llm::{AdviceScenario, Effort};
 use std::collections::HashSet;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, IsTerminal, Write};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RuntimeOptions {
@@ -277,6 +277,12 @@ async fn main() {
     }
 
     if !options.skip_startup_check && !startup::ensure_config() {
+        if std::io::stdin().is_terminal() {
+            let mut stdout = std::io::stdout().lock();
+            let _ = writeln!(stdout, "按 Enter 键退出...");
+            let _ = stdout.flush();
+            let _ = std::io::stdin().lock().read_line(&mut String::new());
+        }
         return;
     }
 

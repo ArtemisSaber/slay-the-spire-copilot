@@ -385,12 +385,13 @@ fn find_existing_config(paths: &[PathBuf]) -> Option<&PathBuf> {
 }
 
 fn format_command_value(command: &str) -> String {
-    if command.chars().any(char::is_whitespace)
-        && !(command.starts_with('"') && command.ends_with('"'))
+    let escaped = command.replace('\\', "\\\\");
+    if escaped.chars().any(char::is_whitespace)
+        && !(escaped.starts_with('"') && escaped.ends_with('"'))
     {
-        format!("\"{}\"", command.replace('"', "\\\""))
+        format!("\"{}\"", escaped)
     } else {
-        command.to_string()
+        escaped
     }
 }
 
