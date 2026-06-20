@@ -11,6 +11,12 @@ fn temp_config(content: &str) -> (tempfile::TempDir, PathBuf) {
 }
 
 #[test]
+fn communication_mod_cjk_config_dir_is_preferred() {
+    assert_eq!(COMMUNICATION_MOD_CONFIG_DIRS[0], "CommunicationModCJK");
+    assert!(COMMUNICATION_MOD_CONFIG_DIRS.contains(&"CommunicationMod"));
+}
+
+#[test]
 fn correct_config_passes() {
     let current = env::current_exe().unwrap();
     let (_dir, config) = temp_config(&format!("command={}\n", current.display()));
@@ -53,6 +59,7 @@ fn setup_message_contains_key_info() {
     assert!(output.contains("尚未配置"));
     assert!(output.contains("ModTheSpire"));
     assert!(output.contains("CommunicationMod"));
+    assert!(output.contains("Communication Mod CJK"));
     assert!(output.contains("command="));
     assert!(output.contains("runAtGameStart=true"));
     assert!(output.contains("/test/config/path"));

@@ -3,34 +3,40 @@ use std::fs;
 use std::io::{BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 
+const COMMUNICATION_MOD_CONFIG_DIRS: &[&str] = &["CommunicationModCJK", "CommunicationMod"];
+
 fn communication_mod_config_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
     if let Ok(home) = env::var("HOME") {
-        paths.push(
-            PathBuf::from(&home)
-                .join(".config")
-                .join("ModTheSpire")
-                .join("CommunicationMod")
-                .join("config.properties"),
-        );
-        paths.push(
-            PathBuf::from(&home)
-                .join("Library")
-                .join("Preferences")
-                .join("ModTheSpire")
-                .join("CommunicationMod")
-                .join("config.properties"),
-        );
+        for mod_config_dir in COMMUNICATION_MOD_CONFIG_DIRS {
+            paths.push(
+                PathBuf::from(&home)
+                    .join(".config")
+                    .join("ModTheSpire")
+                    .join(mod_config_dir)
+                    .join("config.properties"),
+            );
+            paths.push(
+                PathBuf::from(&home)
+                    .join("Library")
+                    .join("Preferences")
+                    .join("ModTheSpire")
+                    .join(mod_config_dir)
+                    .join("config.properties"),
+            );
+        }
     }
 
     if let Ok(localappdata) = env::var("LOCALAPPDATA") {
-        paths.push(
-            PathBuf::from(localappdata)
-                .join("ModTheSpire")
-                .join("CommunicationMod")
-                .join("config.properties"),
-        );
+        for mod_config_dir in COMMUNICATION_MOD_CONFIG_DIRS {
+            paths.push(
+                PathBuf::from(&localappdata)
+                    .join("ModTheSpire")
+                    .join(mod_config_dir)
+                    .join("config.properties"),
+            );
+        }
     }
 
     if paths.is_empty() {
@@ -124,7 +130,7 @@ fn show_setup_message_to(writer: &mut impl Write, config_path: &str, exe_path: &
          ╚═══════════════════════════════════════════════╝\n\n\
          尚未找到指向当前二进制文件的 CommunicationMod 配置。\n\n\
          配置步骤：\n\
-         1. 安装 ModTheSpire 和 CommunicationMod\n\
+         1. 安装 ModTheSpire 和 Communication Mod CJK（推荐）或 CommunicationMod\n\
             https://github.com/kiooeht/ModTheSpire\n\
             https://github.com/ForgottenArbiter/CommunicationMod\n\n\
          2. 编辑配置文件：\n\

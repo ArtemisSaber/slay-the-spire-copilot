@@ -111,21 +111,21 @@ LLM_TEMPERATURE=0.7
 
 ## Game Configuration / 游戏配置
 
-Install ModTheSpire and CommunicationMod first.
+Install ModTheSpire and Communication Mod CJK first. The original CommunicationMod is still supported, but the CJK build is recommended for Chinese/Japanese/Korean game text.
 
-请先安装 ModTheSpire 和 CommunicationMod。
+请先安装 ModTheSpire 和 Communication Mod CJK。原版 CommunicationMod 仍然兼容，但如果需要中文/日文/韩文游戏文本，推荐使用 CJK 版本。
 
-1. Place `CommunicationMod.jar` in your ModTheSpire mods directory.
-2. Start the game through ModTheSpire once with CommunicationMod enabled.
-3. Edit CommunicationMod's `config.properties`.
+1. Place `CommunicationModCJK.jar` in your ModTheSpire mods directory.
+2. Start the game through ModTheSpire once with Communication Mod CJK enabled.
+3. Edit Communication Mod CJK's `config.properties`.
 4. Set `command` to the full path of this copilot binary.
 5. Set `runAtGameStart=true`.
 
 步骤：
 
-1. 将 `CommunicationMod.jar` 放入 ModTheSpire 的 mods 目录。
-2. 通过 ModTheSpire 启动一次游戏，并启用 CommunicationMod。
-3. 编辑 CommunicationMod 的 `config.properties`。
+1. 将 `CommunicationModCJK.jar` 放入 ModTheSpire 的 mods 目录。
+2. 通过 ModTheSpire 启动一次游戏，并启用 Communication Mod CJK。
+3. 编辑 Communication Mod CJK 的 `config.properties`。
 4. 将 `command` 设置为本项目二进制文件的完整路径。
 5. 设置 `runAtGameStart=true`。
 
@@ -145,9 +145,13 @@ runAtGameStart=true
 
 Common config locations / 常见配置位置：
 
-- Linux: `~/.config/ModTheSpire/CommunicationMod/config.properties`
-- macOS: `~/Library/Preferences/ModTheSpire/CommunicationMod/config.properties`
-- Windows: `%LOCALAPPDATA%\ModTheSpire\CommunicationMod\config.properties`
+- Linux: `~/.config/ModTheSpire/CommunicationModCJK/config.properties`
+- macOS: `~/Library/Preferences/ModTheSpire/CommunicationModCJK/config.properties`
+- Windows: `%LOCALAPPDATA%\ModTheSpire\CommunicationModCJK\config.properties`
+
+The app checks `CommunicationModCJK` first, then falls back to the original `CommunicationMod` config directory.
+
+程序会优先检查 `CommunicationModCJK` 配置目录，然后再回退检查原版 `CommunicationMod` 配置目录。
 
 The app also tries to detect and repair an empty or wrong `command=` value at startup.
 
