@@ -473,7 +473,7 @@ fn build_rest(state: &NormalizedState, i18n_data: &I18n) -> String {
 fn build_boss_relic(state: &NormalizedState, i18n_data: &I18n) -> String {
     let mut lines: Vec<String> = vec!["=== 当前状态 ===".to_string(), status_line(state)];
 
-    let is_act_end = matches!(state.floor, Some(16) | Some(33));
+    let is_act_end = matches!(state.floor, Some(17) | Some(34));
     if is_act_end {
         lines.push("注意：下一幕开始会回满血，不要把当前血量当成选遗物依据。".to_string());
     }
