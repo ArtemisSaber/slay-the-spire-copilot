@@ -9,6 +9,7 @@ env:
   CARGO_TERM_COLOR: always
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
@@ -22,15 +23,12 @@ jobs:
           - os: ubuntu-latest
             artifact_name: slay-the-spire-copilot-linux-x86_64
             exe_suffix: ""
-            archive_ext: tar.gz
           - os: macos-latest
             artifact_name: slay-the-spire-copilot-macos
             exe_suffix: ""
-            archive_ext: tar.gz
           - os: windows-latest
             artifact_name: slay-the-spire-copilot-windows-x86_64
             exe_suffix: ".exe"
-            archive_ext: zip
 
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +51,8 @@ jobs:
       - name: Build release binary
         run: cargo build --release
 
-      - name: Package artifact
+      - name: Package artifact (Linux/macOS)
+        if: ${{ runner.os != 'Windows' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -65,11 +64,22 @@ jobs:
           cp README.md "$package/"
           cp .env.example "$package/"
 
-          if [ "${{ matrix.archive_ext }}" = "zip" ]; then
-            powershell -NoProfile -Command "Compress-Archive -Path '$package' -DestinationPath 'dist/$package.zip' -Force"
-          else
-            tar -czf "dist/$package.tar.gz" "$package"
-          fi
+          tar -czf "dist/$package.tar.gz" "$package"
+
+      - name: Package artifact (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $package = "${{ matrix.artifact_name }}"
+          $binary = "target/release/slay-the-spire-copilot${{ matrix.exe_suffix }}"
+
+          New-Item -ItemType Directory -Force -Path "dist", $package | Out-Null
+          Copy-Item $binary -Destination $package
+          Copy-Item "README.md" -Destination $package
+          Copy-Item ".env.example" -Destination $package
+
+          Compress-Archive -Path $package -DestinationPath "dist/$package.zip" -Force
 
       - uses: actions/upload-artifact@v4
         with:
@@ -93,9 +103,12 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          notes="Automated release for ${TAG}.
+          notes="$(cat <<EOF
+          Automated release for ${TAG}.
 
-Download the archive for your operating system, extract it, copy .env.example to .env, and configure CommunicationMod to run the binary."
+          Download the archive for your operating system, extract it, copy .env.example to .env, and configure CommunicationMod to run the binary.
+          EOF
+          )"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
