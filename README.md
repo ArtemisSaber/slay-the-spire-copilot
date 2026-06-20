@@ -149,9 +149,13 @@ runAtGameStart=true
 Windows example / Windows 示例：
 
 ```properties
-command=C:\path\to\slay-the-spire-copilot.exe
+command="C:\path with spaces\slay-the-spire-copilot.exe"
 runAtGameStart=true
 ```
+
+Quote the Windows `command=` value if the path contains spaces. The startup checker also understands quoted paths and unquoted `.exe` paths with spaces.
+
+如果 Windows 路径里有空格，请给 `command=` 的值加引号。启动检查也支持带引号的路径，以及未加引号但以 `.exe` 结尾的 Windows 路径。
 
 Common config locations / 常见配置位置：
 
@@ -170,6 +174,13 @@ If the game language is Chinese, Japanese, or Korean, the app will prompt you to
 For non-standard install locations, set `SLAY_THE_SPIRE_DIR` to the game install directory. For manual testing, `SLAY_THE_SPIRE_LANGUAGE=ZHS` can force the CJK-language startup check.
 
 如果游戏安装在非标准位置，可以将 `SLAY_THE_SPIRE_DIR` 设置为游戏安装目录。手动测试时，也可以用 `SLAY_THE_SPIRE_LANGUAGE=ZHS` 强制触发 CJK 语言启动检查。
+
+PowerShell example / PowerShell 示例：
+
+```powershell
+$env:SLAY_THE_SPIRE_DIR="C:\Program Files (x86)\Steam\steamapps\common\SlayTheSpire"
+$env:SLAY_THE_SPIRE_LANGUAGE="ZHS"
+```
 
 The app also tries to detect and repair an empty or wrong `command=` value at startup.
 

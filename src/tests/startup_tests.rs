@@ -32,6 +32,41 @@ fn gameplay_settings_language_is_read_from_sts_preferences() {
 }
 
 #[test]
+fn steam_root_builds_windows_language_paths() {
+    let mut paths = Vec::new();
+    push_slay_the_spire_language_path_for_steam_root(
+        &mut paths,
+        &PathBuf::from(r"C:\Program Files (x86)\Steam"),
+    );
+
+    assert_eq!(
+        paths[0],
+        PathBuf::from(r"C:\Program Files (x86)\Steam")
+            .join("steamapps")
+            .join("common")
+            .join("SlayTheSpire")
+            .join("preferences")
+            .join("STSGameplaySettings")
+    );
+}
+
+#[test]
+fn steam_root_builds_windows_appmanifest_paths() {
+    let mut paths = Vec::new();
+    push_steam_appmanifest_path_for_steam_root(
+        &mut paths,
+        &PathBuf::from(r"C:\Program Files (x86)\Steam"),
+    );
+
+    assert_eq!(
+        paths[0],
+        PathBuf::from(r"C:\Program Files (x86)\Steam")
+            .join("steamapps")
+            .join("appmanifest_646570.acf")
+    );
+}
+
+#[test]
 fn cjk_languages_require_communication_mod_cjk() {
     for language in [
         "ZHS", "ZHT", "schinese", "tchinese", "Japanese", "koreana", "zh_CN", "ja-JP", "ko_KR",
@@ -63,6 +98,45 @@ fn original_communication_mod_config_requires_cjk_prompt_for_cjk_language() {
 fn cjk_communication_mod_config_does_not_require_cjk_prompt() {
     let path = PathBuf::from("/tmp/ModTheSpire/CommunicationModCJK/config.properties");
     assert!(!cjk_mod_required_for_language(&path, Some("ZHS")));
+}
+
+#[test]
+fn command_parser_preserves_unquoted_windows_exe_paths_with_spaces() {
+    assert_eq!(
+        parse_command_value(r"C:\Users\Howard Lee\bin\slay-the-spire-copilot.exe"),
+        Some(r"C:\Users\Howard Lee\bin\slay-the-spire-copilot.exe".to_string())
+    );
+}
+
+#[test]
+fn command_parser_preserves_unquoted_windows_exe_paths_with_args() {
+    assert_eq!(
+        parse_command_value(
+            r"C:\Program Files\Slay Copilot\slay-the-spire-copilot.exe --stdin-test"
+        ),
+        Some(r"C:\Program Files\Slay Copilot\slay-the-spire-copilot.exe".to_string())
+    );
+}
+
+#[test]
+fn command_parser_handles_quoted_windows_paths() {
+    assert_eq!(
+        parse_command_value(
+            r#""C:\Program Files\Slay Copilot\slay-the-spire-copilot.exe" --stdin-test"#
+        ),
+        Some(r"C:\Program Files\Slay Copilot\slay-the-spire-copilot.exe".to_string())
+    );
+}
+
+#[test]
+fn write_command_quotes_paths_with_spaces() {
+    let (_dir, config) = temp_config("command=\n");
+    let command = r"C:\Program Files\Slay Copilot\slay-the-spire-copilot.exe";
+
+    assert!(write_command_to_config(&config, command));
+
+    let updated = fs::read_to_string(&config).unwrap();
+    assert!(updated.contains(&format!("command=\"{command}\"")));
 }
 
 #[test]

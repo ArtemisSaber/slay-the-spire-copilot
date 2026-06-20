@@ -53,6 +53,25 @@ fn communication_mod_config_paths() -> Vec<PathBuf> {
     paths
 }
 
+fn push_slay_the_spire_language_path_for_steam_root(paths: &mut Vec<PathBuf>, steam_root: &Path) {
+    paths.push(
+        steam_root
+            .join("steamapps")
+            .join("common")
+            .join("SlayTheSpire")
+            .join("preferences")
+            .join("STSGameplaySettings"),
+    );
+}
+
+fn push_steam_appmanifest_path_for_steam_root(paths: &mut Vec<PathBuf>, steam_root: &Path) {
+    paths.push(
+        steam_root
+            .join("steamapps")
+            .join(format!("appmanifest_{SLAY_THE_SPIRE_APP_ID}.acf")),
+    );
+}
+
 fn slay_the_spire_language_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
@@ -64,6 +83,10 @@ fn slay_the_spire_language_paths() -> Vec<PathBuf> {
         );
     }
 
+    if let Ok(steam_dir) = env::var("STEAM_DIR") {
+        push_slay_the_spire_language_path_for_steam_root(&mut paths, &PathBuf::from(steam_dir));
+    }
+
     if let Ok(home) = env::var("HOME") {
         let home = PathBuf::from(home);
         paths.push(
@@ -97,11 +120,29 @@ fn slay_the_spire_language_paths() -> Vec<PathBuf> {
         );
     }
 
+    for var in [
+        "ProgramFiles(x86)",
+        "PROGRAMFILES(X86)",
+        "ProgramFiles",
+        "PROGRAMFILES",
+    ] {
+        if let Ok(program_files) = env::var(var) {
+            push_slay_the_spire_language_path_for_steam_root(
+                &mut paths,
+                &PathBuf::from(program_files).join("Steam"),
+            );
+        }
+    }
+
     paths
 }
 
 fn steam_appmanifest_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
+
+    if let Ok(steam_dir) = env::var("STEAM_DIR") {
+        push_steam_appmanifest_path_for_steam_root(&mut paths, &PathBuf::from(steam_dir));
+    }
 
     if let Ok(home) = env::var("HOME") {
         let home = PathBuf::from(home);
@@ -125,6 +166,20 @@ fn steam_appmanifest_paths() -> Vec<PathBuf> {
                 .join("steamapps")
                 .join(format!("appmanifest_{SLAY_THE_SPIRE_APP_ID}.acf")),
         );
+    }
+
+    for var in [
+        "ProgramFiles(x86)",
+        "PROGRAMFILES(X86)",
+        "ProgramFiles",
+        "PROGRAMFILES",
+    ] {
+        if let Ok(program_files) = env::var(var) {
+            push_steam_appmanifest_path_for_steam_root(
+                &mut paths,
+                &PathBuf::from(program_files).join("Steam"),
+            );
+        }
     }
 
     paths
@@ -225,15 +280,54 @@ fn language_needs_cjk_mod(language: &str) -> bool {
         || language.starts_with("ko")
 }
 
+fn parse_command_value(value: &str) -> Option<String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return None;
+    }
+
+    if let Some(quoted) = value.strip_prefix('"')
+        && let Some(end) = quoted.find('"')
+    {
+        let command = quoted[..end].trim();
+        if !command.is_empty() {
+            return Some(command.to_string());
+        }
+    }
+
+    if let Some(quoted) = value.strip_prefix('\'')
+        && let Some(end) = quoted.find('\'')
+    {
+        let command = quoted[..end].trim();
+        if !command.is_empty() {
+            return Some(command.to_string());
+        }
+    }
+
+    if Path::new(value).exists() {
+        return Some(value.to_string());
+    }
+
+    if let Some(exe_end) = value.to_ascii_lowercase().find(".exe") {
+        let command = value[..exe_end + 4].trim();
+        if !command.is_empty() {
+            return Some(command.to_string());
+        }
+    }
+
+    let first_token = value.split_whitespace().next().unwrap_or("");
+    if !first_token.is_empty() {
+        return Some(first_token.to_string());
+    }
+
+    None
+}
+
 fn extract_command_value(path: &Path) -> Option<String> {
     let content = fs::read_to_string(path).ok()?;
     for line in content.lines() {
         if let Some(value) = line.strip_prefix("command=") {
-            let value = value.trim();
-            if !value.is_empty() {
-                let first_token = value.split_whitespace().next().unwrap_or("");
-                return Some(first_token.to_string());
-            }
+            return parse_command_value(value);
         }
     }
     None
@@ -290,8 +384,19 @@ fn find_existing_config(paths: &[PathBuf]) -> Option<&PathBuf> {
     paths.iter().find(|p| p.exists())
 }
 
+fn format_command_value(command: &str) -> String {
+    if command.chars().any(char::is_whitespace)
+        && !(command.starts_with('"') && command.ends_with('"'))
+    {
+        format!("\"{}\"", command.replace('"', "\\\""))
+    } else {
+        command.to_string()
+    }
+}
+
 fn write_command_to_config(path: &Path, command: &str) -> bool {
     let content = fs::read_to_string(path).unwrap_or_default();
+    let command = format_command_value(command);
 
     let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
     let mut found = false;
