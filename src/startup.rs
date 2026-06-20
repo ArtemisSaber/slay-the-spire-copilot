@@ -325,6 +325,10 @@ fn show_setup_message_to(writer: &mut impl Write, config_path: &str, exe_path: &
          配置步骤：\n\
          1. 安装 ModTheSpire 和 Communication Mod CJK（推荐）或 CommunicationMod\n\
             https://github.com/kiooeht/ModTheSpire\n\
+            Communication Mod CJK:\n\
+            https://steamcommunity.com/sharedfiles/filedetails/?id=3748153752\n\
+            https://github.com/ArtemisSaber/CommunicationMod/releases\n\
+            原版 CommunicationMod:\n\
             https://github.com/ForgottenArbiter/CommunicationMod\n\n\
          2. 编辑配置文件：\n\
             {config_path}\n\n\

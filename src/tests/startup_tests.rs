@@ -109,6 +109,8 @@ fn setup_message_contains_key_info() {
     assert!(output.contains("ModTheSpire"));
     assert!(output.contains("CommunicationMod"));
     assert!(output.contains("Communication Mod CJK"));
+    assert!(output.contains("steamcommunity.com/sharedfiles/filedetails/?id=3748153752"));
+    assert!(output.contains("github.com/ArtemisSaber/CommunicationMod/releases"));
     assert!(output.contains("command="));
     assert!(output.contains("runAtGameStart=true"));
     assert!(output.contains("/test/config/path"));

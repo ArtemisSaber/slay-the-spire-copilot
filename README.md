@@ -115,6 +115,16 @@ Install ModTheSpire and Communication Mod CJK first. The original CommunicationM
 
 请先安装 ModTheSpire 和 Communication Mod CJK。原版 CommunicationMod 仍然兼容，但如果需要中文/日文/韩文游戏文本，推荐使用 CJK 版本。
 
+Communication Mod CJK is available from:
+
+- Steam Workshop: <https://steamcommunity.com/sharedfiles/filedetails/?id=3748153752>
+- GitHub releases: <https://github.com/ArtemisSaber/CommunicationMod/releases>
+
+Communication Mod CJK 可以从这里获取：
+
+- Steam 创意工坊：<https://steamcommunity.com/sharedfiles/filedetails/?id=3748153752>
+- GitHub Releases：<https://github.com/ArtemisSaber/CommunicationMod/releases>
+
 1. Place `CommunicationModCJK.jar` in your ModTheSpire mods directory.
 2. Start the game through ModTheSpire once with Communication Mod CJK enabled.
 3. Edit Communication Mod CJK's `config.properties`.
