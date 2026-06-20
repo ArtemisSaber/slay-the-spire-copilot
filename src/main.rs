@@ -159,6 +159,9 @@ fn combat_identity(raw: &serde_json::Value) -> Option<String> {
 }
 
 fn should_generate_advice(screen_type: &str, raw: &serde_json::Value) -> bool {
+    if screen_type == "EVENT" {
+        return available_event_choice_count(raw) > 1;
+    }
     if SCREEN_CONFIG.generate.contains(&screen_type) {
         return true;
     }
@@ -166,6 +169,28 @@ fn should_generate_advice(screen_type: &str, raw: &serde_json::Value) -> bool {
         return true;
     }
     false
+}
+
+fn available_event_choice_count(raw: &serde_json::Value) -> usize {
+    let choices = raw
+        .pointer("/game_state/screen_state/options")
+        .or_else(|| raw.pointer("/game_state/screen_state/choices"))
+        .or_else(|| raw.pointer("/game_state/screen_state/buttons"))
+        .or_else(|| raw.pointer("/game_state/choice_list"));
+
+    choices
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter(|choice| {
+                    !choice
+                        .get("disabled")
+                        .and_then(|disabled| disabled.as_bool())
+                        .unwrap_or(false)
+                })
+                .count()
+        })
+        .unwrap_or(0)
 }
 
 async fn postmortem_report_text(deterministic_report: &str, provider: &llm::LlmProvider) -> String {

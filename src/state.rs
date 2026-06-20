@@ -252,12 +252,12 @@ fn extract_event_choice(option: &Value) -> Option<String> {
         Value::Object(_) => first_string(
             option,
             &[
-                "label",
                 "text",
-                "name",
+                "description",
                 "choice_text",
                 "button_text",
-                "description",
+                "label",
+                "name",
             ],
         ),
         _ => None,
