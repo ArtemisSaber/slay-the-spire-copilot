@@ -1,3 +1,4 @@
+#![deny(clippy::allow_attributes_without_reason)]
 mod advice;
 mod config;
 mod i18n;
@@ -404,7 +405,7 @@ async fn main() {
         let effort = Effort::from_screen_type(screen_type);
         let scenario = AdviceScenario::from_state(&normalized);
 
-        let prompt = prompt::build_prompt(&normalized, &i18n_data);
+        let prompt = prompt::build_prompt(&normalized);
         tracing::debug!(
             "prompt ({} chars): {}",
             prompt.len(),
@@ -441,6 +442,9 @@ async fn main() {
     finalize_run_once(&journal, &provider, "stdin_closed", &mut run_finalized).await;
     tracing::info!("stdin closed, exiting");
 }
+
+#[cfg(test)]
+mod test_utils;
 
 #[cfg(test)]
 #[path = "tests/main_tests.rs"]

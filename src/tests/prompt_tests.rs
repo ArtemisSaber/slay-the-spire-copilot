@@ -1,21 +1,6 @@
 use super::*;
-use crate::i18n::I18n;
-use crate::state::{DangerFlags, DangerLevel, MonsterInfo, PowerInfo};
-
-fn load_i18n() -> I18n {
-    I18n::load()
-}
-
-fn card(id: &str, name: &str, cost: i64, card_type: &str) -> CardInfo {
-    CardInfo {
-        id: id.into(),
-        name: name.into(),
-        cost,
-        card_type: card_type.into(),
-        upgraded: false,
-        uuid: None,
-    }
-}
+use crate::state::{DangerFlags, DangerLevel, MonsterInfo, PowerInfo, RelicInfo};
+use crate::test_utils::card;
 
 fn test_state() -> NormalizedState {
     NormalizedState {
@@ -63,7 +48,6 @@ fn test_state() -> NormalizedState {
 
 #[test]
 fn combat_prompt_shows_all_three_piles() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
@@ -78,13 +62,13 @@ fn combat_prompt_shows_all_three_piles() {
             can_be_killed: false,
             is_scaling: false,
         }],
-        hand_cards: vec![card("Strike_R", "Strike", 1, "ATTACK")],
-        draw_pile: vec![card("Defend_R", "Defend", 1, "SKILL")],
-        discard_pile: vec![card("Bash", "Bash", 2, "ATTACK")],
+        hand_cards: vec![card("Strike_R", "打击", 1, "ATTACK")],
+        draw_pile: vec![card("Defend_R", "防御", 1, "SKILL")],
+        discard_pile: vec![card("Bash", "痛击", 2, "ATTACK")],
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("=== 手牌"));
     assert!(prompt.contains("=== 抽牌堆"));
     assert!(prompt.contains("=== 弃牌堆"));
@@ -95,7 +79,6 @@ fn combat_prompt_shows_all_three_piles() {
 
 #[test]
 fn combat_prompt_marks_entry_plan_task() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
@@ -113,7 +96,7 @@ fn combat_prompt_marks_entry_plan_task() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("=== 任务 ==="));
     assert!(prompt.contains("进入战斗"));
     assert!(prompt.contains("整体打法"));
@@ -122,7 +105,6 @@ fn combat_prompt_marks_entry_plan_task() {
 
 #[test]
 fn monster_section_shows_index_and_intent() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         monsters: vec![
             MonsterInfo {
@@ -155,7 +137,7 @@ fn monster_section_shows_index_and_intent() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("[0]"));
     assert!(prompt.contains("[1]"));
     assert!(prompt.contains("意图：攻击"));
@@ -167,7 +149,6 @@ fn monster_section_shows_index_and_intent() {
 
 #[test]
 fn monster_section_shows_scaling() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
@@ -188,14 +169,13 @@ fn monster_section_shows_scaling() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("成长中"));
     assert!(prompt.contains("力量(2)"));
 }
 
 #[test]
 fn card_reward_shows_card_choices() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         character: Some("IRONCLAD".into()),
@@ -203,14 +183,14 @@ fn card_reward_shows_card_choices() {
         current_hp: Some(62),
         max_hp: Some(75),
         card_reward_choices: vec![
-            card("Uppercut", "Uppercut", 2, "ATTACK"),
-            card("Anger", "Anger", 1, "ATTACK"),
+            card("Uppercut", "上勾拳", 2, "ATTACK"),
+            card("Anger", "愤怒", 1, "ATTACK"),
         ],
-        master_cards: vec![card("Strike_R", "Strike", 1, "ATTACK"); 4],
+        master_cards: vec![card("Strike_R", "打击", 1, "ATTACK"); 4],
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("A. 上勾拳"));
     assert!(prompt.contains("B. 愤怒"));
     assert!(prompt.contains("2费"));
@@ -219,16 +199,15 @@ fn card_reward_shows_card_choices() {
 
 #[test]
 fn card_reward_prompt_marks_pick_or_skip_task() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         floor: Some(14),
-        card_reward_choices: vec![card("Uppercut", "Uppercut", 2, "ATTACK")],
+        card_reward_choices: vec![card("Uppercut", "上勾拳", 2, "ATTACK")],
         skip_available: true,
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("=== 任务 ==="));
     assert!(prompt.contains("选择一张牌"));
     assert!(prompt.contains("推荐跳过"));
@@ -236,7 +215,6 @@ fn card_reward_prompt_marks_pick_or_skip_task() {
 
 #[test]
 fn boss_card_reward_prompt_includes_full_heal_note() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         floor: Some(16),
@@ -247,7 +225,7 @@ fn boss_card_reward_prompt_includes_full_heal_note() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(
         prompt.contains(
             "注意：这是 Boss 战后的选牌。下一幕开始会回满血，不要把当前血量当成选牌依据。"
@@ -259,18 +237,17 @@ fn boss_card_reward_prompt_includes_full_heal_note() {
 
 #[test]
 fn ordinary_card_reward_prompt_omits_full_heal_note() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         floor: Some(14),
         current_hp: Some(3),
         max_hp: Some(75),
-        card_reward_choices: vec![card("Uppercut", "Uppercut", 2, "ATTACK")],
+        card_reward_choices: vec![card("Uppercut", "上勾拳", 2, "ATTACK")],
         skip_available: true,
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(
         !prompt.contains(
             "注意：这是 Boss 战后的选牌。下一幕开始会回满血，不要把当前血量当成选牌依据。"
@@ -280,7 +257,6 @@ fn ordinary_card_reward_prompt_omits_full_heal_note() {
 
 #[test]
 fn card_reward_shows_skip_when_available() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         card_reward_choices: vec![card("Uppercut", "Uppercut", 2, "ATTACK")],
@@ -289,13 +265,12 @@ fn card_reward_shows_skip_when_available() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("跳过. 都不选"));
 }
 
 #[test]
 fn card_reward_no_skip_when_unavailable() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         card_reward_choices: vec![card("Uppercut", "Uppercut", 2, "ATTACK")],
@@ -304,15 +279,14 @@ fn card_reward_no_skip_when_unavailable() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(!prompt.contains("跳过. 都不选"));
 }
 
 #[test]
 fn deck_section_groups_single_type() {
-    let i18n = load_i18n();
-    let cards = vec![card("Strike_R", "Strike", 1, "ATTACK"); 5];
-    let output = format_deck_section(&cards, &i18n);
+    let cards = vec![card("Strike_R", "打击", 1, "ATTACK"); 5];
+    let output = format_deck_section(&cards);
     assert!(output.contains("攻击（5张）："));
     assert!(output.contains("打击(1费)（共5张）"));
     assert!(!output.contains("技能"));
@@ -321,10 +295,9 @@ fn deck_section_groups_single_type() {
 
 #[test]
 fn deck_section_shows_cards_by_type_with_counts() {
-    let i18n = load_i18n();
-    let mut cards = vec![card("Strike_R", "Strike", 1, "ATTACK"); 4];
-    cards.extend(vec![card("Defend_R", "Defend", 1, "SKILL"); 2]);
-    let output = format_deck_section(&cards, &i18n);
+    let mut cards = vec![card("Strike_R", "打击", 1, "ATTACK"); 4];
+    cards.extend(vec![card("Defend_R", "防御", 1, "SKILL"); 2]);
+    let output = format_deck_section(&cards);
 
     assert!(output.contains("=== 卡组 ==="));
     assert!(output.contains("攻击（4张）："));
@@ -335,8 +308,7 @@ fn deck_section_shows_cards_by_type_with_counts() {
 
 #[test]
 fn prompt_is_structured() {
-    let i18n = load_i18n();
-    let prompt = build_prompt(&test_state(), &i18n);
+    let prompt = build_prompt(&test_state());
     assert!(prompt.contains("=== 当前状态 ==="));
     assert!(prompt.contains("推荐："));
     assert!(prompt.contains("理由："));
@@ -346,7 +318,6 @@ fn prompt_is_structured() {
 
 #[test]
 fn rest_prompt_has_translated_options() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         character: Some("IRONCLAD".into()),
@@ -362,21 +333,20 @@ fn rest_prompt_has_translated_options() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("休息"));
     assert!(prompt.contains("锻造"));
 }
 
 #[test]
 fn rest_prompt_marks_campfire_decision_task() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         rest_options: vec!["rest".into(), "smith".into()],
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("=== 任务 ==="));
     assert!(prompt.contains("篝火选项"));
     assert!(prompt.contains("休息"));
@@ -385,18 +355,17 @@ fn rest_prompt_marks_campfire_decision_task() {
 
 #[test]
 fn rest_prompt_requires_smith_upgrade_target() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         rest_options: vec!["smith".into()],
         master_cards: vec![
-            card("Bash", "Bash", 2, "ATTACK"),
-            card("Armaments", "Armaments", 1, "SKILL"),
+            card("Bash", "痛击", 2, "ATTACK"),
+            card("Armaments", "武装", 1, "SKILL"),
         ],
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("必须写出要升级哪张牌"));
     assert!(prompt.contains("=== 可锻造升级目标 ==="));
     assert!(prompt.contains("痛击"));
@@ -405,15 +374,27 @@ fn rest_prompt_requires_smith_upgrade_target() {
 
 #[test]
 fn boss_relic_prompt_lists_choices() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("BOSS_REWARD".into()),
-        boss_relic_choices: vec!["蛇眼".into(), "符文圆顶".into(), "诅咒钥匙".into()],
+        boss_relic_choices: vec![
+            RelicInfo {
+                name: "蛇眼".into(),
+                description: "".into(),
+            },
+            RelicInfo {
+                name: "符文圆顶".into(),
+                description: "".into(),
+            },
+            RelicInfo {
+                name: "诅咒钥匙".into(),
+                description: "".into(),
+            },
+        ],
         master_cards: vec![card("Bash", "Bash", 2, "ATTACK")],
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("=== Boss 遗物 ==="));
     assert!(prompt.contains("A. 蛇眼"));
     assert!(prompt.contains("B. 符文圆顶"));
@@ -423,7 +404,6 @@ fn boss_relic_prompt_lists_choices() {
 
 #[test]
 fn event_prompt_lists_event_text_and_choices() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("EVENT".into()),
         event_id: None,
@@ -433,7 +413,7 @@ fn event_prompt_lists_event_text_and_choices() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("=== 事件 ==="));
     assert!(prompt.contains("金神像"));
     assert!(prompt.contains("一个金色神像闪闪发光。"));
@@ -443,7 +423,6 @@ fn event_prompt_lists_event_text_and_choices() {
 
 #[test]
 fn event_prompt_does_not_emit_question_mark_garble() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("EVENT".into()),
         room_type: Some("NeowRoom".into()),
@@ -457,7 +436,7 @@ fn event_prompt_does_not_emit_question_mark_garble() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("事件文本不可读（房间：NeowRoom）"));
     assert!(prompt.contains("A. 选项 1（事件文本不可读，请在游戏内核对按钮）"));
     assert!(prompt.contains("B. 选项 2（事件文本不可读，请在游戏内核对按钮）"));
@@ -466,13 +445,12 @@ fn event_prompt_does_not_emit_question_mark_garble() {
 
 #[test]
 fn generic_prompt_shows_status_and_format() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: None,
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("=== 当前状态 ==="));
     assert!(prompt.contains("角色：铁甲战士"));
     assert!(prompt.contains("推荐："));
@@ -480,7 +458,6 @@ fn generic_prompt_shows_status_and_format() {
 
 #[test]
 fn rest_prompt_advises_rest_when_hp_low() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         current_hp: Some(15),
@@ -489,13 +466,12 @@ fn rest_prompt_advises_rest_when_hp_low() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("血量极低，强烈建议休息。"));
 }
 
 #[test]
 fn rest_prompt_suggests_smith_when_hp_high() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         current_hp: Some(60),
@@ -504,13 +480,12 @@ fn rest_prompt_suggests_smith_when_hp_high() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("血量健康，可考虑锻造或挖遗物。"));
 }
 
 #[test]
 fn danger_prefix_shows_wrath_warning() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         powers: vec![PowerInfo {
             name: "Wrath".into(),
@@ -538,22 +513,20 @@ fn danger_prefix_shows_wrath_warning() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("愤怒姿态下受到双倍伤害"));
 }
 
 #[test]
 fn compact_pile_aggregates_duplicates() {
-    let i18n = load_i18n();
-    let cards = vec![card("Strike_R", "Strike", 1, "ATTACK"); 3];
-    let output = super::compact_pile("=== 抽牌堆", &cards, &i18n);
+    let cards = vec![card("Strike_R", "打击", 1, "ATTACK"); 3];
+    let output = super::compact_pile("=== 抽牌堆", &cards);
     assert!(output.contains("抽牌堆（3张）"));
     assert!(output.contains("打击×3"));
 }
 
 #[test]
 fn monster_shows_multi_hit_damage() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
@@ -571,125 +544,57 @@ fn monster_shows_multi_hit_damage() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("（×3）"));
 }
 
-// --- resolve_description tests ---
+// --- clean_description tests ---
 
 #[test]
-fn resolve_substitutes_d() {
-    let i18n = load_i18n();
-    let out = resolve_description("Strike_R", false, "造成 !D! 点伤害。", &i18n);
-    assert_eq!(out, "造成 6 点伤害。");
-}
-
-#[test]
-fn resolve_substitutes_b() {
-    let i18n = load_i18n();
-    let out = resolve_description("Defend_R", false, "获得 !B! 点 格挡 。", &i18n);
-    assert_eq!(out, "获得 5 点 格挡 。");
-}
-
-#[test]
-fn resolve_substitutes_m() {
-    let i18n = load_i18n();
-    let out = resolve_description("PathToVictory", false, "给予 !M! 层 *印记 。", &i18n);
-    assert_eq!(out, "给予 3 层 印记 。");
-}
-
-#[test]
-fn resolve_strips_keyword_markers() {
-    let i18n = load_i18n();
-    let out = resolve_description(
-        "PathToVictory",
-        false,
-        "给予 !M! 层 *印记* 。 NL 所有拥有 *印记* 的敌人，失去与层数相等的生命。",
-        &i18n,
-    );
+fn clean_strips_markers() {
+    let out = clean_description("*Smite* into your hand.");
     assert!(!out.contains('*'));
-    assert!(out.contains("印记"));
+    assert!(out.contains("Smite"));
 }
 
 #[test]
-fn resolve_replaces_nl_with_newline() {
-    let i18n = load_i18n();
-    let out = resolve_description(
-        "IronWave",
-        false,
-        "获得 !B! 点 格挡 。 NL 造成 !D! 点伤害。",
-        &i18n,
-    );
-    assert_eq!(out, "获得 5 点 格挡 。\n造成 5 点伤害。");
+fn clean_replaces_energy_tokens() {
+    let out = clean_description("gain [E] .");
+    assert_eq!(out, "gain 能量 .");
 }
 
 #[test]
-fn resolve_uses_upgraded_values() {
-    let i18n = load_i18n();
-    let out = resolve_description(
-        "Hemokinesis",
-        true,
-        "失去 !M! 点生命。 NL 造成 !D! 点伤害。",
-        &i18n,
-    );
-    assert_eq!(out, "失去 2 点生命。\n造成 20 点伤害。");
+fn clean_replaces_all_energy_colors() {
+    let out = clean_description("[R] [G] [B] [W] [E]");
+    assert_eq!(out, "能量5");
 }
 
 #[test]
-fn resolve_uses_base_values_when_not_upgraded() {
-    let i18n = load_i18n();
-    let out = resolve_description(
-        "Hemokinesis",
-        false,
-        "失去 !M! 点生命。 NL 造成 !D! 点伤害。",
-        &i18n,
-    );
-    assert_eq!(out, "失去 2 点生命。\n造成 15 点伤害。");
+fn clean_compacts_multiple_energy_tokens() {
+    let out = clean_description("with [E] [E] [E] .");
+    assert_eq!(out, "with 能量3 .");
 }
 
 #[test]
-fn resolve_skips_zero_values() {
-    let i18n = load_i18n();
-    let out = resolve_description("Strike_R", false, "!D! !B! !M!", &i18n);
-    assert_eq!(out, "6 !B! !M!");
+fn clean_preserves_game_text() {
+    let out = clean_description("Deal 6 damage.");
+    assert_eq!(out, "Deal 6 damage.");
 }
 
 #[test]
-fn resolve_replaces_energy_tokens() {
-    let i18n = load_i18n();
-    let out = resolve_description(
-        "Bloodletting",
-        false,
-        "获得 [R] [R] 。 NL 失去 3 点生命。",
-        &i18n,
-    );
-    assert_eq!(out, "获得 能量2 。\n失去 3 点生命。");
-}
-
-#[test]
-fn resolve_compacts_multiple_energy_tokens() {
-    let i18n = load_i18n();
-    let out = resolve_description(
-        "Offering",
-        false,
-        "失去 6 点生命。 NL 获得 [R] [R] 。 NL 抽 !M! 张牌。 NL 消耗 。",
-        &i18n,
-    );
-    assert_eq!(out, "失去 6 点生命。\n获得 能量2 。\n抽 3 张牌。\n消耗 。");
-}
-
-#[test]
-fn resolve_unknown_card_id_passes_through() {
-    let i18n = load_i18n();
-    let out = resolve_description("NoSuchCard", false, "造成 !D! 点伤害。", &i18n);
-    assert_eq!(out, "造成 !D! 点伤害。");
+fn clean_compacts_two_energy() {
+    let out = clean_description("获得 [R] [R] 。");
+    assert_eq!(out, "获得 能量2 。");
 }
 
 #[test]
 fn format_card_includes_name_cost_type_and_description() {
-    let i18n = load_i18n();
-    let c = card("Uppercut", "Uppercut", 2, "ATTACK");
-    let out = format_card(&c, &i18n);
+    let c = CardInfo {
+        name: "上勾拳".into(),
+        description: "造成 13 点伤害。\n给予 1 层 虚弱 。".into(),
+        ..card("Uppercut", "上勾拳", 2, "ATTACK")
+    };
+    let out = format_card(&c);
     assert!(out.contains("上勾拳"));
     assert!(out.contains("2费/攻击"));
     assert!(out.contains("13 点伤害"));
@@ -698,12 +603,13 @@ fn format_card_includes_name_cost_type_and_description() {
 
 #[test]
 fn format_card_shows_plus_for_upgraded() {
-    let i18n = load_i18n();
     let c = CardInfo {
+        name: "防御".into(),
+        description: "获得 8 点 格挡 。".into(),
         upgraded: true,
-        ..card("Defend_R", "Defend", 1, "SKILL")
+        ..card("Defend_R", "防御", 1, "SKILL")
     };
-    let out = format_card(&c, &i18n);
+    let out = format_card(&c);
     assert!(out.starts_with("+"));
     assert!(out.contains("8 点 格挡"));
 }
@@ -712,57 +618,55 @@ fn format_card_shows_plus_for_upgraded() {
 
 #[test]
 fn build_prompt_routes_card_reward() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         card_reward_choices: vec![card("Strike_R", "Strike", 1, "ATTACK")],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("=== 选牌 ==="));
     assert!(!prompt.contains("=== 手牌"));
 }
 
 #[test]
 fn build_prompt_routes_rest() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         rest_options: vec!["rest".into()],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("=== 选项 ==="));
     assert!(!prompt.contains("=== 手牌"));
 }
 
 #[test]
 fn build_prompt_routes_boss_relic() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("BOSS_REWARD".into()),
-        boss_relic_choices: vec!["蛇眼".into()],
+        boss_relic_choices: vec![RelicInfo {
+            name: "蛇眼".into(),
+            description: String::new(),
+        }],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("Boss 遗物"));
 }
 
 #[test]
 fn build_prompt_routes_event_choice() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("EVENT".into()),
         event_choices: vec!["离开".into()],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("事件选项"));
 }
 
 #[test]
 fn build_prompt_routes_combat_when_monsters_present() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: None,
         monsters: vec![MonsterInfo {
@@ -780,19 +684,18 @@ fn build_prompt_routes_combat_when_monsters_present() {
         }],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("=== 怪物"));
     assert!(!prompt.contains("=== 选牌 ==="));
 }
 
 #[test]
 fn build_prompt_routes_generic_when_no_monsters() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: None,
         ..test_state()
     };
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("=== 当前状态 ==="));
     assert!(!prompt.contains("=== 怪物"));
     assert!(!prompt.contains("=== 选牌 ==="));
@@ -802,9 +705,8 @@ fn build_prompt_routes_generic_when_no_monsters() {
 // --- added coverage tests ---
 
 #[test]
-fn resolve_three_energy_tokens() {
-    let i18n = load_i18n();
-    let out = resolve_description("Offering", false, "获得 [R] [R] [R] 。", &i18n);
+fn clean_three_energy_tokens() {
+    let out = clean_description("获得 [R] [R] [R] 。");
     assert_eq!(out, "获得 能量3 。");
 }
 
@@ -894,7 +796,6 @@ fn monster_with_block() {
 
 #[test]
 fn rest_shows_upgradeable_cards() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         current_hp: Some(45),
@@ -909,13 +810,12 @@ fn rest_shows_upgradeable_cards() {
         ],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(prompt.contains("=== 可锻造升级目标 ==="));
 }
 
 #[test]
 fn rest_no_upgradeable_when_all_upgraded() {
-    let i18n = load_i18n();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         current_hp: Some(45),
@@ -927,31 +827,28 @@ fn rest_no_upgradeable_when_all_upgraded() {
         }],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &i18n);
+    let prompt = build_prompt(&state);
     assert!(!prompt.contains("=== 可升级卡牌 ==="));
 }
 
 #[test]
 fn compact_pile_empty() {
-    let i18n = load_i18n();
     let cards: Vec<CardInfo> = vec![];
-    let output = compact_pile("=== 抽牌堆", &cards, &i18n);
+    let output = compact_pile("=== 抽牌堆", &cards);
     assert_eq!(output, "=== 抽牌堆（0张）\n");
 }
 
 #[test]
 fn deck_section_empty() {
-    let i18n = load_i18n();
     let cards: Vec<CardInfo> = vec![];
-    let output = format_deck_section(&cards, &i18n);
+    let output = format_deck_section(&cards);
     assert_eq!(output, "");
 }
 
 #[test]
 fn deck_section_single_cards() {
-    let i18n = load_i18n();
-    let cards = vec![card("Strike_R", "Strike", 1, "ATTACK")];
-    let output = format_deck_section(&cards, &i18n);
+    let cards = vec![card("Strike_R", "打击", 1, "ATTACK")];
+    let output = format_deck_section(&cards);
     assert!(output.contains("打击(1费)"));
     assert!(!output.contains("（共"));
 }

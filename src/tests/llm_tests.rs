@@ -1,5 +1,5 @@
 use super::*;
-use crate::state::{DangerFlags, DangerLevel, MonsterInfo, NormalizedState};
+use crate::state::{DangerFlags, DangerLevel, MonsterInfo, NormalizedState, RelicInfo};
 
 #[test]
 fn scenario_system_prompts_are_defined() {
@@ -147,7 +147,10 @@ fn scenario_resolver_detects_rest() {
 fn scenario_resolver_detects_boss_relic() {
     let state = NormalizedState {
         screen_type: Some("BOSS_REWARD".into()),
-        boss_relic_choices: vec!["符文圆顶".into()],
+        boss_relic_choices: vec![RelicInfo {
+            name: "符文圆顶".into(),
+            description: String::new(),
+        }],
         ..test_state()
     };
     assert_eq!(
@@ -191,13 +194,12 @@ fn scenario_resolver_defaults_to_generic() {
 
 #[test]
 fn log_includes_prompt_and_response() {
+    let dir = tempfile::tempdir().unwrap();
     let prompt = "test-prompt-🦀🤣🦖";
     let response = "test-response-吃葡萄不吐葡萄皮";
-    log_prompt(prompt, response);
+    log_prompt_to(dir.path(), prompt, response);
 
-    let log_path = crate::logging::project_root()
-        .join("logs")
-        .join("prompts.log");
+    let log_path = dir.path().join("logs").join("prompts.log");
     let contents = std::fs::read_to_string(&log_path).unwrap();
     assert!(contents.contains(prompt));
     assert!(contents.contains(response));

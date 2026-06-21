@@ -1,16 +1,7 @@
 use super::*;
 use crate::llm::AdviceScenario;
+use crate::test_utils::{load_fixture, load_i18n};
 use serde_json::Value;
-
-fn load_i18n() -> crate::i18n::I18n {
-    crate::i18n::I18n::load()
-}
-
-fn load_fixture(name: &str) -> Value {
-    let path = format!("tests/fixtures/{name}");
-    let content = std::fs::read_to_string(&path).unwrap();
-    serde_json::from_str(&content).unwrap()
-}
 
 fn read_events(path: &Path) -> Vec<Value> {
     let content = std::fs::read_to_string(path).unwrap();
@@ -229,4 +220,28 @@ fn metadata_fields_are_null_when_missing() {
     assert!(events[0]["character"].is_null());
     assert!(events[0]["ascension_level"].is_null());
     assert!(events[0]["seed"].is_null());
+}
+
+#[test]
+fn advice_events_are_written_to_journal() {
+    let dir = tempfile::tempdir().unwrap();
+    let journal = Journal::new_at(dir.path(), "test-run");
+    journal.log_advice(
+        "hash1",
+        Effort::Fast,
+        AdviceScenario::Generic,
+        "prompt 1",
+        "first",
+    );
+    journal.log_advice(
+        "hash2",
+        Effort::Heavy,
+        AdviceScenario::CardReward,
+        "prompt 2",
+        "second",
+    );
+
+    let content = std::fs::read_to_string(journal.path()).unwrap();
+    assert!(content.contains("first"));
+    assert!(content.contains("second"));
 }

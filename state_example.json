@@ -1,0 +1,1114 @@
+{
+  "available_commands": [
+    "choose",
+    "potion",
+    "proceed",
+    "key",
+    "click",
+    "wait",
+    "state"
+  ],
+  "ready_for_command": true,
+  "in_game": true,
+  "game_state": {
+    "choice_list": [
+      "gold",
+      "potion",
+      "card"
+    ],
+    "screen_type": "COMBAT_REWARD",
+    "screen_state": {
+      "rewards": [
+        {
+          "gold": 15,
+          "reward_type": "GOLD"
+        },
+        {
+          "potion": {
+            "requires_target": false,
+            "can_use": false,
+            "can_discard": true,
+            "name": "Essence of Steel",
+            "description": "Gain 4 Plated Armor.",
+            "id": "EssenceOfSteel"
+          },
+          "reward_type": "POTION"
+        },
+        {
+          "reward_type": "CARD"
+        }
+      ]
+    },
+    "seed": 9175373409550057077,
+    "keys": {
+      "emerald": false,
+      "ruby": false,
+      "sapphire": false
+    },
+    "deck": [
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 1,
+        "name": "Strike",
+        "description": "Deal 6 damage.",
+        "id": "Strike_P",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "3639248d-a501-4efa-879e-2f19bfceedc5",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": true
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 1,
+        "name": "Defend",
+        "description": "Gain 5 Block.",
+        "id": "Defend_P",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "0331e114-42a3-45f6-9d58-b4b1ce7c2826",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 1,
+        "name": "Defend",
+        "description": "Gain 5 Block.",
+        "id": "Defend_P",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "334b3ca0-5bf9-4b99-aa0f-87aaee198da6",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 1,
+        "name": "Defend",
+        "description": "Gain 5 Block.",
+        "id": "Defend_P",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "81d53a9a-3476-4908-885e-c3986335a056",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 1,
+        "name": "Defend",
+        "description": "Gain 5 Block.",
+        "id": "Defend_P",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "8a776172-76ec-4923-b8cb-01dce6db3a91",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 2,
+        "name": "Eruption",
+        "description": "Deal 9 damage. \n Enter Wrath.",
+        "id": "Eruption",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "416c1e0b-1c41-44f7-8592-b37d5184fbbc",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": true
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 2,
+        "name": "Vigilance",
+        "description": "Gain 8 Block. \n Enter Calm.",
+        "id": "Vigilance",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "b1b0670b-3206-4883-8e52-f198adcc2b41",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": false
+      },
+      {
+        "exhausts": true,
+        "is_playable": false,
+        "cost": 1,
+        "name": "Crescendo",
+        "description": "Retain. \n Enter Wrath. \n Exhaust.",
+        "id": "Crescendo",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "b6ea9c07-a6f8-48d4-8ad0-15e35453f279",
+        "upgrades": 0,
+        "rarity": "COMMON",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 1,
+        "name": "Cut Through Fate",
+        "description": "Deal 7 damage. \n Scry 2. \n Draw 1 card.",
+        "id": "CutThroughFate",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "c68488a1-0636-4b96-af3b-e97d232dfdb1",
+        "upgrades": 0,
+        "rarity": "COMMON",
+        "has_target": true
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 1,
+        "name": "Battle Hymn+",
+        "description": "Innate. \n At the start of each turn, add a *Smite into your hand.",
+        "id": "BattleHymn",
+        "type": "POWER",
+        "ethereal": false,
+        "uuid": "b83d251d-31c7-4a71-a461-29a0f42141e3",
+        "upgrades": 1,
+        "rarity": "UNCOMMON",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 1,
+        "name": "Empty Body",
+        "description": "Gain 7 Block. \n Exit your Stance.",
+        "id": "EmptyBody",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "240aa280-8d7a-4bab-8856-77d0d677308b",
+        "upgrades": 0,
+        "rarity": "COMMON",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 2,
+        "name": "Wheel Kick",
+        "description": "Deal 15 damage. \n Draw 2 cards.",
+        "id": "WheelKick",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "65b5af65-5dde-46cc-b794-60d7674402a3",
+        "upgrades": 0,
+        "rarity": "UNCOMMON",
+        "has_target": true
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 0,
+        "name": "Halt",
+        "description": "Gain 3 Block. \n If you are in Wrath, gain 9 additional Block.",
+        "id": "Halt",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "533c2e99-3325-4a0e-ab8c-f08f177c8775",
+        "upgrades": 0,
+        "rarity": "COMMON",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 1,
+        "name": "Follow-Up",
+        "description": "Deal 7 damage. \n If the last card played this combat was an Attack, gain [W].",
+        "id": "FollowUp",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "6245a5ba-419e-43ec-b8b3-644648287212",
+        "upgrades": 0,
+        "rarity": "COMMON",
+        "has_target": true
+      },
+      {
+        "exhausts": false,
+        "is_playable": false,
+        "cost": 2,
+        "name": "Swivel",
+        "description": "Gain 8 Block. \n The next Attack you play costs 0.",
+        "id": "Swivel",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "5e33b7b8-0643-4c5a-9788-1c6e56d5e6b7",
+        "upgrades": 0,
+        "rarity": "UNCOMMON",
+        "has_target": false
+      },
+      {
+        "exhausts": true,
+        "is_playable": false,
+        "cost": 1,
+        "name": "Scrawl",
+        "description": "Draw cards until your hand is full. \n Exhaust.",
+        "id": "Scrawl",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "12eb1fb4-9e0b-489e-8981-65bed54ce76d",
+        "upgrades": 0,
+        "rarity": "RARE",
+        "has_target": false
+      }
+    ],
+    "relics": [
+      {
+        "name": "Pure Water",
+        "description": "At the start of each combat, add a Miracle into your hand.",
+        "used_up": false,
+        "id": "PureWater",
+        "counter": -1
+      },
+      {
+        "name": "Neow\u0027s Lament",
+        "description": "This relic is used up.",
+        "used_up": true,
+        "id": "NeowsBlessing",
+        "counter": -2
+      },
+      {
+        "name": "Nunchaku",
+        "description": "Every time you play 10 Attacks, gain [E] .",
+        "used_up": false,
+        "id": "Nunchaku",
+        "counter": 2
+      },
+      {
+        "name": "Bag of Marbles",
+        "description": "At the start of each combat, apply 1 Vulnerable to ALL enemies.",
+        "used_up": false,
+        "id": "Bag of Marbles",
+        "counter": -1
+      },
+      {
+        "name": "Bronze Scales",
+        "description": "Start each combat with 3 Thorns.",
+        "used_up": false,
+        "id": "Bronze Scales",
+        "counter": -1
+      },
+      {
+        "name": "Ancient Tea Set",
+        "description": "Whenever you enter a Rest Site, start the next combat with [E] [E] .",
+        "used_up": false,
+        "id": "Ancient Tea Set",
+        "counter": -1
+      },
+      {
+        "name": "Letter Opener",
+        "description": "Every time you play 3 Skills in a single turn, deal 5 damage to ALL enemies.",
+        "used_up": false,
+        "id": "Letter Opener",
+        "counter": -1
+      },
+      {
+        "name": "Violet Lotus",
+        "description": "Whenever you exit Calm, gain an additional [E] .",
+        "used_up": false,
+        "id": "VioletLotus",
+        "counter": -1
+      }
+    ],
+    "max_hp": 72,
+    "act_boss": "Automaton",
+    "gold": 99,
+    "action_phase": "WAITING_ON_USER",
+    "act": 2,
+    "screen_name": "COMBAT_REWARD",
+    "room_phase": "COMPLETE",
+    "is_screen_up": true,
+    "potions": [
+      {
+        "requires_target": false,
+        "can_use": false,
+        "can_discard": true,
+        "name": "Stance Potion",
+        "description": "Enter Calm or Wrath.",
+        "id": "StancePotion"
+      },
+      {
+        "requires_target": false,
+        "can_use": false,
+        "can_discard": false,
+        "name": "Potion Slot",
+        "description": "Use potions during combat to gain bonuses or hinder enemies.",
+        "id": "Potion Slot"
+      },
+      {
+        "requires_target": false,
+        "can_use": false,
+        "can_discard": false,
+        "name": "Potion Slot",
+        "description": "Use potions during combat to gain bonuses or hinder enemies.",
+        "id": "Potion Slot"
+      }
+    ],
+    "current_hp": 67,
+    "floor": 18,
+    "ascension_level": 0,
+    "class": "WATCHER",
+    "map": [
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 2,
+            "y": 1
+          }
+        ],
+        "x": 1,
+        "y": 0,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 4,
+            "y": 1
+          }
+        ],
+        "x": 3,
+        "y": 0,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 5,
+            "y": 1
+          }
+        ],
+        "x": 5,
+        "y": 0,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 1,
+            "y": 2
+          }
+        ],
+        "x": 2,
+        "y": 1,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 3,
+            "y": 2
+          },
+          {
+            "x": 4,
+            "y": 2
+          },
+          {
+            "x": 5,
+            "y": 2
+          }
+        ],
+        "x": 4,
+        "y": 1,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 5,
+            "y": 2
+          },
+          {
+            "x": 6,
+            "y": 2
+          }
+        ],
+        "x": 5,
+        "y": 1,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 0,
+            "y": 3
+          }
+        ],
+        "x": 1,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 3
+          }
+        ],
+        "x": 3,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "$",
+        "children": [
+          {
+            "x": 5,
+            "y": 3
+          }
+        ],
+        "x": 4,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 5,
+            "y": 3
+          },
+          {
+            "x": 6,
+            "y": 3
+          }
+        ],
+        "x": 5,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 6,
+            "y": 3
+          }
+        ],
+        "x": 6,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 0,
+            "y": 4
+          }
+        ],
+        "x": 0,
+        "y": 3,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 4,
+            "y": 4
+          }
+        ],
+        "x": 3,
+        "y": 3,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 5,
+            "y": 4
+          }
+        ],
+        "x": 5,
+        "y": 3,
+        "parents": []
+      },
+      {
+        "symbol": "$",
+        "children": [
+          {
+            "x": 5,
+            "y": 4
+          },
+          {
+            "x": 6,
+            "y": 4
+          }
+        ],
+        "x": 6,
+        "y": 3,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 1,
+            "y": 5
+          }
+        ],
+        "x": 0,
+        "y": 4,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 5,
+            "y": 5
+          }
+        ],
+        "x": 4,
+        "y": 4,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 5,
+            "y": 5
+          }
+        ],
+        "x": 5,
+        "y": 4,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 6,
+            "y": 5
+          }
+        ],
+        "x": 6,
+        "y": 4,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
+            "x": 1,
+            "y": 6
+          }
+        ],
+        "x": 1,
+        "y": 5,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
+            "x": 4,
+            "y": 6
+          },
+          {
+            "x": 5,
+            "y": 6
+          }
+        ],
+        "x": 5,
+        "y": 5,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 6,
+            "y": 6
+          }
+        ],
+        "x": 6,
+        "y": 5,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 1,
+            "y": 7
+          }
+        ],
+        "x": 1,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 4,
+            "y": 7
+          }
+        ],
+        "x": 4,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 4,
+            "y": 7
+          },
+          {
+            "x": 5,
+            "y": 7
+          }
+        ],
+        "x": 5,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
+            "x": 6,
+            "y": 7
+          }
+        ],
+        "x": 6,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 2,
+            "y": 8
+          }
+        ],
+        "x": 1,
+        "y": 7,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
+            "x": 3,
+            "y": 8
+          },
+          {
+            "x": 4,
+            "y": 8
+          },
+          {
+            "x": 5,
+            "y": 8
+          }
+        ],
+        "x": 4,
+        "y": 7,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 6,
+            "y": 8
+          }
+        ],
+        "x": 5,
+        "y": 7,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 6,
+            "y": 8
+          }
+        ],
+        "x": 6,
+        "y": 7,
+        "parents": []
+      },
+      {
+        "symbol": "T",
+        "children": [
+          {
+            "x": 2,
+            "y": 9
+          }
+        ],
+        "x": 2,
+        "y": 8,
+        "parents": []
+      },
+      {
+        "symbol": "T",
+        "children": [
+          {
+            "x": 2,
+            "y": 9
+          }
+        ],
+        "x": 3,
+        "y": 8,
+        "parents": []
+      },
+      {
+        "symbol": "T",
+        "children": [
+          {
+            "x": 3,
+            "y": 9
+          }
+        ],
+        "x": 4,
+        "y": 8,
+        "parents": []
+      },
+      {
+        "symbol": "T",
+        "children": [
+          {
+            "x": 5,
+            "y": 9
+          }
+        ],
+        "x": 5,
+        "y": 8,
+        "parents": []
+      },
+      {
+        "symbol": "T",
+        "children": [
+          {
+            "x": 5,
+            "y": 9
+          }
+        ],
+        "x": 6,
+        "y": 8,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 2,
+            "y": 10
+          }
+        ],
+        "x": 2,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 4,
+            "y": 10
+          }
+        ],
+        "x": 3,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 4,
+            "y": 10
+          },
+          {
+            "x": 6,
+            "y": 10
+          }
+        ],
+        "x": 5,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 2,
+            "y": 11
+          },
+          {
+            "x": 3,
+            "y": 11
+          }
+        ],
+        "x": 2,
+        "y": 10,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 11
+          }
+        ],
+        "x": 4,
+        "y": 10,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 6,
+            "y": 11
+          }
+        ],
+        "x": 6,
+        "y": 10,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 1,
+            "y": 12
+          }
+        ],
+        "x": 2,
+        "y": 11,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 2,
+            "y": 12
+          },
+          {
+            "x": 3,
+            "y": 12
+          },
+          {
+            "x": 4,
+            "y": 12
+          }
+        ],
+        "x": 3,
+        "y": 11,
+        "parents": []
+      },
+      {
+        "symbol": "$",
+        "children": [
+          {
+            "x": 6,
+            "y": 12
+          }
+        ],
+        "x": 6,
+        "y": 11,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 1,
+            "y": 13
+          }
+        ],
+        "x": 1,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 1,
+            "y": 13
+          }
+        ],
+        "x": 2,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 2,
+            "y": 13
+          }
+        ],
+        "x": 3,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 4,
+            "y": 13
+          }
+        ],
+        "x": 4,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 6,
+            "y": 13
+          }
+        ],
+        "x": 6,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 0,
+            "y": 14
+          },
+          {
+            "x": 2,
+            "y": 14
+          }
+        ],
+        "x": 1,
+        "y": 13,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 2,
+            "y": 14
+          }
+        ],
+        "x": 2,
+        "y": 13,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 4,
+            "y": 14
+          }
+        ],
+        "x": 4,
+        "y": 13,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 6,
+            "y": 14
+          }
+        ],
+        "x": 6,
+        "y": 13,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 3,
+            "y": 16
+          }
+        ],
+        "x": 0,
+        "y": 14,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 3,
+            "y": 16
+          }
+        ],
+        "x": 2,
+        "y": 14,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 3,
+            "y": 16
+          }
+        ],
+        "x": 4,
+        "y": 14,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 3,
+            "y": 16
+          }
+        ],
+        "x": 6,
+        "y": 14,
+        "parents": []
+      }
+    ],
+    "room_type": "MonsterRoom"
+  }
+}

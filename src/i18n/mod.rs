@@ -1,48 +1,16 @@
-use serde::Deserialize;
 use std::collections::HashMap;
 
-#[derive(Deserialize)]
-pub struct CardValue {
-    pub d: i64,
-    pub b: i64,
-    pub m: i64,
-    #[serde(rename = "d+")]
-    pub du: i64,
-    #[serde(rename = "b+")]
-    pub bu: i64,
-    #[serde(rename = "m+")]
-    pub mu: i64,
-}
-
 pub struct I18n {
-    cards: HashMap<String, String>,
-    relics: HashMap<String, String>,
     monsters: HashMap<String, String>,
     powers: HashMap<String, String>,
-    potions: HashMap<String, String>,
-    card_descs: HashMap<String, String>,
-    pub card_values: HashMap<String, CardValue>,
 }
 
 impl I18n {
     pub fn load() -> Self {
         I18n {
-            cards: serde_json::from_str(include_str!("cards.json")).unwrap(),
-            relics: serde_json::from_str(include_str!("relics.json")).unwrap(),
             monsters: serde_json::from_str(include_str!("monsters.json")).unwrap(),
             powers: serde_json::from_str(include_str!("powers.json")).unwrap(),
-            potions: serde_json::from_str(include_str!("potions.json")).unwrap(),
-            card_descs: serde_json::from_str(include_str!("card_desc.json")).unwrap(),
-            card_values: serde_json::from_str(include_str!("../card_values.json")).unwrap(),
         }
-    }
-
-    pub fn card(&self, id: &str) -> Option<&str> {
-        self.cards.get(id).map(|s| s.as_str())
-    }
-
-    pub fn relic(&self, id: &str) -> Option<&str> {
-        self.relics.get(id).map(|s| s.as_str())
     }
 
     pub fn monster(&self, id: &str) -> Option<&str> {
@@ -51,14 +19,6 @@ impl I18n {
 
     pub fn power(&self, id: &str) -> Option<&str> {
         self.powers.get(id).map(|s| s.as_str())
-    }
-
-    pub fn potion(&self, id: &str) -> Option<&str> {
-        self.potions.get(id).map(|s| s.as_str())
-    }
-
-    pub fn card_desc(&self, id: &str) -> Option<&str> {
-        self.card_descs.get(id).map(|s| s.as_str())
     }
 }
 

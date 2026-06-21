@@ -1,4 +1,4 @@
-use crate::i18n::{self, I18n};
+use crate::i18n;
 use crate::state::{CardInfo, DangerLevel, MonsterInfo, NormalizedState};
 use std::collections::HashMap;
 
@@ -72,10 +72,12 @@ fn status_line(state: &NormalizedState) -> String {
 
     // Relics & potions
     if !state.relics.is_empty() {
-        parts.push(format!("遗物：{}", state.relics.join(" ")));
+        let names: Vec<&str> = state.relics.iter().map(|r| r.name.as_str()).collect();
+        parts.push(format!("遗物：{}", names.join(" ")));
     }
     if !state.potions.is_empty() {
-        parts.push(format!("药水：{}", state.potions.join(" ")));
+        let names: Vec<&str> = state.potions.iter().map(|p| p.name.as_str()).collect();
+        parts.push(format!("药水：{}", names.join(" ")));
     }
 
     // Incoming damage
@@ -94,31 +96,11 @@ fn status_line(state: &NormalizedState) -> String {
     parts.join("  ")
 }
 
-fn resolve_description(id: &str, upgraded: bool, raw: &str, i18n_data: &I18n) -> String {
+fn clean_description(raw: &str) -> String {
     let mut result = raw.to_string();
-    if let Some(val) = i18n_data.card_values.get(id) {
-        let d = if upgraded { val.du } else { val.d };
-        let b = if upgraded { val.bu } else { val.b };
-        let m = if upgraded { val.mu } else { val.m };
-        if d > 0 {
-            result = result.replace("!D!", &d.to_string());
-        }
-        if b > 0 {
-            result = result.replace("!B!", &b.to_string());
-        }
-        if m > 0 {
-            result = result.replace("!M!", &m.to_string());
-        }
-    }
-    result = result.replace(" NL ", "\n");
     result = result.replace('*', "");
-    for (token, replacement) in &[
-        ("[R]", "能量"),
-        ("[G]", "能量"),
-        ("[B]", "能量"),
-        ("[W]", "能量"),
-    ] {
-        result = result.replace(token, replacement);
+    for token in &["[R]", "[G]", "[B]", "[W]", "[E]"] {
+        result = result.replace(token, "能量");
     }
     for n in (2..=10).rev() {
         let pattern: String = (0..n).map(|_| "能量").collect::<Vec<_>>().join(" ");
@@ -128,21 +110,16 @@ fn resolve_description(id: &str, upgraded: bool, raw: &str, i18n_data: &I18n) ->
     result
 }
 
-fn format_card(c: &CardInfo, i18n_data: &I18n) -> String {
-    let display_name = i18n_data.card(&c.id).unwrap_or(&c.name);
-    let desc = i18n_data
-        .card_desc(&c.id)
-        .map(|raw| {
-            format!(
-                " — {}",
-                resolve_description(&c.id, c.upgraded, raw, i18n_data)
-            )
-        })
-        .unwrap_or_default();
+fn format_card(c: &CardInfo) -> String {
+    let desc = if c.description.is_empty() {
+        String::new()
+    } else {
+        format!(" — {}", clean_description(&c.description))
+    };
     format!(
         "{up}{name}({cost}费/{ctype}){desc}",
         up = if c.upgraded { "+" } else { "" },
-        name = display_name,
+        name = c.name,
         cost = c.cost,
         ctype = i18n::translate_type(&c.card_type),
         desc = desc,
@@ -213,7 +190,7 @@ fn build_monsters_section(state: &NormalizedState) -> String {
     lines.join("\n")
 }
 
-fn build_hand_section(state: &NormalizedState, i18n_data: &I18n) -> String {
+fn build_hand_section(state: &NormalizedState) -> String {
     if state.hand_cards.is_empty() {
         return String::new();
     }
@@ -223,30 +200,29 @@ fn build_hand_section(state: &NormalizedState, i18n_data: &I18n) -> String {
         state.hand_cards.len()
     )];
     for c in &state.hand_cards {
-        lines.push(format!("  {}", format_card(c, i18n_data)));
+        lines.push(format!("  {}", format_card(c)));
     }
     lines.push(String::new());
     lines.join("\n")
 }
 
-fn compact_pile(label: &str, cards: &[CardInfo], i18n_data: &I18n) -> String {
+fn compact_pile(label: &str, cards: &[CardInfo]) -> String {
     if cards.is_empty() {
         return format!("{label}（0张）\n");
     }
 
-    let mut id_counts: HashMap<&str, usize> = HashMap::new();
+    let mut name_counts: HashMap<&str, usize> = HashMap::new();
     for c in cards {
-        *id_counts.entry(c.id.as_str()).or_insert(0) += 1;
+        *name_counts.entry(c.name.as_str()).or_insert(0) += 1;
     }
 
-    let mut entries: Vec<String> = id_counts
+    let mut entries: Vec<String> = name_counts
         .into_iter()
-        .map(|(id, count)| {
-            let display = i18n_data.card(id).unwrap_or(id);
+        .map(|(name, count)| {
             if count == 1 {
-                display.to_string()
+                name.to_string()
             } else {
-                format!("{display}×{count}")
+                format!("{name}×{count}")
             }
         })
         .collect();
@@ -255,19 +231,45 @@ fn compact_pile(label: &str, cards: &[CardInfo], i18n_data: &I18n) -> String {
     format!("{label}（{}张）\n  {}\n", cards.len(), entries.join(" "))
 }
 
-fn format_deck_section(cards: &[CardInfo], i18n_data: &I18n) -> String {
+fn format_deck_section(cards: &[CardInfo]) -> String {
     if cards.is_empty() {
         return String::new();
     }
 
-    let mut by_type: HashMap<&str, HashMap<&str, (usize, i64, bool)>> = HashMap::new();
+    struct DeckEntry<'a> {
+        card_type: &'a str,
+        count: usize,
+        cost: i64,
+        upgraded: bool,
+        name: &'a str,
+        description: &'a str,
+    }
+
+    let mut aggregated: Vec<DeckEntry> = Vec::new();
+    let mut seen: HashMap<(&str, &str), usize> = HashMap::new();
     for c in cards {
-        let entry = by_type
-            .entry(c.card_type.as_str())
-            .or_default()
-            .entry(c.id.as_str())
-            .or_insert((0, c.cost, c.upgraded));
-        entry.0 += 1;
+        let key = (c.card_type.as_str(), c.id.as_str());
+        if let Some(idx) = seen.get(&key) {
+            aggregated[*idx].count += 1;
+        } else {
+            seen.insert(key, aggregated.len());
+            aggregated.push(DeckEntry {
+                card_type: c.card_type.as_str(),
+                count: 1,
+                cost: c.cost,
+                upgraded: c.upgraded,
+                name: c.name.as_str(),
+                description: c.description.as_str(),
+            });
+        }
+    }
+
+    let mut by_type: HashMap<&str, Vec<&DeckEntry>> = HashMap::new();
+    for entry in &aggregated {
+        by_type.entry(entry.card_type).or_default().push(entry);
+    }
+    for entries in by_type.values_mut() {
+        entries.sort_by_key(|e| e.name);
     }
 
     let type_order = ["ATTACK", "SKILL", "POWER", "CURSE", "STATUS"];
@@ -283,25 +285,29 @@ fn format_deck_section(cards: &[CardInfo], i18n_data: &I18n) -> String {
     lines.push("=== 卡组 ===".to_string());
 
     for &t in &type_order {
-        if let Some(group) = by_type.get(t) {
-            let mut entries: Vec<(&&str, &(usize, i64, bool))> = group.iter().collect();
-            entries.sort_by_key(|(id, _)| i18n_data.card(id).unwrap_or(*id));
-
+        if let Some(entries) = by_type.get(t) {
             let header = type_headers.get(t).unwrap_or(&t);
-            let total: usize = entries.iter().map(|(_, (count, _, _))| count).sum();
+            let total: usize = entries.iter().map(|e| e.count).sum();
             lines.push(format!("{header}（{total}张）："));
-            for (id, (count, cost, upgraded)) in entries {
-                let display = i18n_data.card(id).unwrap_or(*id);
-                let desc = i18n_data
-                    .card_desc(id)
-                    .map(|raw| format!(" — {}", resolve_description(id, *upgraded, raw, i18n_data)))
-                    .unwrap_or_default();
-                let prefix = if *upgraded { "+" } else { "" };
-                if *count == 1 {
-                    lines.push(format!("  {prefix}{display}({cost}费){desc}"));
+            for e in entries {
+                let desc_str = if e.description.is_empty() {
+                    String::new()
+                } else {
+                    format!(" — {}", clean_description(e.description))
+                };
+                let prefix = if e.upgraded { "+" } else { "" };
+                if e.count == 1 {
+                    lines.push(format!(
+                        "  {prefix}{}({cost}费){desc_str}",
+                        e.name,
+                        cost = e.cost
+                    ));
                 } else {
                     lines.push(format!(
-                        "  {prefix}{display}({cost}费)（共{count}张）{desc}"
+                        "  {prefix}{}({cost}费)（共{count}张）{desc_str}",
+                        e.name,
+                        cost = e.cost,
+                        count = e.count
                     ));
                 }
             }
@@ -312,11 +318,34 @@ fn format_deck_section(cards: &[CardInfo], i18n_data: &I18n) -> String {
     lines.join("\n")
 }
 
-fn build_combat(state: &NormalizedState, i18n_data: &I18n) -> String {
+fn build_relics_potions_section(state: &NormalizedState) -> String {
+    let mut lines = Vec::new();
+
+    if !state.relics.is_empty() {
+        lines.push("=== 遗物 ===".to_string());
+        for r in &state.relics {
+            lines.push(format!("{}：{}", r.name, r.description));
+        }
+        lines.push(String::new());
+    }
+
+    if !state.potions.is_empty() {
+        lines.push("=== 药水 ===".to_string());
+        for p in &state.potions {
+            lines.push(format!("{}：{}", p.name, p.description));
+        }
+        lines.push(String::new());
+    }
+
+    lines.join("\n")
+}
+
+fn build_combat(state: &NormalizedState) -> String {
     let mut lines: Vec<String> = vec![
         "=== 当前状态 ===".to_string(),
         status_line(state),
         String::new(),
+        build_relics_potions_section(state),
         "=== 任务 ===".to_string(),
         "这是进入战斗时的一次性建议。请给出整体打法：优先击杀目标、防守底线、药水/遗物注意点；不要逐回合假设后续抽牌。".to_string(),
         String::new(),
@@ -336,25 +365,25 @@ fn build_combat(state: &NormalizedState, i18n_data: &I18n) -> String {
 
     // Hand cards with descriptions
     if !state.hand_cards.is_empty() {
-        lines.push(build_hand_section(state, i18n_data));
+        lines.push(build_hand_section(state));
     }
 
     // Draw pile
-    lines.push(compact_pile("=== 抽牌堆", &state.draw_pile, i18n_data));
+    lines.push(compact_pile("=== 抽牌堆", &state.draw_pile));
 
     // Discard pile
-    lines.push(compact_pile("=== 弃牌堆", &state.discard_pile, i18n_data));
+    lines.push(compact_pile("=== 弃牌堆", &state.discard_pile));
 
     // Exhaust pile (only if non-empty)
     if !state.exhaust_cards.is_empty() {
-        lines.push(compact_pile("=== 已消耗", &state.exhaust_cards, i18n_data));
+        lines.push(compact_pile("=== 已消耗", &state.exhaust_cards));
     }
 
     lines.push(format_line().to_string());
     lines.join("\n")
 }
 
-fn build_card_reward(state: &NormalizedState, i18n_data: &I18n) -> String {
+fn build_card_reward(state: &NormalizedState) -> String {
     let task = if state.is_boss_card_reward() {
         "请从 Boss 战后的奖励中选择一张牌，或推荐跳过。重点比较：下一幕卡组方向、成长、AOE、过牌、能量、格挡体系、Boss 遗物兼容性和卡组膨胀风险。"
     } else {
@@ -365,6 +394,7 @@ fn build_card_reward(state: &NormalizedState, i18n_data: &I18n) -> String {
         "=== 当前状态 ===".to_string(),
         status_line(state),
         String::new(),
+        build_relics_potions_section(state),
         "=== 任务 ===".to_string(),
         task.to_string(),
         String::new(),
@@ -378,26 +408,21 @@ fn build_card_reward(state: &NormalizedState, i18n_data: &I18n) -> String {
         lines.push(String::new());
     }
 
-    lines.push(format_deck_section(&state.master_cards, i18n_data));
+    lines.push(format_deck_section(&state.master_cards));
 
     // Reward choices
     if !state.card_reward_choices.is_empty() {
         lines.push("=== 选牌 ===".to_string());
         for (i, c) in state.card_reward_choices.iter().enumerate() {
             let label = (b'A' + i as u8) as char;
-            let display = i18n_data.card(&c.id).unwrap_or(&c.name);
-            let desc = i18n_data
-                .card_desc(&c.id)
-                .map(|raw| {
-                    format!(
-                        " — {}",
-                        resolve_description(&c.id, c.upgraded, raw, i18n_data)
-                    )
-                })
-                .unwrap_or_default();
+            let desc = if c.description.is_empty() {
+                String::new()
+            } else {
+                format!(" — {}", clean_description(&c.description))
+            };
             lines.push(format!(
                 "{label}. {name}({cost}费/{ctype}){desc}",
-                name = display,
+                name = c.name,
                 cost = c.cost,
                 ctype = i18n::translate_type(&c.card_type),
                 desc = desc,
@@ -412,11 +437,12 @@ fn build_card_reward(state: &NormalizedState, i18n_data: &I18n) -> String {
     lines.join("\n")
 }
 
-fn build_rest(state: &NormalizedState, i18n_data: &I18n) -> String {
+fn build_rest(state: &NormalizedState) -> String {
     let mut lines: Vec<String> = vec![
         "=== 当前状态 ===".to_string(),
         status_line(state),
         String::new(),
+        build_relics_potions_section(state),
         "=== 任务 ===".to_string(),
         "请在篝火选项中做决定。明确比较休息、锻造和特殊选项的收益，并说明当前血量是否允许贪长期收益。如果推荐锻造，必须写出要升级哪张牌。".to_string(),
         String::new(),
@@ -431,13 +457,10 @@ fn build_rest(state: &NormalizedState, i18n_data: &I18n) -> String {
         .filter(|c| seen_upgradeable.insert(c.id.as_str()))
         .take(10)
         .collect();
-    upgradeable.sort_by_key(|c| i18n_data.card(&c.id).unwrap_or(&c.name).to_string());
+    upgradeable.sort_by_key(|c| c.name.as_str());
 
     if !upgradeable.is_empty() {
-        let names: Vec<String> = upgradeable
-            .into_iter()
-            .map(|c| format_card(c, i18n_data))
-            .collect();
+        let names: Vec<String> = upgradeable.into_iter().map(format_card).collect();
         lines.push("=== 可锻造升级目标 ===".to_string());
         lines.extend(names);
         lines.push(String::new());
@@ -470,7 +493,7 @@ fn build_rest(state: &NormalizedState, i18n_data: &I18n) -> String {
     lines.join("\n")
 }
 
-fn build_boss_relic(state: &NormalizedState, i18n_data: &I18n) -> String {
+fn build_boss_relic(state: &NormalizedState) -> String {
     let mut lines: Vec<String> = vec!["=== 当前状态 ===".to_string(), status_line(state)];
 
     let is_act_end = matches!(state.floor, Some(17) | Some(34));
@@ -479,19 +502,20 @@ fn build_boss_relic(state: &NormalizedState, i18n_data: &I18n) -> String {
     }
 
     lines.push(String::new());
+    lines.push(build_relics_potions_section(state));
     lines.push("=== 任务 ===".to_string());
     lines.push(
         "请从 Boss 遗物中选择一个。重点比较能量、过牌、卡组方向、已有遗物、药水、下一幕压力和副作用。"
             .to_string(),
     );
     lines.push(String::new());
-    lines.push(format_deck_section(&state.master_cards, i18n_data));
+    lines.push(format_deck_section(&state.master_cards));
 
     if !state.boss_relic_choices.is_empty() {
         lines.push("=== Boss 遗物 ===".to_string());
         for (i, relic) in state.boss_relic_choices.iter().enumerate() {
             let label = (b'A' + i as u8) as char;
-            lines.push(format!("{label}. {relic}"));
+            lines.push(format!("{label}. {}", relic.name));
         }
         lines.push(String::new());
     }
@@ -500,11 +524,12 @@ fn build_boss_relic(state: &NormalizedState, i18n_data: &I18n) -> String {
     lines.join("\n")
 }
 
-fn build_event_choice(state: &NormalizedState, _i18n_data: &I18n) -> String {
+fn build_event_choice(state: &NormalizedState) -> String {
     let mut lines: Vec<String> = vec![
         "=== 当前状态 ===".to_string(),
         status_line(state),
         String::new(),
+        build_relics_potions_section(state),
         "=== 任务 ===".to_string(),
         "请在事件选项中做决定。比较血量、金币、卡组质量、遗物、诅咒/删牌/升级收益和长期风险；信息不足或选项文本不可读时明确说明不确定，不要根据乱码猜测收益。".to_string(),
         String::new(),
@@ -543,11 +568,12 @@ fn build_event_choice(state: &NormalizedState, _i18n_data: &I18n) -> String {
     lines.join("\n")
 }
 
-fn build_generic(state: &NormalizedState, i18n_data: &I18n) -> String {
+fn build_generic(state: &NormalizedState) -> String {
     let mut lines: Vec<String> = vec![
         "=== 当前状态 ===".to_string(),
         status_line(state),
         String::new(),
+        build_relics_potions_section(state),
         "=== 任务 ===".to_string(),
         "请基于当前状态给出一个简短、可执行的下一步建议。".to_string(),
         String::new(),
@@ -558,18 +584,17 @@ fn build_generic(state: &NormalizedState, i18n_data: &I18n) -> String {
     }
 
     if !state.hand_cards.is_empty() {
-        let mut id_counts: HashMap<&str, usize> = HashMap::new();
+        let mut name_counts: HashMap<&str, usize> = HashMap::new();
         for c in &state.hand_cards {
-            *id_counts.entry(c.id.as_str()).or_insert(0) += 1;
+            *name_counts.entry(c.name.as_str()).or_insert(0) += 1;
         }
-        let cards: Vec<String> = id_counts
+        let cards: Vec<String> = name_counts
             .into_iter()
-            .map(|(id, count)| {
-                let display = i18n_data.card(id).unwrap_or(id);
+            .map(|(name, count)| {
                 if count == 1 {
-                    display.to_string()
+                    name.to_string()
                 } else {
-                    format!("{display}×{count}")
+                    format!("{name}×{count}")
                 }
             })
             .collect();
@@ -584,14 +609,14 @@ fn format_line() -> &'static str {
     "\n请按格式用中文回复（120字内，直接给结论）：\n推荐：\n理由：\n风险：\n吐槽："
 }
 
-pub fn build_prompt(state: &NormalizedState, i18n_data: &I18n) -> String {
+pub fn build_prompt(state: &NormalizedState) -> String {
     match state.screen_type.as_deref() {
-        Some("CARD_REWARD") => build_card_reward(state, i18n_data),
-        Some("BOSS_REWARD") => build_boss_relic(state, i18n_data),
-        Some("REST") => build_rest(state, i18n_data),
-        Some("EVENT") => build_event_choice(state, i18n_data),
-        _ if !state.monsters.is_empty() => build_combat(state, i18n_data),
-        _ => build_generic(state, i18n_data),
+        Some("CARD_REWARD") => build_card_reward(state),
+        Some("BOSS_REWARD") => build_boss_relic(state),
+        Some("REST") => build_rest(state),
+        Some("EVENT") => build_event_choice(state),
+        _ if !state.monsters.is_empty() => build_combat(state),
+        _ => build_generic(state),
     }
 }
 

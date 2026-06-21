@@ -38,3 +38,7 @@ pub fn init() -> WorkerGuard {
 
     guard
 }
+
+#[cfg(test)]
+#[path = "tests/logging_tests.rs"]
+mod tests;

@@ -153,8 +153,21 @@ const POSTMORTEM_SYSTEM_PROMPT: &str = "\
 ## 下次改进";
 
 fn log_prompt_with_system(system_prompt: &str, user_prompt: &str, response: &str) {
-    let root = crate::logging::project_root();
-    let log_dir = root.join("logs");
+    log_prompt_into_dir(
+        &crate::logging::project_root(),
+        system_prompt,
+        user_prompt,
+        response,
+    );
+}
+
+fn log_prompt_into_dir(
+    base: &std::path::Path,
+    system_prompt: &str,
+    user_prompt: &str,
+    response: &str,
+) {
+    let log_dir = base.join("logs");
     let _ = fs::create_dir_all(&log_dir);
     let path = log_dir.join("prompts.log");
 
@@ -168,8 +181,8 @@ fn log_prompt_with_system(system_prompt: &str, user_prompt: &str, response: &str
 }
 
 #[cfg(test)]
-fn log_prompt(user_prompt: &str, response: &str) {
-    log_prompt_with_system(GENERIC_SYSTEM_PROMPT, user_prompt, response);
+fn log_prompt_to(base: &std::path::Path, user_prompt: &str, response: &str) {
+    log_prompt_into_dir(base, GENERIC_SYSTEM_PROMPT, user_prompt, response);
 }
 
 #[derive(Clone, Copy)]
@@ -259,8 +272,6 @@ pub(crate) struct OpenAiConfig {
 #[derive(Debug)]
 pub enum LlmProvider {
     Mock,
-    #[allow(dead_code)]
-    MockError,
     OpenAiCompatible {
         base_url: String,
         api_key: String,
@@ -336,7 +347,7 @@ impl LlmProvider {
         effort: Effort,
     ) -> anyhow::Result<String> {
         let result: String = match self {
-            LlmProvider::MockError => anyhow::bail!("mock error"),
+            LlmProvider::Mock if prompt == "TRIGGER_LLM_ERROR" => anyhow::bail!("mock error"),
             LlmProvider::Mock if system_prompt == POSTMORTEM_SYSTEM_PROMPT => "# 本局复盘\n\
                   ## 总览\n\
                   这是 mock 复盘：本局记录已成功读取。\n\

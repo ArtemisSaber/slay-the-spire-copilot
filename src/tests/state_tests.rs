@@ -1,16 +1,7 @@
 use super::*;
-use crate::state::DangerFlags;
+use crate::state::{DangerFlags, RelicInfo};
+use crate::test_utils::{load_fixture, load_i18n};
 use serde_json::Value;
-
-fn load_i18n() -> crate::i18n::I18n {
-    crate::i18n::I18n::load()
-}
-
-fn load_fixture(name: &str) -> Value {
-    let path = format!("tests/fixtures/{name}");
-    let content = std::fs::read_to_string(&path).unwrap();
-    serde_json::from_str(&content).unwrap()
-}
 
 #[test]
 fn normalize_combat_state() {
@@ -122,9 +113,24 @@ fn normalize_boss_relic_choices() {
 
     assert_eq!(state.screen_type.as_deref(), Some("BOSS_REWARD"));
     assert_eq!(state.boss_relic_choices.len(), 3);
-    assert!(state.boss_relic_choices.iter().any(|r| r == "异蛇之眼"));
-    assert!(state.boss_relic_choices.iter().any(|r| r == "符文圆顶"));
-    assert!(state.boss_relic_choices.iter().any(|r| r == "诅咒钥匙"));
+    assert!(
+        state
+            .boss_relic_choices
+            .iter()
+            .any(|r| r.name == "Snecko Eye")
+    );
+    assert!(
+        state
+            .boss_relic_choices
+            .iter()
+            .any(|r| r.name == "Runic Dome")
+    );
+    assert!(
+        state
+            .boss_relic_choices
+            .iter()
+            .any(|r| r.name == "Cursed Key")
+    );
 }
 
 #[test]
@@ -294,7 +300,13 @@ fn normalize_event_payload_from_communication_mod_log() {
             "选项 2（事件文本不可读，请在游戏内核对按钮）".to_string(),
         ]
     );
-    assert_eq!(state.relics, vec!["至纯之水".to_string()]);
+    assert_eq!(
+        state.relics,
+        vec![RelicInfo {
+            name: "????".into(),
+            description: String::new()
+        }]
+    );
 }
 
 #[test]
@@ -514,7 +526,7 @@ fn card_reward_filters_potion_slot() {
         !state
             .potions
             .iter()
-            .any(|p| p.contains("Potion Slot") || p == "?")
+            .any(|p| p.name.contains("Potion Slot") || p.name == "?")
     );
 }
 
