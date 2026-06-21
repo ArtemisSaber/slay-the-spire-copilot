@@ -362,10 +362,30 @@ fn map_json(first_node_chosen: bool, children: Vec<(i64, i64)>) -> serde_json::V
 
 fn map_nodes_for(children: Vec<(i64, i64)>) -> Vec<crate::state::MapCoord> {
     vec![
-        crate::state::MapCoord { symbol: "M".into(), x: 1, y: 2, children },
-        crate::state::MapCoord { symbol: "E".into(), x: 3, y: 3, children: vec![] },
-        crate::state::MapCoord { symbol: "?".into(), x: 4, y: 3, children: vec![] },
-        crate::state::MapCoord { symbol: "M".into(), x: 5, y: 3, children: vec![] },
+        crate::state::MapCoord {
+            symbol: "M".into(),
+            x: 1,
+            y: 2,
+            children,
+        },
+        crate::state::MapCoord {
+            symbol: "E".into(),
+            x: 3,
+            y: 3,
+            children: vec![],
+        },
+        crate::state::MapCoord {
+            symbol: "?".into(),
+            x: 4,
+            y: 3,
+            children: vec![],
+        },
+        crate::state::MapCoord {
+            symbol: "M".into(),
+            x: 5,
+            y: 3,
+            children: vec![],
+        },
     ]
 }
 

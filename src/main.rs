@@ -592,14 +592,12 @@ async fn main() {
         if screen_type == "SHOP" {
             map_gate.on_shop();
         }
-        if screen_type == "MAP"
-            && normalized.map_first_node_chosen == Some(false)
-        {
+        if screen_type == "MAP" && normalized.map_first_node_chosen == Some(false) {
             map_gate.on_act_entry();
         }
 
-        let map_should_generate = screen_type == "MAP"
-            && map_gate.should_generate(&raw, &normalized.map_nodes);
+        let map_should_generate =
+            screen_type == "MAP" && map_gate.should_generate(&raw, &normalized.map_nodes);
 
         if !should_generate_advice(screen_type, &raw)
             && !combat_turn_gate.is_player_turn_start(&raw)
@@ -661,10 +659,10 @@ async fn main() {
         tracing::info!("wrote advice ({} chars hash={})", advice.len(), &hash[..16]);
         cache.write_advice(&advice);
 
-        if screen_type == "MAP" {
-            if let (Some(cx), Some(cy)) = (normalized.map_current_x, normalized.map_current_y) {
-                map_gate.record(&normalized.map_nodes, cx, cy);
-            }
+        if screen_type == "MAP"
+            && let (Some(cx), Some(cy)) = (normalized.map_current_x, normalized.map_current_y)
+        {
+            map_gate.record(&normalized.map_nodes, cx, cy);
         }
     }
 
