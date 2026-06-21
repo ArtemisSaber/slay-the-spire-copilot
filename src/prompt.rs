@@ -845,6 +845,126 @@ pub fn summarize_path(path: &[MapCoord]) -> String {
     parts.join("  ")
 }
 
+pub struct PathDescription {
+    pub counts: String,
+    pub route_chain: String,
+    pub annotations: Vec<String>,
+}
+
+fn act_from_floor(floor: i64) -> u8 {
+    match floor {
+        1..=16 => 1,
+        17..=33 => 2,
+        34..=50 => 3,
+        _ => 1,
+    }
+}
+
+fn risk_modifier(symbol: &str, act: u8) -> f64 {
+    match symbol {
+        "E" => 10.0,
+        "M" => match act {
+            1 => 2.0,
+            2 => 4.0,
+            3 => 3.0,
+            _ => 2.0,
+        },
+        "?" => match act {
+            1 => 1.0,
+            2 => 2.0,
+            3 => 1.5,
+            _ => 1.0,
+        },
+        _ => 0.0,
+    }
+}
+
+pub fn describe_path(path: &[MapCoord], floor: i64) -> PathDescription {
+    let act = act_from_floor(floor);
+    let counts = summarize_path(path);
+    let route_chain = path
+        .iter()
+        .map(|n| n.symbol.as_str())
+        .collect::<Vec<_>>()
+        .join("→");
+
+    let mut annotations = Vec::new();
+
+    if let Some(ei) = path.iter().position(|n| n.symbol == "E") {
+        if path[..ei].iter().any(|n| n.symbol == "R") {
+            annotations.push("✓ Rest before first Elite".to_string());
+        }
+    }
+
+    let r_indices: Vec<usize> = path
+        .iter()
+        .enumerate()
+        .filter(|(_, n)| n.symbol == "R")
+        .map(|(i, _)| i)
+        .collect();
+
+    let mut segment_starts = Vec::new();
+    let mut segment_ends = Vec::new();
+
+    if let Some(&first_r) = r_indices.first() {
+        if first_r > 0 {
+            segment_starts.push(0);
+            segment_ends.push(first_r);
+        }
+    } else {
+        segment_starts.push(0);
+        segment_ends.push(path.len());
+    }
+
+    for pair in r_indices.windows(2) {
+        let start = pair[0] + 1;
+        let end = pair[1];
+        if start < end {
+            segment_starts.push(start);
+            segment_ends.push(end);
+        }
+    }
+
+    for (start, end) in segment_starts.iter().zip(segment_ends.iter()) {
+        let seg = &path[*start..*end];
+        let elite_count = seg.iter().filter(|n| n.symbol == "E").count();
+        if elite_count >= 2 {
+            annotations.push("⚠ Double Elite — no Rest between".to_string());
+        }
+
+        for (j, n) in seg.iter().enumerate() {
+            if n.symbol == "E" {
+                let gap: f64 = seg[j..].iter().map(|m| risk_modifier(&m.symbol, act)).sum();
+                if gap > 15.0 {
+                    annotations.push(format!("⚠ max E→R gap: {:.0} risk", gap));
+                    break;
+                }
+            }
+        }
+    }
+
+    let shop_idx = path.iter().position(|n| n.symbol == "$");
+    if let Some(si) = shop_idx {
+        let pos = si as f64 / path.len() as f64;
+        let label = if pos < 0.33 {
+            "early"
+        } else if pos < 0.66 {
+            "mid"
+        } else {
+            "late"
+        };
+        annotations.push(format!("$ Shop ({label})"));
+    } else {
+        annotations.push("✗ No shop".to_string());
+    }
+
+    PathDescription {
+        counts,
+        route_chain,
+        annotations,
+    }
+}
+
 pub struct RootPaths {
     pub root: MapCoord,
     pub paths: Vec<Vec<MapCoord>>,
