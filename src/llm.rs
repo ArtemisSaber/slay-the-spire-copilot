@@ -4,6 +4,7 @@ use crate::state::NormalizedState;
 use anyhow::Context;
 use std::fs;
 use std::io::Write;
+use std::time::Instant;
 
 fn log_prompt_with_system(system_prompt: &str, user_prompt: &str, response: &str) {
     log_prompt_into_dir(
@@ -148,6 +149,28 @@ impl AdviceScenario {
 pub(crate) struct OpenAiConfig {
     model: String,
     max_tokens: u32,
+    disable_thinking: bool,
+}
+
+fn chat_completion_body(
+    cfg: &OpenAiConfig,
+    system_prompt: &str,
+    prompt: &str,
+    temperature: f64,
+) -> serde_json::Value {
+    let mut body = serde_json::json!({
+        "model": cfg.model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": cfg.max_tokens,
+        "temperature": temperature
+    });
+    if cfg.disable_thinking {
+        body["thinking"] = serde_json::json!({ "type": "disabled" });
+    }
+    body
 }
 
 #[derive(Debug)]
@@ -187,14 +210,17 @@ impl LlmProvider {
                     fast: OpenAiConfig {
                         model: config.model_fast.clone(),
                         max_tokens: config.max_tokens_fast,
+                        disable_thinking: config.disable_fast_thinking,
                     },
                     medium: OpenAiConfig {
                         model: config.model_medium.clone(),
                         max_tokens: config.max_tokens_medium,
+                        disable_thinking: false,
                     },
                     heavy: OpenAiConfig {
                         model: config.model_heavy.clone(),
                         max_tokens: config.max_tokens_heavy,
+                        disable_thinking: false,
                     },
                 })
             }
@@ -253,16 +279,18 @@ impl LlmProvider {
                 };
 
                 let url = format!("{base_url}/chat/completions");
+                let started = Instant::now();
+                tracing::info!(
+                    "LLM request effort={} model={} prompt_chars={} system_chars={} max_tokens={} disable_thinking={}",
+                    effort.as_str(),
+                    cfg.model,
+                    prompt.len(),
+                    system_prompt.len(),
+                    cfg.max_tokens,
+                    cfg.disable_thinking,
+                );
 
-                let body = serde_json::json!({
-                    "model": cfg.model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "max_tokens": cfg.max_tokens,
-                    "temperature": temperature
-                });
+                let body = chat_completion_body(cfg, system_prompt, prompt, *temperature);
 
                 let response = client
                     .post(&url)
@@ -284,10 +312,18 @@ impl LlmProvider {
                     .await
                     .context("failed to parse LLM response")?;
 
-                json["choices"][0]["message"]["content"]
+                let content = json["choices"][0]["message"]["content"]
                     .as_str()
                     .context("missing content in LLM response")?
-                    .to_string()
+                    .to_string();
+                tracing::info!(
+                    "LLM response effort={} model={} duration_ms={} response_chars={}",
+                    effort.as_str(),
+                    cfg.model,
+                    started.elapsed().as_millis(),
+                    content.len(),
+                );
+                content
             }
         };
         log_prompt_with_system(system_prompt, prompt, &result);

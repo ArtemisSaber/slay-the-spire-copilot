@@ -458,7 +458,6 @@ fn build_combat(state: &NormalizedState, locale: &Locale) -> String {
         locale.sections.current_state.clone(),
         status_line(state, locale),
         String::new(),
-        build_relics_potions_section(state, locale),
         locale.sections.task.clone(),
         locale.tasks.combat_entry.clone(),
         String::new(),

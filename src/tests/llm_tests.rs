@@ -357,6 +357,32 @@ async fn mock_provider_returns_postmortem_report() {
 }
 
 #[test]
+fn chat_completion_body_can_disable_thinking() {
+    let cfg = OpenAiConfig {
+        model: "deepseek-v4-flash".into(),
+        max_tokens: 300,
+        disable_thinking: true,
+    };
+
+    let body = chat_completion_body(&cfg, "system", "user", 0.7);
+
+    assert_eq!(body["thinking"]["type"], "disabled");
+}
+
+#[test]
+fn chat_completion_body_omits_thinking_when_not_configured() {
+    let cfg = OpenAiConfig {
+        model: "gpt-5-nano".into(),
+        max_tokens: 300,
+        disable_thinking: false,
+    };
+
+    let body = chat_completion_body(&cfg, "system", "user", 0.7);
+
+    assert!(body.get("thinking").is_none());
+}
+
+#[test]
 fn from_config_unknown_provider() {
     let config = crate::config::Config {
         provider: "unknown-provider".into(),
@@ -369,6 +395,7 @@ fn from_config_unknown_provider() {
         max_tokens_medium: 500,
         max_tokens_heavy: 1000,
         temperature: 0.5,
+        disable_fast_thinking: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(result.is_err());
@@ -388,6 +415,7 @@ fn from_config_missing_base_url() {
         max_tokens_medium: 500,
         max_tokens_heavy: 1000,
         temperature: 0.5,
+        disable_fast_thinking: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(result.is_err());

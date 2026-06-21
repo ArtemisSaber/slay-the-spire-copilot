@@ -1,6 +1,8 @@
 use super::*;
 use crate::locales::Locale;
-use crate::state::{DangerFlags, DangerLevel, MapCoord, MonsterInfo, PowerInfo, RelicInfo};
+use crate::state::{
+    DangerFlags, DangerLevel, MapCoord, MonsterInfo, PotionInfo, PowerInfo, RelicInfo,
+};
 use crate::test_utils::card;
 
 fn test_locale() -> Locale {
@@ -112,6 +114,41 @@ fn combat_prompt_marks_entry_plan_task() {
     assert!(prompt.contains("本回合"));
     assert!(prompt.contains("最佳出牌"));
     assert!(prompt.contains("不要写分析过程"));
+}
+
+#[test]
+fn combat_prompt_omits_verbose_relic_and_potion_descriptions() {
+    let locale = test_locale();
+    let state = NormalizedState {
+        monsters: vec![MonsterInfo {
+            name: "大颚虫".into(),
+            index: 0,
+            current_hp: Some(44),
+            max_hp: Some(46),
+            block: Some(0),
+            intent: Some("ATTACK".into()),
+            damage: Some(12),
+            hits: Some(1),
+            monster_powers: vec![],
+            can_be_killed: false,
+            is_scaling: false,
+        }],
+        relics: vec![RelicInfo {
+            name: "燃烧之血".into(),
+            description: "战斗结束时回复6点生命。".into(),
+        }],
+        potions: vec![PotionInfo {
+            name: "恐惧药水".into(),
+            description: "给予3层易伤。".into(),
+        }],
+        ..test_state()
+    };
+
+    let prompt = build_prompt(&state, &locale, false);
+    assert!(prompt.contains("燃烧之血"));
+    assert!(prompt.contains("恐惧药水"));
+    assert!(!prompt.contains("战斗结束时回复6点生命"));
+    assert!(!prompt.contains("给予3层易伤"));
 }
 
 #[test]

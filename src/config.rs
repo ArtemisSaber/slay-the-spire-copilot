@@ -14,6 +14,7 @@ pub struct Config {
     pub max_tokens_medium: u32,
     pub max_tokens_heavy: u32,
     pub temperature: f64,
+    pub disable_fast_thinking: bool,
 }
 
 impl Config {
@@ -48,11 +49,19 @@ impl Config {
             .unwrap_or(max_tokens_heavy.min(10000));
         let max_tokens_fast = lookup("LLM_MAX_TOKENS_FAST")
             .and_then(|v| v.parse().ok())
-            .unwrap_or(max_tokens_heavy.min(3000));
+            .unwrap_or(max_tokens_heavy.min(300));
 
         let temperature = lookup("LLM_TEMPERATURE")
             .and_then(|v| v.parse().ok())
             .unwrap_or(0.7);
+
+        let disable_fast_thinking = lookup("LLM_DISABLE_FAST_THINKING")
+            .map(|v| matches!(v.as_str(), "1" | "true" | "yes" | "on"))
+            .unwrap_or_else(|| {
+                base_url
+                    .as_deref()
+                    .is_some_and(|url| url.contains("api.deepseek.com"))
+            });
 
         Config {
             provider,
@@ -65,6 +74,7 @@ impl Config {
             max_tokens_medium,
             max_tokens_heavy,
             temperature,
+            disable_fast_thinking,
         }
     }
 

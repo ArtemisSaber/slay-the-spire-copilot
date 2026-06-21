@@ -12,8 +12,9 @@ fn defaults_when_no_env() {
     assert_eq!(c.model_heavy, "gpt-4o-mini");
     assert_eq!(c.max_tokens_heavy, 50000);
     assert_eq!(c.max_tokens_medium, 10000);
-    assert_eq!(c.max_tokens_fast, 3000);
+    assert_eq!(c.max_tokens_fast, 300);
     assert_eq!(c.temperature, 0.7);
+    assert!(!c.disable_fast_thinking);
 }
 
 #[test]
@@ -56,7 +57,7 @@ fn max_tokens_ceiling_and_clamping() {
     ]));
     assert_eq!(c.max_tokens_heavy, 8000);
     assert_eq!(c.max_tokens_medium, 8000);
-    assert_eq!(c.max_tokens_fast, 3000);
+    assert_eq!(c.max_tokens_fast, 300);
 }
 
 #[test]
@@ -76,4 +77,22 @@ fn individual_token_overrides() {
 fn temperature_override() {
     let c = Config::from_map(&HashMap::from([("LLM_TEMPERATURE", "0.3")]));
     assert_eq!(c.temperature, 0.3);
+}
+
+#[test]
+fn deepseek_base_url_disables_fast_thinking_by_default() {
+    let c = Config::from_map(&HashMap::from([(
+        "LLM_BASE_URL",
+        "https://api.deepseek.com",
+    )]));
+    assert!(c.disable_fast_thinking);
+}
+
+#[test]
+fn fast_thinking_override_wins_over_deepseek_default() {
+    let c = Config::from_map(&HashMap::from([
+        ("LLM_BASE_URL", "https://api.deepseek.com"),
+        ("LLM_DISABLE_FAST_THINKING", "false"),
+    ]));
+    assert!(!c.disable_fast_thinking);
 }
