@@ -331,10 +331,15 @@ async fn finalize_run_once(
     }
     *finalized = true;
 
+    let Some(journal_path) = journal.path() else {
+        tracing::debug!("journal never confirmed, skipping postmortem");
+        return;
+    };
+
     journal.log_run_ended(reason);
 
     let deterministic_report =
-        match postmortem::generate_report_from_journal_file(journal.path(), locale) {
+        match postmortem::generate_report_from_journal_file(journal_path, locale) {
             Ok(report) => report,
             Err(e) => {
                 tracing::error!("failed to generate postmortem report: {e}");
@@ -343,7 +348,7 @@ async fn finalize_run_once(
         };
     let report = postmortem_report_text(&deterministic_report, provider, locale).await;
 
-    match postmortem::write_report_for_journal(journal.path(), &report) {
+    match postmortem::write_report_for_journal(journal_path, &report) {
         Ok(path) => tracing::info!("wrote postmortem report to {}", path.display()),
         Err(e) => tracing::error!("failed to write postmortem report: {e}"),
     }
@@ -442,8 +447,7 @@ async fn main() {
     let locale = locales::Locale::load(locale_key);
 
     let mut cache = AdviceCache::new();
-    let mut journal = journal::Journal::new();
-    journal.log_run_started_with_config(&config);
+    let mut journal = journal::Journal::new(project_root.join("runs"));
     let mut combat_turn_gate = CombatTurnGate::new();
     let mut map_gate = MapGate::new();
     let mut saw_game_state = false;
@@ -502,6 +506,22 @@ async fn main() {
 
         let normalized = state::NormalizedState::from_raw(&raw, &locale);
         let hash = normalized.stable_hash();
+
+        if !journal.is_confirmed()
+            && let (Some(seed), Some(character)) = (normalized.seed, normalized.character.as_ref())
+        {
+            journal.confirm(
+                seed,
+                character,
+                normalized.ascension_level.unwrap_or(0),
+                &config,
+                &locale,
+            );
+        }
+        if !journal.is_confirmed() {
+            continue;
+        }
+
         journal.log_state_change(&hash, &normalized);
 
         if screen_type == "MAP" {
