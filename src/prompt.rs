@@ -1,5 +1,5 @@
 use crate::locales::Locale;
-use crate::state::{CardInfo, DangerLevel, MonsterInfo, NormalizedState};
+use crate::state::{CardInfo, DangerLevel, MapCoord, MonsterInfo, NormalizedState};
 use std::collections::HashMap;
 
 fn danger_prefix(state: &NormalizedState, locale: &Locale) -> String {
@@ -755,6 +755,106 @@ pub fn build_prompt(state: &NormalizedState, locale: &Locale) -> String {
         _ if !state.monsters.is_empty() => build_combat(state, locale),
         _ => build_generic(state, locale),
     }
+}
+
+pub fn enumerate_paths(start_x: i64, start_y: i64, nodes: &[MapCoord]) -> Vec<Vec<MapCoord>> {
+    let node_map: HashMap<(i64, i64), &MapCoord> = nodes.iter().map(|n| ((n.x, n.y), n)).collect();
+
+    let start = node_map.get(&(start_x, start_y));
+
+    let Some(start_node) = start else {
+        return vec![];
+    };
+
+    let mut paths = Vec::new();
+    let mut stack = vec![(vec![(*start_node).clone()], *start_node)];
+
+    while let Some((path, node)) = stack.pop() {
+        if node.children.is_empty() {
+            paths.push(path);
+            continue;
+        }
+        let mut found = false;
+        for (cx, cy) in node.children.iter().rev() {
+            if let Some(child) = node_map.get(&(*cx, *cy)) {
+                found = true;
+                let mut new_path = path.clone();
+                new_path.push((*child).clone());
+                stack.push((new_path, child));
+            }
+        }
+        if !found {
+            paths.push(path);
+        }
+    }
+
+    paths.sort_by(|a, b| {
+        for (na, nb) in a.iter().zip(b.iter()) {
+            let cx = na.x.cmp(&nb.x);
+            if cx != std::cmp::Ordering::Equal {
+                return cx;
+            }
+            let cy = na.y.cmp(&nb.y);
+            if cy != std::cmp::Ordering::Equal {
+                return cy;
+            }
+        }
+        a.len().cmp(&b.len())
+    });
+
+    paths
+}
+
+pub fn summarize_path(path: &[MapCoord]) -> String {
+    let mut monsters = 0;
+    let mut elites = 0;
+    let mut events = 0;
+    let mut shops = 0;
+    let mut rests = 0;
+    let mut treasures = 0;
+    for n in path {
+        match n.symbol.as_str() {
+            "M" => monsters += 1,
+            "E" => elites += 1,
+            "?" => events += 1,
+            "$" => shops += 1,
+            "R" => rests += 1,
+            "T" => treasures += 1,
+            _ => {}
+        }
+    }
+    let mut parts = Vec::new();
+    if monsters > 0 {
+        parts.push(format!("Monsters:{monsters}"));
+    }
+    if elites > 0 {
+        parts.push(format!("Elites:{elites}"));
+    }
+    if events > 0 {
+        parts.push(format!("Events:{events}"));
+    }
+    if shops > 0 {
+        parts.push(format!("Shops:{shops}"));
+    }
+    if rests > 0 {
+        parts.push(format!("Rests:{rests}"));
+    }
+    if treasures > 0 {
+        parts.push(format!("Treasures:{treasures}"));
+    }
+    parts.join("  ")
+}
+
+pub fn enumerate_paths_from_roots(nodes: &[MapCoord]) -> Vec<Vec<MapCoord>> {
+    let mut all_paths = Vec::new();
+    let roots: Vec<&MapCoord> = nodes.iter().filter(|n| n.y == 0).collect();
+
+    for root in roots {
+        let paths = enumerate_paths(root.x, root.y, nodes);
+        all_paths.extend(paths);
+    }
+
+    all_paths
 }
 
 #[cfg(test)]

@@ -1,8 +1,6 @@
 {
   "available_commands": [
     "choose",
-    "potion",
-    "return",
     "key",
     "click",
     "wait",
@@ -12,360 +10,43 @@
   "in_game": true,
   "game_state": {
     "choice_list": [
-      "x\u003d6"
+      "x\u003d1",
+      "x\u003d2",
+      "x\u003d3",
+      "x\u003d5"
     ],
     "screen_type": "MAP",
     "screen_state": {
-      "first_node_chosen": true,
+      "first_node_chosen": false,
       "current_node": {
-        "symbol": "M",
-        "x": 6,
-        "y": 4
+        "x": -1,
+        "y": 15
       },
       "boss_available": false,
       "next_nodes": [
         {
-          "symbol": "R",
-          "x": 6,
-          "y": 5
+          "symbol": "M",
+          "x": 1,
+          "y": 0
+        },
+        {
+          "symbol": "M",
+          "x": 2,
+          "y": 0
+        },
+        {
+          "symbol": "M",
+          "x": 3,
+          "y": 0
+        },
+        {
+          "symbol": "M",
+          "x": 5,
+          "y": 0
         }
       ]
     },
     "seed": 9175373409550057077,
-    "combat_state": {
-      "draw_pile": [
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 1,
-          "name": "Defend",
-          "description": "Gain 5 Block.",
-          "id": "Defend_P",
-          "type": "SKILL",
-          "ethereal": false,
-          "uuid": "1db74756-1104-4b28-8d8f-4c1534b0d8ac",
-          "upgrades": 0,
-          "rarity": "BASIC",
-          "has_target": false
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 2,
-          "name": "Swivel",
-          "description": "Gain 8 Block. \n The next Attack you play costs 0.",
-          "id": "Swivel",
-          "type": "SKILL",
-          "ethereal": false,
-          "uuid": "6575aa3b-1467-49fc-9dbd-4dfdcfbc849f",
-          "upgrades": 0,
-          "rarity": "UNCOMMON",
-          "has_target": false
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 1,
-          "name": "Empty Body",
-          "description": "Gain 7 Block. \n Exit your Stance.",
-          "id": "EmptyBody",
-          "type": "SKILL",
-          "ethereal": false,
-          "uuid": "200d7d01-32ed-497a-bdfd-523f6facd982",
-          "upgrades": 0,
-          "rarity": "COMMON",
-          "has_target": false
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 1,
-          "name": "Cut Through Fate",
-          "description": "Deal 7 damage. \n Scry 2. \n Draw 1 card.",
-          "id": "CutThroughFate",
-          "type": "ATTACK",
-          "ethereal": false,
-          "uuid": "b6786c2d-153a-41d2-903c-abe1d5f4d806",
-          "upgrades": 0,
-          "rarity": "COMMON",
-          "has_target": true
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 1,
-          "name": "Sash Whip+",
-          "description": "Deal 10 damage. \n If the last card played this combat was an Attack, apply 2 Weak.",
-          "id": "SashWhip",
-          "type": "ATTACK",
-          "ethereal": false,
-          "uuid": "870f6582-ef65-412e-b7f5-11a7ed0d13ba",
-          "upgrades": 1,
-          "rarity": "COMMON",
-          "has_target": true
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 0,
-          "name": "Halt",
-          "description": "Gain 3 Block. \n If you are in Wrath, gain 9 additional Block.",
-          "id": "Halt",
-          "type": "SKILL",
-          "ethereal": false,
-          "uuid": "5d32383b-d941-4660-90a1-290940ba18bb",
-          "upgrades": 0,
-          "rarity": "COMMON",
-          "has_target": false
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 1,
-          "name": "Strike",
-          "description": "Deal 6 damage.",
-          "id": "Strike_P",
-          "type": "ATTACK",
-          "ethereal": false,
-          "uuid": "b2aab6fe-be61-4cd0-a42b-c83b234fc2d6",
-          "upgrades": 0,
-          "rarity": "BASIC",
-          "has_target": true
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 1,
-          "name": "Defend",
-          "description": "Gain 5 Block.",
-          "id": "Defend_P",
-          "type": "SKILL",
-          "ethereal": false,
-          "uuid": "5ccbaae0-14d7-4851-8c98-2f0cc6e071d6",
-          "upgrades": 0,
-          "rarity": "BASIC",
-          "has_target": false
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 2,
-          "name": "Wheel Kick",
-          "description": "Deal 15 damage. \n Draw 2 cards.",
-          "id": "WheelKick",
-          "type": "ATTACK",
-          "ethereal": false,
-          "uuid": "07cd881b-8bf7-4526-b25e-9534bb8895bc",
-          "upgrades": 0,
-          "rarity": "UNCOMMON",
-          "has_target": true
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 2,
-          "name": "Eruption",
-          "description": "Deal 9 damage. \n Enter Wrath.",
-          "id": "Eruption",
-          "type": "ATTACK",
-          "ethereal": false,
-          "uuid": "acbb3238-767a-4173-afd0-7657e8d7bb03",
-          "upgrades": 0,
-          "rarity": "BASIC",
-          "has_target": true
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 1,
-          "name": "Follow-Up",
-          "description": "Deal 7 damage. \n If the last card played this combat was an Attack, gain [W].",
-          "id": "FollowUp",
-          "type": "ATTACK",
-          "ethereal": false,
-          "uuid": "f4876110-3f2e-4829-b14d-3205bffd54a1",
-          "upgrades": 0,
-          "rarity": "COMMON",
-          "has_target": true
-        },
-        {
-          "exhausts": true,
-          "is_playable": true,
-          "cost": 1,
-          "name": "Crescendo",
-          "description": "Retain. \n Enter Wrath. \n Exhaust.",
-          "id": "Crescendo",
-          "type": "SKILL",
-          "ethereal": false,
-          "uuid": "3c49c1f7-b486-4ad8-9d22-3a83cc5a4897",
-          "upgrades": 0,
-          "rarity": "COMMON",
-          "has_target": false
-        }
-      ],
-      "discard_pile": [],
-      "exhaust_pile": [],
-      "cards_discarded_this_turn": 0,
-      "times_damaged": 0,
-      "monsters": [
-        {
-          "is_gone": false,
-          "move_hits": 1,
-          "move_base_damage": 10,
-          "half_dead": false,
-          "move_adjusted_damage": 10,
-          "max_hp": 47,
-          "intent": "ATTACK",
-          "move_id": 1,
-          "name": "Looter",
-          "current_hp": 44,
-          "block": 0,
-          "id": "Looter",
-          "powers": [
-            {
-              "amount": 15,
-              "name": "Thievery",
-              "id": "Thievery"
-            },
-            {
-              "amount": 1,
-              "just_applied": false,
-              "name": "Vulnerable",
-              "id": "Vulnerable"
-            }
-          ]
-        },
-        {
-          "is_gone": false,
-          "move_hits": 1,
-          "move_base_damage": 10,
-          "half_dead": false,
-          "move_adjusted_damage": 10,
-          "max_hp": 48,
-          "intent": "ATTACK",
-          "move_id": 1,
-          "name": "Mugger",
-          "current_hp": 45,
-          "block": 0,
-          "id": "Mugger",
-          "powers": [
-            {
-              "amount": 15,
-              "name": "Thievery",
-              "id": "Thievery"
-            },
-            {
-              "amount": 1,
-              "just_applied": false,
-              "name": "Vulnerable",
-              "id": "Vulnerable"
-            }
-          ]
-        }
-      ],
-      "turn": 1,
-      "limbo": [],
-      "hand": [
-        {
-          "exhausts": true,
-          "is_playable": true,
-          "cost": 0,
-          "name": "Miracle",
-          "description": "Retain. \n Gain [W]. \n Exhaust.",
-          "id": "Miracle",
-          "type": "SKILL",
-          "ethereal": false,
-          "uuid": "350d6189-6ecb-40ea-8443-0e6b0aefeded",
-          "upgrades": 0,
-          "rarity": "SPECIAL",
-          "has_target": false
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 1,
-          "name": "Battle Hymn+",
-          "description": "Innate. \n At the start of each turn, add a *Smite into your hand.",
-          "id": "BattleHymn",
-          "type": "POWER",
-          "ethereal": false,
-          "uuid": "bbd5f81c-93bc-451b-b492-35d9b261e2fc",
-          "upgrades": 1,
-          "rarity": "UNCOMMON",
-          "has_target": false
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 1,
-          "name": "Defend",
-          "description": "Gain 5 Block.",
-          "id": "Defend_P",
-          "type": "SKILL",
-          "ethereal": false,
-          "uuid": "833af45a-e29d-474f-9d3d-545d8c7d5838",
-          "upgrades": 0,
-          "rarity": "BASIC",
-          "has_target": false
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 2,
-          "name": "Vigilance",
-          "description": "Gain 8 Block. \n Enter Calm.",
-          "id": "Vigilance",
-          "type": "SKILL",
-          "ethereal": false,
-          "uuid": "7fc0e78a-d99d-4d0b-8c06-16dc749ad088",
-          "upgrades": 0,
-          "rarity": "BASIC",
-          "has_target": false
-        },
-        {
-          "exhausts": true,
-          "is_playable": true,
-          "cost": 1,
-          "name": "Scrawl",
-          "description": "Draw cards until your hand is full. \n Exhaust.",
-          "id": "Scrawl",
-          "type": "SKILL",
-          "ethereal": false,
-          "uuid": "36e4af2d-1739-4936-9e94-8bd892cd052e",
-          "upgrades": 0,
-          "rarity": "RARE",
-          "has_target": false
-        },
-        {
-          "exhausts": false,
-          "is_playable": true,
-          "cost": 1,
-          "name": "Defend",
-          "description": "Gain 5 Block.",
-          "id": "Defend_P",
-          "type": "SKILL",
-          "ethereal": false,
-          "uuid": "a78a588a-2ad7-4db9-89d4-a31038267a47",
-          "upgrades": 0,
-          "rarity": "BASIC",
-          "has_target": false
-        }
-      ],
-      "player": {
-        "orbs": [],
-        "current_hp": 51,
-        "block": 0,
-        "max_hp": 72,
-        "powers": [
-          {
-            "amount": 3,
-            "name": "Thorns",
-            "id": "Thorns"
-          }
-        ],
-        "energy": 3
-      }
-    },
     "keys": {
       "emerald": false,
       "ruby": false,
@@ -374,241 +55,250 @@
     "deck": [
       {
         "exhausts": false,
-        "is_playable": true,
-        "cost": 1,
-        "name": "Strike",
-        "description": "Deal 6 damage.",
-        "id": "Strike_P",
-        "type": "ATTACK",
-        "ethereal": false,
-        "uuid": "b2aab6fe-be61-4cd0-a42b-c83b234fc2d6",
-        "upgrades": 0,
-        "rarity": "BASIC",
-        "has_target": true
-      },
-      {
-        "exhausts": false,
-        "is_playable": true,
         "cost": 1,
         "name": "Defend",
         "description": "Gain 5 Block.",
         "id": "Defend_P",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "833af45a-e29d-474f-9d3d-545d8c7d5838",
+        "uuid": "eedf6225-8379-4cb1-8647-993671b931aa",
         "upgrades": 0,
         "rarity": "BASIC",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": true,
         "cost": 1,
         "name": "Defend",
         "description": "Gain 5 Block.",
         "id": "Defend_P",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "a78a588a-2ad7-4db9-89d4-a31038267a47",
+        "uuid": "1d7067e3-130f-4b8d-80e4-665e92c084a2",
         "upgrades": 0,
         "rarity": "BASIC",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": true,
         "cost": 1,
         "name": "Defend",
         "description": "Gain 5 Block.",
         "id": "Defend_P",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "1db74756-1104-4b28-8d8f-4c1534b0d8ac",
+        "uuid": "2cd42bf8-037d-4416-92a4-2283144f868d",
         "upgrades": 0,
         "rarity": "BASIC",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": true,
         "cost": 1,
         "name": "Defend",
         "description": "Gain 5 Block.",
         "id": "Defend_P",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "5ccbaae0-14d7-4851-8c98-2f0cc6e071d6",
+        "uuid": "3cdf85de-2afd-4107-b146-919ee5be7daa",
         "upgrades": 0,
         "rarity": "BASIC",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": true,
-        "cost": 2,
-        "name": "Eruption",
+        "cost": 1,
+        "name": "Eruption+",
         "description": "Deal 9 damage. \n Enter Wrath.",
         "id": "Eruption",
         "type": "ATTACK",
         "ethereal": false,
-        "uuid": "acbb3238-767a-4173-afd0-7657e8d7bb03",
-        "upgrades": 0,
+        "uuid": "142788ba-3b80-490b-9875-b0f1a9195467",
+        "upgrades": 1,
         "rarity": "BASIC",
         "has_target": true
       },
       {
         "exhausts": false,
-        "is_playable": true,
         "cost": 2,
         "name": "Vigilance",
         "description": "Gain 8 Block. \n Enter Calm.",
         "id": "Vigilance",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "7fc0e78a-d99d-4d0b-8c06-16dc749ad088",
+        "uuid": "2c6c7e63-ac03-4158-b924-310f074c2103",
         "upgrades": 0,
         "rarity": "BASIC",
         "has_target": false
       },
       {
         "exhausts": true,
-        "is_playable": true,
         "cost": 1,
         "name": "Crescendo",
         "description": "Retain. \n Enter Wrath. \n Exhaust.",
         "id": "Crescendo",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "3c49c1f7-b486-4ad8-9d22-3a83cc5a4897",
+        "uuid": "7648bb1e-59af-44aa-b958-a843ed2cc7e2",
         "upgrades": 0,
         "rarity": "COMMON",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": true,
         "cost": 1,
         "name": "Cut Through Fate",
         "description": "Deal 7 damage. \n Scry 2. \n Draw 1 card.",
         "id": "CutThroughFate",
         "type": "ATTACK",
         "ethereal": false,
-        "uuid": "b6786c2d-153a-41d2-903c-abe1d5f4d806",
+        "uuid": "b8071b71-5d21-4b6e-9d84-a73dd1fa1e35",
         "upgrades": 0,
         "rarity": "COMMON",
         "has_target": true
       },
       {
         "exhausts": false,
-        "is_playable": true,
         "cost": 1,
         "name": "Battle Hymn+",
         "description": "Innate. \n At the start of each turn, add a *Smite into your hand.",
         "id": "BattleHymn",
         "type": "POWER",
         "ethereal": false,
-        "uuid": "bbd5f81c-93bc-451b-b492-35d9b261e2fc",
+        "uuid": "92bcdaa7-4866-4594-ae38-3e0164b76c1b",
         "upgrades": 1,
         "rarity": "UNCOMMON",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": true,
         "cost": 1,
         "name": "Empty Body",
         "description": "Gain 7 Block. \n Exit your Stance.",
         "id": "EmptyBody",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "200d7d01-32ed-497a-bdfd-523f6facd982",
+        "uuid": "03b4a926-6397-4e2a-95df-f2443e6ec506",
         "upgrades": 0,
         "rarity": "COMMON",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": true,
         "cost": 2,
         "name": "Wheel Kick",
         "description": "Deal 15 damage. \n Draw 2 cards.",
         "id": "WheelKick",
         "type": "ATTACK",
         "ethereal": false,
-        "uuid": "07cd881b-8bf7-4526-b25e-9534bb8895bc",
+        "uuid": "a315003d-210d-42dd-ba8d-e4d707614ac4",
         "upgrades": 0,
         "rarity": "UNCOMMON",
         "has_target": true
       },
       {
         "exhausts": false,
-        "is_playable": true,
         "cost": 0,
         "name": "Halt",
         "description": "Gain 3 Block. \n If you are in Wrath, gain 9 additional Block.",
         "id": "Halt",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "5d32383b-d941-4660-90a1-290940ba18bb",
+        "uuid": "986336d5-e3fe-4826-84be-f6afb50e831d",
         "upgrades": 0,
         "rarity": "COMMON",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": true,
         "cost": 1,
         "name": "Follow-Up",
         "description": "Deal 7 damage. \n If the last card played this combat was an Attack, gain [W].",
         "id": "FollowUp",
         "type": "ATTACK",
         "ethereal": false,
-        "uuid": "f4876110-3f2e-4829-b14d-3205bffd54a1",
+        "uuid": "2441c04e-488f-493b-9c4e-a0ece0632615",
         "upgrades": 0,
         "rarity": "COMMON",
         "has_target": true
       },
       {
         "exhausts": false,
-        "is_playable": true,
         "cost": 2,
         "name": "Swivel",
         "description": "Gain 8 Block. \n The next Attack you play costs 0.",
         "id": "Swivel",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "6575aa3b-1467-49fc-9dbd-4dfdcfbc849f",
+        "uuid": "b8a5bd1d-6093-4a1a-84ff-57c97b423be0",
         "upgrades": 0,
         "rarity": "UNCOMMON",
         "has_target": false
       },
       {
         "exhausts": true,
-        "is_playable": true,
-        "cost": 1,
-        "name": "Scrawl",
+        "cost": 0,
+        "name": "Scrawl+",
         "description": "Draw cards until your hand is full. \n Exhaust.",
         "id": "Scrawl",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "36e4af2d-1739-4936-9e94-8bd892cd052e",
-        "upgrades": 0,
+        "uuid": "eaf66f49-ef52-413f-9899-70b7c47925f7",
+        "upgrades": 1,
         "rarity": "RARE",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": true,
         "cost": 1,
         "name": "Sash Whip+",
         "description": "Deal 10 damage. \n If the last card played this combat was an Attack, apply 2 Weak.",
         "id": "SashWhip",
         "type": "ATTACK",
         "ethereal": false,
-        "uuid": "870f6582-ef65-412e-b7f5-11a7ed0d13ba",
+        "uuid": "89acaf12-b5e4-4fd3-a5d9-74c499fa652e",
         "upgrades": 1,
         "rarity": "COMMON",
         "has_target": true
+      },
+      {
+        "exhausts": false,
+        "cost": 0,
+        "name": "Just Lucky",
+        "description": "Scry 1. \n Gain 2 Block. \n Deal 3 damage.",
+        "id": "JustLucky",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "13f94330-9a37-4525-8a52-ba94393e3275",
+        "upgrades": 0,
+        "rarity": "COMMON",
+        "has_target": true
+      },
+      {
+        "exhausts": false,
+        "cost": 1,
+        "name": "Pressure Points+",
+        "description": "Apply 11 *Mark. \n ALL enemies lose HP equal to their *Mark.",
+        "id": "PathToVictory",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "afa8b078-69dc-4c0e-a35a-0d29543501f4",
+        "upgrades": 1,
+        "rarity": "COMMON",
+        "has_target": true
+      },
+      {
+        "exhausts": false,
+        "cost": 1,
+        "name": "Rushdown",
+        "description": "Whenever you enter Wrath, draw 2 cards.",
+        "id": "Adaptation",
+        "type": "POWER",
+        "ethereal": false,
+        "uuid": "f7acccc6-97f9-4c63-9a97-2efd77917bbb",
+        "upgrades": 0,
+        "rarity": "UNCOMMON",
+        "has_target": false
       }
     ],
     "relics": [
@@ -631,7 +321,7 @@
         "description": "Every time you play 10 Attacks, gain [E] .",
         "used_up": false,
         "id": "Nunchaku",
-        "counter": 2
+        "counter": 3
       },
       {
         "name": "Bag of Marbles",
@@ -659,7 +349,7 @@
         "description": "Every time you play 3 Skills in a single turn, deal 5 damage to ALL enemies.",
         "used_up": false,
         "id": "Letter Opener",
-        "counter": 0
+        "counter": -1
       },
       {
         "name": "Violet Lotus",
@@ -681,32 +371,53 @@
         "used_up": false,
         "id": "Mercury Hourglass",
         "counter": -1
+      },
+      {
+        "name": "Maw Bank",
+        "description": "This relic is used up.",
+        "used_up": true,
+        "id": "MawBank",
+        "counter": -2
+      },
+      {
+        "name": "Du-Vu Doll",
+        "description": "For each Curse in your deck, start each combat with 1 Strength. You have no Curses.",
+        "used_up": false,
+        "id": "Du-Vu Doll",
+        "counter": 0
+      },
+      {
+        "name": "Sacred Bark",
+        "description": "Double the effectiveness of potions.",
+        "used_up": false,
+        "id": "SacredBark",
+        "counter": -1
       }
     ],
-    "max_hp": 72,
-    "act_boss": "Automaton",
-    "gold": 114,
+    "max_hp": 77,
+    "act_boss": "Time Eater",
+    "gold": 122,
     "action_phase": "WAITING_ON_USER",
-    "act": 2,
+    "act": 3,
     "screen_name": "MAP",
-    "room_phase": "COMBAT",
+    "room_phase": "COMPLETE",
     "is_screen_up": true,
     "potions": [
       {
         "requires_target": false,
-        "can_use": true,
-        "can_discard": true,
-        "name": "Stance Potion",
-        "description": "Enter Calm or Wrath.",
-        "id": "StancePotion"
+        "can_use": false,
+        "can_discard": false,
+        "name": "Potion Slot",
+        "description": "Use potions during combat to gain bonuses or hinder enemies.",
+        "id": "Potion Slot"
       },
       {
         "requires_target": false,
-        "can_use": true,
-        "can_discard": true,
-        "name": "Essence of Steel",
-        "description": "Gain 4 Plated Armor.",
-        "id": "EssenceOfSteel"
+        "can_use": false,
+        "can_discard": false,
+        "name": "Potion Slot",
+        "description": "Use potions during combat to gain bonuses or hinder enemies.",
+        "id": "Potion Slot"
       },
       {
         "requires_target": false,
@@ -717,8 +428,8 @@
         "id": "Potion Slot"
       }
     ],
-    "current_hp": 51,
-    "floor": 22,
+    "current_hp": 77,
+    "floor": 34,
     "ascension_level": 0,
     "class": "WATCHER",
     "map": [
@@ -726,11 +437,23 @@
         "symbol": "M",
         "children": [
           {
-            "x": 2,
+            "x": 1,
             "y": 1
           }
         ],
         "x": 1,
+        "y": 0,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 1
+          }
+        ],
+        "x": 2,
         "y": 0,
         "parents": []
       },
@@ -759,126 +482,130 @@
         "parents": []
       },
       {
-        "symbol": "M",
-        "children": [
-          {
-            "x": 1,
-            "y": 2
-          }
-        ],
-        "x": 2,
-        "y": 1,
-        "parents": []
-      },
-      {
-        "symbol": "?",
-        "children": [
-          {
-            "x": 3,
-            "y": 2
-          },
-          {
-            "x": 4,
-            "y": 2
-          },
-          {
-            "x": 5,
-            "y": 2
-          }
-        ],
-        "x": 4,
-        "y": 1,
-        "parents": []
-      },
-      {
-        "symbol": "M",
-        "children": [
-          {
-            "x": 5,
-            "y": 2
-          },
-          {
-            "x": 6,
-            "y": 2
-          }
-        ],
-        "x": 5,
-        "y": 1,
-        "parents": []
-      },
-      {
         "symbol": "?",
         "children": [
           {
             "x": 0,
-            "y": 3
+            "y": 2
           }
         ],
         "x": 1,
-        "y": 2,
+        "y": 1,
         "parents": []
       },
       {
         "symbol": "M",
         "children": [
           {
-            "x": 3,
-            "y": 3
+            "x": 2,
+            "y": 2
           }
         ],
         "x": 3,
-        "y": 2,
+        "y": 1,
         "parents": []
       },
       {
         "symbol": "$",
         "children": [
           {
-            "x": 5,
-            "y": 3
+            "x": 4,
+            "y": 2
           }
         ],
         "x": 4,
-        "y": 2,
+        "y": 1,
         "parents": []
       },
       {
         "symbol": "?",
         "children": [
           {
-            "x": 5,
-            "y": 3
-          },
-          {
             "x": 6,
-            "y": 3
+            "y": 2
           }
         ],
         "x": 5,
-        "y": 2,
+        "y": 1,
         "parents": []
       },
       {
         "symbol": "M",
         "children": [
           {
-            "x": 6,
+            "x": 1,
             "y": 3
-          }
-        ],
-        "x": 6,
-        "y": 2,
-        "parents": []
-      },
-      {
-        "symbol": "M",
-        "children": [
-          {
-            "x": 0,
-            "y": 4
           }
         ],
         "x": 0,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 2,
+            "y": 3
+          }
+        ],
+        "x": 2,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 3
+          },
+          {
+            "x": 4,
+            "y": 3
+          },
+          {
+            "x": 5,
+            "y": 3
+          }
+        ],
+        "x": 4,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 6,
+            "y": 3
+          }
+        ],
+        "x": 6,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 1,
+            "y": 4
+          }
+        ],
+        "x": 1,
+        "y": 3,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 3,
+            "y": 4
+          }
+        ],
+        "x": 2,
         "y": 3,
         "parents": []
       },
@@ -886,7 +613,7 @@
         "symbol": "M",
         "children": [
           {
-            "x": 4,
+            "x": 3,
             "y": 4
           }
         ],
@@ -895,10 +622,22 @@
         "parents": []
       },
       {
-        "symbol": "M",
+        "symbol": "?",
         "children": [
           {
-            "x": 5,
+            "x": 4,
+            "y": 4
+          }
+        ],
+        "x": 4,
+        "y": 3,
+        "parents": []
+      },
+      {
+        "symbol": "$",
+        "children": [
+          {
+            "x": 6,
             "y": 4
           }
         ],
@@ -907,12 +646,8 @@
         "parents": []
       },
       {
-        "symbol": "$",
+        "symbol": "?",
         "children": [
-          {
-            "x": 5,
-            "y": 4
-          },
           {
             "x": 6,
             "y": 4
@@ -926,36 +661,84 @@
         "symbol": "M",
         "children": [
           {
-            "x": 1,
+            "x": 0,
             "y": 5
+          }
+        ],
+        "x": 1,
+        "y": 4,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 5
+          }
+        ],
+        "x": 3,
+        "y": 4,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 5
+          }
+        ],
+        "x": 4,
+        "y": 4,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 5,
+            "y": 5
+          },
+          {
+            "x": 6,
+            "y": 5
+          }
+        ],
+        "x": 6,
+        "y": 4,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
+            "x": 0,
+            "y": 6
           }
         ],
         "x": 0,
-        "y": 4,
+        "y": 5,
         "parents": []
       },
       {
         "symbol": "?",
         "children": [
           {
-            "x": 5,
-            "y": 5
-          }
-        ],
-        "x": 4,
-        "y": 4,
-        "parents": []
-      },
-      {
-        "symbol": "?",
-        "children": [
+            "x": 2,
+            "y": 6
+          },
           {
-            "x": 5,
-            "y": 5
+            "x": 3,
+            "y": 6
+          },
+          {
+            "x": 4,
+            "y": 6
           }
         ],
-        "x": 5,
-        "y": 4,
+        "x": 3,
+        "y": 5,
         "parents": []
       },
       {
@@ -963,34 +746,6 @@
         "children": [
           {
             "x": 6,
-            "y": 5
-          }
-        ],
-        "x": 6,
-        "y": 4,
-        "parents": []
-      },
-      {
-        "symbol": "E",
-        "children": [
-          {
-            "x": 1,
-            "y": 6
-          }
-        ],
-        "x": 1,
-        "y": 5,
-        "parents": []
-      },
-      {
-        "symbol": "E",
-        "children": [
-          {
-            "x": 4,
-            "y": 6
-          },
-          {
-            "x": 5,
             "y": 6
           }
         ],
@@ -999,7 +754,7 @@
         "parents": []
       },
       {
-        "symbol": "R",
+        "symbol": "?",
         "children": [
           {
             "x": 6,
@@ -1011,55 +766,87 @@
         "parents": []
       },
       {
-        "symbol": "R",
+        "symbol": "M",
+        "children": [
+          {
+            "x": 0,
+            "y": 7
+          }
+        ],
+        "x": 0,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "M",
         "children": [
           {
             "x": 1,
             "y": 7
+          }
+        ],
+        "x": 2,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 2,
+            "y": 7
+          }
+        ],
+        "x": 3,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 3,
+            "y": 7
+          }
+        ],
+        "x": 4,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 6,
+            "y": 7
+          }
+        ],
+        "x": 6,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 0,
+            "y": 8
+          }
+        ],
+        "x": 0,
+        "y": 7,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 0,
+            "y": 8
           }
         ],
         "x": 1,
-        "y": 6,
-        "parents": []
-      },
-      {
-        "symbol": "R",
-        "children": [
-          {
-            "x": 4,
-            "y": 7
-          }
-        ],
-        "x": 4,
-        "y": 6,
-        "parents": []
-      },
-      {
-        "symbol": "M",
-        "children": [
-          {
-            "x": 4,
-            "y": 7
-          },
-          {
-            "x": 5,
-            "y": 7
-          }
-        ],
-        "x": 5,
-        "y": 6,
-        "parents": []
-      },
-      {
-        "symbol": "E",
-        "children": [
-          {
-            "x": 6,
-            "y": 7
-          }
-        ],
-        "x": 6,
-        "y": 6,
+        "y": 7,
         "parents": []
       },
       {
@@ -1068,126 +855,10 @@
           {
             "x": 2,
             "y": 8
-          }
-        ],
-        "x": 1,
-        "y": 7,
-        "parents": []
-      },
-      {
-        "symbol": "E",
-        "children": [
-          {
-            "x": 3,
-            "y": 8
-          },
-          {
-            "x": 4,
-            "y": 8
-          },
-          {
-            "x": 5,
-            "y": 8
-          }
-        ],
-        "x": 4,
-        "y": 7,
-        "parents": []
-      },
-      {
-        "symbol": "R",
-        "children": [
-          {
-            "x": 6,
-            "y": 8
-          }
-        ],
-        "x": 5,
-        "y": 7,
-        "parents": []
-      },
-      {
-        "symbol": "R",
-        "children": [
-          {
-            "x": 6,
-            "y": 8
-          }
-        ],
-        "x": 6,
-        "y": 7,
-        "parents": []
-      },
-      {
-        "symbol": "T",
-        "children": [
-          {
-            "x": 2,
-            "y": 9
           }
         ],
         "x": 2,
-        "y": 8,
-        "parents": []
-      },
-      {
-        "symbol": "T",
-        "children": [
-          {
-            "x": 2,
-            "y": 9
-          }
-        ],
-        "x": 3,
-        "y": 8,
-        "parents": []
-      },
-      {
-        "symbol": "T",
-        "children": [
-          {
-            "x": 3,
-            "y": 9
-          }
-        ],
-        "x": 4,
-        "y": 8,
-        "parents": []
-      },
-      {
-        "symbol": "T",
-        "children": [
-          {
-            "x": 5,
-            "y": 9
-          }
-        ],
-        "x": 5,
-        "y": 8,
-        "parents": []
-      },
-      {
-        "symbol": "T",
-        "children": [
-          {
-            "x": 5,
-            "y": 9
-          }
-        ],
-        "x": 6,
-        "y": 8,
-        "parents": []
-      },
-      {
-        "symbol": "M",
-        "children": [
-          {
-            "x": 2,
-            "y": 10
-          }
-        ],
-        "x": 2,
-        "y": 9,
+        "y": 7,
         "parents": []
       },
       {
@@ -1195,171 +866,79 @@
         "children": [
           {
             "x": 4,
-            "y": 10
+            "y": 8
           }
         ],
         "x": 3,
-        "y": 9,
+        "y": 7,
         "parents": []
       },
       {
         "symbol": "?",
         "children": [
           {
-            "x": 4,
-            "y": 10
-          },
-          {
-            "x": 6,
-            "y": 10
-          }
-        ],
-        "x": 5,
-        "y": 9,
-        "parents": []
-      },
-      {
-        "symbol": "M",
-        "children": [
-          {
-            "x": 2,
-            "y": 11
-          },
-          {
-            "x": 3,
-            "y": 11
-          }
-        ],
-        "x": 2,
-        "y": 10,
-        "parents": []
-      },
-      {
-        "symbol": "M",
-        "children": [
-          {
-            "x": 3,
-            "y": 11
-          }
-        ],
-        "x": 4,
-        "y": 10,
-        "parents": []
-      },
-      {
-        "symbol": "R",
-        "children": [
-          {
-            "x": 6,
-            "y": 11
+            "x": 5,
+            "y": 8
           }
         ],
         "x": 6,
-        "y": 10,
+        "y": 7,
         "parents": []
       },
       {
-        "symbol": "M",
+        "symbol": "T",
         "children": [
+          {
+            "x": 0,
+            "y": 9
+          },
           {
             "x": 1,
-            "y": 12
+            "y": 9
           }
         ],
-        "x": 2,
-        "y": 11,
+        "x": 0,
+        "y": 8,
         "parents": []
       },
       {
-        "symbol": "?",
+        "symbol": "T",
         "children": [
           {
             "x": 2,
-            "y": 12
-          },
-          {
-            "x": 3,
-            "y": 12
-          },
-          {
-            "x": 4,
-            "y": 12
-          }
-        ],
-        "x": 3,
-        "y": 11,
-        "parents": []
-      },
-      {
-        "symbol": "$",
-        "children": [
-          {
-            "x": 6,
-            "y": 12
-          }
-        ],
-        "x": 6,
-        "y": 11,
-        "parents": []
-      },
-      {
-        "symbol": "M",
-        "children": [
-          {
-            "x": 1,
-            "y": 13
-          }
-        ],
-        "x": 1,
-        "y": 12,
-        "parents": []
-      },
-      {
-        "symbol": "?",
-        "children": [
-          {
-            "x": 1,
-            "y": 13
+            "y": 9
           }
         ],
         "x": 2,
-        "y": 12,
+        "y": 8,
         "parents": []
       },
       {
-        "symbol": "M",
-        "children": [
-          {
-            "x": 2,
-            "y": 13
-          }
-        ],
-        "x": 3,
-        "y": 12,
-        "parents": []
-      },
-      {
-        "symbol": "M",
+        "symbol": "T",
         "children": [
           {
             "x": 4,
-            "y": 13
+            "y": 9
           }
         ],
         "x": 4,
-        "y": 12,
+        "y": 8,
         "parents": []
       },
       {
-        "symbol": "?",
+        "symbol": "T",
         "children": [
           {
+            "x": 5,
+            "y": 9
+          },
+          {
             "x": 6,
-            "y": 13
+            "y": 9
           }
         ],
-        "x": 6,
-        "y": 12,
+        "x": 5,
+        "y": 8,
         "parents": []
       },
       {
@@ -1367,26 +946,278 @@
         "children": [
           {
             "x": 0,
-            "y": 14
-          },
+            "y": 10
+          }
+        ],
+        "x": 0,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
           {
-            "x": 2,
-            "y": 14
+            "x": 1,
+            "y": 10
           }
         ],
         "x": 1,
-        "y": 13,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 10
+          }
+        ],
+        "x": 2,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 5,
+            "y": 10
+          }
+        ],
+        "x": 4,
+        "y": 9,
         "parents": []
       },
       {
         "symbol": "?",
         "children": [
           {
+            "x": 5,
+            "y": 10
+          }
+        ],
+        "x": 5,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 6,
+            "y": 10
+          }
+        ],
+        "x": 6,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 1,
+            "y": 11
+          }
+        ],
+        "x": 0,
+        "y": 10,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 1,
+            "y": 11
+          }
+        ],
+        "x": 1,
+        "y": 10,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
             "x": 2,
+            "y": 11
+          }
+        ],
+        "x": 3,
+        "y": 10,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 4,
+            "y": 11
+          },
+          {
+            "x": 6,
+            "y": 11
+          }
+        ],
+        "x": 5,
+        "y": 10,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 6,
+            "y": 11
+          }
+        ],
+        "x": 6,
+        "y": 10,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 0,
+            "y": 12
+          },
+          {
+            "x": 1,
+            "y": 12
+          }
+        ],
+        "x": 1,
+        "y": 11,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 3,
+            "y": 12
+          }
+        ],
+        "x": 2,
+        "y": 11,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
+            "x": 3,
+            "y": 12
+          }
+        ],
+        "x": 4,
+        "y": 11,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 5,
+            "y": 12
+          }
+        ],
+        "x": 6,
+        "y": 11,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
+            "x": 0,
+            "y": 13
+          }
+        ],
+        "x": 0,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 0,
+            "y": 13
+          }
+        ],
+        "x": 1,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 2,
+            "y": 13
+          },
+          {
+            "x": 3,
+            "y": 13
+          }
+        ],
+        "x": 3,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 5,
+            "y": 13
+          },
+          {
+            "x": 6,
+            "y": 13
+          }
+        ],
+        "x": 5,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 0,
+            "y": 14
+          }
+        ],
+        "x": 0,
+        "y": 13,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
             "y": 14
           }
         ],
         "x": 2,
+        "y": 13,
+        "parents": []
+      },
+      {
+        "symbol": "$",
+        "children": [
+          {
+            "x": 4,
+            "y": 14
+          }
+        ],
+        "x": 3,
         "y": 13,
         "parents": []
       },
@@ -1398,15 +1229,15 @@
             "y": 14
           }
         ],
-        "x": 4,
+        "x": 5,
         "y": 13,
         "parents": []
       },
       {
-        "symbol": "?",
+        "symbol": "M",
         "children": [
           {
-            "x": 6,
+            "x": 5,
             "y": 14
           }
         ],
@@ -1434,7 +1265,7 @@
             "y": 16
           }
         ],
-        "x": 2,
+        "x": 3,
         "y": 14,
         "parents": []
       },
@@ -1458,11 +1289,11 @@
             "y": 16
           }
         ],
-        "x": 6,
+        "x": 5,
         "y": 14,
         "parents": []
       }
     ],
-    "room_type": "MonsterRoom"
+    "room_type": "TreasureRoomBoss"
   }
 }

@@ -412,6 +412,46 @@ async fn main() {
         let hash = normalized.stable_hash();
         journal.log_state_change(&hash, &normalized);
 
+        if screen_type == "MAP" {
+            let rp = raw
+                .pointer("/game_state/room_phase")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            if rp == "COMPLETE" {
+                let first_chosen = raw
+                    .pointer("/game_state/screen_state/first_node_chosen")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
+                let paths = if first_chosen {
+                    raw.pointer("/game_state/screen_state/current_node")
+                        .and_then(|v| Some((v.get("x")?.as_i64()?, v.get("y")?.as_i64()?)))
+                        .map(|(x, y)| prompt::enumerate_paths(x, y, &normalized.map_nodes))
+                        .unwrap_or_default()
+                } else {
+                    prompt::enumerate_paths_from_roots(&normalized.map_nodes)
+                };
+                tracing::info!(
+                    "MAP: {} paths, first_chosen={first_chosen}, room_phase=COMPLETE",
+                    paths.len(),
+                );
+                for (i, path) in paths.iter().enumerate() {
+                    let route: Vec<String> = path
+                        .iter()
+                        .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
+                        .collect();
+                    let summary = prompt::summarize_path(path);
+                    tracing::info!(
+                        "  Path {}: {}  [{}]",
+                        (b'A' + i as u8) as char,
+                        route.join(" → "),
+                        summary,
+                    );
+                }
+            } else {
+                tracing::debug!("MAP screen but room_phase={rp} or no current_node");
+            }
+        }
+
         if is_game_over_state(&raw) {
             finalize_run_once(
                 &journal,

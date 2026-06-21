@@ -87,6 +87,7 @@ fn test_state() -> NormalizedState {
         discard_pile: vec![],
         exhaust_cards: vec![],
         master_cards: vec![],
+        map_nodes: vec![],
     }
 }
 

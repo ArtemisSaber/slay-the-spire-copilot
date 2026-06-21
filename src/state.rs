@@ -141,6 +141,14 @@ pub struct PotionInfo {
     pub description: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct MapCoord {
+    pub symbol: String,
+    pub x: i64,
+    pub y: i64,
+    pub children: Vec<(i64, i64)>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct NormalizedState {
     pub screen_type: Option<String>,
@@ -176,6 +184,7 @@ pub struct NormalizedState {
     pub discard_pile: Vec<CardInfo>,
     pub exhaust_cards: Vec<CardInfo>,
     pub master_cards: Vec<CardInfo>,
+    pub map_nodes: Vec<MapCoord>,
 }
 
 fn extract_cards(arr: &[Value]) -> Vec<CardInfo> {
@@ -532,6 +541,36 @@ impl NormalizedState {
             .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
+        let map_nodes: Vec<MapCoord> = gs
+            .and_then(|g| g.get("map"))
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .map(|n| MapCoord {
+                        symbol: n
+                            .get("symbol")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("?")
+                            .to_string(),
+                        x: n.get("x").and_then(|v| v.as_i64()).unwrap_or(0),
+                        y: n.get("y").and_then(|v| v.as_i64()).unwrap_or(0),
+                        children: n
+                            .get("children")
+                            .and_then(|v| v.as_array())
+                            .map(|children| {
+                                children
+                                    .iter()
+                                    .filter_map(|c| {
+                                        Some((c.get("x")?.as_i64()?, c.get("y")?.as_i64()?))
+                                    })
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
         let mut relics: Vec<RelicInfo> = gs
             .and_then(|g| g.get("relics"))
             .and_then(|v| v.as_array())
@@ -587,6 +626,7 @@ impl NormalizedState {
             discard_pile,
             exhaust_cards,
             master_cards,
+            map_nodes,
         }
     }
 
