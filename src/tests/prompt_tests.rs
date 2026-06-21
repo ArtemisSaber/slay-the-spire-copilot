@@ -48,6 +48,9 @@ fn test_state() -> NormalizedState {
         exhaust_cards: vec![],
         master_cards: vec![],
         map_nodes: vec![],
+        map_first_node_chosen: None,
+        map_current_x: None,
+        map_current_y: None,
         skip_available: false,
     }
 }

@@ -185,6 +185,9 @@ pub struct NormalizedState {
     pub exhaust_cards: Vec<CardInfo>,
     pub master_cards: Vec<CardInfo>,
     pub map_nodes: Vec<MapCoord>,
+    pub map_first_node_chosen: Option<bool>,
+    pub map_current_x: Option<i64>,
+    pub map_current_y: Option<i64>,
 }
 
 fn extract_cards(arr: &[Value]) -> Vec<CardInfo> {
@@ -481,6 +484,20 @@ impl NormalizedState {
 
         let screen_state = gs.and_then(|g| g.get("screen_state"));
 
+        let map_first_node_chosen = screen_state
+            .and_then(|s| s.get("first_node_chosen"))
+            .and_then(|v| v.as_bool());
+
+        let map_current_x = screen_state
+            .and_then(|s| s.get("current_node"))
+            .and_then(|n| n.get("x"))
+            .and_then(|v| v.as_i64());
+
+        let map_current_y = screen_state
+            .and_then(|s| s.get("current_node"))
+            .and_then(|n| n.get("y"))
+            .and_then(|v| v.as_i64());
+
         let skip_available = screen_state
             .and_then(|s| s.get("skip_available"))
             .and_then(|v| v.as_bool())
@@ -627,6 +644,9 @@ impl NormalizedState {
             exhaust_cards,
             master_cards,
             map_nodes,
+            map_first_node_chosen,
+            map_current_x,
+            map_current_y,
         }
     }
 
@@ -849,6 +869,19 @@ impl NormalizedState {
             "skip_available".to_string(),
             Value::Bool(self.skip_available),
         );
+
+        if let Some(v) = self.map_first_node_chosen {
+            map.insert(
+                "map_first_node_chosen".to_string(),
+                Value::Bool(v),
+            );
+        }
+        if let Some(v) = self.map_current_x {
+            map.insert("map_current_x".to_string(), Value::Number(v.into()));
+        }
+        if let Some(v) = self.map_current_y {
+            map.insert("map_current_y".to_string(), Value::Number(v.into()));
+        }
 
         Value::Object(map)
     }
