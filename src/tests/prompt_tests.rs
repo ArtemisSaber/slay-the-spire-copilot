@@ -1079,12 +1079,12 @@ fn build_map_suggestion_includes_route_chains_and_counts() {
             make_node("?", 0, 1, vec![(0, 2)]),
             make_node("R", 0, 2, vec![]),
         ],
-        map_first_node_chosen: Some(false),
+        map_first_node_chosen: Some(true),
         map_current_x: Some(0),
         map_current_y: Some(0),
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale, false);
+    let prompt = build_map_suggestion(&state, &locale);
     assert!(prompt.contains("M→?→R"));
     assert!(prompt.contains("Monsters:1"));
 }
@@ -1102,12 +1102,12 @@ fn build_map_suggestion_multiple_paths_labeled() {
             make_node("?", 0, 2, vec![]),
             make_node("$", 1, 2, vec![]),
         ],
-        map_first_node_chosen: Some(false),
+        map_first_node_chosen: Some(true),
         map_current_x: Some(0),
         map_current_y: Some(0),
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale, false);
+    let prompt = build_map_suggestion(&state, &locale);
     assert!(prompt.contains("A."));
     assert!(prompt.contains("B."));
     assert!(!prompt.contains("C."));
@@ -1128,7 +1128,7 @@ fn build_map_suggestion_root_selection() {
         map_first_node_chosen: Some(false),
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale, false);
+    let prompt = build_map_suggestion(&state, &locale);
     assert!(prompt.contains("Root"));
 }
 
@@ -1146,12 +1146,12 @@ fn build_map_suggestion_includes_status_line() {
             make_node("M", 0, 0, vec![(0, 1)]),
             make_node("R", 0, 1, vec![]),
         ],
-        map_first_node_chosen: Some(false),
+        map_first_node_chosen: Some(true),
         map_current_x: Some(0),
         map_current_y: Some(0),
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale, false);
+    let prompt = build_map_suggestion(&state, &locale);
     assert!(prompt.contains("铁甲战士"));
     assert!(prompt.contains("62/75"));
     assert!(prompt.contains("180"));
@@ -1164,12 +1164,12 @@ fn build_map_suggestion_empty_paths_graceful() {
         screen_type: Some("MAP".into()),
         floor: Some(5),
         map_nodes: vec![],
-        map_first_node_chosen: Some(false),
+        map_first_node_chosen: Some(true),
         map_current_x: Some(99),
         map_current_y: Some(99),
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale, false);
+    let prompt = build_map_suggestion(&state, &locale);
     assert!(prompt.contains("=== 任务 ==="));
 }
 
