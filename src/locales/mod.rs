@@ -72,6 +72,7 @@ pub struct SectionLocale {
     pub upgrade_targets: String,
     pub hand_cards: String,
     pub routes: String,
+    pub next_nodes: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -83,6 +84,7 @@ pub struct TaskLocale {
     pub boss_relic: String,
     pub event_choice: String,
     pub map_suggestion: String,
+    pub map_crossroad: String,
     pub generic: String,
 }
 
@@ -122,6 +124,7 @@ pub struct SystemPromptLocale {
     pub boss_relic: String,
     pub event_choice: String,
     pub map_suggestion: String,
+    pub map_crossroad: String,
     pub generic: String,
     pub postmortem: String,
 }
