@@ -1085,6 +1085,7 @@ fn build_map_suggestion_includes_route_chains_and_counts() {
         ..test_state()
     };
     let prompt = build_map_suggestion(&state, &locale);
+    assert!(prompt.contains("Route 1 (only)"));
     assert!(prompt.contains("M→?→R"));
     assert!(prompt.contains("Monsters:1"));
 }
@@ -1108,9 +1109,9 @@ fn build_map_suggestion_multiple_paths_labeled() {
         ..test_state()
     };
     let prompt = build_map_suggestion(&state, &locale);
-    assert!(prompt.contains("A."));
-    assert!(prompt.contains("B."));
-    assert!(!prompt.contains("C."));
+    assert!(prompt.contains("Route 1 (left)"));
+    assert!(prompt.contains("Route 2 (right)"));
+    assert!(!prompt.contains("Route 3"));
 }
 
 #[test]
@@ -1129,7 +1130,8 @@ fn build_map_suggestion_root_selection() {
         ..test_state()
     };
     let prompt = build_map_suggestion(&state, &locale);
-    assert!(prompt.contains("Root"));
+    assert!(prompt.contains("Root 1 (left)"));
+    assert!(prompt.contains("Root 2 (right)"));
 }
 
 #[test]
@@ -1194,9 +1196,9 @@ fn build_map_crossroad_shows_next_nodes() {
         ..test_state()
     };
     let prompt = build_map_crossroad(&state, &locale, false);
-    assert!(prompt.contains("A."));
-    assert!(prompt.contains("B."));
-    assert!(!prompt.contains("C."));
+    assert!(prompt.contains("(left)"));
+    assert!(prompt.contains("(right)"));
+    assert!(!prompt.contains("(middle)"));
 }
 
 #[test]
