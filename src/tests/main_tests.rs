@@ -336,7 +336,7 @@ fn screens_not_in_config_dont_generate() {
 
 fn map_json(first_node_chosen: bool, children: Vec<(i64, i64)>) -> serde_json::Value {
     let children_json: Vec<serde_json::Value> = children
-        .into_iter()
+        .iter()
         .map(|(x, y)| json!({"x": x, "y": y}))
         .collect();
     json!({
@@ -360,13 +360,17 @@ fn map_json(first_node_chosen: bool, children: Vec<(i64, i64)>) -> serde_json::V
     })
 }
 
-fn map_nodes() -> Vec<crate::state::MapCoord> {
+fn map_nodes_for(children: Vec<(i64, i64)>) -> Vec<crate::state::MapCoord> {
     vec![
-        crate::state::MapCoord { symbol: "M".into(), x: 1, y: 2, children: vec![(3, 3), (4, 3), (5, 3)] },
+        crate::state::MapCoord { symbol: "M".into(), x: 1, y: 2, children },
         crate::state::MapCoord { symbol: "E".into(), x: 3, y: 3, children: vec![] },
         crate::state::MapCoord { symbol: "?".into(), x: 4, y: 3, children: vec![] },
         crate::state::MapCoord { symbol: "M".into(), x: 5, y: 3, children: vec![] },
     ]
+}
+
+fn map_nodes() -> Vec<crate::state::MapCoord> {
+    map_nodes_for(vec![(3, 3), (4, 3), (5, 3)])
 }
 
 #[test]
@@ -390,32 +394,37 @@ fn map_gate_act_entry_generates() {
 fn map_gate_crossroads_generates() {
     let mut gate = MapGate::new();
     let raw = map_json(true, vec![(3, 3), (4, 3)]);
-    assert!(gate.should_generate(&raw, &map_nodes()));
+    let nodes = map_nodes_for(vec![(3, 3), (4, 3)]);
+    assert!(gate.should_generate(&raw, &nodes));
 }
 
 #[test]
 fn map_gate_single_child_skips() {
     let mut gate = MapGate::new();
     let raw = map_json(true, vec![(3, 3)]);
-    assert!(!gate.should_generate(&raw, &map_nodes()));
+    let nodes = map_nodes_for(vec![(3, 3)]);
+    assert!(!gate.should_generate(&raw, &nodes));
 }
 
 #[test]
 fn map_gate_same_crossroads_skips() {
     let mut gate = MapGate::new();
     let raw = map_json(true, vec![(3, 3), (4, 3)]);
-    assert!(gate.should_generate(&raw, &map_nodes()));
-    gate.record(&map_nodes(), 1, 2);
-    assert!(!gate.should_generate(&raw, &map_nodes()));
+    let nodes = map_nodes_for(vec![(3, 3), (4, 3)]);
+    assert!(gate.should_generate(&raw, &nodes));
+    gate.record(&nodes, 1, 2);
+    assert!(!gate.should_generate(&raw, &nodes));
 }
 
 #[test]
 fn map_gate_different_crossroads_generates() {
     let mut gate = MapGate::new();
     let raw1 = map_json(true, vec![(3, 3)]);
-    assert!(!gate.should_generate(&raw1, &map_nodes()));
+    let nodes1 = map_nodes_for(vec![(3, 3)]);
+    assert!(!gate.should_generate(&raw1, &nodes1));
     let raw2 = map_json(true, vec![(3, 3), (4, 3)]);
-    assert!(gate.should_generate(&raw2, &map_nodes()));
+    let nodes2 = map_nodes_for(vec![(3, 3), (4, 3)]);
+    assert!(gate.should_generate(&raw2, &nodes2));
 }
 
 #[test]

@@ -13,6 +13,8 @@ mod state;
 
 use advice::{AdviceCache, OverlayMetadata};
 use llm::{AdviceScenario, Effort};
+use state::MapCoord;
+use std::collections::HashMap;
 use std::io::{self, BufRead, IsTerminal, Write};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -116,7 +118,7 @@ struct ScreenConfig {
 }
 
 const SCREEN_CONFIG: ScreenConfig = ScreenConfig {
-    generate: &["CARD_REWARD", "BOSS_REWARD", "EVENT", "REST", "MAP"],
+    generate: &["CARD_REWARD", "BOSS_REWARD", "EVENT", "REST"],
     generate_on_combat: &[],
     // Future screens to add to `generate`:
     // "SHOP", "HAND_SELECT", "GRID",
@@ -169,6 +171,95 @@ impl CombatTurnGate {
     }
 }
 
+struct MapGate {
+    last_advised_next: Option<Vec<(i64, i64)>>,
+    shop_visited: bool,
+}
+
+impl MapGate {
+    fn new() -> Self {
+        MapGate {
+            last_advised_next: None,
+            shop_visited: false,
+        }
+    }
+
+    fn should_generate(&mut self, raw: &serde_json::Value, map_nodes: &[MapCoord]) -> bool {
+        let rp = raw
+            .pointer("/game_state/room_phase")
+            .and_then(|v| v.as_str());
+        if rp != Some("COMPLETE") {
+            return false;
+        }
+
+        let first_chosen = raw
+            .pointer("/game_state/screen_state/first_node_chosen")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+
+        if !first_chosen {
+            return true;
+        }
+
+        let current = raw
+            .pointer("/game_state/screen_state/current_node")
+            .and_then(|v| Some((v.get("x")?.as_i64()?, v.get("y")?.as_i64()?)));
+
+        let Some((cx, cy)) = current else {
+            return false;
+        };
+
+        let node_map: HashMap<(i64, i64), &MapCoord> =
+            map_nodes.iter().map(|n| ((n.x, n.y), n)).collect();
+
+        let Some(node) = node_map.get(&(cx, cy)) else {
+            return false;
+        };
+
+        let mut next_coords: Vec<(i64, i64)> = node
+            .children
+            .iter()
+            .filter(|(x, y)| node_map.contains_key(&(*x, *y)))
+            .copied()
+            .collect();
+        next_coords.sort();
+
+        if next_coords.len() <= 1 {
+            return false;
+        }
+
+        if self.last_advised_next.as_ref() == Some(&next_coords) {
+            return false;
+        }
+
+        true
+    }
+
+    fn record(&mut self, map_nodes: &[MapCoord], current_x: i64, current_y: i64) {
+        let node_map: HashMap<(i64, i64), &MapCoord> =
+            map_nodes.iter().map(|n| ((n.x, n.y), n)).collect();
+
+        if let Some(node) = node_map.get(&(current_x, current_y)) {
+            let mut next: Vec<(i64, i64)> = node
+                .children
+                .iter()
+                .filter(|(x, y)| node_map.contains_key(&(*x, *y)))
+                .copied()
+                .collect();
+            next.sort();
+            self.last_advised_next = Some(next);
+        }
+    }
+
+    fn on_shop(&mut self) {
+        self.shop_visited = true;
+    }
+
+    fn on_act_entry(&mut self) {
+        self.shop_visited = false;
+    }
+}
+
 fn combat_identity(raw: &serde_json::Value) -> Option<String> {
     let floor = raw.pointer("/game_state/floor")?.as_i64()?;
     let room_type = raw
@@ -181,12 +272,6 @@ fn combat_identity(raw: &serde_json::Value) -> Option<String> {
 fn should_generate_advice(screen_type: &str, raw: &serde_json::Value) -> bool {
     if screen_type == "EVENT" {
         return available_event_choice_count(raw) > 1;
-    }
-    if screen_type == "MAP" {
-        return raw
-            .pointer("/game_state/room_phase")
-            .and_then(|v| v.as_str())
-            == Some("COMPLETE");
     }
     if SCREEN_CONFIG.generate.contains(&screen_type) {
         return true;
@@ -360,6 +445,7 @@ async fn main() {
     let mut journal = journal::Journal::new();
     journal.log_run_started_with_config(&config);
     let mut combat_turn_gate = CombatTurnGate::new();
+    let mut map_gate = MapGate::new();
     let mut saw_game_state = false;
     let mut run_finalized = false;
     let stdin = io::stdin();
@@ -503,8 +589,21 @@ async fn main() {
             break;
         }
 
+        if screen_type == "SHOP" {
+            map_gate.on_shop();
+        }
+        if screen_type == "MAP"
+            && normalized.map_first_node_chosen == Some(false)
+        {
+            map_gate.on_act_entry();
+        }
+
+        let map_should_generate = screen_type == "MAP"
+            && map_gate.should_generate(&raw, &normalized.map_nodes);
+
         if !should_generate_advice(screen_type, &raw)
             && !combat_turn_gate.is_player_turn_start(&raw)
+            && !map_should_generate
         {
             tracing::debug!("skipping screen type: {screen_type}");
             continue;
@@ -529,7 +628,7 @@ async fn main() {
         let effort = Effort::from_screen_type(screen_type);
         let scenario = AdviceScenario::from_state(&normalized);
 
-        let prompt = prompt::build_prompt(&normalized, &locale, false);
+        let prompt = prompt::build_prompt(&normalized, &locale, map_gate.shop_visited);
         tracing::debug!(
             "prompt ({} chars): {}",
             prompt.len(),
@@ -561,6 +660,12 @@ async fn main() {
         journal.log_advice(&hash, effort, scenario, &prompt, &advice);
         tracing::info!("wrote advice ({} chars hash={})", advice.len(), &hash[..16]);
         cache.write_advice(&advice);
+
+        if screen_type == "MAP" {
+            if let (Some(cx), Some(cy)) = (normalized.map_current_x, normalized.map_current_y) {
+                map_gate.record(&normalized.map_nodes, cx, cy);
+            }
+        }
     }
 
     finalize_run_once(
