@@ -974,7 +974,7 @@ fn describe_path_risk_gap_below_threshold_act1() {
 }
 
 #[test]
-fn describe_path_risk_gap_E_R_silent() {
+fn describe_path_risk_gap_direct_e_r() {
     let path = path_of(&["E", "R"]); // E(10)=10 ≤ 15
     let desc = describe_path(&path, 1);
     assert!(!desc.annotations.iter().any(|a| a.contains("E→R gap")));
@@ -993,7 +993,7 @@ fn describe_path_risk_varies_by_act() {
 }
 
 #[test]
-fn describe_path_risk_resets_at_R() {
+fn describe_path_risk_resets_at_r() {
     // Segment 1: E→M→R gap=12 ≤ 15, Segment 2: E→M→R gap=12 ≤ 15
     let path = path_of(&["E", "M", "R", "E", "M", "R"]);
     let desc = describe_path(&path, 1);
@@ -1001,7 +1001,7 @@ fn describe_path_risk_resets_at_R() {
 }
 
 #[test]
-fn describe_path_risk_from_start_to_R() {
+fn describe_path_risk_from_start_to_r() {
     // No R before first E, segment is start→R: M→E→M→R gap from E=12 ≤ 15
     let path = path_of(&["M", "E", "M", "R"]);
     let desc = describe_path(&path, 1);

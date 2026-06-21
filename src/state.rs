@@ -871,10 +871,7 @@ impl NormalizedState {
         );
 
         if let Some(v) = self.map_first_node_chosen {
-            map.insert(
-                "map_first_node_chosen".to_string(),
-                Value::Bool(v),
-            );
+            map.insert("map_first_node_chosen".to_string(), Value::Bool(v));
         }
         if let Some(v) = self.map_current_x {
             map.insert("map_current_x".to_string(), Value::Number(v.into()));

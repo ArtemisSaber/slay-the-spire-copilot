@@ -788,11 +788,7 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
             .collect();
         let desc = describe_path(path, floor);
         let chain = &desc.route_chain;
-        lines.push(format!(
-            "{label}. {}  [{}]",
-            route.join("→"),
-            desc.counts
-        ));
+        lines.push(format!("{label}. {}  [{}]", route.join("→"), desc.counts));
         let mut annotation_line = format!("   {chain}");
         if !desc.annotations.is_empty() {
             annotation_line.push_str(&format!("  {}", desc.annotations.join("  ")));
@@ -950,10 +946,10 @@ pub fn describe_path(path: &[MapCoord], floor: i64) -> PathDescription {
 
     let mut annotations = Vec::new();
 
-    if let Some(ei) = path.iter().position(|n| n.symbol == "E") {
-        if path[..ei].iter().any(|n| n.symbol == "R") {
-            annotations.push("✓ Rest before first Elite".to_string());
-        }
+    if let Some(ei) = path.iter().position(|n| n.symbol == "E")
+        && path[..ei].iter().any(|n| n.symbol == "R")
+    {
+        annotations.push("✓ Rest before first Elite".to_string());
     }
 
     let r_indices: Vec<usize> = path
