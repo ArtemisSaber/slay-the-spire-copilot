@@ -73,6 +73,7 @@ pub enum AdviceScenario {
     Rest,
     EventChoice,
     CombatEntry,
+    MapSuggestion,
     Generic,
     Postmortem,
 }
@@ -85,6 +86,7 @@ impl AdviceScenario {
             Some("BOSS_REWARD") => AdviceScenario::BossRelic,
             Some("REST") => AdviceScenario::Rest,
             Some("EVENT") => AdviceScenario::EventChoice,
+            Some("MAP") => AdviceScenario::MapSuggestion,
             _ if state.has_active_monsters() => AdviceScenario::CombatEntry,
             _ => AdviceScenario::Generic,
         }
@@ -98,6 +100,7 @@ impl AdviceScenario {
             AdviceScenario::Rest => "rest",
             AdviceScenario::EventChoice => "event_choice",
             AdviceScenario::CombatEntry => "combat_entry",
+            AdviceScenario::MapSuggestion => "map_suggestion",
             AdviceScenario::Generic => "generic",
             AdviceScenario::Postmortem => "postmortem",
         }
@@ -111,6 +114,7 @@ impl AdviceScenario {
             AdviceScenario::Rest => &locale.system_prompts.rest,
             AdviceScenario::EventChoice => &locale.system_prompts.event_choice,
             AdviceScenario::CombatEntry => &locale.system_prompts.combat_entry,
+            AdviceScenario::MapSuggestion => &locale.system_prompts.map_suggestion,
             AdviceScenario::Generic => &locale.system_prompts.generic,
             AdviceScenario::Postmortem => &locale.system_prompts.postmortem,
         }
