@@ -313,7 +313,6 @@ async fn main() {
     protocol::send_ready();
     tracing::info!("sent ready");
 
-    let i18n_data = i18n::I18n::load();
     let mut cache = AdviceCache::new();
     let mut journal = journal::Journal::new();
     journal.log_run_started_with_config(&config);
@@ -372,7 +371,7 @@ async fn main() {
             .and_then(|v| v.as_str())
             .unwrap_or("?");
 
-        let normalized = state::NormalizedState::from_raw(&raw, &i18n_data);
+        let normalized = state::NormalizedState::from_raw(&raw);
         let hash = normalized.stable_hash();
         journal.log_state_change(&hash, &normalized);
 

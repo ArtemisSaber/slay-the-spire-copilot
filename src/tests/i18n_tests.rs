@@ -1,39 +1,5 @@
 use super::*;
 
-fn i18n() -> I18n {
-    I18n::load()
-}
-
-#[test]
-fn loads_enough_to_cover_base_game() {
-    let i = i18n();
-    assert!(i.monsters.len() > 60, "monsters: {}", i.monsters.len());
-    assert!(i.powers.len() > 160, "powers: {}", i.powers.len());
-}
-
-#[test]
-fn monster_by_id_returns_chinese() {
-    let i = i18n();
-    assert_eq!(i.monster("JawWorm"), Some("大颚虫"));
-    assert_eq!(i.monster("Cultist"), Some("邪教徒"));
-    assert_eq!(i.monster("SlimeBoss"), Some("史莱姆老大"));
-}
-
-#[test]
-fn power_by_id_returns_chinese() {
-    let i = i18n();
-    assert_eq!(i.power("Strength"), Some("力量"));
-    assert_eq!(i.power("Vulnerable"), Some("易伤"));
-    assert_eq!(i.power("Weakened"), Some("虚弱"));
-}
-
-#[test]
-fn unknown_ids_return_none_so_caller_falls_back() {
-    let i = i18n();
-    assert_eq!(i.monster("CustomEnemy"), None);
-    assert_eq!(i.power("UnknownPower"), None);
-}
-
 #[test]
 fn character_classes_are_translated() {
     assert_eq!(translate_class("IRONCLAD"), "铁甲战士");

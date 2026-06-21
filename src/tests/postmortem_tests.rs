@@ -1,5 +1,4 @@
 use super::*;
-use crate::i18n::I18n;
 use crate::state::NormalizedState;
 use serde_json::{Value, json};
 
@@ -10,7 +9,7 @@ fn event_line(value: Value) -> String {
 fn normalized_fixture(name: &str) -> Value {
     let content = std::fs::read_to_string(format!("tests/fixtures/{name}")).unwrap();
     let raw: Value = serde_json::from_str(&content).unwrap();
-    let state = NormalizedState::from_raw(&raw, &I18n::load());
+    let state = NormalizedState::from_raw(&raw);
     serde_json::to_value(state).unwrap()
 }
 

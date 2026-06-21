@@ -1,13 +1,12 @@
 use super::*;
 use crate::state::{DangerFlags, RelicInfo};
-use crate::test_utils::{load_fixture, load_i18n};
+use crate::test_utils::load_fixture;
 use serde_json::Value;
 
 #[test]
 fn normalize_combat_state() {
-    let i18n = load_i18n();
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw);
 
     assert_eq!(state.screen_type.as_deref(), Some("NONE"));
     assert_eq!(state.character.as_deref(), Some("IRONCLAD"));
@@ -31,7 +30,7 @@ fn normalize_combat_state() {
     assert!(state.danger.any_monster_attacking);
 
     let jaw_worm = &state.monsters[0];
-    assert_eq!(jaw_worm.name, "大颚虫");
+    assert_eq!(jaw_worm.name, "Jaw Worm");
     assert_eq!(jaw_worm.index, 0);
     assert_eq!(jaw_worm.intent.as_deref(), Some("ATTACK"));
     assert!(jaw_worm.is_scaling);
@@ -45,9 +44,8 @@ fn normalize_combat_state() {
 
 #[test]
 fn normalize_card_reward_state() {
-    let i18n = load_i18n();
     let raw = load_fixture("card-reward-state.json");
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw);
 
     assert_eq!(state.screen_type.as_deref(), Some("CARD_REWARD"));
     assert_eq!(state.card_reward_choices.len(), 3);
@@ -66,9 +64,8 @@ fn normalize_card_reward_state() {
 
 #[test]
 fn normalize_rest_state() {
-    let i18n = load_i18n();
     let raw = load_fixture("rest-state.json");
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw);
 
     assert_eq!(state.screen_type.as_deref(), Some("REST"));
     assert_eq!(
@@ -89,7 +86,6 @@ fn normalize_rest_state() {
 
 #[test]
 fn normalize_boss_relic_choices() {
-    let i18n = load_i18n();
     let raw = serde_json::json!({
         "in_game": true,
         "game_state": {
@@ -109,7 +105,7 @@ fn normalize_boss_relic_choices() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw);
 
     assert_eq!(state.screen_type.as_deref(), Some("BOSS_REWARD"));
     assert_eq!(state.boss_relic_choices.len(), 3);
@@ -135,7 +131,6 @@ fn normalize_boss_relic_choices() {
 
 #[test]
 fn normalize_event_choices() {
-    let i18n = load_i18n();
     let raw = serde_json::json!({
         "in_game": true,
         "game_state": {
@@ -157,7 +152,7 @@ fn normalize_event_choices() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw);
 
     assert_eq!(state.screen_type.as_deref(), Some("EVENT"));
     assert_eq!(state.event_name.as_deref(), Some("Golden Idol"));
@@ -173,7 +168,6 @@ fn normalize_event_choices() {
 
 #[test]
 fn normalize_event_choices_prefer_option_text_for_full_description() {
-    let i18n = load_i18n();
     let raw = serde_json::json!({
         "in_game": true,
         "game_state": {
@@ -195,7 +189,7 @@ fn normalize_event_choices_prefer_option_text_for_full_description() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw);
 
     assert_eq!(
         state.event_body.as_deref(),
@@ -209,7 +203,6 @@ fn normalize_event_choices_prefer_option_text_for_full_description() {
 
 #[test]
 fn normalize_event_choices_replaces_unreadable_locale_garble() {
-    let i18n = load_i18n();
     let raw = serde_json::json!({
         "in_game": true,
         "game_state": {
@@ -233,7 +226,7 @@ fn normalize_event_choices_replaces_unreadable_locale_garble() {
             "class": "WATCHER"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw);
 
     assert_eq!(state.screen_type.as_deref(), Some("EVENT"));
     assert_eq!(state.room_type.as_deref(), Some("NeowRoom"));
@@ -250,7 +243,6 @@ fn normalize_event_choices_replaces_unreadable_locale_garble() {
 
 #[test]
 fn normalize_event_payload_from_communication_mod_log() {
-    let i18n = load_i18n();
     let raw = serde_json::json!({
         "available_commands": ["choose", "key", "click", "wait", "state"],
         "ready_for_command": true,
@@ -288,7 +280,7 @@ fn normalize_event_payload_from_communication_mod_log() {
             "class": "WATCHER"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw);
 
     assert_eq!(state.event_id.as_deref(), Some("Neow Event"));
     assert!(state.event_name.is_none());
@@ -416,31 +408,28 @@ fn compute_danger(
 
 #[test]
 fn stable_hash_same_state_same_hash() {
-    let i18n = load_i18n();
     let raw = load_fixture("combat-state.json");
-    let state1 = NormalizedState::from_raw(&raw, &i18n);
-    let state2 = NormalizedState::from_raw(&raw, &i18n);
+    let state1 = NormalizedState::from_raw(&raw);
+    let state2 = NormalizedState::from_raw(&raw);
 
     assert_eq!(state1.stable_hash(), state2.stable_hash());
 }
 
 #[test]
 fn stable_hash_different_state_different_hash() {
-    let i18n = load_i18n();
     let combat = load_fixture("combat-state.json");
     let reward = load_fixture("card-reward-state.json");
 
-    let state1 = NormalizedState::from_raw(&combat, &i18n);
-    let state2 = NormalizedState::from_raw(&reward, &i18n);
+    let state1 = NormalizedState::from_raw(&combat);
+    let state2 = NormalizedState::from_raw(&reward);
 
     assert_ne!(state1.stable_hash(), state2.stable_hash());
 }
 
 #[test]
 fn stable_hash_produces_hex() {
-    let i18n = load_i18n();
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw);
     let hash = state.stable_hash();
 
     assert_eq!(hash.len(), 64);
@@ -449,79 +438,73 @@ fn stable_hash_produces_hex() {
 
 #[test]
 fn observation_hash_changes_when_draw_pile_changes() {
-    let i18n = load_i18n();
     let raw1 = load_fixture("combat-state.json");
     let mut raw2 = raw1.clone();
     raw2["game_state"]["combat_state"]["draw_pile"][0]["uuid"] =
         Value::String("changed-draw".into());
 
-    let state1 = NormalizedState::from_raw(&raw1, &i18n);
-    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+    let state1 = NormalizedState::from_raw(&raw1);
+    let state2 = NormalizedState::from_raw(&raw2);
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
 
 #[test]
 fn observation_hash_changes_when_discard_pile_changes() {
-    let i18n = load_i18n();
     let raw1 = load_fixture("combat-state.json");
     let mut raw2 = raw1.clone();
     raw2["game_state"]["combat_state"]["discard_pile"] = serde_json::json!([
         {"id":"Strike_R","name":"Strike","cost":1,"type":"ATTACK","uuid":"discarded-card","upgrades":0}
     ]);
 
-    let state1 = NormalizedState::from_raw(&raw1, &i18n);
-    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+    let state1 = NormalizedState::from_raw(&raw1);
+    let state2 = NormalizedState::from_raw(&raw2);
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
 
 #[test]
 fn observation_hash_changes_when_monster_block_changes() {
-    let i18n = load_i18n();
     let raw1 = load_fixture("combat-state.json");
     let mut raw2 = raw1.clone();
     raw2["game_state"]["combat_state"]["monsters"][0]["block"] = Value::Number(7.into());
 
-    let state1 = NormalizedState::from_raw(&raw1, &i18n);
-    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+    let state1 = NormalizedState::from_raw(&raw1);
+    let state2 = NormalizedState::from_raw(&raw2);
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
 
 #[test]
 fn observation_hash_changes_when_monster_power_changes() {
-    let i18n = load_i18n();
     let raw1 = load_fixture("combat-state.json");
     let mut raw2 = raw1.clone();
     raw2["game_state"]["combat_state"]["monsters"][0]["powers"][0]["amount"] =
         Value::Number(9.into());
 
-    let state1 = NormalizedState::from_raw(&raw1, &i18n);
-    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+    let state1 = NormalizedState::from_raw(&raw1);
+    let state2 = NormalizedState::from_raw(&raw2);
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
 
 #[test]
 fn observation_hash_changes_when_card_uuid_changes() {
-    let i18n = load_i18n();
     let raw1 = load_fixture("combat-state.json");
     let mut raw2 = raw1.clone();
     raw2["game_state"]["combat_state"]["hand"][0]["uuid"] =
         Value::String("changed-hand-card".into());
 
-    let state1 = NormalizedState::from_raw(&raw1, &i18n);
-    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+    let state1 = NormalizedState::from_raw(&raw1);
+    let state2 = NormalizedState::from_raw(&raw2);
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
 
 #[test]
 fn card_reward_filters_potion_slot() {
-    let i18n = load_i18n();
     let raw = load_fixture("card-reward-state.json");
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw);
     assert!(
         !state
             .potions

@@ -1,9 +1,5 @@
 use serde_json::Value;
 
-pub fn load_i18n() -> crate::i18n::I18n {
-    crate::i18n::I18n::load()
-}
-
 pub fn load_fixture(name: &str) -> Value {
     let path = format!("tests/fixtures/{name}");
     let content = std::fs::read_to_string(&path).unwrap();

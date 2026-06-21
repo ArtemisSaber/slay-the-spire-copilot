@@ -1,6 +1,6 @@
 use super::*;
 use crate::llm::AdviceScenario;
-use crate::test_utils::{load_fixture, load_i18n};
+use crate::test_utils::load_fixture;
 use serde_json::Value;
 
 fn read_events(path: &Path) -> Vec<Value> {
@@ -15,9 +15,8 @@ fn read_events(path: &Path) -> Vec<Value> {
 fn state_changes_are_logged_as_jsonl() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = Journal::new_at(dir.path(), "test-run");
-    let i18n = load_i18n();
     let raw = load_fixture("card-reward-state.json");
-    let state = crate::state::NormalizedState::from_raw(&raw, &i18n);
+    let state = crate::state::NormalizedState::from_raw(&raw);
     let hash = state.stable_hash();
     let observation_hash = state.observation_hash();
 
@@ -39,9 +38,8 @@ fn state_changes_are_logged_as_jsonl() {
 fn repeated_state_hashes_are_deduplicated() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = Journal::new_at(dir.path(), "test-run");
-    let i18n = load_i18n();
     let raw = load_fixture("combat-state.json");
-    let state = crate::state::NormalizedState::from_raw(&raw, &i18n);
+    let state = crate::state::NormalizedState::from_raw(&raw);
     let hash = state.stable_hash();
 
     journal.log_state_change(&hash, &state);
@@ -113,9 +111,8 @@ fn run_ended_event_is_logged_with_reason() {
 fn journal_events_include_schema_version() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = Journal::new_at(dir.path(), "test-run");
-    let i18n = load_i18n();
     let raw = load_fixture("combat-state.json");
-    let state = crate::state::NormalizedState::from_raw(&raw, &i18n);
+    let state = crate::state::NormalizedState::from_raw(&raw);
 
     journal.log_run_started();
     journal.log_state_change(&state.stable_hash(), &state);
@@ -136,14 +133,13 @@ fn journal_events_include_schema_version() {
 fn journal_dedupes_by_observation_hash_not_advice_hash() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = Journal::new_at(dir.path(), "test-run");
-    let i18n = load_i18n();
     let raw1 = load_fixture("combat-state.json");
     let mut raw2 = raw1.clone();
     raw2["game_state"]["combat_state"]["draw_pile"][0]["uuid"] =
         Value::String("changed-draw".into());
 
-    let state1 = crate::state::NormalizedState::from_raw(&raw1, &i18n);
-    let state2 = crate::state::NormalizedState::from_raw(&raw2, &i18n);
+    let state1 = crate::state::NormalizedState::from_raw(&raw1);
+    let state2 = crate::state::NormalizedState::from_raw(&raw2);
     let advice_hash = state1.stable_hash();
     assert_eq!(advice_hash, state2.stable_hash());
     assert_ne!(state1.observation_hash(), state2.observation_hash());
@@ -191,9 +187,8 @@ fn run_started_includes_provider_and_models() {
 fn first_observed_state_can_update_run_metadata() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = Journal::new_at(dir.path(), "test-run");
-    let i18n = load_i18n();
     let raw = load_fixture("combat-state.json");
-    let state = crate::state::NormalizedState::from_raw(&raw, &i18n);
+    let state = crate::state::NormalizedState::from_raw(&raw);
 
     journal.log_state_change(&state.stable_hash(), &state);
 
@@ -209,9 +204,8 @@ fn first_observed_state_can_update_run_metadata() {
 fn metadata_fields_are_null_when_missing() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = Journal::new_at(dir.path(), "test-run");
-    let i18n = load_i18n();
     let raw = serde_json::json!({"in_game": true, "game_state": {"screen_type": "NONE"}});
-    let state = crate::state::NormalizedState::from_raw(&raw, &i18n);
+    let state = crate::state::NormalizedState::from_raw(&raw);
 
     journal.log_state_change(&state.stable_hash(), &state);
 

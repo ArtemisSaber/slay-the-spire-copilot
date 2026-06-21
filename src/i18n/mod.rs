@@ -1,27 +1,3 @@
-use std::collections::HashMap;
-
-pub struct I18n {
-    monsters: HashMap<String, String>,
-    powers: HashMap<String, String>,
-}
-
-impl I18n {
-    pub fn load() -> Self {
-        I18n {
-            monsters: serde_json::from_str(include_str!("monsters.json")).unwrap(),
-            powers: serde_json::from_str(include_str!("powers.json")).unwrap(),
-        }
-    }
-
-    pub fn monster(&self, id: &str) -> Option<&str> {
-        self.monsters.get(id).map(|s| s.as_str())
-    }
-
-    pub fn power(&self, id: &str) -> Option<&str> {
-        self.powers.get(id).map(|s| s.as_str())
-    }
-}
-
 pub fn translate_class(class: &str) -> &str {
     match class {
         "IRONCLAD" => "铁甲战士",

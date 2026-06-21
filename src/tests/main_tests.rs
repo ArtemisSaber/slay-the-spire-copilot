@@ -223,12 +223,11 @@ async fn finalize_run_writes_postmortem_report() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = crate::journal::Journal::new_at(dir.path(), "run-1");
     let config = crate::config::Config::from_env();
-    let i18n = crate::i18n::I18n::load();
     let raw = serde_json::from_str::<serde_json::Value>(include_str!(
         "../../tests/fixtures/combat-state.json"
     ))
     .unwrap();
-    let state = crate::state::NormalizedState::from_raw(&raw, &i18n);
+    let state = crate::state::NormalizedState::from_raw(&raw);
     let provider = crate::llm::LlmProvider::Mock;
     let mut finalized = false;
 

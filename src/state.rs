@@ -1,18 +1,6 @@
-use crate::i18n::I18n;
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-
-macro_rules! i18n_name {
-    ($item:expr, $i18n:expr, $method:ident) => {{
-        let id = $item.get("id").and_then(|v| v.as_str());
-        let name = $item.get("name").and_then(|v| v.as_str());
-        id.and_then(|i| $i18n.$method(i))
-            .or(name)
-            .unwrap_or("?")
-            .to_string()
-    }};
-}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CardInfo {
@@ -192,10 +180,14 @@ fn extract_cards(arr: &[Value]) -> Vec<CardInfo> {
     arr.iter().map(CardInfo::from_json).collect()
 }
 
-fn extract_powers(arr: &[Value], i18n: &I18n) -> Vec<PowerInfo> {
+fn extract_powers(arr: &[Value]) -> Vec<PowerInfo> {
     arr.iter()
         .map(|p| PowerInfo {
-            name: i18n_name!(p, i18n, power),
+            name: p
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string(),
             amount: p.get("amount").and_then(|n| n.as_i64()).unwrap_or(0),
         })
         .collect()
@@ -330,7 +322,7 @@ fn extract_event_choice(option: &Value) -> Option<String> {
 }
 
 impl NormalizedState {
-    pub fn from_raw(raw: &Value, i18n: &I18n) -> Self {
+    pub fn from_raw(raw: &Value) -> Self {
         let gs = raw.get("game_state");
 
         let screen_type = gs
@@ -370,7 +362,7 @@ impl NormalizedState {
         let powers: Vec<PowerInfo> = player
             .and_then(|p| p.get("powers"))
             .and_then(|v| v.as_array())
-            .map(|arr| extract_powers(arr, i18n))
+            .map(|arr| extract_powers(arr))
             .unwrap_or_default();
 
         let hand: Vec<CardInfo> = combat
@@ -433,7 +425,11 @@ impl NormalizedState {
                         let can_be_killed = hp.map(|h| h <= total_hand_atk).unwrap_or(false);
 
                         MonsterInfo {
-                            name: i18n_name!(m, i18n, monster),
+                            name: m
+                                .get("name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("?")
+                                .to_string(),
                             index: idx,
                             current_hp: hp,
                             max_hp: m.get("max_hp").and_then(|n| n.as_i64()),
@@ -447,7 +443,7 @@ impl NormalizedState {
                             monster_powers: m
                                 .get("powers")
                                 .and_then(|v| v.as_array())
-                                .map(|arr| extract_powers(arr, i18n))
+                                .map(|arr| extract_powers(arr))
                                 .unwrap_or_default(),
                             can_be_killed,
                             is_scaling,
