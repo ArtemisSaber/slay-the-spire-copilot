@@ -529,7 +529,7 @@ async fn main() {
         let effort = Effort::from_screen_type(screen_type);
         let scenario = AdviceScenario::from_state(&normalized);
 
-        let prompt = prompt::build_prompt(&normalized, &locale);
+        let prompt = prompt::build_prompt(&normalized, &locale, false);
         tracing::debug!(
             "prompt ({} chars): {}",
             prompt.len(),

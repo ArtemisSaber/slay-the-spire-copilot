@@ -746,6 +746,82 @@ fn format_line(locale: &Locale) -> &str {
     &locale.format_footer
 }
 
+fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: bool) -> String {
+    let mut lines: Vec<String> = vec![
+        locale.sections.current_state.clone(),
+        status_line(state, locale),
+        String::new(),
+        build_relics_potions_section(state, locale),
+        locale.sections.task.clone(),
+        locale.tasks.map_crossroad.clone(),
+        String::new(),
+        locale.sections.next_nodes.clone(),
+    ];
+
+    let floor = state.floor.unwrap_or(1);
+    let node_map: HashMap<(i64, i64), &MapCoord> =
+        state.map_nodes.iter().map(|n| ((n.x, n.y), n)).collect();
+
+    let current = match (state.map_current_x, state.map_current_y) {
+        (Some(cx), Some(cy)) => node_map.get(&(cx, cy)),
+        _ => None,
+    };
+
+    let Some(current_node) = current else {
+        lines.push(format_line(locale).to_string());
+        return lines.join("\n");
+    };
+
+    let valid_children: Vec<&MapCoord> = current_node
+        .children
+        .iter()
+        .filter_map(|(cx, cy)| node_map.get(&(*cx, *cy)).copied())
+        .collect();
+
+    for (i, child) in valid_children.iter().enumerate() {
+        let label = (b'A' + i as u8) as char;
+        let paths = enumerate_paths(child.x, child.y, &state.map_nodes);
+        let desc = if let Some(path) = paths.first() {
+            describe_path(path, floor)
+        } else {
+            describe_path(&[(*child).clone()], floor)
+        };
+
+        let type_name = match child.symbol.as_str() {
+            "M" => "monster",
+            "E" => "elite",
+            "?" => "event",
+            "$" => "shop",
+            "R" => "rest",
+            "T" => "treasure",
+            _ => &child.symbol,
+        };
+
+        let anns: Vec<String> = desc
+            .annotations
+            .iter()
+            .map(|a| {
+                if shop_visited && a == "✗ No shop" {
+                    "✗ No shop ahead".to_string()
+                } else {
+                    a.clone()
+                }
+            })
+            .collect();
+
+        lines.push(format!(
+            "{label}. {}({type_name})  Ahead: {}  {}",
+            child.symbol,
+            desc.route_chain,
+            anns.join("  ")
+        ));
+    }
+
+    lines.push(String::new());
+    lines.push(format_line(locale).to_string());
+    lines.join("\n")
+}
+
 fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
     let mut lines: Vec<String> = vec![
         locale.sections.current_state.clone(),
@@ -801,12 +877,15 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
     lines.join("\n")
 }
 
-pub fn build_prompt(state: &NormalizedState, locale: &Locale) -> String {
+pub fn build_prompt(state: &NormalizedState, locale: &Locale, shop_visited: bool) -> String {
     match state.screen_type.as_deref() {
         Some("CARD_REWARD") => build_card_reward(state, locale),
         Some("BOSS_REWARD") => build_boss_relic(state, locale),
         Some("REST") => build_rest(state, locale),
         Some("EVENT") => build_event_choice(state, locale),
+        Some("MAP") if state.map_first_node_chosen == Some(true) => {
+            build_map_crossroad(state, locale, shop_visited)
+        }
         Some("MAP") => build_map_suggestion(state, locale),
         _ if !state.monsters.is_empty() => build_combat(state, locale),
         _ => build_generic(state, locale),

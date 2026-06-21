@@ -78,7 +78,7 @@ fn combat_prompt_shows_all_three_piles() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== 手牌"));
     assert!(prompt.contains("=== 抽牌堆"));
     assert!(prompt.contains("=== 弃牌堆"));
@@ -107,7 +107,7 @@ fn combat_prompt_marks_entry_plan_task() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== 任务 ==="));
     assert!(prompt.contains("本回合"));
     assert!(prompt.contains("最佳出牌"));
@@ -149,7 +149,7 @@ fn monster_section_shows_index_and_intent() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("[0]"));
     assert!(prompt.contains("[1]"));
     assert!(prompt.contains("意图：攻击"));
@@ -182,7 +182,7 @@ fn monster_section_shows_scaling() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("成长中"));
     assert!(prompt.contains("力量(2)"));
 }
@@ -204,7 +204,7 @@ fn card_reward_shows_card_choices() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("A. 上勾拳"));
     assert!(prompt.contains("B. 愤怒"));
     assert!(prompt.contains("2费"));
@@ -222,7 +222,7 @@ fn card_reward_prompt_marks_pick_or_skip_task() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== 任务 ==="));
     assert!(prompt.contains("选择一张牌"));
     assert!(prompt.contains("推荐跳过"));
@@ -241,7 +241,7 @@ fn boss_card_reward_prompt_includes_full_heal_note() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(
         prompt.contains(
             "注意：这是 Boss 战后的选牌。下一幕开始会回满血，不要把当前血量当成选牌依据。"
@@ -264,7 +264,7 @@ fn ordinary_card_reward_prompt_omits_full_heal_note() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(
         !prompt.contains(
             "注意：这是 Boss 战后的选牌。下一幕开始会回满血，不要把当前血量当成选牌依据。"
@@ -283,7 +283,7 @@ fn card_reward_shows_skip_when_available() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("跳过. 都不选"));
 }
 
@@ -298,7 +298,7 @@ fn card_reward_no_skip_when_unavailable() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(!prompt.contains("跳过. 都不选"));
 }
 
@@ -330,7 +330,7 @@ fn deck_section_shows_cards_by_type_with_counts() {
 #[test]
 fn prompt_is_structured() {
     let locale = test_locale();
-    let prompt = build_prompt(&test_state(), &locale);
+    let prompt = build_prompt(&test_state(), &locale, false);
     assert!(prompt.contains("=== 当前状态 ==="));
     assert!(prompt.contains("推荐："));
     assert!(prompt.contains("理由："));
@@ -356,7 +356,7 @@ fn rest_prompt_has_translated_options() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("休息"));
     assert!(prompt.contains("锻造"));
 }
@@ -370,7 +370,7 @@ fn rest_prompt_marks_campfire_decision_task() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== 任务 ==="));
     assert!(prompt.contains("篝火选项"));
     assert!(prompt.contains("休息"));
@@ -390,7 +390,7 @@ fn rest_prompt_requires_smith_upgrade_target() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("必须写出要升级哪张牌"));
     assert!(prompt.contains("=== 可锻造升级目标 ==="));
     assert!(prompt.contains("痛击"));
@@ -420,7 +420,7 @@ fn boss_relic_prompt_lists_choices() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== Boss 遗物 ==="));
     assert!(prompt.contains("A. 蛇眼"));
     assert!(prompt.contains("B. 符文圆顶"));
@@ -440,7 +440,7 @@ fn event_prompt_lists_event_text_and_choices() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== 事件 ==="));
     assert!(prompt.contains("金神像"));
     assert!(prompt.contains("一个金色神像闪闪发光。"));
@@ -464,7 +464,7 @@ fn event_prompt_does_not_emit_question_mark_garble() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("事件文本不可读（房间：NeowRoom）"));
     assert!(prompt.contains("A. 选项 1（事件文本不可读，请在游戏内核对按钮）"));
     assert!(prompt.contains("B. 选项 2（事件文本不可读，请在游戏内核对按钮）"));
@@ -479,7 +479,7 @@ fn generic_prompt_shows_status_and_format() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== 当前状态 ==="));
     assert!(prompt.contains("角色：铁甲战士"));
     assert!(prompt.contains("推荐："));
@@ -496,7 +496,7 @@ fn rest_prompt_advises_rest_when_hp_low() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("血量极低，强烈建议休息。"));
 }
 
@@ -511,7 +511,7 @@ fn rest_prompt_suggests_smith_when_hp_high() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("血量健康，可考虑锻造或挖遗物。"));
 }
 
@@ -545,7 +545,7 @@ fn danger_prefix_shows_wrath_warning() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("愤怒姿态下受到双倍伤害"));
 }
 
@@ -578,7 +578,7 @@ fn monster_shows_multi_hit_damage() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("（×3）"));
 }
 
@@ -666,7 +666,7 @@ fn build_prompt_routes_card_reward() {
         card_reward_choices: vec![card("Strike_R", "Strike", 1, "ATTACK")],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== 选牌 ==="));
     assert!(!prompt.contains("=== 手牌"));
 }
@@ -679,7 +679,7 @@ fn build_prompt_routes_rest() {
         rest_options: vec!["rest".into()],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== 选项 ==="));
     assert!(!prompt.contains("=== 手牌"));
 }
@@ -695,7 +695,7 @@ fn build_prompt_routes_boss_relic() {
         }],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("Boss 遗物"));
 }
 
@@ -707,7 +707,7 @@ fn build_prompt_routes_event_choice() {
         event_choices: vec!["离开".into()],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("事件选项"));
 }
 
@@ -731,7 +731,7 @@ fn build_prompt_routes_combat_when_monsters_present() {
         }],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== 怪物"));
     assert!(!prompt.contains("=== 选牌 ==="));
 }
@@ -743,7 +743,7 @@ fn build_prompt_routes_generic_when_no_monsters() {
         screen_type: None,
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== 当前状态 ==="));
     assert!(!prompt.contains("=== 怪物"));
     assert!(!prompt.contains("=== 选牌 ==="));
@@ -864,7 +864,7 @@ fn rest_shows_upgradeable_cards() {
         ],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== 可锻造升级目标 ==="));
 }
 
@@ -882,7 +882,7 @@ fn rest_no_upgradeable_when_all_upgraded() {
         }],
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(!prompt.contains("=== 可升级卡牌 ==="));
 }
 
@@ -1084,7 +1084,7 @@ fn build_map_suggestion_includes_route_chains_and_counts() {
         map_current_y: Some(0),
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("M→?→R"));
     assert!(prompt.contains("Monsters:1"));
 }
@@ -1107,7 +1107,7 @@ fn build_map_suggestion_multiple_paths_labeled() {
         map_current_y: Some(0),
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("A."));
     assert!(prompt.contains("B."));
     assert!(!prompt.contains("C."));
@@ -1128,7 +1128,7 @@ fn build_map_suggestion_root_selection() {
         map_first_node_chosen: Some(false),
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("Root"));
 }
 
@@ -1151,7 +1151,7 @@ fn build_map_suggestion_includes_status_line() {
         map_current_y: Some(0),
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("铁甲战士"));
     assert!(prompt.contains("62/75"));
     assert!(prompt.contains("180"));
@@ -1169,7 +1169,7 @@ fn build_map_suggestion_empty_paths_graceful() {
         map_current_y: Some(99),
         ..test_state()
     };
-    let prompt = build_prompt(&state, &locale);
+    let prompt = build_prompt(&state, &locale, false);
     assert!(prompt.contains("=== 任务 ==="));
 }
 
