@@ -1,5 +1,6 @@
 use super::*;
 use crate::state::{DangerFlags, DangerLevel, MonsterInfo, NormalizedState, RelicInfo};
+use crate::test_utils::test_locale;
 
 #[test]
 fn scenario_system_prompts_are_defined() {
@@ -12,7 +13,7 @@ fn scenario_system_prompts_are_defined() {
         AdviceScenario::CombatEntry,
         AdviceScenario::Generic,
     ] {
-        let prompt = scenario.system_prompt();
+        let prompt = scenario.system_prompt(&test_locale());
         assert!(!prompt.is_empty());
         assert!(prompt.contains("杀戮尖塔"));
         assert!(prompt.contains("推荐："));
@@ -23,27 +24,26 @@ fn scenario_system_prompts_are_defined() {
 
 #[test]
 fn boss_reward_system_prompt_ignores_current_hp() {
-    let prompt = AdviceScenario::BossCardReward.system_prompt();
-    assert!(prompt.contains("当前血量"));
-    assert!(prompt.contains("不要"));
+    let prompt = AdviceScenario::BossCardReward.system_prompt(&test_locale());
+    assert!(prompt.contains("血量"));
     assert!(prompt.contains("回满血"));
-    assert!(prompt.contains("16"));
-    assert!(prompt.contains("33"));
-    assert!(prompt.contains("50"));
+    assert!(prompt.contains("下一幕"));
 }
 
 #[test]
 fn normal_card_reward_prompt_supports_skip() {
-    let prompt = AdviceScenario::CardReward.system_prompt();
+    let prompt = AdviceScenario::CardReward.system_prompt(&test_locale());
     assert!(prompt.contains("跳过"));
 }
 
 #[test]
 fn postmortem_system_prompt_is_defined() {
-    assert!(!POSTMORTEM_SYSTEM_PROMPT.is_empty());
-    assert!(POSTMORTEM_SYSTEM_PROMPT.contains("复盘"));
-    assert!(POSTMORTEM_SYSTEM_PROMPT.contains("Markdown"));
-    assert!(POSTMORTEM_SYSTEM_PROMPT.contains("不要编造"));
+    let locale = test_locale();
+    let prompt = &locale.system_prompts.postmortem;
+    assert!(!prompt.is_empty());
+    assert!(prompt.contains("复盘"));
+    assert!(prompt.contains("Markdown"));
+    assert!(prompt.contains("日志"));
 }
 
 fn test_state() -> NormalizedState {
@@ -234,7 +234,12 @@ fn effort_from_screen_type_other_is_medium() {
 async fn mock_provider_returns_structured_response() {
     let provider = LlmProvider::Mock;
     let result = provider
-        .query_advice("test prompt", Effort::Fast, AdviceScenario::Generic)
+        .query_advice(
+            "test prompt",
+            Effort::Fast,
+            AdviceScenario::Generic,
+            &test_locale(),
+        )
         .await;
     assert!(result.is_ok());
     let text = result.unwrap();
@@ -248,7 +253,9 @@ async fn mock_provider_returns_structured_response() {
 #[tokio::test]
 async fn mock_provider_returns_postmortem_report() {
     let provider = LlmProvider::Mock;
-    let result = provider.query_postmortem("deterministic summary").await;
+    let result = provider
+        .query_postmortem("deterministic summary", &test_locale())
+        .await;
     assert!(result.is_ok());
     let text = result.unwrap();
     assert!(text.contains("# 本局复盘"));

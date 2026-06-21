@@ -2,6 +2,8 @@ use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+use crate::locales::Locale;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct CardInfo {
     pub id: String,
@@ -322,7 +324,7 @@ fn extract_event_choice(option: &Value) -> Option<String> {
 }
 
 impl NormalizedState {
-    pub fn from_raw(raw: &Value) -> Self {
+    pub fn from_raw(raw: &Value, locale: &Locale) -> Self {
         let gs = raw.get("game_state");
 
         let screen_type = gs
@@ -504,7 +506,10 @@ impl NormalizedState {
                     .enumerate()
                     .map(|(idx, choice)| {
                         extract_event_choice(choice).unwrap_or_else(|| {
-                            format!("选项 {}（事件文本不可读，请在游戏内核对按钮）", idx + 1)
+                            locale
+                                .fallback
+                                .event_unreadable_choice
+                                .replace("{idx}", &(idx + 1).to_string())
                         })
                     })
                     .collect()

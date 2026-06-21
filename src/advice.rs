@@ -1,4 +1,5 @@
 use crate::llm::{AdviceScenario, Effort, LlmProvider};
+use crate::locales::Locale;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
@@ -45,7 +46,7 @@ fn timestamp_ms() -> u128 {
         .unwrap_or(0)
 }
 
-pub fn parse_advice_response(raw: &str) -> AdviceFields {
+pub fn parse_advice_response(raw: &str, locale: &Locale) -> AdviceFields {
     let mut recommendation = String::new();
     let mut reason = String::new();
     let mut risk = String::new();
@@ -54,16 +55,16 @@ pub fn parse_advice_response(raw: &str) -> AdviceFields {
     let mut current: Option<&mut String> = None;
 
     for line in raw.lines() {
-        if let Some(rest) = line.strip_prefix("推荐：") {
+        if let Some(rest) = line.strip_prefix(locale.parser.recommendation.as_str()) {
             recommendation.push_str(rest);
             current = Some(&mut recommendation);
-        } else if let Some(rest) = line.strip_prefix("理由：") {
+        } else if let Some(rest) = line.strip_prefix(locale.parser.reason.as_str()) {
             reason.push_str(rest);
             current = Some(&mut reason);
-        } else if let Some(rest) = line.strip_prefix("风险：") {
+        } else if let Some(rest) = line.strip_prefix(locale.parser.risk.as_str()) {
             risk.push_str(rest);
             current = Some(&mut risk);
-        } else if let Some(rest) = line.strip_prefix("吐槽：") {
+        } else if let Some(rest) = line.strip_prefix(locale.parser.commentary.as_str()) {
             commentary.push_str(rest);
             current = Some(&mut commentary);
         } else if let Some(ref mut field) = current
@@ -129,16 +130,20 @@ impl AdviceCache {
         effort: Effort,
         scenario: AdviceScenario,
         provider: &LlmProvider,
+        locale: &Locale,
     ) -> String {
         if let Some(cached) = self.cache.get(hash) {
             return cached.clone();
         }
 
-        let advice = match provider.query_advice(prompt, effort, scenario).await {
+        let advice = match provider
+            .query_advice(prompt, effort, scenario, locale)
+            .await
+        {
             Ok(text) => text,
             Err(e) => {
                 tracing::error!("LLM call failed: {e}");
-                "LLM 调用失败，请检查配置。".to_string()
+                locale.fallback.llm_error.clone()
             }
         };
 

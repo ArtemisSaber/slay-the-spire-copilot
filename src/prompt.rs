@@ -1,46 +1,56 @@
-use crate::i18n;
+use crate::locales::Locale;
 use crate::state::{CardInfo, DangerLevel, MonsterInfo, NormalizedState};
 use std::collections::HashMap;
 
-fn danger_prefix(state: &NormalizedState) -> String {
+fn danger_prefix(state: &NormalizedState, locale: &Locale) -> String {
     let mut reasons: Vec<&str> = Vec::new();
 
     if state.danger.incoming_lethal {
-        reasons.push("致命伤害");
+        reasons.push(&locale.danger.fatal_damage);
     }
     if state.danger.hp_critical {
-        reasons.push("血量危急");
+        reasons.push(&locale.danger.hp_critical);
     }
     if state.danger.wrath_stance && state.danger.any_monster_attacking {
-        reasons.push("愤怒姿态");
+        reasons.push(&locale.danger.wrath_stance);
     }
     if state.danger.no_block_against_hit {
-        reasons.push("无格挡");
+        reasons.push(&locale.danger.no_block);
     }
 
     match state.danger.level {
         DangerLevel::Danger => {
             if reasons.is_empty() {
-                "危险！".to_string()
+                locale.danger.danger_prefix.clone()
             } else {
-                format!("危险！{}！", reasons.join("，"))
+                locale.danger.danger_with_reasons.replace(
+                    "{reasons}",
+                    &reasons.join(&locale.danger.danger_reason_separator),
+                )
             }
         }
-        DangerLevel::Caution => "小心行事。".to_string(),
-        DangerLevel::Safe => "形势不错。".to_string(),
+        DangerLevel::Caution => locale.danger.caution.clone(),
+        DangerLevel::Safe => locale.danger.safe.clone(),
     }
 }
 
-fn status_line(state: &NormalizedState) -> String {
+fn status_line(state: &NormalizedState, locale: &Locale) -> String {
     let mut parts: Vec<String> = Vec::new();
 
-    parts.push(danger_prefix(state));
+    parts.push(danger_prefix(state, locale));
 
     if let Some(ref c) = state.character {
-        parts.push(format!("角色：{}", i18n::translate_class(c)));
+        let class_name = match c.as_str() {
+            "IRONCLAD" => &locale.i18n.class_ironclad,
+            "THE_SILENT" => &locale.i18n.class_silent,
+            "DEFECT" => &locale.i18n.class_defect,
+            "WATCHER" => &locale.i18n.class_watcher,
+            _ => c.as_str(),
+        };
+        parts.push(locale.status.character.replace("{class}", class_name));
     }
     if let Some(f) = state.floor {
-        parts.push(format!("层数：{f}"));
+        parts.push(locale.status.floor.replace("{floor}", &f.to_string()));
     }
     if let (Some(cur), Some(max)) = (state.current_hp, state.max_hp) {
         let pct = if max > 0 {
@@ -48,16 +58,23 @@ fn status_line(state: &NormalizedState) -> String {
         } else {
             0
         };
-        parts.push(format!("血量：{cur}/{max}({pct}%)"));
+        parts.push(
+            locale
+                .status
+                .hp
+                .replace("{cur}", &cur.to_string())
+                .replace("{max}", &max.to_string())
+                .replace("{pct}", &pct.to_string()),
+        );
     }
     if let Some(b) = state.block {
-        parts.push(format!("格挡：{b}"));
+        parts.push(locale.status.block.replace("{block}", &b.to_string()));
     }
     if let Some(e) = state.energy {
-        parts.push(format!("能量：{e}"));
+        parts.push(locale.status.energy.replace("{energy}", &e.to_string()));
     }
     if let Some(g) = state.gold {
-        parts.push(format!("金币：{g}"));
+        parts.push(locale.status.gold.replace("{gold}", &g.to_string()));
     }
 
     // Player powers
@@ -67,98 +84,148 @@ fn status_line(state: &NormalizedState) -> String {
             .iter()
             .map(|p| format!("{}({})", p.name, p.amount))
             .collect();
-        parts.push(format!("能力：{}", powers_str.join(" ")));
+        parts.push(
+            locale
+                .status
+                .powers
+                .replace("{list}", &powers_str.join(" ")),
+        );
     }
 
     // Relics & potions
     if !state.relics.is_empty() {
         let names: Vec<&str> = state.relics.iter().map(|r| r.name.as_str()).collect();
-        parts.push(format!("遗物：{}", names.join(" ")));
+        parts.push(locale.status.relics.replace("{list}", &names.join(" ")));
     }
     if !state.potions.is_empty() {
         let names: Vec<&str> = state.potions.iter().map(|p| p.name.as_str()).collect();
-        parts.push(format!("药水：{}", names.join(" ")));
+        parts.push(locale.status.potions.replace("{list}", &names.join(" ")));
     }
 
     // Incoming damage
     if state.incoming_damage > 0 {
-        parts.push(format!(
-            "伤害合计{}{}",
-            state.incoming_damage,
+        let warn =
             if state.block.unwrap_or(0) > 0 && state.incoming_damage > state.block.unwrap_or(0) {
-                "（需格挡！）"
+                locale.status.need_block.as_str()
             } else {
                 ""
-            }
-        ));
+            };
+        parts.push(
+            locale
+                .status
+                .damage_total
+                .replace("{dmg}", &state.incoming_damage.to_string())
+                .replace("{warn}", warn),
+        );
     }
 
     parts.join("  ")
 }
 
-fn clean_description(raw: &str) -> String {
+fn clean_description(raw: &str, locale: &Locale) -> String {
     let mut result = raw.to_string();
     result = result.replace('*', "");
+    let energy: &str = &locale.monster.energy_token;
     for token in &["[R]", "[G]", "[B]", "[W]", "[E]"] {
-        result = result.replace(token, "能量");
+        result = result.replace(token, energy);
     }
     for n in (2..=10).rev() {
-        let pattern: String = (0..n).map(|_| "能量").collect::<Vec<_>>().join(" ");
-        let replacement = format!("能量{n}");
+        let pattern: String = (0..n).map(|_| energy).collect::<Vec<_>>().join(" ");
+        let replacement = format!("{energy}{n}");
         result = result.replace(&pattern, &replacement);
     }
     result
 }
 
-fn format_card(c: &CardInfo) -> String {
-    let desc = if c.description.is_empty() {
-        String::new()
-    } else {
-        format!(" — {}", clean_description(&c.description))
+fn format_card(c: &CardInfo, locale: &Locale) -> String {
+    let ctype = match c.card_type.as_str() {
+        "ATTACK" => &locale.i18n.type_attack,
+        "SKILL" => &locale.i18n.type_skill,
+        "POWER" => &locale.i18n.type_power,
+        "CURSE" => &locale.i18n.type_curse,
+        "STATUS" => &locale.i18n.type_status,
+        _ => c.card_type.as_str(),
     };
-    format!(
-        "{up}{name}({cost}费/{ctype}){desc}",
-        up = if c.upgraded { "+" } else { "" },
-        name = c.name,
-        cost = c.cost,
-        ctype = i18n::translate_type(&c.card_type),
-        desc = desc,
-    )
+    let mut result = locale
+        .card
+        .format
+        .replace("{up}", if c.upgraded { "+" } else { "" })
+        .replace("{name}", &c.name)
+        .replace("{cost}", &c.cost.to_string())
+        .replace("{type}", ctype);
+    if !c.description.is_empty() {
+        result.push_str(
+            &locale
+                .card
+                .with_desc
+                .replace("{desc}", &clean_description(&c.description, locale)),
+        );
+    }
+    result
 }
 
-fn format_monster(m: &MonsterInfo) -> String {
+fn format_monster(m: &MonsterInfo, locale: &Locale) -> String {
     let mut lines: Vec<String> = Vec::new();
 
     lines.push(format!("[{}] {}", m.index, m.name));
 
     if let (Some(cur), Some(max)) = (m.current_hp, m.max_hp) {
-        let mut hp_line = format!("  HP {cur}/{max}");
+        let mut hp_line = locale
+            .monster
+            .hp_line
+            .replace("{cur}", &cur.to_string())
+            .replace("{max}", &max.to_string());
         if m.can_be_killed {
-            hp_line.push_str("  > 可斩杀！");
+            hp_line.push_str(&locale.monster.killable);
         }
         lines.push(hp_line);
     }
 
     if let Some(ref intent) = m.intent {
-        lines.push(format!("  意图：{}", i18n::translate_intent(intent)));
+        let intent_name = match intent.as_str() {
+            "ATTACK" => &locale.i18n.intent_attack,
+            "ATTACK_BUFF" => &locale.i18n.intent_attack_buff,
+            "ATTACK_DEBUFF" => &locale.i18n.intent_attack_debuff,
+            "ATTACK_DEFEND" => &locale.i18n.intent_attack_defend,
+            "BUFF" => &locale.i18n.intent_buff,
+            "DEBUFF" => &locale.i18n.intent_debuff,
+            "STRONG_DEBUFF" => &locale.i18n.intent_strong_debuff,
+            "DEBUG" => &locale.i18n.intent_debug,
+            "DEFEND" => &locale.i18n.intent_defend,
+            "DEFEND_DEBUFF" => &locale.i18n.intent_defend_debuff,
+            "DEFEND_BUFF" => &locale.i18n.intent_defend_buff,
+            "ESCAPE" => &locale.i18n.intent_escape,
+            "MAGIC" => &locale.i18n.intent_magic,
+            "NONE" => &locale.i18n.intent_none,
+            "SLEEP" => &locale.i18n.intent_sleep,
+            "STUN" => &locale.i18n.intent_stun,
+            "UNKNOWN" => &locale.i18n.intent_unknown,
+            _ => intent.as_str(),
+        };
+        lines.push(locale.monster.intent.replace("{intent}", intent_name));
     }
 
     if let Some(dmg) = m.damage {
-        let mut dmg_str = format!("  伤害：{dmg}");
+        let mut dmg_str = locale.monster.damage.replace("{dmg}", &dmg.to_string());
         if let Some(hits) = m.hits
             && hits > 1
         {
-            dmg_str.push_str(&format!("（×{hits}）"));
+            dmg_str.push_str(
+                &locale
+                    .monster
+                    .multi_hit
+                    .replace("{hits}", &hits.to_string()),
+            );
         }
         lines.push(dmg_str);
     } else {
-        lines.push("  伤害：无".to_string());
+        lines.push(locale.monster.no_damage.clone());
     }
 
     if let Some(blk) = m.block
         && blk > 0
     {
-        lines.push(format!("  格挡：{blk}"));
+        lines.push(locale.monster.block.replace("{blk}", &blk.to_string()));
     }
 
     if !m.monster_powers.is_empty() {
@@ -167,9 +234,9 @@ fn format_monster(m: &MonsterInfo) -> String {
             .iter()
             .map(|p| format!("{}({})", p.name, p.amount))
             .collect();
-        let mut line = format!("  能力：{}", pwr_str.join(" "));
+        let mut line = locale.monster.powers.replace("{list}", &pwr_str.join(" "));
         if m.is_scaling {
-            line.push_str(" > 成长中！");
+            line.push_str(&locale.monster.scaling);
         }
         lines.push(line);
     }
@@ -177,38 +244,45 @@ fn format_monster(m: &MonsterInfo) -> String {
     lines.join("\n")
 }
 
-fn build_monsters_section(state: &NormalizedState) -> String {
+fn build_monsters_section(state: &NormalizedState, locale: &Locale) -> String {
     if state.monsters.is_empty() {
         return String::new();
     }
 
-    let mut lines = vec![format!("=== 怪物（{}只）===", state.monsters.len())];
+    let mut lines = vec![
+        locale
+            .monster
+            .section_header
+            .replace("{count}", &state.monsters.len().to_string()),
+    ];
     for m in &state.monsters {
-        lines.push(format_monster(m));
+        lines.push(format_monster(m, locale));
         lines.push(String::new());
     }
     lines.join("\n")
 }
 
-fn build_hand_section(state: &NormalizedState) -> String {
+fn build_hand_section(state: &NormalizedState, locale: &Locale) -> String {
     if state.hand_cards.is_empty() {
         return String::new();
     }
 
-    let mut lines = vec![format!(
-        "=== 手牌（{}张 | 当前回合可用）===",
-        state.hand_cards.len()
-    )];
+    let mut lines = vec![
+        locale
+            .card
+            .hand_header
+            .replace("{count}", &state.hand_cards.len().to_string()),
+    ];
     for c in &state.hand_cards {
-        lines.push(format!("  {}", format_card(c)));
+        lines.push(format!("  {}", format_card(c, locale)));
     }
     lines.push(String::new());
     lines.join("\n")
 }
 
-fn compact_pile(label: &str, cards: &[CardInfo]) -> String {
+fn compact_pile(label: &str, cards: &[CardInfo], locale: &Locale) -> String {
     if cards.is_empty() {
-        return format!("{label}（0张）\n");
+        return locale.card.pile_empty.replace("{label}", label);
     }
 
     let mut name_counts: HashMap<&str, usize> = HashMap::new();
@@ -228,10 +302,15 @@ fn compact_pile(label: &str, cards: &[CardInfo]) -> String {
         .collect();
     entries.sort();
 
-    format!("{label}（{}张）\n  {}\n", cards.len(), entries.join(" "))
+    locale
+        .card
+        .pile
+        .replace("{label}", label)
+        .replace("{count}", &cards.len().to_string())
+        .replace("{cards}", &entries.join(" "))
 }
 
-fn format_deck_section(cards: &[CardInfo]) -> String {
+fn format_deck_section(cards: &[CardInfo], locale: &Locale) -> String {
     if cards.is_empty() {
         return String::new();
     }
@@ -273,41 +352,58 @@ fn format_deck_section(cards: &[CardInfo]) -> String {
     }
 
     let type_order = ["ATTACK", "SKILL", "POWER", "CURSE", "STATUS"];
-    let type_headers: HashMap<&str, &str> = HashMap::from([
-        ("ATTACK", "攻击"),
-        ("SKILL", "技能"),
-        ("POWER", "能力"),
-        ("CURSE", "诅咒"),
-        ("STATUS", "状态"),
-    ]);
 
     let mut lines: Vec<String> = Vec::new();
-    lines.push("=== 卡组 ===".to_string());
+    lines.push(locale.card.deck_header.clone());
 
     for &t in &type_order {
         if let Some(entries) = by_type.get(t) {
-            let header = type_headers.get(t).unwrap_or(&t);
+            let type_name = match t {
+                "ATTACK" => &locale.i18n.type_attack,
+                "SKILL" => &locale.i18n.type_skill,
+                "POWER" => &locale.i18n.type_power,
+                "CURSE" => &locale.i18n.type_curse,
+                "STATUS" => &locale.i18n.type_status,
+                _ => t,
+            };
             let total: usize = entries.iter().map(|e| e.count).sum();
-            lines.push(format!("{header}（{total}张）："));
+            lines.push(
+                locale
+                    .card
+                    .type_group
+                    .replace("{type}", type_name)
+                    .replace("{count}", &total.to_string()),
+            );
             for e in entries {
                 let desc_str = if e.description.is_empty() {
                     String::new()
                 } else {
-                    format!(" — {}", clean_description(e.description))
+                    locale
+                        .card
+                        .with_desc
+                        .replace("{desc}", &clean_description(e.description, locale))
                 };
                 let prefix = if e.upgraded { "+" } else { "" };
                 if e.count == 1 {
                     lines.push(format!(
-                        "  {prefix}{}({cost}费){desc_str}",
-                        e.name,
-                        cost = e.cost
-                    ));
-                } else {
-                    lines.push(format!(
-                        "  {prefix}{}({cost}费)（共{count}张）{desc_str}",
+                        "  {prefix}{}({cost}{suffix}){desc_str}",
                         e.name,
                         cost = e.cost,
-                        count = e.count
+                        suffix = locale.card.cost_suffix,
+                        desc_str = desc_str,
+                    ));
+                } else {
+                    let count_multi = locale
+                        .card
+                        .card_count_multi
+                        .replace("{count}", &e.count.to_string());
+                    lines.push(format!(
+                        "  {prefix}{}({cost}{suffix}){count_multi}{desc_str}",
+                        e.name,
+                        cost = e.cost,
+                        suffix = locale.card.cost_suffix,
+                        count_multi = count_multi,
+                        desc_str = desc_str,
                     ));
                 }
             }
@@ -318,21 +414,29 @@ fn format_deck_section(cards: &[CardInfo]) -> String {
     lines.join("\n")
 }
 
-fn build_relics_potions_section(state: &NormalizedState) -> String {
+fn build_relics_potions_section(state: &NormalizedState, locale: &Locale) -> String {
     let mut lines = Vec::new();
 
     if !state.relics.is_empty() {
-        lines.push("=== 遗物 ===".to_string());
+        lines.push(locale.sections.relics.clone());
         for r in &state.relics {
-            lines.push(format!("{}：{}", r.name, r.description));
+            lines.push(format!(
+                "{}：{}",
+                r.name,
+                clean_description(&r.description, locale)
+            ));
         }
         lines.push(String::new());
     }
 
     if !state.potions.is_empty() {
-        lines.push("=== 药水 ===".to_string());
+        lines.push(locale.sections.potions.clone());
         for p in &state.potions {
-            lines.push(format!("{}：{}", p.name, p.description));
+            lines.push(format!(
+                "{}：{}",
+                p.name,
+                clean_description(&p.description, locale)
+            ));
         }
         lines.push(String::new());
     }
@@ -340,111 +444,109 @@ fn build_relics_potions_section(state: &NormalizedState) -> String {
     lines.join("\n")
 }
 
-fn build_combat(state: &NormalizedState) -> String {
+fn build_combat(state: &NormalizedState, locale: &Locale) -> String {
     let mut lines: Vec<String> = vec![
-        "=== 当前状态 ===".to_string(),
-        status_line(state),
+        locale.sections.current_state.clone(),
+        status_line(state, locale),
         String::new(),
-        build_relics_potions_section(state),
-        "=== 任务 ===".to_string(),
-        "这是进入战斗时的一次性建议。请给出整体打法：优先击杀目标、防守底线、药水/遗物注意点；不要逐回合假设后续抽牌。".to_string(),
+        build_relics_potions_section(state, locale),
+        locale.sections.task.clone(),
+        locale.tasks.combat_entry.clone(),
         String::new(),
     ];
 
     if state.danger.no_block_against_hit {
-        lines.push("注意：当前无格挡！".to_string());
+        lines.push(locale.warnings.no_block.clone());
     }
     if state.danger.wrath_stance {
-        lines.push("注意：愤怒姿态下受到双倍伤害。".to_string());
+        lines.push(locale.warnings.wrath_stance.clone());
     }
 
     // Monsters
     if !state.monsters.is_empty() {
-        lines.push(build_monsters_section(state));
+        lines.push(build_monsters_section(state, locale));
     }
 
     // Hand cards with descriptions
     if !state.hand_cards.is_empty() {
-        lines.push(build_hand_section(state));
+        lines.push(build_hand_section(state, locale));
     }
 
     // Draw pile
-    lines.push(compact_pile("=== 抽牌堆", &state.draw_pile));
+    lines.push(compact_pile(
+        &locale.card.pile_draw,
+        &state.draw_pile,
+        locale,
+    ));
 
     // Discard pile
-    lines.push(compact_pile("=== 弃牌堆", &state.discard_pile));
+    lines.push(compact_pile(
+        &locale.card.pile_discard,
+        &state.discard_pile,
+        locale,
+    ));
 
     // Exhaust pile (only if non-empty)
     if !state.exhaust_cards.is_empty() {
-        lines.push(compact_pile("=== 已消耗", &state.exhaust_cards));
+        lines.push(compact_pile(
+            &locale.card.pile_exhaust,
+            &state.exhaust_cards,
+            locale,
+        ));
     }
 
-    lines.push(format_line().to_string());
+    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 
-fn build_card_reward(state: &NormalizedState) -> String {
+fn build_card_reward(state: &NormalizedState, locale: &Locale) -> String {
     let task = if state.is_boss_card_reward() {
-        "请从 Boss 战后的奖励中选择一张牌，或推荐跳过。重点比较：下一幕卡组方向、成长、AOE、过牌、能量、格挡体系、Boss 遗物兼容性和卡组膨胀风险。"
+        &locale.tasks.boss_card_reward
     } else {
-        "请从奖励中选择一张牌，或推荐跳过。重点比较：当前卡组缺口、费用曲线、攻防比例、遗物协同和短期生存压力。"
+        &locale.tasks.card_reward
     };
 
     let mut lines: Vec<String> = vec![
-        "=== 当前状态 ===".to_string(),
-        status_line(state),
+        locale.sections.current_state.clone(),
+        status_line(state, locale),
         String::new(),
-        build_relics_potions_section(state),
-        "=== 任务 ===".to_string(),
-        task.to_string(),
+        build_relics_potions_section(state, locale),
+        locale.sections.task.clone(),
+        task.clone(),
         String::new(),
     ];
 
     if state.is_boss_card_reward() {
-        lines.push(
-            "注意：这是 Boss 战后的选牌。下一幕开始会回满血，不要把当前血量当成选牌依据。"
-                .to_string(),
-        );
+        lines.push(locale.warnings.boss_card_hp_note.clone());
         lines.push(String::new());
     }
 
-    lines.push(format_deck_section(&state.master_cards));
+    lines.push(format_deck_section(&state.master_cards, locale));
 
     // Reward choices
     if !state.card_reward_choices.is_empty() {
-        lines.push("=== 选牌 ===".to_string());
+        lines.push(locale.sections.card_reward.clone());
         for (i, c) in state.card_reward_choices.iter().enumerate() {
             let label = (b'A' + i as u8) as char;
-            let desc = if c.description.is_empty() {
-                String::new()
-            } else {
-                format!(" — {}", clean_description(&c.description))
-            };
-            lines.push(format!(
-                "{label}. {name}({cost}费/{ctype}){desc}",
-                name = c.name,
-                cost = c.cost,
-                ctype = i18n::translate_type(&c.card_type),
-                desc = desc,
-            ));
+            lines.push(format!("{label}. {}", format_card(c, locale)));
         }
         if state.skip_available {
-            lines.push("跳过. 都不选".to_string());
+            lines.push(locale.warnings.skip.clone());
         }
     }
 
-    lines.push(format_line().to_string());
+    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 
-fn build_rest(state: &NormalizedState) -> String {
+fn build_rest(state: &NormalizedState, locale: &Locale) -> String {
     let mut lines: Vec<String> = vec![
-        "=== 当前状态 ===".to_string(),
-        status_line(state),
+        locale.sections.current_state.clone(),
+        status_line(state, locale),
         String::new(),
-        build_relics_potions_section(state),
-        "=== 任务 ===".to_string(),
-        "请在篝火选项中做决定。明确比较休息、锻造和特殊选项的收益，并说明当前血量是否允许贪长期收益。如果推荐锻造，必须写出要升级哪张牌。".to_string(),
+        build_relics_potions_section(state, locale),
+        locale.sections.task.clone(),
+        locale.tasks.rest.clone(),
         String::new(),
     ];
 
@@ -460,18 +562,33 @@ fn build_rest(state: &NormalizedState) -> String {
     upgradeable.sort_by_key(|c| c.name.as_str());
 
     if !upgradeable.is_empty() {
-        let names: Vec<String> = upgradeable.into_iter().map(format_card).collect();
-        lines.push("=== 可锻造升级目标 ===".to_string());
+        let names: Vec<String> = upgradeable
+            .into_iter()
+            .map(|c| format_card(c, locale))
+            .collect();
+        lines.push(locale.sections.upgrade_targets.clone());
         lines.extend(names);
         lines.push(String::new());
     }
 
     if !state.rest_options.is_empty() {
-        lines.push("=== 选项 ===".to_string());
+        lines.push(locale.sections.options.clone());
         let opts: Vec<String> = state
             .rest_options
             .iter()
-            .map(|o| i18n::translate_rest_option(o).to_string())
+            .map(|o| {
+                (match o.as_str() {
+                    "rest" => &locale.i18n.rest_rest,
+                    "smith" => &locale.i18n.rest_smith,
+                    "toke" => &locale.i18n.rest_toke,
+                    "dig" => &locale.i18n.rest_dig,
+                    "lift" => &locale.i18n.rest_lift,
+                    "recall" => &locale.i18n.rest_recall,
+                    "girya" => &locale.i18n.rest_girya,
+                    _ => o.as_str(),
+                })
+                .to_string()
+            })
             .collect();
         lines.push(opts.join("  "));
         lines.push(String::new());
@@ -483,71 +600,80 @@ fn build_rest(state: &NormalizedState) -> String {
     {
         let pct = cur as f64 / max as f64;
         if pct < 0.3 {
-            lines.push("血量极低，强烈建议休息。".to_string());
+            lines.push(locale.warnings.low_hp_rest.clone());
         } else if pct > 0.7 {
-            lines.push("血量健康，可考虑锻造或挖遗物。".to_string());
+            lines.push(locale.warnings.high_hp_smith.clone());
         }
     }
 
-    lines.push(format_line().to_string());
+    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 
-fn build_boss_relic(state: &NormalizedState) -> String {
-    let mut lines: Vec<String> = vec!["=== 当前状态 ===".to_string(), status_line(state)];
+fn build_boss_relic(state: &NormalizedState, locale: &Locale) -> String {
+    let mut lines: Vec<String> = vec![
+        locale.sections.current_state.clone(),
+        status_line(state, locale),
+    ];
 
     let is_act_end = matches!(state.floor, Some(17) | Some(34));
     if is_act_end {
-        lines.push("注意：下一幕开始会回满血，不要把当前血量当成选遗物依据。".to_string());
+        lines.push(locale.warnings.boss_relic_hp_note.clone());
     }
 
     lines.push(String::new());
-    lines.push(build_relics_potions_section(state));
-    lines.push("=== 任务 ===".to_string());
-    lines.push(
-        "请从 Boss 遗物中选择一个。重点比较能量、过牌、卡组方向、已有遗物、药水、下一幕压力和副作用。"
-            .to_string(),
-    );
+    lines.push(build_relics_potions_section(state, locale));
+    lines.push(locale.sections.task.clone());
+    lines.push(locale.tasks.boss_relic.clone());
     lines.push(String::new());
-    lines.push(format_deck_section(&state.master_cards));
+    lines.push(format_deck_section(&state.master_cards, locale));
 
     if !state.boss_relic_choices.is_empty() {
-        lines.push("=== Boss 遗物 ===".to_string());
+        lines.push(locale.sections.boss_relic.clone());
         for (i, relic) in state.boss_relic_choices.iter().enumerate() {
             let label = (b'A' + i as u8) as char;
-            lines.push(format!("{label}. {}", relic.name));
+            lines.push(format!(
+                "{label}. {} — {}",
+                relic.name,
+                clean_description(&relic.description, locale)
+            ));
         }
         lines.push(String::new());
     }
 
-    lines.push(format_line().to_string());
+    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 
-fn build_event_choice(state: &NormalizedState) -> String {
+fn build_event_choice(state: &NormalizedState, locale: &Locale) -> String {
     let mut lines: Vec<String> = vec![
-        "=== 当前状态 ===".to_string(),
-        status_line(state),
+        locale.sections.current_state.clone(),
+        status_line(state, locale),
         String::new(),
-        build_relics_potions_section(state),
-        "=== 任务 ===".to_string(),
-        "请在事件选项中做决定。比较血量、金币、卡组质量、遗物、诅咒/删牌/升级收益和长期风险；信息不足或选项文本不可读时明确说明不确定，不要根据乱码猜测收益。".to_string(),
+        build_relics_potions_section(state, locale),
+        locale.sections.task.clone(),
+        locale.tasks.event_choice.clone(),
         String::new(),
     ];
 
     if state.event_name.is_some() || state.event_id.is_some() || state.room_type.is_some() {
-        lines.push("=== 事件 ===".to_string());
+        lines.push(locale.sections.event.clone());
         if let Some(name) = &state.event_name {
             lines.push(name.clone());
         }
         if let Some(id) = &state.event_id {
-            lines.push(format!("事件ID：{id}"));
+            lines.push(locale.warnings.event_id.replace("{id}", id));
         }
         if state.event_name.is_none()
             && state.event_id.is_none()
             && let Some(room_type) = &state.room_type
         {
-            lines.push(format!("事件文本不可读（房间：{room_type}）"));
+            lines.push(
+                locale
+                    .warnings
+                    .event_unreadable
+                    .replace("{room_type}", room_type),
+            );
         }
     }
     if let Some(body) = &state.event_body {
@@ -556,7 +682,7 @@ fn build_event_choice(state: &NormalizedState) -> String {
     }
 
     if !state.event_choices.is_empty() {
-        lines.push("=== 选项 ===".to_string());
+        lines.push(locale.sections.options.clone());
         for (i, choice) in state.event_choices.iter().enumerate() {
             let label = (b'A' + i as u8) as char;
             lines.push(format!("{label}. {choice}"));
@@ -564,23 +690,23 @@ fn build_event_choice(state: &NormalizedState) -> String {
         lines.push(String::new());
     }
 
-    lines.push(format_line().to_string());
+    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 
-fn build_generic(state: &NormalizedState) -> String {
+fn build_generic(state: &NormalizedState, locale: &Locale) -> String {
     let mut lines: Vec<String> = vec![
-        "=== 当前状态 ===".to_string(),
-        status_line(state),
+        locale.sections.current_state.clone(),
+        status_line(state, locale),
         String::new(),
-        build_relics_potions_section(state),
-        "=== 任务 ===".to_string(),
-        "请基于当前状态给出一个简短、可执行的下一步建议。".to_string(),
+        build_relics_potions_section(state, locale),
+        locale.sections.task.clone(),
+        locale.tasks.generic.clone(),
         String::new(),
     ];
 
     if !state.monsters.is_empty() {
-        lines.push(build_monsters_section(state));
+        lines.push(build_monsters_section(state, locale));
     }
 
     if !state.hand_cards.is_empty() {
@@ -598,25 +724,30 @@ fn build_generic(state: &NormalizedState) -> String {
                 }
             })
             .collect();
-        lines.push(format!("手牌：{}", cards.join(" ")));
+        lines.push(
+            locale
+                .sections
+                .hand_cards
+                .replace("{cards}", &cards.join(" ")),
+        );
     }
 
-    lines.push(format_line().to_string());
+    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 
-fn format_line() -> &'static str {
-    "\n请按格式用中文回复（120字内，直接给结论）：\n推荐：\n理由：\n风险：\n吐槽："
+fn format_line(locale: &Locale) -> &str {
+    &locale.format_footer
 }
 
-pub fn build_prompt(state: &NormalizedState) -> String {
+pub fn build_prompt(state: &NormalizedState, locale: &Locale) -> String {
     match state.screen_type.as_deref() {
-        Some("CARD_REWARD") => build_card_reward(state),
-        Some("BOSS_REWARD") => build_boss_relic(state),
-        Some("REST") => build_rest(state),
-        Some("EVENT") => build_event_choice(state),
-        _ if !state.monsters.is_empty() => build_combat(state),
-        _ => build_generic(state),
+        Some("CARD_REWARD") => build_card_reward(state, locale),
+        Some("BOSS_REWARD") => build_boss_relic(state, locale),
+        Some("REST") => build_rest(state, locale),
+        Some("EVENT") => build_event_choice(state, locale),
+        _ if !state.monsters.is_empty() => build_combat(state, locale),
+        _ => build_generic(state, locale),
     }
 }
 

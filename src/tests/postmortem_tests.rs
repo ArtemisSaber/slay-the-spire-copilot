@@ -9,7 +9,7 @@ fn event_line(value: Value) -> String {
 fn normalized_fixture(name: &str) -> Value {
     let content = std::fs::read_to_string(format!("tests/fixtures/{name}")).unwrap();
     let raw: Value = serde_json::from_str(&content).unwrap();
-    let state = NormalizedState::from_raw(&raw);
+    let state = NormalizedState::from_raw(&raw, &crate::test_utils::test_locale());
     serde_json::to_value(state).unwrap()
 }
 
@@ -40,14 +40,16 @@ fn write_report_for_journal_writes_markdown_file() {
     )
     .unwrap();
 
-    let report = generate_report_from_journal_file(&journal_path).unwrap();
+    let report =
+        generate_report_from_journal_file(&journal_path, &crate::test_utils::test_locale())
+            .unwrap();
     let report_path = write_report_for_journal(&journal_path, &report).unwrap();
 
     assert_eq!(report_path, dir.path().join("postmortem.md"));
     assert!(
         std::fs::read_to_string(report_path)
             .unwrap()
-            .contains("# Slay the Spire Postmortem")
+            .contains("# 本局复盘")
     );
 }
 
@@ -59,7 +61,7 @@ fn postmortem_summarizes_run_start_and_end() {
     ]
     .join("\n");
 
-    let report = generate_report_from_jsonl(&input).unwrap();
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("Started: 123"));
     assert!(report.contains("Ended: stdin_closed"));
@@ -68,7 +70,8 @@ fn postmortem_summarizes_run_start_and_end() {
 #[test]
 fn postmortem_summarizes_last_observed_state() {
     let state = normalized_fixture("combat-state.json");
-    let report = generate_report_from_jsonl(&state_event(state)).unwrap();
+    let report =
+        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("Floor: 1"));
     assert!(report.contains("HP: 68/75"));
@@ -86,9 +89,9 @@ fn postmortem_lists_advice_events() {
         "advice": "推荐：选A\n理由：强"
     }));
 
-    let report = generate_report_from_jsonl(&input).unwrap();
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
 
-    assert!(report.contains("## Advice"));
+    assert!(report.contains("## 关键决策"));
     assert!(report.contains("abc123"));
     assert!(report.contains("推荐：选A"));
 }
@@ -105,7 +108,7 @@ fn postmortem_infers_card_reward_pick_from_deck_diff() {
         .push(json!({"id":"Uppercut","name":"Uppercut","cost":2,"card_type":"ATTACK","upgraded":false,"uuid":"new-card"}));
 
     let input = [state_event(reward), state_event(after)].join("\n");
-    let report = generate_report_from_jsonl(&input).unwrap();
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("Picked: Uppercut"));
 }
@@ -118,7 +121,7 @@ fn postmortem_infers_skip_when_deck_unchanged() {
     after["card_reward_choices"] = Value::Array(vec![]);
 
     let input = [state_event(reward), state_event(after)].join("\n");
-    let report = generate_report_from_jsonl(&input).unwrap();
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("Likely skipped"));
 }
@@ -126,19 +129,25 @@ fn postmortem_infers_skip_when_deck_unchanged() {
 #[test]
 fn postmortem_handles_empty_or_partial_journal() {
     assert!(
-        generate_report_from_jsonl("")
+        generate_report_from_jsonl("", &crate::test_utils::test_locale())
             .unwrap_err()
             .contains("No journal events")
     );
 
-    let report =
-        generate_report_from_jsonl("not json\n{\"event\":\"run_started\",\"ts_ms\":1}").unwrap();
+    let report = generate_report_from_jsonl(
+        "not json\n{\"event\":\"run_started\",\"ts_ms\":1}",
+        &crate::test_utils::test_locale(),
+    )
+    .unwrap();
     assert!(report.contains("Ignored malformed lines: 1"));
 }
 
 #[test]
 fn ai_postmortem_prompt_wraps_deterministic_report() {
-    let prompt = build_ai_postmortem_prompt("# Slay the Spire Postmortem\n- Floor: 5");
+    let prompt = build_ai_postmortem_prompt(
+        "# Slay the Spire Postmortem\n- Floor: 5",
+        &crate::test_utils::test_locale(),
+    );
 
     assert!(prompt.contains("中文复盘报告"));
     assert!(prompt.contains("不要补充日志里没有的内容"));

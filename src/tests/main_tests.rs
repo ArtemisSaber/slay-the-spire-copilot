@@ -227,13 +227,20 @@ async fn finalize_run_writes_postmortem_report() {
         "../../tests/fixtures/combat-state.json"
     ))
     .unwrap();
-    let state = crate::state::NormalizedState::from_raw(&raw);
+    let state = crate::state::NormalizedState::from_raw(&raw, &crate::test_utils::test_locale());
     let provider = crate::llm::LlmProvider::Mock;
     let mut finalized = false;
 
     journal.log_run_started_with_config(&config);
     journal.log_state_change(&state.stable_hash(), &state);
-    finalize_run_once(&journal, &provider, "game_over", &mut finalized).await;
+    finalize_run_once(
+        &journal,
+        &provider,
+        "game_over",
+        &mut finalized,
+        &crate::test_utils::test_locale(),
+    )
+    .await;
 
     assert!(finalized);
     let report = std::fs::read_to_string(dir.path().join("run-1").join("postmortem.md")).unwrap();
@@ -252,8 +259,22 @@ async fn finalize_run_is_idempotent() {
     let mut finalized = false;
 
     journal.log_run_started_with_config(&config);
-    finalize_run_once(&journal, &provider, "game_over", &mut finalized).await;
-    finalize_run_once(&journal, &provider, "stdin_closed", &mut finalized).await;
+    finalize_run_once(
+        &journal,
+        &provider,
+        "game_over",
+        &mut finalized,
+        &crate::test_utils::test_locale(),
+    )
+    .await;
+    finalize_run_once(
+        &journal,
+        &provider,
+        "stdin_closed",
+        &mut finalized,
+        &crate::test_utils::test_locale(),
+    )
+    .await;
 
     let events = std::fs::read_to_string(journal.path()).unwrap();
     assert_eq!(events.matches("\"event\":\"run_ended\"").count(), 1);

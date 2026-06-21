@@ -1,4 +1,13 @@
+use std::sync::LazyLock;
+
 use serde_json::Value;
+
+static TEST_LOCALE: LazyLock<crate::locales::Locale> =
+    LazyLock::new(|| crate::locales::Locale::load("zh"));
+
+pub fn test_locale() -> &'static crate::locales::Locale {
+    &TEST_LOCALE
+}
 
 pub fn load_fixture(name: &str) -> Value {
     let path = format!("tests/fixtures/{name}");

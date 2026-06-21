@@ -1,6 +1,11 @@
 use super::*;
+use crate::locales::Locale;
 use crate::state::{DangerFlags, DangerLevel, MonsterInfo, PowerInfo, RelicInfo};
 use crate::test_utils::card;
+
+fn test_locale() -> Locale {
+    Locale::load("zh")
+}
 
 fn test_state() -> NormalizedState {
     NormalizedState {
@@ -48,6 +53,7 @@ fn test_state() -> NormalizedState {
 
 #[test]
 fn combat_prompt_shows_all_three_piles() {
+    let locale = test_locale();
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
@@ -68,7 +74,7 @@ fn combat_prompt_shows_all_three_piles() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== 手牌"));
     assert!(prompt.contains("=== 抽牌堆"));
     assert!(prompt.contains("=== 弃牌堆"));
@@ -79,6 +85,7 @@ fn combat_prompt_shows_all_three_piles() {
 
 #[test]
 fn combat_prompt_marks_entry_plan_task() {
+    let locale = test_locale();
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
@@ -96,7 +103,7 @@ fn combat_prompt_marks_entry_plan_task() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== 任务 ==="));
     assert!(prompt.contains("进入战斗"));
     assert!(prompt.contains("整体打法"));
@@ -105,6 +112,7 @@ fn combat_prompt_marks_entry_plan_task() {
 
 #[test]
 fn monster_section_shows_index_and_intent() {
+    let locale = test_locale();
     let state = NormalizedState {
         monsters: vec![
             MonsterInfo {
@@ -137,7 +145,7 @@ fn monster_section_shows_index_and_intent() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("[0]"));
     assert!(prompt.contains("[1]"));
     assert!(prompt.contains("意图：攻击"));
@@ -149,6 +157,7 @@ fn monster_section_shows_index_and_intent() {
 
 #[test]
 fn monster_section_shows_scaling() {
+    let locale = test_locale();
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
@@ -169,13 +178,14 @@ fn monster_section_shows_scaling() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("成长中"));
     assert!(prompt.contains("力量(2)"));
 }
 
 #[test]
 fn card_reward_shows_card_choices() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         character: Some("IRONCLAD".into()),
@@ -190,7 +200,7 @@ fn card_reward_shows_card_choices() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("A. 上勾拳"));
     assert!(prompt.contains("B. 愤怒"));
     assert!(prompt.contains("2费"));
@@ -199,6 +209,7 @@ fn card_reward_shows_card_choices() {
 
 #[test]
 fn card_reward_prompt_marks_pick_or_skip_task() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         floor: Some(14),
@@ -207,7 +218,7 @@ fn card_reward_prompt_marks_pick_or_skip_task() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== 任务 ==="));
     assert!(prompt.contains("选择一张牌"));
     assert!(prompt.contains("推荐跳过"));
@@ -215,6 +226,7 @@ fn card_reward_prompt_marks_pick_or_skip_task() {
 
 #[test]
 fn boss_card_reward_prompt_includes_full_heal_note() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         floor: Some(16),
@@ -225,7 +237,7 @@ fn boss_card_reward_prompt_includes_full_heal_note() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(
         prompt.contains(
             "注意：这是 Boss 战后的选牌。下一幕开始会回满血，不要把当前血量当成选牌依据。"
@@ -237,6 +249,7 @@ fn boss_card_reward_prompt_includes_full_heal_note() {
 
 #[test]
 fn ordinary_card_reward_prompt_omits_full_heal_note() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         floor: Some(14),
@@ -247,7 +260,7 @@ fn ordinary_card_reward_prompt_omits_full_heal_note() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(
         !prompt.contains(
             "注意：这是 Boss 战后的选牌。下一幕开始会回满血，不要把当前血量当成选牌依据。"
@@ -257,6 +270,7 @@ fn ordinary_card_reward_prompt_omits_full_heal_note() {
 
 #[test]
 fn card_reward_shows_skip_when_available() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         card_reward_choices: vec![card("Uppercut", "Uppercut", 2, "ATTACK")],
@@ -265,12 +279,13 @@ fn card_reward_shows_skip_when_available() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("跳过. 都不选"));
 }
 
 #[test]
 fn card_reward_no_skip_when_unavailable() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         card_reward_choices: vec![card("Uppercut", "Uppercut", 2, "ATTACK")],
@@ -279,14 +294,15 @@ fn card_reward_no_skip_when_unavailable() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(!prompt.contains("跳过. 都不选"));
 }
 
 #[test]
 fn deck_section_groups_single_type() {
+    let locale = test_locale();
     let cards = vec![card("Strike_R", "打击", 1, "ATTACK"); 5];
-    let output = format_deck_section(&cards);
+    let output = format_deck_section(&cards, &locale);
     assert!(output.contains("攻击（5张）："));
     assert!(output.contains("打击(1费)（共5张）"));
     assert!(!output.contains("技能"));
@@ -295,9 +311,10 @@ fn deck_section_groups_single_type() {
 
 #[test]
 fn deck_section_shows_cards_by_type_with_counts() {
+    let locale = test_locale();
     let mut cards = vec![card("Strike_R", "打击", 1, "ATTACK"); 4];
     cards.extend(vec![card("Defend_R", "防御", 1, "SKILL"); 2]);
-    let output = format_deck_section(&cards);
+    let output = format_deck_section(&cards, &locale);
 
     assert!(output.contains("=== 卡组 ==="));
     assert!(output.contains("攻击（4张）："));
@@ -308,7 +325,8 @@ fn deck_section_shows_cards_by_type_with_counts() {
 
 #[test]
 fn prompt_is_structured() {
-    let prompt = build_prompt(&test_state());
+    let locale = test_locale();
+    let prompt = build_prompt(&test_state(), &locale);
     assert!(prompt.contains("=== 当前状态 ==="));
     assert!(prompt.contains("推荐："));
     assert!(prompt.contains("理由："));
@@ -318,6 +336,7 @@ fn prompt_is_structured() {
 
 #[test]
 fn rest_prompt_has_translated_options() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         character: Some("IRONCLAD".into()),
@@ -333,20 +352,21 @@ fn rest_prompt_has_translated_options() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("休息"));
     assert!(prompt.contains("锻造"));
 }
 
 #[test]
 fn rest_prompt_marks_campfire_decision_task() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         rest_options: vec!["rest".into(), "smith".into()],
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== 任务 ==="));
     assert!(prompt.contains("篝火选项"));
     assert!(prompt.contains("休息"));
@@ -355,6 +375,7 @@ fn rest_prompt_marks_campfire_decision_task() {
 
 #[test]
 fn rest_prompt_requires_smith_upgrade_target() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         rest_options: vec!["smith".into()],
@@ -365,7 +386,7 @@ fn rest_prompt_requires_smith_upgrade_target() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("必须写出要升级哪张牌"));
     assert!(prompt.contains("=== 可锻造升级目标 ==="));
     assert!(prompt.contains("痛击"));
@@ -374,6 +395,7 @@ fn rest_prompt_requires_smith_upgrade_target() {
 
 #[test]
 fn boss_relic_prompt_lists_choices() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("BOSS_REWARD".into()),
         boss_relic_choices: vec![
@@ -394,7 +416,7 @@ fn boss_relic_prompt_lists_choices() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== Boss 遗物 ==="));
     assert!(prompt.contains("A. 蛇眼"));
     assert!(prompt.contains("B. 符文圆顶"));
@@ -404,6 +426,7 @@ fn boss_relic_prompt_lists_choices() {
 
 #[test]
 fn event_prompt_lists_event_text_and_choices() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("EVENT".into()),
         event_id: None,
@@ -413,7 +436,7 @@ fn event_prompt_lists_event_text_and_choices() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== 事件 ==="));
     assert!(prompt.contains("金神像"));
     assert!(prompt.contains("一个金色神像闪闪发光。"));
@@ -423,6 +446,7 @@ fn event_prompt_lists_event_text_and_choices() {
 
 #[test]
 fn event_prompt_does_not_emit_question_mark_garble() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("EVENT".into()),
         room_type: Some("NeowRoom".into()),
@@ -436,7 +460,7 @@ fn event_prompt_does_not_emit_question_mark_garble() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("事件文本不可读（房间：NeowRoom）"));
     assert!(prompt.contains("A. 选项 1（事件文本不可读，请在游戏内核对按钮）"));
     assert!(prompt.contains("B. 选项 2（事件文本不可读，请在游戏内核对按钮）"));
@@ -445,12 +469,13 @@ fn event_prompt_does_not_emit_question_mark_garble() {
 
 #[test]
 fn generic_prompt_shows_status_and_format() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: None,
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== 当前状态 ==="));
     assert!(prompt.contains("角色：铁甲战士"));
     assert!(prompt.contains("推荐："));
@@ -458,6 +483,7 @@ fn generic_prompt_shows_status_and_format() {
 
 #[test]
 fn rest_prompt_advises_rest_when_hp_low() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         current_hp: Some(15),
@@ -466,12 +492,13 @@ fn rest_prompt_advises_rest_when_hp_low() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("血量极低，强烈建议休息。"));
 }
 
 #[test]
 fn rest_prompt_suggests_smith_when_hp_high() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         current_hp: Some(60),
@@ -480,12 +507,13 @@ fn rest_prompt_suggests_smith_when_hp_high() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("血量健康，可考虑锻造或挖遗物。"));
 }
 
 #[test]
 fn danger_prefix_shows_wrath_warning() {
+    let locale = test_locale();
     let state = NormalizedState {
         powers: vec![PowerInfo {
             name: "Wrath".into(),
@@ -513,20 +541,22 @@ fn danger_prefix_shows_wrath_warning() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("愤怒姿态下受到双倍伤害"));
 }
 
 #[test]
 fn compact_pile_aggregates_duplicates() {
+    let locale = test_locale();
     let cards = vec![card("Strike_R", "打击", 1, "ATTACK"); 3];
-    let output = super::compact_pile("=== 抽牌堆", &cards);
+    let output = super::compact_pile("=== 抽牌堆", &cards, &locale);
     assert!(output.contains("抽牌堆（3张）"));
     assert!(output.contains("打击×3"));
 }
 
 #[test]
 fn monster_shows_multi_hit_damage() {
+    let locale = test_locale();
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
@@ -544,7 +574,7 @@ fn monster_shows_multi_hit_damage() {
         ..test_state()
     };
 
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("（×3）"));
 }
 
@@ -552,49 +582,56 @@ fn monster_shows_multi_hit_damage() {
 
 #[test]
 fn clean_strips_markers() {
-    let out = clean_description("*Smite* into your hand.");
+    let locale = test_locale();
+    let out = clean_description("*Smite* into your hand.", &locale);
     assert!(!out.contains('*'));
     assert!(out.contains("Smite"));
 }
 
 #[test]
 fn clean_replaces_energy_tokens() {
-    let out = clean_description("gain [E] .");
+    let locale = test_locale();
+    let out = clean_description("gain [E] .", &locale);
     assert_eq!(out, "gain 能量 .");
 }
 
 #[test]
 fn clean_replaces_all_energy_colors() {
-    let out = clean_description("[R] [G] [B] [W] [E]");
+    let locale = test_locale();
+    let out = clean_description("[R] [G] [B] [W] [E]", &locale);
     assert_eq!(out, "能量5");
 }
 
 #[test]
 fn clean_compacts_multiple_energy_tokens() {
-    let out = clean_description("with [E] [E] [E] .");
+    let locale = test_locale();
+    let out = clean_description("with [E] [E] [E] .", &locale);
     assert_eq!(out, "with 能量3 .");
 }
 
 #[test]
 fn clean_preserves_game_text() {
-    let out = clean_description("Deal 6 damage.");
+    let locale = test_locale();
+    let out = clean_description("Deal 6 damage.", &locale);
     assert_eq!(out, "Deal 6 damage.");
 }
 
 #[test]
 fn clean_compacts_two_energy() {
-    let out = clean_description("获得 [R] [R] 。");
+    let locale = test_locale();
+    let out = clean_description("获得 [R] [R] 。", &locale);
     assert_eq!(out, "获得 能量2 。");
 }
 
 #[test]
 fn format_card_includes_name_cost_type_and_description() {
+    let locale = test_locale();
     let c = CardInfo {
         name: "上勾拳".into(),
         description: "造成 13 点伤害。\n给予 1 层 虚弱 。".into(),
         ..card("Uppercut", "上勾拳", 2, "ATTACK")
     };
-    let out = format_card(&c);
+    let out = format_card(&c, &locale);
     assert!(out.contains("上勾拳"));
     assert!(out.contains("2费/攻击"));
     assert!(out.contains("13 点伤害"));
@@ -603,13 +640,14 @@ fn format_card_includes_name_cost_type_and_description() {
 
 #[test]
 fn format_card_shows_plus_for_upgraded() {
+    let locale = test_locale();
     let c = CardInfo {
         name: "防御".into(),
         description: "获得 8 点 格挡 。".into(),
         upgraded: true,
         ..card("Defend_R", "防御", 1, "SKILL")
     };
-    let out = format_card(&c);
+    let out = format_card(&c, &locale);
     assert!(out.starts_with("+"));
     assert!(out.contains("8 点 格挡"));
 }
@@ -618,30 +656,33 @@ fn format_card_shows_plus_for_upgraded() {
 
 #[test]
 fn build_prompt_routes_card_reward() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("CARD_REWARD".into()),
         card_reward_choices: vec![card("Strike_R", "Strike", 1, "ATTACK")],
         ..test_state()
     };
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== 选牌 ==="));
     assert!(!prompt.contains("=== 手牌"));
 }
 
 #[test]
 fn build_prompt_routes_rest() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         rest_options: vec!["rest".into()],
         ..test_state()
     };
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== 选项 ==="));
     assert!(!prompt.contains("=== 手牌"));
 }
 
 #[test]
 fn build_prompt_routes_boss_relic() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("BOSS_REWARD".into()),
         boss_relic_choices: vec![RelicInfo {
@@ -650,23 +691,25 @@ fn build_prompt_routes_boss_relic() {
         }],
         ..test_state()
     };
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("Boss 遗物"));
 }
 
 #[test]
 fn build_prompt_routes_event_choice() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("EVENT".into()),
         event_choices: vec!["离开".into()],
         ..test_state()
     };
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("事件选项"));
 }
 
 #[test]
 fn build_prompt_routes_combat_when_monsters_present() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: None,
         monsters: vec![MonsterInfo {
@@ -684,18 +727,19 @@ fn build_prompt_routes_combat_when_monsters_present() {
         }],
         ..test_state()
     };
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== 怪物"));
     assert!(!prompt.contains("=== 选牌 ==="));
 }
 
 #[test]
 fn build_prompt_routes_generic_when_no_monsters() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: None,
         ..test_state()
     };
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== 当前状态 ==="));
     assert!(!prompt.contains("=== 怪物"));
     assert!(!prompt.contains("=== 选牌 ==="));
@@ -706,12 +750,14 @@ fn build_prompt_routes_generic_when_no_monsters() {
 
 #[test]
 fn clean_three_energy_tokens() {
-    let out = clean_description("获得 [R] [R] [R] 。");
+    let locale = test_locale();
+    let out = clean_description("获得 [R] [R] [R] 。", &locale);
     assert_eq!(out, "获得 能量3 。");
 }
 
 #[test]
 fn danger_prefix_empty_reasons() {
+    let locale = test_locale();
     let state = NormalizedState {
         danger: DangerFlags {
             hp_critical: false,
@@ -723,12 +769,13 @@ fn danger_prefix_empty_reasons() {
         },
         ..test_state()
     };
-    let output = danger_prefix(&state);
+    let output = danger_prefix(&state, &locale);
     assert_eq!(output, "危险！");
 }
 
 #[test]
 fn status_line_shows_block_warning() {
+    let locale = test_locale();
     let state = NormalizedState {
         block: Some(5),
         incoming_damage: 12,
@@ -747,12 +794,13 @@ fn status_line_shows_block_warning() {
         }],
         ..test_state()
     };
-    let output = status_line(&state);
+    let output = status_line(&state, &locale);
     assert!(output.contains("需格挡！"));
 }
 
 #[test]
 fn status_line_no_block_warning_when_block_sufficient() {
+    let locale = test_locale();
     let state = NormalizedState {
         block: Some(20),
         incoming_damage: 12,
@@ -771,12 +819,13 @@ fn status_line_no_block_warning_when_block_sufficient() {
         }],
         ..test_state()
     };
-    let output = status_line(&state);
+    let output = status_line(&state, &locale);
     assert!(!output.contains("需格挡！"));
 }
 
 #[test]
 fn monster_with_block() {
+    let locale = test_locale();
     let m = MonsterInfo {
         name: "大颚虫".into(),
         index: 0,
@@ -790,12 +839,13 @@ fn monster_with_block() {
         can_be_killed: false,
         is_scaling: false,
     };
-    let output = format_monster(&m);
+    let output = format_monster(&m, &locale);
     assert!(output.contains("格挡：8"));
 }
 
 #[test]
 fn rest_shows_upgradeable_cards() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         current_hp: Some(45),
@@ -810,12 +860,13 @@ fn rest_shows_upgradeable_cards() {
         ],
         ..test_state()
     };
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== 可锻造升级目标 ==="));
 }
 
 #[test]
 fn rest_no_upgradeable_when_all_upgraded() {
+    let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some("REST".into()),
         current_hp: Some(45),
@@ -827,28 +878,31 @@ fn rest_no_upgradeable_when_all_upgraded() {
         }],
         ..test_state()
     };
-    let prompt = build_prompt(&state);
+    let prompt = build_prompt(&state, &locale);
     assert!(!prompt.contains("=== 可升级卡牌 ==="));
 }
 
 #[test]
 fn compact_pile_empty() {
+    let locale = test_locale();
     let cards: Vec<CardInfo> = vec![];
-    let output = compact_pile("=== 抽牌堆", &cards);
+    let output = compact_pile("=== 抽牌堆", &cards, &locale);
     assert_eq!(output, "=== 抽牌堆（0张）\n");
 }
 
 #[test]
 fn deck_section_empty() {
+    let locale = test_locale();
     let cards: Vec<CardInfo> = vec![];
-    let output = format_deck_section(&cards);
+    let output = format_deck_section(&cards, &locale);
     assert_eq!(output, "");
 }
 
 #[test]
 fn deck_section_single_cards() {
+    let locale = test_locale();
     let cards = vec![card("Strike_R", "打击", 1, "ATTACK")];
-    let output = format_deck_section(&cards);
+    let output = format_deck_section(&cards, &locale);
     assert!(output.contains("打击(1费)"));
     assert!(!output.contains("（共"));
 }
