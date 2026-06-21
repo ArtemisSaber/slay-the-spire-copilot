@@ -866,11 +866,7 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
                 .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
                 .collect();
             let desc = describe_path(path, floor);
-            lines.push(format!(
-                "Route {} ({}):",
-                i + 1,
-                pos
-            ));
+            lines.push(format!("Route {} ({}):", i + 1, pos));
             lines.push(format!("  {}  [{}]", route.join("→"), desc.counts));
             let mut ann_line = format!("  {}", desc.route_chain);
             if !desc.annotations.is_empty() {
@@ -891,11 +887,7 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
                     .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
                     .collect();
                 let desc = describe_path(path, floor);
-                lines.push(format!(
-                    "  {}  [{}]",
-                    route.join("→"),
-                    desc.counts
-                ));
+                lines.push(format!("  {}  [{}]", route.join("→"), desc.counts));
                 let mut ann_line = format!("  {}", desc.route_chain);
                 if !desc.annotations.is_empty() {
                     ann_line.push_str(&format!("  {}", desc.annotations.join("  ")));
