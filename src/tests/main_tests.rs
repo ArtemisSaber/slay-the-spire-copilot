@@ -6,12 +6,16 @@ fn make_state(screen_type: &str, monsters: Option<Vec<serde_json::Value>>) -> se
         "in_game": true,
         "game_state": {
             "screen_type": screen_type,
+            "action_phase": "WAITING_ON_USER",
             "floor": 1,
             "room_type": "MonsterRoom",
         }
     });
     if let Some(monster_list) = monsters {
-        state["game_state"]["combat_state"] = json!({"monsters": monster_list});
+        state["game_state"]["combat_state"] = json!({
+            "monsters": monster_list,
+            "turn": 1,
+        });
     }
     state
 }
@@ -147,28 +151,43 @@ fn event_with_single_choice_does_not_generate_advice() {
 }
 
 #[test]
-fn combat_entry_generates_advice_on_first_combat_state() {
-    let mut gate = AdviceGate::new();
+fn combat_entry_generates_advice_on_player_turn_start() {
+    let mut gate = CombatTurnGate::new();
     let state = with_monsters("NONE");
 
-    assert!(gate.should_generate("NONE", &state));
+    assert!(gate.is_player_turn_start(&state));
 }
 
 #[test]
-fn combat_followup_state_does_not_generate_advice() {
-    let mut gate = AdviceGate::new();
+fn combat_same_turn_does_not_generate() {
+    let mut gate = CombatTurnGate::new();
     let state = with_monsters("NONE");
 
-    assert!(gate.should_generate("NONE", &state));
-    assert!(!gate.should_generate("NONE", &state));
+    assert!(gate.is_player_turn_start(&state));
+    assert!(!gate.is_player_turn_start(&state));
 }
 
 #[test]
-fn combat_entry_requires_active_monsters() {
-    let mut gate = AdviceGate::new();
+fn combat_entry_requires_waiting_on_user() {
+    let mut gate = CombatTurnGate::new();
 
-    assert!(!gate.should_generate("NONE", &without_monsters("NONE")));
-    assert!(!gate.should_generate("NONE", &make_state("NONE", Some(vec![gone_monster()]))));
+    assert!(!gate.is_player_turn_start(&without_monsters("NONE")));
+    assert!(!gate.is_player_turn_start(&make_state("NONE", Some(vec![gone_monster()]))));
+
+    let mut non_waiting = with_monsters("NONE");
+    non_waiting["game_state"]["action_phase"] = json!("EXECUTING_ACTIONS");
+    assert!(!gate.is_player_turn_start(&non_waiting));
+}
+
+#[test]
+fn combat_new_turn_generates_advice() {
+    let mut gate = CombatTurnGate::new();
+    let state = with_monsters("NONE");
+    assert!(gate.is_player_turn_start(&state));
+
+    let mut state2 = state.clone();
+    state2["game_state"]["combat_state"]["turn"] = json!(2);
+    assert!(gate.is_player_turn_start(&state2));
 }
 
 #[test]

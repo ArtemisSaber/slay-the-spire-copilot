@@ -131,8 +131,14 @@ fn clean_description(raw: &str, locale: &Locale) -> String {
     }
     for n in (2..=10).rev() {
         let pattern: String = (0..n).map(|_| energy).collect::<Vec<_>>().join(" ");
-        let replacement = format!("{energy}{n}");
+        let replacement = format!("{n} {energy}");
         result = result.replace(&pattern, &replacement);
+    }
+    while result.contains("  ") {
+        result = result.replace("  ", " ");
+    }
+    for punct in [".", ",", ";", "!", "?", "。", "、"] {
+        result = result.replace(&format!(" {punct}"), punct);
     }
     result
 }

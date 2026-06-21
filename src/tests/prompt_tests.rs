@@ -105,9 +105,9 @@ fn combat_prompt_marks_entry_plan_task() {
 
     let prompt = build_prompt(&state, &locale);
     assert!(prompt.contains("=== 任务 ==="));
-    assert!(prompt.contains("进入战斗"));
-    assert!(prompt.contains("整体打法"));
-    assert!(prompt.contains("不要逐回合假设后续抽牌"));
+    assert!(prompt.contains("本回合"));
+    assert!(prompt.contains("最佳出牌"));
+    assert!(prompt.contains("不要写分析过程"));
 }
 
 #[test]
@@ -592,21 +592,21 @@ fn clean_strips_markers() {
 fn clean_replaces_energy_tokens() {
     let locale = test_locale();
     let out = clean_description("gain [E] .", &locale);
-    assert_eq!(out, "gain 能量 .");
+    assert_eq!(out, "gain 能量.");
 }
 
 #[test]
 fn clean_replaces_all_energy_colors() {
     let locale = test_locale();
     let out = clean_description("[R] [G] [B] [W] [E]", &locale);
-    assert_eq!(out, "能量5");
+    assert_eq!(out, "5 能量");
 }
 
 #[test]
 fn clean_compacts_multiple_energy_tokens() {
     let locale = test_locale();
     let out = clean_description("with [E] [E] [E] .", &locale);
-    assert_eq!(out, "with 能量3 .");
+    assert_eq!(out, "with 3 能量.");
 }
 
 #[test]
@@ -620,7 +620,7 @@ fn clean_preserves_game_text() {
 fn clean_compacts_two_energy() {
     let locale = test_locale();
     let out = clean_description("获得 [R] [R] 。", &locale);
-    assert_eq!(out, "获得 能量2 。");
+    assert_eq!(out, "获得 2 能量。");
 }
 
 #[test]
@@ -752,7 +752,7 @@ fn build_prompt_routes_generic_when_no_monsters() {
 fn clean_three_energy_tokens() {
     let locale = test_locale();
     let out = clean_description("获得 [R] [R] [R] 。", &locale);
-    assert_eq!(out, "获得 能量3 。");
+    assert_eq!(out, "获得 3 能量。");
 }
 
 #[test]

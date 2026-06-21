@@ -2,7 +2,7 @@
   "available_commands": [
     "choose",
     "potion",
-    "proceed",
+    "return",
     "key",
     "click",
     "wait",
@@ -12,34 +12,360 @@
   "in_game": true,
   "game_state": {
     "choice_list": [
-      "gold",
-      "potion",
-      "card"
+      "x\u003d6"
     ],
-    "screen_type": "COMBAT_REWARD",
+    "screen_type": "MAP",
     "screen_state": {
-      "rewards": [
+      "first_node_chosen": true,
+      "current_node": {
+        "symbol": "M",
+        "x": 6,
+        "y": 4
+      },
+      "boss_available": false,
+      "next_nodes": [
         {
-          "gold": 15,
-          "reward_type": "GOLD"
-        },
-        {
-          "potion": {
-            "requires_target": false,
-            "can_use": false,
-            "can_discard": true,
-            "name": "Essence of Steel",
-            "description": "Gain 4 Plated Armor.",
-            "id": "EssenceOfSteel"
-          },
-          "reward_type": "POTION"
-        },
-        {
-          "reward_type": "CARD"
+          "symbol": "R",
+          "x": 6,
+          "y": 5
         }
       ]
     },
     "seed": 9175373409550057077,
+    "combat_state": {
+      "draw_pile": [
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "Defend",
+          "description": "Gain 5 Block.",
+          "id": "Defend_P",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "1db74756-1104-4b28-8d8f-4c1534b0d8ac",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 2,
+          "name": "Swivel",
+          "description": "Gain 8 Block. \n The next Attack you play costs 0.",
+          "id": "Swivel",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "6575aa3b-1467-49fc-9dbd-4dfdcfbc849f",
+          "upgrades": 0,
+          "rarity": "UNCOMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "Empty Body",
+          "description": "Gain 7 Block. \n Exit your Stance.",
+          "id": "EmptyBody",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "200d7d01-32ed-497a-bdfd-523f6facd982",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "Cut Through Fate",
+          "description": "Deal 7 damage. \n Scry 2. \n Draw 1 card.",
+          "id": "CutThroughFate",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "b6786c2d-153a-41d2-903c-abe1d5f4d806",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": true
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "Sash Whip+",
+          "description": "Deal 10 damage. \n If the last card played this combat was an Attack, apply 2 Weak.",
+          "id": "SashWhip",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "870f6582-ef65-412e-b7f5-11a7ed0d13ba",
+          "upgrades": 1,
+          "rarity": "COMMON",
+          "has_target": true
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 0,
+          "name": "Halt",
+          "description": "Gain 3 Block. \n If you are in Wrath, gain 9 additional Block.",
+          "id": "Halt",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "5d32383b-d941-4660-90a1-290940ba18bb",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "Strike",
+          "description": "Deal 6 damage.",
+          "id": "Strike_P",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "b2aab6fe-be61-4cd0-a42b-c83b234fc2d6",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": true
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "Defend",
+          "description": "Gain 5 Block.",
+          "id": "Defend_P",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "5ccbaae0-14d7-4851-8c98-2f0cc6e071d6",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 2,
+          "name": "Wheel Kick",
+          "description": "Deal 15 damage. \n Draw 2 cards.",
+          "id": "WheelKick",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "07cd881b-8bf7-4526-b25e-9534bb8895bc",
+          "upgrades": 0,
+          "rarity": "UNCOMMON",
+          "has_target": true
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 2,
+          "name": "Eruption",
+          "description": "Deal 9 damage. \n Enter Wrath.",
+          "id": "Eruption",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "acbb3238-767a-4173-afd0-7657e8d7bb03",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": true
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "Follow-Up",
+          "description": "Deal 7 damage. \n If the last card played this combat was an Attack, gain [W].",
+          "id": "FollowUp",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "f4876110-3f2e-4829-b14d-3205bffd54a1",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": true
+        },
+        {
+          "exhausts": true,
+          "is_playable": true,
+          "cost": 1,
+          "name": "Crescendo",
+          "description": "Retain. \n Enter Wrath. \n Exhaust.",
+          "id": "Crescendo",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "3c49c1f7-b486-4ad8-9d22-3a83cc5a4897",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": false
+        }
+      ],
+      "discard_pile": [],
+      "exhaust_pile": [],
+      "cards_discarded_this_turn": 0,
+      "times_damaged": 0,
+      "monsters": [
+        {
+          "is_gone": false,
+          "move_hits": 1,
+          "move_base_damage": 10,
+          "half_dead": false,
+          "move_adjusted_damage": 10,
+          "max_hp": 47,
+          "intent": "ATTACK",
+          "move_id": 1,
+          "name": "Looter",
+          "current_hp": 44,
+          "block": 0,
+          "id": "Looter",
+          "powers": [
+            {
+              "amount": 15,
+              "name": "Thievery",
+              "id": "Thievery"
+            },
+            {
+              "amount": 1,
+              "just_applied": false,
+              "name": "Vulnerable",
+              "id": "Vulnerable"
+            }
+          ]
+        },
+        {
+          "is_gone": false,
+          "move_hits": 1,
+          "move_base_damage": 10,
+          "half_dead": false,
+          "move_adjusted_damage": 10,
+          "max_hp": 48,
+          "intent": "ATTACK",
+          "move_id": 1,
+          "name": "Mugger",
+          "current_hp": 45,
+          "block": 0,
+          "id": "Mugger",
+          "powers": [
+            {
+              "amount": 15,
+              "name": "Thievery",
+              "id": "Thievery"
+            },
+            {
+              "amount": 1,
+              "just_applied": false,
+              "name": "Vulnerable",
+              "id": "Vulnerable"
+            }
+          ]
+        }
+      ],
+      "turn": 1,
+      "limbo": [],
+      "hand": [
+        {
+          "exhausts": true,
+          "is_playable": true,
+          "cost": 0,
+          "name": "Miracle",
+          "description": "Retain. \n Gain [W]. \n Exhaust.",
+          "id": "Miracle",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "350d6189-6ecb-40ea-8443-0e6b0aefeded",
+          "upgrades": 0,
+          "rarity": "SPECIAL",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "Battle Hymn+",
+          "description": "Innate. \n At the start of each turn, add a *Smite into your hand.",
+          "id": "BattleHymn",
+          "type": "POWER",
+          "ethereal": false,
+          "uuid": "bbd5f81c-93bc-451b-b492-35d9b261e2fc",
+          "upgrades": 1,
+          "rarity": "UNCOMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "Defend",
+          "description": "Gain 5 Block.",
+          "id": "Defend_P",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "833af45a-e29d-474f-9d3d-545d8c7d5838",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 2,
+          "name": "Vigilance",
+          "description": "Gain 8 Block. \n Enter Calm.",
+          "id": "Vigilance",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "7fc0e78a-d99d-4d0b-8c06-16dc749ad088",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": false
+        },
+        {
+          "exhausts": true,
+          "is_playable": true,
+          "cost": 1,
+          "name": "Scrawl",
+          "description": "Draw cards until your hand is full. \n Exhaust.",
+          "id": "Scrawl",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "36e4af2d-1739-4936-9e94-8bd892cd052e",
+          "upgrades": 0,
+          "rarity": "RARE",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "Defend",
+          "description": "Gain 5 Block.",
+          "id": "Defend_P",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "a78a588a-2ad7-4db9-89d4-a31038267a47",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": false
+        }
+      ],
+      "player": {
+        "orbs": [],
+        "current_hp": 51,
+        "block": 0,
+        "max_hp": 72,
+        "powers": [
+          {
+            "amount": 3,
+            "name": "Thorns",
+            "id": "Thorns"
+          }
+        ],
+        "energy": 3
+      }
+    },
     "keys": {
       "emerald": false,
       "ruby": false,
@@ -48,227 +374,241 @@
     "deck": [
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 1,
         "name": "Strike",
         "description": "Deal 6 damage.",
         "id": "Strike_P",
         "type": "ATTACK",
         "ethereal": false,
-        "uuid": "3639248d-a501-4efa-879e-2f19bfceedc5",
+        "uuid": "b2aab6fe-be61-4cd0-a42b-c83b234fc2d6",
         "upgrades": 0,
         "rarity": "BASIC",
         "has_target": true
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 1,
         "name": "Defend",
         "description": "Gain 5 Block.",
         "id": "Defend_P",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "0331e114-42a3-45f6-9d58-b4b1ce7c2826",
+        "uuid": "833af45a-e29d-474f-9d3d-545d8c7d5838",
         "upgrades": 0,
         "rarity": "BASIC",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 1,
         "name": "Defend",
         "description": "Gain 5 Block.",
         "id": "Defend_P",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "334b3ca0-5bf9-4b99-aa0f-87aaee198da6",
+        "uuid": "a78a588a-2ad7-4db9-89d4-a31038267a47",
         "upgrades": 0,
         "rarity": "BASIC",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 1,
         "name": "Defend",
         "description": "Gain 5 Block.",
         "id": "Defend_P",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "81d53a9a-3476-4908-885e-c3986335a056",
+        "uuid": "1db74756-1104-4b28-8d8f-4c1534b0d8ac",
         "upgrades": 0,
         "rarity": "BASIC",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 1,
         "name": "Defend",
         "description": "Gain 5 Block.",
         "id": "Defend_P",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "8a776172-76ec-4923-b8cb-01dce6db3a91",
+        "uuid": "5ccbaae0-14d7-4851-8c98-2f0cc6e071d6",
         "upgrades": 0,
         "rarity": "BASIC",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 2,
         "name": "Eruption",
         "description": "Deal 9 damage. \n Enter Wrath.",
         "id": "Eruption",
         "type": "ATTACK",
         "ethereal": false,
-        "uuid": "416c1e0b-1c41-44f7-8592-b37d5184fbbc",
+        "uuid": "acbb3238-767a-4173-afd0-7657e8d7bb03",
         "upgrades": 0,
         "rarity": "BASIC",
         "has_target": true
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 2,
         "name": "Vigilance",
         "description": "Gain 8 Block. \n Enter Calm.",
         "id": "Vigilance",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "b1b0670b-3206-4883-8e52-f198adcc2b41",
+        "uuid": "7fc0e78a-d99d-4d0b-8c06-16dc749ad088",
         "upgrades": 0,
         "rarity": "BASIC",
         "has_target": false
       },
       {
         "exhausts": true,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 1,
         "name": "Crescendo",
         "description": "Retain. \n Enter Wrath. \n Exhaust.",
         "id": "Crescendo",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "b6ea9c07-a6f8-48d4-8ad0-15e35453f279",
+        "uuid": "3c49c1f7-b486-4ad8-9d22-3a83cc5a4897",
         "upgrades": 0,
         "rarity": "COMMON",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 1,
         "name": "Cut Through Fate",
         "description": "Deal 7 damage. \n Scry 2. \n Draw 1 card.",
         "id": "CutThroughFate",
         "type": "ATTACK",
         "ethereal": false,
-        "uuid": "c68488a1-0636-4b96-af3b-e97d232dfdb1",
+        "uuid": "b6786c2d-153a-41d2-903c-abe1d5f4d806",
         "upgrades": 0,
         "rarity": "COMMON",
         "has_target": true
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 1,
         "name": "Battle Hymn+",
         "description": "Innate. \n At the start of each turn, add a *Smite into your hand.",
         "id": "BattleHymn",
         "type": "POWER",
         "ethereal": false,
-        "uuid": "b83d251d-31c7-4a71-a461-29a0f42141e3",
+        "uuid": "bbd5f81c-93bc-451b-b492-35d9b261e2fc",
         "upgrades": 1,
         "rarity": "UNCOMMON",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 1,
         "name": "Empty Body",
         "description": "Gain 7 Block. \n Exit your Stance.",
         "id": "EmptyBody",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "240aa280-8d7a-4bab-8856-77d0d677308b",
+        "uuid": "200d7d01-32ed-497a-bdfd-523f6facd982",
         "upgrades": 0,
         "rarity": "COMMON",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 2,
         "name": "Wheel Kick",
         "description": "Deal 15 damage. \n Draw 2 cards.",
         "id": "WheelKick",
         "type": "ATTACK",
         "ethereal": false,
-        "uuid": "65b5af65-5dde-46cc-b794-60d7674402a3",
+        "uuid": "07cd881b-8bf7-4526-b25e-9534bb8895bc",
         "upgrades": 0,
         "rarity": "UNCOMMON",
         "has_target": true
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 0,
         "name": "Halt",
         "description": "Gain 3 Block. \n If you are in Wrath, gain 9 additional Block.",
         "id": "Halt",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "533c2e99-3325-4a0e-ab8c-f08f177c8775",
+        "uuid": "5d32383b-d941-4660-90a1-290940ba18bb",
         "upgrades": 0,
         "rarity": "COMMON",
         "has_target": false
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 1,
         "name": "Follow-Up",
         "description": "Deal 7 damage. \n If the last card played this combat was an Attack, gain [W].",
         "id": "FollowUp",
         "type": "ATTACK",
         "ethereal": false,
-        "uuid": "6245a5ba-419e-43ec-b8b3-644648287212",
+        "uuid": "f4876110-3f2e-4829-b14d-3205bffd54a1",
         "upgrades": 0,
         "rarity": "COMMON",
         "has_target": true
       },
       {
         "exhausts": false,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 2,
         "name": "Swivel",
         "description": "Gain 8 Block. \n The next Attack you play costs 0.",
         "id": "Swivel",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "5e33b7b8-0643-4c5a-9788-1c6e56d5e6b7",
+        "uuid": "6575aa3b-1467-49fc-9dbd-4dfdcfbc849f",
         "upgrades": 0,
         "rarity": "UNCOMMON",
         "has_target": false
       },
       {
         "exhausts": true,
-        "is_playable": false,
+        "is_playable": true,
         "cost": 1,
         "name": "Scrawl",
         "description": "Draw cards until your hand is full. \n Exhaust.",
         "id": "Scrawl",
         "type": "SKILL",
         "ethereal": false,
-        "uuid": "12eb1fb4-9e0b-489e-8981-65bed54ce76d",
+        "uuid": "36e4af2d-1739-4936-9e94-8bd892cd052e",
         "upgrades": 0,
         "rarity": "RARE",
         "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "Sash Whip+",
+        "description": "Deal 10 damage. \n If the last card played this combat was an Attack, apply 2 Weak.",
+        "id": "SashWhip",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "870f6582-ef65-412e-b7f5-11a7ed0d13ba",
+        "upgrades": 1,
+        "rarity": "COMMON",
+        "has_target": true
       }
     ],
     "relics": [
@@ -319,7 +659,7 @@
         "description": "Every time you play 3 Skills in a single turn, deal 5 damage to ALL enemies.",
         "used_up": false,
         "id": "Letter Opener",
-        "counter": -1
+        "counter": 0
       },
       {
         "name": "Violet Lotus",
@@ -327,20 +667,34 @@
         "used_up": false,
         "id": "VioletLotus",
         "counter": -1
+      },
+      {
+        "name": "Nilry\u0027s Codex",
+        "description": "At the end of your turn, you may shuffle 1 of 3 random cards into your draw pile.",
+        "used_up": false,
+        "id": "Nilry\u0027s Codex",
+        "counter": -1
+      },
+      {
+        "name": "Mercury Hourglass",
+        "description": "At the start of your turn, deal 3 damage to ALL enemies.",
+        "used_up": false,
+        "id": "Mercury Hourglass",
+        "counter": -1
       }
     ],
     "max_hp": 72,
     "act_boss": "Automaton",
-    "gold": 99,
+    "gold": 114,
     "action_phase": "WAITING_ON_USER",
     "act": 2,
-    "screen_name": "COMBAT_REWARD",
-    "room_phase": "COMPLETE",
+    "screen_name": "MAP",
+    "room_phase": "COMBAT",
     "is_screen_up": true,
     "potions": [
       {
         "requires_target": false,
-        "can_use": false,
+        "can_use": true,
         "can_discard": true,
         "name": "Stance Potion",
         "description": "Enter Calm or Wrath.",
@@ -348,11 +702,11 @@
       },
       {
         "requires_target": false,
-        "can_use": false,
-        "can_discard": false,
-        "name": "Potion Slot",
-        "description": "Use potions during combat to gain bonuses or hinder enemies.",
-        "id": "Potion Slot"
+        "can_use": true,
+        "can_discard": true,
+        "name": "Essence of Steel",
+        "description": "Gain 4 Plated Armor.",
+        "id": "EssenceOfSteel"
       },
       {
         "requires_target": false,
@@ -363,8 +717,8 @@
         "id": "Potion Slot"
       }
     ],
-    "current_hp": 67,
-    "floor": 18,
+    "current_hp": 51,
+    "floor": 22,
     "ascension_level": 0,
     "class": "WATCHER",
     "map": [

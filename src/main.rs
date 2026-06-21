@@ -13,7 +13,6 @@ mod state;
 
 use advice::{AdviceCache, OverlayMetadata};
 use llm::{AdviceScenario, Effort};
-use std::collections::HashSet;
 use std::io::{self, BufRead, IsTerminal, Write};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -123,30 +122,50 @@ const SCREEN_CONFIG: ScreenConfig = ScreenConfig {
     // "SHOP", "HAND_SELECT", "GRID",
 };
 
-struct AdviceGate {
-    advised_combats: HashSet<String>,
+struct CombatTurnGate {
+    last_turn: Option<(String, i64)>,
 }
 
-impl AdviceGate {
+impl CombatTurnGate {
     fn new() -> Self {
-        AdviceGate {
-            advised_combats: HashSet::new(),
-        }
+        CombatTurnGate { last_turn: None }
     }
 
-    fn should_generate(&mut self, screen_type: &str, raw: &serde_json::Value) -> bool {
-        if should_generate_advice(screen_type, raw) {
-            return true;
-        }
-
-        if screen_type == "NONE"
-            && has_monsters(raw)
-            && let Some(identity) = combat_identity(raw)
+    fn is_player_turn_start(&mut self, raw: &serde_json::Value) -> bool {
+        if raw
+            .pointer("/game_state/screen_type")
+            .and_then(|v| v.as_str())
+            != Some("NONE")
         {
-            return self.advised_combats.insert(identity);
+            return false;
         }
-
-        false
+        if raw
+            .pointer("/game_state/action_phase")
+            .and_then(|v| v.as_str())
+            != Some("WAITING_ON_USER")
+        {
+            return false;
+        }
+        if !has_monsters(raw) {
+            return false;
+        }
+        let identity = match combat_identity(raw) {
+            Some(id) => id,
+            None => return false,
+        };
+        let turn = match raw
+            .pointer("/game_state/combat_state/turn")
+            .and_then(|v| v.as_i64())
+        {
+            Some(t) => t,
+            None => return false,
+        };
+        let key = (identity, turn);
+        if self.last_turn.as_ref() == Some(&key) {
+            return false;
+        }
+        self.last_turn = Some(key);
+        true
     }
 }
 
@@ -334,7 +353,7 @@ async fn main() {
     let mut cache = AdviceCache::new();
     let mut journal = journal::Journal::new();
     journal.log_run_started_with_config(&config);
-    let mut advice_gate = AdviceGate::new();
+    let mut combat_turn_gate = CombatTurnGate::new();
     let mut saw_game_state = false;
     let mut run_finalized = false;
     let stdin = io::stdin();
@@ -405,7 +424,9 @@ async fn main() {
             break;
         }
 
-        if !advice_gate.should_generate(screen_type, &raw) {
+        if !should_generate_advice(screen_type, &raw)
+            && !combat_turn_gate.is_player_turn_start(&raw)
+        {
             tracing::debug!("skipping screen type: {screen_type}");
             continue;
         }
