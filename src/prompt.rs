@@ -746,6 +746,21 @@ fn format_line(locale: &Locale) -> &str {
     &locale.format_footer
 }
 
+fn position_label(index: usize, total: usize) -> String {
+    match (index, total) {
+        (0, 1) => "only",
+        (0, 2) => "left",
+        (1, 2) => "right",
+        (0, 3) => "left",
+        (1, 3) => "middle",
+        (2, 3) => "right",
+        (0, _) => "leftmost",
+        _ if index + 1 == total => "rightmost",
+        _ => return format!("{}th from left", index + 1),
+    }
+    .to_string()
+}
+
 fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: bool) -> String {
     let mut lines: Vec<String> = vec![
         locale.sections.current_state.clone(),
@@ -772,14 +787,16 @@ fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: b
         return lines.join("\n");
     };
 
-    let valid_children: Vec<&MapCoord> = current_node
+    let mut valid_children: Vec<&MapCoord> = current_node
         .children
         .iter()
         .filter_map(|(cx, cy)| node_map.get(&(*cx, *cy)).copied())
         .collect();
+    valid_children.sort_by_key(|n| (n.x, n.y));
 
+    let total = valid_children.len();
     for (i, child) in valid_children.iter().enumerate() {
-        let label = (b'A' + i as u8) as char;
+        let label = position_label(i, total);
         let paths = enumerate_paths(child.x, child.y, &state.map_nodes);
         let desc = if let Some(path) = paths.first() {
             describe_path(path, floor)
@@ -810,7 +827,7 @@ fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: b
             .collect();
 
         lines.push(format!(
-            "{label}. {}({type_name})  Ahead: {}  {}",
+            "({label}) — {}({type_name}):  Ahead: {}  {}",
             child.symbol,
             desc.route_chain,
             anns.join("  ")
@@ -835,41 +852,57 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
     ];
 
     let floor = state.floor.unwrap_or(1);
-    let paths: Vec<Vec<MapCoord>> = if state.map_first_node_chosen == Some(true) {
-        match (state.map_current_x, state.map_current_y) {
+
+    if state.map_first_node_chosen == Some(true) {
+        let paths = match (state.map_current_x, state.map_current_y) {
             (Some(x), Some(y)) => enumerate_paths(x, y, &state.map_nodes),
             _ => vec![],
+        };
+        let total = paths.len();
+        for (i, path) in paths.iter().enumerate() {
+            let pos = position_label(i, total);
+            let route: Vec<String> = path
+                .iter()
+                .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
+                .collect();
+            let desc = describe_path(path, floor);
+            lines.push(format!(
+                "Route {} ({}):",
+                i + 1,
+                pos
+            ));
+            lines.push(format!("  {}  [{}]", route.join("→"), desc.counts));
+            let mut ann_line = format!("  {}", desc.route_chain);
+            if !desc.annotations.is_empty() {
+                ann_line.push_str(&format!("  {}", desc.annotations.join("  ")));
+            }
+            lines.push(ann_line);
         }
     } else {
-        let roots = enumerate_paths_from_roots(&state.map_nodes);
-        let mut all: Vec<Vec<MapCoord>> = Vec::new();
-        for r in &roots {
-            lines.push(format!(
-                "Root {}({},{}):",
-                r.root.symbol, r.root.x, r.root.y
-            ));
-            all.extend(r.paths.clone());
+        let mut roots = enumerate_paths_from_roots(&state.map_nodes);
+        roots.sort_by_key(|r| r.root.x);
+        let root_total = roots.len();
+        for (ri, r) in roots.iter().enumerate() {
+            let pos = position_label(ri, root_total);
+            lines.push(format!("Root {} ({}):", ri + 1, pos));
+            for path in &r.paths {
+                let route: Vec<String> = path
+                    .iter()
+                    .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
+                    .collect();
+                let desc = describe_path(path, floor);
+                lines.push(format!(
+                    "  {}  [{}]",
+                    route.join("→"),
+                    desc.counts
+                ));
+                let mut ann_line = format!("  {}", desc.route_chain);
+                if !desc.annotations.is_empty() {
+                    ann_line.push_str(&format!("  {}", desc.annotations.join("  ")));
+                }
+                lines.push(ann_line);
+            }
         }
-        if !roots.is_empty() {
-            lines.push(String::new());
-        }
-        all
-    };
-
-    for (i, path) in paths.iter().enumerate() {
-        let label = (b'A' + i as u8) as char;
-        let route: Vec<String> = path
-            .iter()
-            .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
-            .collect();
-        let desc = describe_path(path, floor);
-        let chain = &desc.route_chain;
-        lines.push(format!("{label}. {}  [{}]", route.join("→"), desc.counts));
-        let mut annotation_line = format!("   {chain}");
-        if !desc.annotations.is_empty() {
-            annotation_line.push_str(&format!("  {}", desc.annotations.join("  ")));
-        }
-        lines.push(annotation_line);
     }
 
     lines.push(String::new());
