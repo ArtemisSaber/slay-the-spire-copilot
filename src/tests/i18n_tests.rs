@@ -4,7 +4,7 @@ use super::*;
 fn character_classes_are_translated() {
     assert_eq!(translate_class("IRONCLAD"), "铁甲战士");
     assert_eq!(translate_class("THE_SILENT"), "猎人");
-    assert_eq!(translate_class("DEFECT"), "机器人");
+    assert_eq!(translate_class("DEFECT"), "故障机器人");
     assert_eq!(translate_class("WATCHER"), "观者");
 }
 
