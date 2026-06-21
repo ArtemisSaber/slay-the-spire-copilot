@@ -168,13 +168,25 @@ The app checks `CommunicationModCJK` first, then falls back to the original `Com
 
 程序会优先检查 `CommunicationModCJK` 配置目录，然后再回退检查原版 `CommunicationMod` 配置目录。
 
-If the game language is Chinese, Japanese, or Korean, the app will prompt you to use Communication Mod CJK instead of the original CommunicationMod. It checks Slay the Spire's `preferences/STSGameplaySettings` file first, especially the `LANGUAGE` value such as `ZHS`, `ZHT`, `JPN`, or `KOR`.
+The app detects the game language from multiple sources, in order:
 
-如果游戏语言是中文、日文或韩文，程序会提示你改用 Communication Mod CJK，而不是原版 CommunicationMod。程序会优先读取 Slay the Spire 的 `preferences/STSGameplaySettings` 文件，尤其是其中的 `LANGUAGE` 值，例如 `ZHS`、`ZHT`、`JPN` 或 `KOR`。
+1. `SLAY_THE_SPIRE_LANGUAGE` environment variable (highest priority)
+2. `STSGameplaySettings` preferences file — searched under the current working directory (`<CWD>/preferences/`), the `.prefs/` user directory, and common Steam library paths
+3. Steam's `appmanifest_646570.acf` (last resort)
 
-For non-standard install locations, set `SLAY_THE_SPIRE_DIR` to the game install directory. For manual testing, `SLAY_THE_SPIRE_LANGUAGE=ZHS` can force the CJK-language startup check.
+Because CommunicationMod launches the copilot from the game install directory, the CWD-based path works for any Steam library location and non-Steam installs (GOG, etc.).
 
-如果游戏安装在非标准位置，可以将 `SLAY_THE_SPIRE_DIR` 设置为游戏安装目录。手动测试时，也可以用 `SLAY_THE_SPIRE_LANGUAGE=ZHS` 强制触发 CJK 语言启动检查。
+If the detected language is Chinese, Japanese, or Korean, the app will prompt you to use Communication Mod CJK instead of the original CommunicationMod.
+
+程序会从以下来源检测游戏语言（按优先级）：
+
+1. `SLAY_THE_SPIRE_LANGUAGE` 环境变量（最高优先级）
+2. `STSGameplaySettings` 偏好文件 — 依次搜索当前工作目录（`<CWD>/preferences/`）、用户 `.prefs/` 目录，以及常见 Steam 库路径
+3. Steam 的 `appmanifest_646570.acf`（兜底方案）
+
+由于 CommunicationMod 会从游戏安装目录启动 copilot，基于 CWD 的路径适用于任意 Steam 库位置以及非 Steam 安装（如 GOG 等）。
+
+如果检测到游戏语言是中文、日文或韩文，程序会提示你改用 Communication Mod CJK，而不是原版 CommunicationMod。
 
 PowerShell example / PowerShell 示例：
 
@@ -372,14 +384,21 @@ src/
   advice.rs        latest advice file output and cache, overlay JSON
   journal.rs       JSONL run journal with schema versioning
   postmortem.rs    postmortem report generation
-  startup.rs       CommunicationMod config validation, auto-fix, CJK detection
+  startup.rs       CommunicationMod config validation, auto-fix, language detection
   logging.rs       file logger
-  i18n/            translations (cards, relics, monsters, powers, potions, card descriptions)
-  card_values.json numeric values for card description variables (!D!, !B!, !M!)
+  test_utils.rs    test helpers and shared locale data
+  locales/         locale data: JSON translations, system prompts, few-shot examples, i18n terms
+    en.json        English
+    zh.json        Chinese
+    ja.json        Japanese
+    ko.json        Korean
+    mod.rs         Locale struct, loading, language code mapping
   tests/           embedded unit test modules
 tests/
   fixtures/        sample CommunicationMod JSON states
   integration_test.rs
+schemas/
+  overlay.d.ts     TypeScript type definition for output/overlay.json
 docs/
   mvp-roadmap.md
 ```
