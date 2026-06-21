@@ -249,6 +249,11 @@ fn effort_from_screen_type_card_reward_is_heavy() {
 }
 
 #[test]
+fn effort_from_screen_type_map_is_heavy() {
+    assert!(matches!(Effort::from_screen_type("MAP"), Effort::Heavy));
+}
+
+#[test]
 fn effort_from_screen_type_none_is_fast() {
     assert!(matches!(Effort::from_screen_type("NONE"), Effort::Fast));
 }

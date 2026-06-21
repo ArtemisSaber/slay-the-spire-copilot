@@ -51,6 +51,7 @@ impl Effort {
         match st {
             "CARD_REWARD" => Effort::Heavy,
             "BOSS_REWARD" => Effort::Heavy,
+            "MAP" => Effort::Heavy,
             "NONE" => Effort::Fast,
             _ => Effort::Medium,
         }

@@ -1,5 +1,6 @@
 use crate::locales::Locale;
 use crate::state::{CardInfo, DangerLevel, MapCoord, MonsterInfo, NormalizedState};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 
 fn danger_prefix(state: &NormalizedState, locale: &Locale) -> String {
@@ -773,7 +774,6 @@ fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: b
         locale.sections.next_nodes.clone(),
     ];
 
-    let floor = state.floor.unwrap_or(1);
     let node_map: HashMap<(i64, i64), &MapCoord> =
         state.map_nodes.iter().map(|n| ((n.x, n.y), n)).collect();
 
@@ -798,11 +798,12 @@ fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: b
     for (i, child) in valid_children.iter().enumerate() {
         let label = position_label(i, total);
         let paths = enumerate_paths(child.x, child.y, &state.map_nodes);
-        let desc = if let Some(path) = paths.first() {
-            describe_path(path, floor)
+        let eval = if let Some(path) = paths.first() {
+            evaluate_path(path, state, shop_visited)
         } else {
-            describe_path(&[(*child).clone()], floor)
+            evaluate_path(&[(*child).clone()], state, shop_visited)
         };
+        let desc = &eval.description;
 
         let type_name = match child.symbol.as_str() {
             "M" => "monster",
@@ -826,11 +827,16 @@ fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: b
             })
             .collect();
 
+        let mut details = vec![format!("Ahead: {}", desc.route_chain)];
+        if !anns.is_empty() {
+            details.push(anns.join("  "));
+        }
+        details.push(format_evaluation_line(&eval));
+
         lines.push(format!(
-            "({label}) — {}({type_name}):  Ahead: {}  {}",
+            "({label}) — {}({type_name}):  {}",
             child.symbol,
-            desc.route_chain,
-            anns.join("  ")
+            details.join("  ")
         ));
     }
 
@@ -851,8 +857,6 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
         locale.sections.routes.clone(),
     ];
 
-    let floor = state.floor.unwrap_or(1);
-
     if state.map_first_node_chosen == Some(true) {
         let paths = match (state.map_current_x, state.map_current_y) {
             (Some(x), Some(y)) => enumerate_paths(x, y, &state.map_nodes),
@@ -865,13 +869,15 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
                 .iter()
                 .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
                 .collect();
-            let desc = describe_path(path, floor);
+            let eval = evaluate_path(path, state, false);
+            let desc = &eval.description;
             lines.push(format!("Route {} ({}):", i + 1, pos));
             lines.push(format!("  {}  [{}]", route.join("→"), desc.counts));
             let mut ann_line = format!("  {}", desc.route_chain);
             if !desc.annotations.is_empty() {
                 ann_line.push_str(&format!("  {}", desc.annotations.join("  ")));
             }
+            ann_line.push_str(&format!("  {}", format_evaluation_line(&eval)));
             lines.push(ann_line);
         }
     } else {
@@ -886,12 +892,14 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
                     .iter()
                     .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
                     .collect();
-                let desc = describe_path(path, floor);
+                let eval = evaluate_path(path, state, false);
+                let desc = &eval.description;
                 lines.push(format!("  {}  [{}]", route.join("→"), desc.counts));
                 let mut ann_line = format!("  {}", desc.route_chain);
                 if !desc.annotations.is_empty() {
                     ann_line.push_str(&format!("  {}", desc.annotations.join("  ")));
                 }
+                ann_line.push_str(&format!("  {}", format_evaluation_line(&eval)));
                 lines.push(ann_line);
             }
         }
@@ -966,49 +974,89 @@ pub fn enumerate_paths(start_x: i64, start_y: i64, nodes: &[MapCoord]) -> Vec<Ve
 }
 
 pub fn summarize_path(path: &[MapCoord]) -> String {
-    let mut monsters = 0;
-    let mut elites = 0;
-    let mut events = 0;
-    let mut shops = 0;
-    let mut rests = 0;
-    let mut treasures = 0;
-    for n in path {
-        match n.symbol.as_str() {
-            "M" => monsters += 1,
-            "E" => elites += 1,
-            "?" => events += 1,
-            "$" => shops += 1,
-            "R" => rests += 1,
-            "T" => treasures += 1,
-            _ => {}
-        }
-    }
+    let counts = count_path_nodes(path);
     let mut parts = Vec::new();
-    if monsters > 0 {
-        parts.push(format!("Monsters:{monsters}"));
+    if counts.monsters > 0 {
+        parts.push(format!("Monsters:{}", counts.monsters));
     }
-    if elites > 0 {
-        parts.push(format!("Elites:{elites}"));
+    if counts.elites > 0 {
+        parts.push(format!("Elites:{}", counts.elites));
     }
-    if events > 0 {
-        parts.push(format!("Events:{events}"));
+    if counts.events > 0 {
+        parts.push(format!("Events:{}", counts.events));
     }
-    if shops > 0 {
-        parts.push(format!("Shops:{shops}"));
+    if counts.shops > 0 {
+        parts.push(format!("Shops:{}", counts.shops));
     }
-    if rests > 0 {
-        parts.push(format!("Rests:{rests}"));
+    if counts.rests > 0 {
+        parts.push(format!("Rests:{}", counts.rests));
     }
-    if treasures > 0 {
-        parts.push(format!("Treasures:{treasures}"));
+    if counts.treasures > 0 {
+        parts.push(format!("Treasures:{}", counts.treasures));
     }
     parts.join("  ")
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PathCounts {
+    pub monsters: usize,
+    pub elites: usize,
+    pub events: usize,
+    pub shops: usize,
+    pub rests: usize,
+    pub treasures: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ShopTiming {
+    #[default]
+    None,
+    Early,
+    Mid,
+    Late,
+}
+
+impl ShopTiming {
+    fn label(self) -> &'static str {
+        match self {
+            ShopTiming::None => "none",
+            ShopTiming::Early => "early",
+            ShopTiming::Mid => "mid",
+            ShopTiming::Late => "late",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PathMetrics {
+    pub counts: PathCounts,
+    pub shop_timing: ShopTiming,
+    pub rest_before_first_elite: bool,
+    pub double_elite_without_rest: bool,
+    pub max_elite_to_rest_risk: f64,
 }
 
 pub struct PathDescription {
     pub counts: String,
     pub route_chain: String,
     pub annotations: Vec<String>,
+    pub metrics: PathMetrics,
+}
+
+pub struct PathEvaluation {
+    pub description: PathDescription,
+    pub score: f64,
+    pub pros: Vec<String>,
+    pub cons: Vec<String>,
+}
+
+#[allow(
+    dead_code,
+    reason = "ranked paths are the next integration point for map prompt shortlisting"
+)]
+pub struct RankedPath {
+    pub path: Vec<MapCoord>,
+    pub evaluation: PathEvaluation,
 }
 
 fn act_from_floor(floor: i64) -> u8 {
@@ -1039,8 +1087,99 @@ fn risk_modifier(symbol: &str, act: u8) -> f64 {
     }
 }
 
-pub fn describe_path(path: &[MapCoord], floor: i64) -> PathDescription {
+fn count_path_nodes(path: &[MapCoord]) -> PathCounts {
+    let mut counts = PathCounts::default();
+    for n in path {
+        match n.symbol.as_str() {
+            "M" => counts.monsters += 1,
+            "E" => counts.elites += 1,
+            "?" => counts.events += 1,
+            "$" => counts.shops += 1,
+            "R" => counts.rests += 1,
+            "T" => counts.treasures += 1,
+            _ => {}
+        }
+    }
+    counts
+}
+
+fn segment_bounds_between_rests(path: &[MapCoord]) -> Vec<(usize, usize)> {
+    let r_indices: Vec<usize> = path
+        .iter()
+        .enumerate()
+        .filter(|(_, n)| n.symbol == "R")
+        .map(|(i, _)| i)
+        .collect();
+
+    let mut bounds = Vec::new();
+    let mut start = 0;
+    for rest in r_indices {
+        if start < rest {
+            bounds.push((start, rest));
+        }
+        start = rest + 1;
+    }
+    if start < path.len() {
+        bounds.push((start, path.len()));
+    }
+    bounds
+}
+
+fn path_metrics(path: &[MapCoord], floor: i64) -> PathMetrics {
     let act = act_from_floor(floor);
+    let counts = count_path_nodes(path);
+
+    let rest_before_first_elite = path
+        .iter()
+        .position(|n| n.symbol == "E")
+        .map(|ei| path[..ei].iter().any(|n| n.symbol == "R"))
+        .unwrap_or(false);
+
+    let mut double_elite_without_rest = false;
+    let mut max_elite_to_rest_risk = 0.0;
+    for (start, end) in segment_bounds_between_rests(path) {
+        let seg = &path[start..end];
+        let elite_count = seg.iter().filter(|n| n.symbol == "E").count();
+        if elite_count >= 2 {
+            double_elite_without_rest = true;
+        }
+
+        for (j, n) in seg.iter().enumerate() {
+            if n.symbol == "E" {
+                let gap: f64 = seg[j..].iter().map(|m| risk_modifier(&m.symbol, act)).sum();
+                if gap > max_elite_to_rest_risk {
+                    max_elite_to_rest_risk = gap;
+                }
+            }
+        }
+    }
+
+    let shop_timing = path
+        .iter()
+        .position(|n| n.symbol == "$")
+        .map(|si| {
+            let pos = si as f64 / path.len().max(1) as f64;
+            if pos < 0.33 {
+                ShopTiming::Early
+            } else if pos < 0.66 {
+                ShopTiming::Mid
+            } else {
+                ShopTiming::Late
+            }
+        })
+        .unwrap_or(ShopTiming::None);
+
+    PathMetrics {
+        counts,
+        shop_timing,
+        rest_before_first_elite,
+        double_elite_without_rest,
+        max_elite_to_rest_risk,
+    }
+}
+
+pub fn describe_path(path: &[MapCoord], floor: i64) -> PathDescription {
+    let metrics = path_metrics(path, floor);
     let counts = summarize_path(path);
     let route_chain = path
         .iter()
@@ -1050,79 +1189,252 @@ pub fn describe_path(path: &[MapCoord], floor: i64) -> PathDescription {
 
     let mut annotations = Vec::new();
 
-    if let Some(ei) = path.iter().position(|n| n.symbol == "E")
-        && path[..ei].iter().any(|n| n.symbol == "R")
-    {
+    if metrics.rest_before_first_elite {
         annotations.push("✓ Rest before first Elite".to_string());
     }
 
-    let r_indices: Vec<usize> = path
-        .iter()
-        .enumerate()
-        .filter(|(_, n)| n.symbol == "R")
-        .map(|(i, _)| i)
-        .collect();
-
-    let mut segment_starts = Vec::new();
-    let mut segment_ends = Vec::new();
-
-    if let Some(&first_r) = r_indices.first() {
-        if first_r > 0 {
-            segment_starts.push(0);
-            segment_ends.push(first_r);
-        }
-    } else {
-        segment_starts.push(0);
-        segment_ends.push(path.len());
+    if metrics.double_elite_without_rest {
+        annotations.push("⚠ Double Elite — no Rest between".to_string());
     }
 
-    for pair in r_indices.windows(2) {
-        let start = pair[0] + 1;
-        let end = pair[1];
-        if start < end {
-            segment_starts.push(start);
-            segment_ends.push(end);
-        }
+    if metrics.max_elite_to_rest_risk > 15.0 {
+        annotations.push(format!(
+            "⚠ max E→R gap: {:.0} risk",
+            metrics.max_elite_to_rest_risk
+        ));
     }
 
-    for (start, end) in segment_starts.iter().zip(segment_ends.iter()) {
-        let seg = &path[*start..*end];
-        let elite_count = seg.iter().filter(|n| n.symbol == "E").count();
-        if elite_count >= 2 {
-            annotations.push("⚠ Double Elite — no Rest between".to_string());
+    match metrics.shop_timing {
+        ShopTiming::Early | ShopTiming::Mid | ShopTiming::Late => {
+            annotations.push(format!("$ Shop ({})", metrics.shop_timing.label()));
         }
-
-        for (j, n) in seg.iter().enumerate() {
-            if n.symbol == "E" {
-                let gap: f64 = seg[j..].iter().map(|m| risk_modifier(&m.symbol, act)).sum();
-                if gap > 15.0 {
-                    annotations.push(format!("⚠ max E→R gap: {:.0} risk", gap));
-                    break;
-                }
-            }
-        }
-    }
-
-    let shop_idx = path.iter().position(|n| n.symbol == "$");
-    if let Some(si) = shop_idx {
-        let pos = si as f64 / path.len() as f64;
-        let label = if pos < 0.33 {
-            "early"
-        } else if pos < 0.66 {
-            "mid"
-        } else {
-            "late"
-        };
-        annotations.push(format!("$ Shop ({label})"));
-    } else {
-        annotations.push("✗ No shop".to_string());
+        ShopTiming::None => annotations.push("✗ No shop".to_string()),
     }
 
     PathDescription {
         counts,
         route_chain,
         annotations,
+        metrics,
     }
+}
+
+fn format_evaluation_line(eval: &PathEvaluation) -> String {
+    let mut parts = vec![format!("Score:{:.0}", eval.score)];
+    if !eval.pros.is_empty() {
+        parts.push(format!("+{}", eval.pros.join(", ")));
+    }
+    if !eval.cons.is_empty() {
+        parts.push(format!("-{}", eval.cons.join(", ")));
+    }
+    parts.join("  ")
+}
+
+fn hp_ratio(state: &NormalizedState) -> f64 {
+    match (state.current_hp, state.max_hp) {
+        (Some(cur), Some(max)) if max > 0 => cur as f64 / max as f64,
+        _ => 0.75,
+    }
+}
+
+fn score_shop(timing: ShopTiming, shop_count: usize, gold: i64, shop_visited: bool) -> f64 {
+    let base = match gold {
+        g if g >= 180 => match timing {
+            ShopTiming::Early => 12.0,
+            ShopTiming::Mid => 8.0,
+            ShopTiming::Late => 4.0,
+            ShopTiming::None => -5.0,
+        },
+        g if g >= 100 => match timing {
+            ShopTiming::Early => 9.0,
+            ShopTiming::Mid => 6.0,
+            ShopTiming::Late => 3.0,
+            ShopTiming::None if shop_visited => -1.0,
+            ShopTiming::None => -3.0,
+        },
+        g if g >= 60 => match timing {
+            ShopTiming::Early => 4.0,
+            ShopTiming::Mid => 3.0,
+            ShopTiming::Late => 1.0,
+            ShopTiming::None => 0.0,
+        },
+        _ => match timing {
+            ShopTiming::None => 1.0,
+            ShopTiming::Late => 0.0,
+            ShopTiming::Early | ShopTiming::Mid => -1.0,
+        },
+    };
+
+    let extra_shop_bonus = shop_count.saturating_sub(1) as f64
+        * if gold >= 250 {
+            2.0
+        } else if gold >= 120 {
+            0.5
+        } else {
+            -1.0
+        };
+
+    base + extra_shop_bonus
+}
+
+pub fn evaluate_path(
+    path: &[MapCoord],
+    state: &NormalizedState,
+    shop_visited: bool,
+) -> PathEvaluation {
+    let floor = state.floor.unwrap_or(1);
+    let description = describe_path(path, floor);
+    let metrics = description.metrics;
+    let counts = metrics.counts;
+    let hp = hp_ratio(state);
+    let gold = state.gold.unwrap_or(0);
+    let act = act_from_floor(floor);
+
+    let mut score = 50.0;
+    let elite_value = match act {
+        1 => 12.0,
+        2 => 10.0,
+        3 => 8.0,
+        _ => 10.0,
+    } + if hp >= 0.75 {
+        3.0
+    } else if hp < 0.45 {
+        -8.0
+    } else {
+        0.0
+    };
+
+    score += counts.elites as f64 * elite_value;
+    score += counts.treasures as f64 * 5.0;
+    score += counts.events as f64 * if hp < 0.45 { 3.0 } else { 2.0 };
+    score += counts.rests as f64
+        * if hp < 0.45 {
+            6.0
+        } else if hp < 0.7 {
+            4.0
+        } else {
+            2.0
+        };
+    score += counts.monsters as f64 * if hp < 0.45 { -1.5 } else { 0.8 };
+    score += score_shop(metrics.shop_timing, counts.shops, gold, shop_visited);
+
+    if metrics.rest_before_first_elite {
+        score += if hp < 0.6 { 10.0 } else { 6.0 };
+    } else if counts.elites > 0 && hp < 0.6 {
+        score -= 8.0;
+    }
+
+    if metrics.double_elite_without_rest {
+        score -= if hp < 0.6 { 30.0 } else { 20.0 };
+    }
+
+    let risk_tolerance = if hp >= 0.75 {
+        24.0
+    } else if hp >= 0.55 {
+        18.0
+    } else {
+        12.0
+    };
+    if metrics.max_elite_to_rest_risk > risk_tolerance {
+        score -= (metrics.max_elite_to_rest_risk - risk_tolerance) * 1.2;
+    }
+
+    if counts.elites > 0 && counts.rests == 0 {
+        score -= if hp < 0.6 { 14.0 } else { 6.0 };
+    }
+
+    let mut pros = Vec::new();
+    let mut cons = Vec::new();
+
+    if counts.elites > 0 {
+        pros.push(format!(
+            "{} elite reward{}",
+            counts.elites,
+            plural(counts.elites)
+        ));
+    }
+    if metrics.rest_before_first_elite {
+        pros.push("rest before first elite".to_string());
+    }
+    match metrics.shop_timing {
+        ShopTiming::Early | ShopTiming::Mid | ShopTiming::Late => {
+            pros.push(format!("{} shop", metrics.shop_timing.label()));
+        }
+        ShopTiming::None if !shop_visited && gold >= 100 => {
+            cons.push("no shop for current gold".to_string());
+        }
+        ShopTiming::None if !shop_visited => cons.push("no shop".to_string()),
+        ShopTiming::None => cons.push("no shop ahead".to_string()),
+    }
+    if counts.events >= 3 {
+        pros.push(format!("{} events", counts.events));
+    }
+    if counts.rests >= 2 {
+        pros.push(format!("{} rests", counts.rests));
+    }
+    if counts.treasures > 0 {
+        pros.push("treasure".to_string());
+    }
+
+    if metrics.double_elite_without_rest {
+        cons.push("double elite without rest".to_string());
+    }
+    if metrics.max_elite_to_rest_risk > 15.0 {
+        cons.push(format!(
+            "high E->R risk {:.0}",
+            metrics.max_elite_to_rest_risk
+        ));
+    }
+    if counts.elites > 0 && !metrics.rest_before_first_elite {
+        cons.push("no rest before first elite".to_string());
+    }
+    if hp < 0.45 && counts.monsters >= 6 {
+        cons.push("many hallway fights at low HP".to_string());
+    }
+
+    PathEvaluation {
+        description,
+        score,
+        pros,
+        cons,
+    }
+}
+
+fn plural(count: usize) -> &'static str {
+    if count == 1 { "" } else { "s" }
+}
+
+#[allow(
+    dead_code,
+    reason = "ranking is tested now and will drive map prompt shortlisting next"
+)]
+pub fn rank_paths(
+    paths: Vec<Vec<MapCoord>>,
+    state: &NormalizedState,
+    shop_visited: bool,
+) -> Vec<RankedPath> {
+    let mut ranked: Vec<RankedPath> = paths
+        .into_iter()
+        .map(|path| RankedPath {
+            evaluation: evaluate_path(&path, state, shop_visited),
+            path,
+        })
+        .collect();
+
+    ranked.sort_by(|a, b| {
+        b.evaluation
+            .score
+            .partial_cmp(&a.evaluation.score)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| {
+                a.evaluation
+                    .description
+                    .route_chain
+                    .cmp(&b.evaluation.description.route_chain)
+            })
+    });
+
+    ranked
 }
 
 pub struct RootPaths {

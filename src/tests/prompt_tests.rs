@@ -1066,6 +1066,76 @@ fn describe_path_route_chain_compact() {
     assert_eq!(desc.route_chain, "M→R→E→?→R");
 }
 
+#[test]
+fn describe_path_exposes_ranking_metrics() {
+    let path = path_of(&["M", "$", "R", "E", "?", "R"]);
+    let desc = describe_path(&path, 1);
+    assert_eq!(desc.metrics.counts.monsters, 1);
+    assert_eq!(desc.metrics.counts.shops, 1);
+    assert_eq!(desc.metrics.counts.elites, 1);
+    assert_eq!(desc.metrics.shop_timing, ShopTiming::Early);
+    assert!(desc.metrics.rest_before_first_elite);
+    assert!(!desc.metrics.double_elite_without_rest);
+}
+
+#[test]
+fn evaluate_path_records_pros_and_cons() {
+    let state = NormalizedState {
+        floor: Some(1),
+        current_hp: Some(62),
+        max_hp: Some(75),
+        gold: Some(180),
+        ..test_state()
+    };
+    let path = path_of(&["M", "$", "R", "E", "M", "R"]);
+    let eval = evaluate_path(&path, &state, false);
+    assert!(eval.score > 80.0);
+    assert!(eval.pros.iter().any(|p| p.contains("early shop")));
+    assert!(
+        eval.pros
+            .iter()
+            .any(|p| p.contains("rest before first elite"))
+    );
+    assert!(!eval.cons.iter().any(|c| c.contains("double elite")));
+}
+
+#[test]
+fn rank_paths_prefers_healthy_gold_route_with_early_shop_and_rest_elite() {
+    let state = NormalizedState {
+        floor: Some(1),
+        current_hp: Some(68),
+        max_hp: Some(75),
+        gold: Some(180),
+        ..test_state()
+    };
+    let shop_elite = path_of(&["M", "$", "M", "R", "E", "R"]);
+    let safe_no_shop = path_of(&["M", "?", "?", "M", "R", "M", "R"]);
+    let ranked = rank_paths(vec![safe_no_shop, shop_elite], &state, false);
+    assert_eq!(ranked[0].evaluation.description.route_chain, "M→$→M→R→E→R");
+}
+
+#[test]
+fn rank_paths_penalizes_double_elite_when_hp_is_low() {
+    let state = NormalizedState {
+        floor: Some(1),
+        current_hp: Some(20),
+        max_hp: Some(80),
+        gold: Some(50),
+        ..test_state()
+    };
+    let double_elite = path_of(&["E", "M", "E", "M", "R"]);
+    let safe_route = path_of(&["M", "?", "R", "M", "R"]);
+    let ranked = rank_paths(vec![double_elite, safe_route], &state, false);
+    assert_eq!(ranked[0].evaluation.description.route_chain, "M→?→R→M→R");
+    assert!(
+        ranked[1]
+            .evaluation
+            .cons
+            .iter()
+            .any(|c| c.contains("double elite"))
+    );
+}
+
 // --- build_map_suggestion tests ---
 
 #[test]
