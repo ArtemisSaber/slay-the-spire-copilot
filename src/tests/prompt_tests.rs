@@ -1100,7 +1100,7 @@ fn evaluate_path_records_pros_and_cons() {
 }
 
 #[test]
-fn rank_paths_prefers_healthy_gold_route_with_early_shop_and_rest_elite() {
+fn evaluate_path_prefers_healthy_gold_route_with_early_shop_and_rest_elite() {
     let state = NormalizedState {
         floor: Some(1),
         current_hp: Some(68),
@@ -1110,12 +1110,13 @@ fn rank_paths_prefers_healthy_gold_route_with_early_shop_and_rest_elite() {
     };
     let shop_elite = path_of(&["M", "$", "M", "R", "E", "R"]);
     let safe_no_shop = path_of(&["M", "?", "?", "M", "R", "M", "R"]);
-    let ranked = rank_paths(vec![safe_no_shop, shop_elite], &state, false);
-    assert_eq!(ranked[0].evaluation.description.route_chain, "M→$→M→R→E→R");
+    let shop_elite_eval = evaluate_path(&shop_elite, &state, false);
+    let safe_no_shop_eval = evaluate_path(&safe_no_shop, &state, false);
+    assert!(shop_elite_eval.score > safe_no_shop_eval.score);
 }
 
 #[test]
-fn rank_paths_penalizes_double_elite_when_hp_is_low() {
+fn evaluate_path_penalizes_double_elite_when_hp_is_low() {
     let state = NormalizedState {
         floor: Some(1),
         current_hp: Some(20),
@@ -1125,11 +1126,11 @@ fn rank_paths_penalizes_double_elite_when_hp_is_low() {
     };
     let double_elite = path_of(&["E", "M", "E", "M", "R"]);
     let safe_route = path_of(&["M", "?", "R", "M", "R"]);
-    let ranked = rank_paths(vec![double_elite, safe_route], &state, false);
-    assert_eq!(ranked[0].evaluation.description.route_chain, "M→?→R→M→R");
+    let double_elite_eval = evaluate_path(&double_elite, &state, false);
+    let safe_route_eval = evaluate_path(&safe_route, &state, false);
+    assert!(safe_route_eval.score > double_elite_eval.score);
     assert!(
-        ranked[1]
-            .evaluation
+        double_elite_eval
             .cons
             .iter()
             .any(|c| c.contains("double elite"))
@@ -1156,8 +1157,10 @@ fn build_map_suggestion_includes_route_chains_and_counts() {
     };
     let prompt = build_map_suggestion(&state, &locale);
     assert!(prompt.contains("Route 1 (only)"));
+    assert!(prompt.contains("Candidate 1"));
     assert!(prompt.contains("M→?→R"));
     assert!(prompt.contains("Monsters:1"));
+    assert!(prompt.contains("140字"));
 }
 
 #[test]
@@ -1185,6 +1188,37 @@ fn build_map_suggestion_multiple_paths_labeled() {
 }
 
 #[test]
+fn build_map_suggestion_limits_current_route_candidates() {
+    let locale = test_locale();
+    let state = NormalizedState {
+        screen_type: Some("MAP".into()),
+        floor: Some(5),
+        map_nodes: vec![
+            make_node(
+                "M",
+                0,
+                0,
+                vec![(0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)],
+            ),
+            make_node("M", 0, 1, vec![]),
+            make_node("?", 1, 1, vec![]),
+            make_node("R", 2, 1, vec![]),
+            make_node("$", 3, 1, vec![]),
+            make_node("E", 4, 1, vec![]),
+            make_node("T", 5, 1, vec![]),
+        ],
+        map_first_node_chosen: Some(true),
+        map_current_x: Some(0),
+        map_current_y: Some(0),
+        ..test_state()
+    };
+    let prompt = build_map_suggestion(&state, &locale);
+    assert_eq!(prompt.matches("Candidate ").count(), 5);
+    assert!(prompt.contains("Candidate 5"));
+    assert!(!prompt.contains("Candidate 6"));
+}
+
+#[test]
 fn build_map_suggestion_root_selection() {
     let locale = test_locale();
     let state = NormalizedState {
@@ -1202,6 +1236,35 @@ fn build_map_suggestion_root_selection() {
     let prompt = build_map_suggestion(&state, &locale);
     assert!(prompt.contains("Root 1 (left)"));
     assert!(prompt.contains("Root 2 (right)"));
+}
+
+#[test]
+fn build_map_suggestion_limits_root_candidates() {
+    let locale = test_locale();
+    let state = NormalizedState {
+        screen_type: Some("MAP".into()),
+        floor: Some(1),
+        map_nodes: vec![
+            make_node("M", 0, 0, vec![(0, 1)]),
+            make_node("?", 0, 1, vec![]),
+            make_node("M", 1, 0, vec![(1, 1)]),
+            make_node("R", 1, 1, vec![]),
+            make_node("M", 2, 0, vec![(2, 1)]),
+            make_node("$", 2, 1, vec![]),
+            make_node("M", 3, 0, vec![(3, 1)]),
+            make_node("E", 3, 1, vec![]),
+            make_node("M", 4, 0, vec![(4, 1)]),
+            make_node("T", 4, 1, vec![]),
+            make_node("M", 5, 0, vec![(5, 1)]),
+            make_node("M", 5, 1, vec![]),
+        ],
+        map_first_node_chosen: Some(false),
+        ..test_state()
+    };
+    let prompt = build_map_suggestion(&state, &locale);
+    assert_eq!(prompt.matches("Candidate ").count(), 5);
+    assert!(prompt.contains("Candidate 5"));
+    assert!(!prompt.contains("Candidate 6"));
 }
 
 #[test]

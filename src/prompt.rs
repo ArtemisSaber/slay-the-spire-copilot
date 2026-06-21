@@ -3,6 +3,8 @@ use crate::state::{CardInfo, DangerLevel, MapCoord, MonsterInfo, NormalizedState
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
+const MAP_CANDIDATE_LIMIT: usize = 5;
+
 fn danger_prefix(state: &NormalizedState, locale: &Locale) -> String {
     let mut reasons: Vec<&str> = Vec::new();
 
@@ -762,6 +764,40 @@ fn position_label(index: usize, total: usize) -> String {
     .to_string()
 }
 
+struct LabeledPath {
+    label: String,
+    path: Vec<MapCoord>,
+    evaluation: PathEvaluation,
+}
+
+fn rank_labeled_paths(
+    paths: Vec<(String, Vec<MapCoord>)>,
+    state: &NormalizedState,
+    shop_visited: bool,
+) -> Vec<LabeledPath> {
+    let mut ranked: Vec<LabeledPath> = paths
+        .into_iter()
+        .map(|(label, path)| LabeledPath {
+            evaluation: evaluate_path(&path, state, shop_visited),
+            label,
+            path,
+        })
+        .collect();
+
+    ranked.sort_by(|a, b| {
+        b.evaluation
+            .score
+            .partial_cmp(&a.evaluation.score)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| a.label.cmp(&b.label))
+    });
+    ranked
+}
+
+fn format_candidate_label(index: usize, base_label: &str) -> String {
+    format!("Candidate {} — {base_label}", index + 1)
+}
+
 fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: bool) -> String {
     let mut lines: Vec<String> = vec![
         locale.sections.current_state.clone(),
@@ -795,16 +831,15 @@ fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: b
     valid_children.sort_by_key(|n| (n.x, n.y));
 
     let total = valid_children.len();
+    let mut child_candidates: Vec<(String, Vec<MapCoord>)> = Vec::new();
     for (i, child) in valid_children.iter().enumerate() {
         let label = position_label(i, total);
         let paths = enumerate_paths(child.x, child.y, &state.map_nodes);
-        let eval = if let Some(path) = paths.first() {
-            evaluate_path(path, state, shop_visited)
+        let path = if let Some(path) = paths.first() {
+            path.clone()
         } else {
-            evaluate_path(&[(*child).clone()], state, shop_visited)
+            vec![(*child).clone()]
         };
-        let desc = &eval.description;
-
         let type_name = match child.symbol.as_str() {
             "M" => "monster",
             "E" => "elite",
@@ -814,6 +849,13 @@ fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: b
             "T" => "treasure",
             _ => &child.symbol,
         };
+        child_candidates.push((format!("({label}) — {}({type_name})", child.symbol), path));
+    }
+
+    let ranked = rank_labeled_paths(child_candidates, state, shop_visited);
+    for (i, candidate) in ranked.iter().take(MAP_CANDIDATE_LIMIT).enumerate() {
+        let eval = &candidate.evaluation;
+        let desc = &eval.description;
 
         let anns: Vec<String> = desc
             .annotations
@@ -831,11 +873,11 @@ fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: b
         if !anns.is_empty() {
             details.push(anns.join("  "));
         }
-        details.push(format_evaluation_line(&eval));
+        details.push(format_evaluation_line(eval));
 
         lines.push(format!(
-            "({label}) — {}({type_name}):  {}",
-            child.symbol,
+            "{}:  {}",
+            format_candidate_label(i, &candidate.label),
             details.join("  ")
         ));
     }
@@ -863,45 +905,60 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
             _ => vec![],
         };
         let total = paths.len();
-        for (i, path) in paths.iter().enumerate() {
-            let pos = position_label(i, total);
+        let labeled_paths: Vec<(String, Vec<MapCoord>)> = paths
+            .into_iter()
+            .enumerate()
+            .map(|(i, path)| {
+                let pos = position_label(i, total);
+                (format!("Route {} ({pos})", i + 1), path)
+            })
+            .collect();
+        let ranked = rank_labeled_paths(labeled_paths, state, false);
+        for (i, candidate) in ranked.iter().take(MAP_CANDIDATE_LIMIT).enumerate() {
+            let path = &candidate.path;
             let route: Vec<String> = path
                 .iter()
                 .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
                 .collect();
-            let eval = evaluate_path(path, state, false);
+            let eval = &candidate.evaluation;
             let desc = &eval.description;
-            lines.push(format!("Route {} ({}):", i + 1, pos));
+            lines.push(format!("{}:", format_candidate_label(i, &candidate.label)));
             lines.push(format!("  {}  [{}]", route.join("→"), desc.counts));
             let mut ann_line = format!("  {}", desc.route_chain);
             if !desc.annotations.is_empty() {
                 ann_line.push_str(&format!("  {}", desc.annotations.join("  ")));
             }
-            ann_line.push_str(&format!("  {}", format_evaluation_line(&eval)));
+            ann_line.push_str(&format!("  {}", format_evaluation_line(eval)));
             lines.push(ann_line);
         }
     } else {
         let mut roots = enumerate_paths_from_roots(&state.map_nodes);
         roots.sort_by_key(|r| r.root.x);
         let root_total = roots.len();
+        let mut labeled_paths: Vec<(String, Vec<MapCoord>)> = Vec::new();
         for (ri, r) in roots.iter().enumerate() {
             let pos = position_label(ri, root_total);
-            lines.push(format!("Root {} ({}):", ri + 1, pos));
             for path in &r.paths {
-                let route: Vec<String> = path
-                    .iter()
-                    .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
-                    .collect();
-                let eval = evaluate_path(path, state, false);
-                let desc = &eval.description;
-                lines.push(format!("  {}  [{}]", route.join("→"), desc.counts));
-                let mut ann_line = format!("  {}", desc.route_chain);
-                if !desc.annotations.is_empty() {
-                    ann_line.push_str(&format!("  {}", desc.annotations.join("  ")));
-                }
-                ann_line.push_str(&format!("  {}", format_evaluation_line(&eval)));
-                lines.push(ann_line);
+                labeled_paths.push((format!("Root {} ({pos})", ri + 1), path.clone()));
             }
+        }
+        let ranked = rank_labeled_paths(labeled_paths, state, false);
+        for (i, candidate) in ranked.iter().take(MAP_CANDIDATE_LIMIT).enumerate() {
+            let route: Vec<String> = candidate
+                .path
+                .iter()
+                .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
+                .collect();
+            let eval = &candidate.evaluation;
+            let desc = &eval.description;
+            lines.push(format!("{}:", format_candidate_label(i, &candidate.label)));
+            lines.push(format!("  {}  [{}]", route.join("→"), desc.counts));
+            let mut ann_line = format!("  {}", desc.route_chain);
+            if !desc.annotations.is_empty() {
+                ann_line.push_str(&format!("  {}", desc.annotations.join("  ")));
+            }
+            ann_line.push_str(&format!("  {}", format_evaluation_line(eval)));
+            lines.push(ann_line);
         }
     }
 
@@ -1048,15 +1105,6 @@ pub struct PathEvaluation {
     pub score: f64,
     pub pros: Vec<String>,
     pub cons: Vec<String>,
-}
-
-#[allow(
-    dead_code,
-    reason = "ranked paths are the next integration point for map prompt shortlisting"
-)]
-pub struct RankedPath {
-    pub path: Vec<MapCoord>,
-    pub evaluation: PathEvaluation,
 }
 
 fn act_from_floor(floor: i64) -> u8 {
@@ -1402,39 +1450,6 @@ pub fn evaluate_path(
 
 fn plural(count: usize) -> &'static str {
     if count == 1 { "" } else { "s" }
-}
-
-#[allow(
-    dead_code,
-    reason = "ranking is tested now and will drive map prompt shortlisting next"
-)]
-pub fn rank_paths(
-    paths: Vec<Vec<MapCoord>>,
-    state: &NormalizedState,
-    shop_visited: bool,
-) -> Vec<RankedPath> {
-    let mut ranked: Vec<RankedPath> = paths
-        .into_iter()
-        .map(|path| RankedPath {
-            evaluation: evaluate_path(&path, state, shop_visited),
-            path,
-        })
-        .collect();
-
-    ranked.sort_by(|a, b| {
-        b.evaluation
-            .score
-            .partial_cmp(&a.evaluation.score)
-            .unwrap_or(Ordering::Equal)
-            .then_with(|| {
-                a.evaluation
-                    .description
-                    .route_chain
-                    .cmp(&b.evaluation.description.route_chain)
-            })
-    });
-
-    ranked
 }
 
 pub struct RootPaths {
