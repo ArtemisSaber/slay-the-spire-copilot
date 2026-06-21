@@ -225,7 +225,8 @@ output/overlay.json  (structured JSON, for overlay mod)
 - durable run history is written to `runs/<run_id>/events.jsonl`.
 - when the run ends, a postmortem report is automatically written to `runs/<run_id>/postmortem.md`.
 - advice is generated for card rewards, boss card rewards, boss relics, rest sites, events (with multiple choices), and once when entering combat.
-- advice uses tiered model routing: Heavy for card/boss rewards, Medium for rest/events, Fast for combat entry.
+- map route advice is generated at act entry (full route analysis) and at mid-act crossroads (immediate next-node decisions).
+- advice uses tiered model routing: Heavy for card/boss rewards, Medium for rest/events/map routes, Fast for combat entry.
 - combat advice is intentionally entry-only to avoid high latency every turn.
 
 运行行为：
@@ -237,7 +238,8 @@ output/overlay.json  (structured JSON, for overlay mod)
 - 持久化运行记录写入 `runs/<run_id>/events.jsonl`。
 - 本局结束时会自动生成复盘报告：`runs/<run_id>/postmortem.md`。
 - 当前会在选牌、Boss 选牌、Boss 遗物、篝火、事件（多选项时）、进入战斗时生成建议。
-- 建议按场景分层使用不同模型：Heavy（选牌/Boss 选牌）、Medium（篝火/事件）、Fast（进入战斗）。
+- 地图路线建议会在每幕入口（完整路线分析）和路口分叉（即时下一节点决策）时触发。
+- 建议按场景分层使用不同模型：Heavy（选牌/Boss 选牌）、Medium（篝火/事件/地图路线）、Fast（进入战斗）。
 - 战斗建议只在进入战斗时生成一次，避免每回合 LLM 延迟影响游戏节奏。
 
 ## Copilot Overlay Mod / 游戏内悬浮窗
@@ -325,15 +327,20 @@ slay-the-spire-copilot postmortem --plain runs/<run_id>/events.jsonl
 
 ## Output Format / 建议格式
 
-AI advice is written in Chinese:
+AI advice uses a structured format parsed from the LLM response. For map routes, the recommendation includes a position label and compact route chain.
 
-AI 建议使用中文格式：
+AI 建议使用结构化格式，从 LLM 回复中解析。地图路线建议包含位置标签和路线链。
 
 ```text
-推荐：（推荐行动）
-理由：（理由）
-风险：（需要注意的风险）
-吐槽：（轻松评价，可选）
+Recommendation: Root 1 (leftmost) — M→$→M→R — early shop, safe elite
+Reason: Shop early with gold, rest before the only elite
+Risk: Only one elite this act
+Comment: Play it safe!
+
+推荐：Root 1 (leftmost) — M→$→M→R — 早期商店，安全精英
+理由：早期商店消耗金币，精英前有休息
+风险：本幕只有一个精英
+吐槽：稳扎稳打！
 ```
 
 ## Release Process / 发布流程
@@ -356,18 +363,18 @@ Release workflow 会构建并上传 Linux、macOS、Windows 的可下载压缩�
 
 ```text
 src/
-  main.rs          main loop, CLI modes, screen gating
+  main.rs          main loop, CLI modes, screen gating, MapGate (map crossroads/act-entry gating)
   config.rs        environment variable loading
   protocol.rs      CommunicationMod protocol messages
-  state.rs         normalized game state, advice hash, observation hash, danger assessment
-  prompt.rs        Chinese LLM prompt builder
-  llm.rs           LLM provider abstraction, effort routing, system prompts
-  advice.rs        latest advice file output and cache
+  state.rs         normalized game state, MapCoord, advice hash, observation hash, danger assessment
+  prompt.rs        LLM prompt builder — card, relic, rest, event, combat, map_suggestion, map_crossroad; describe_path risk analysis; path enumeration
+  llm.rs           LLM provider abstraction, effort routing, AdviceScenario (MapSuggestion, MapCrossroad, etc.)
+  advice.rs        latest advice file output and cache, overlay JSON
   journal.rs       JSONL run journal with schema versioning
   postmortem.rs    postmortem report generation
   startup.rs       CommunicationMod config validation, auto-fix, CJK detection
   logging.rs       file logger
-  i18n/            Chinese translations (cards, relics, monsters, powers, potions, card descriptions)
+  i18n/            translations (cards, relics, monsters, powers, potions, card descriptions)
   card_values.json numeric values for card description variables (!D!, !B!, !M!)
   tests/           embedded unit test modules
 tests/
