@@ -75,6 +75,10 @@ fn push_steam_appmanifest_path_for_steam_root(paths: &mut Vec<PathBuf>, steam_ro
 fn slay_the_spire_language_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
+    if let Ok(cwd) = env::current_dir() {
+        paths.push(cwd.join("preferences").join("STSGameplaySettings"));
+    }
+
     if let Ok(dir) = env::var("SLAY_THE_SPIRE_DIR") {
         paths.push(
             PathBuf::from(dir)
@@ -118,6 +122,15 @@ fn slay_the_spire_language_paths() -> Vec<PathBuf> {
                 .join("preferences")
                 .join("STSGameplaySettings"),
         );
+        paths.push(home.join(".prefs").join("STSGameplaySettings"));
+    }
+
+    if let Ok(userprofile) = env::var("USERPROFILE") {
+        paths.push(
+            PathBuf::from(&userprofile)
+                .join(".prefs")
+                .join("STSGameplaySettings"),
+        );
     }
 
     for var in [
@@ -139,6 +152,18 @@ fn slay_the_spire_language_paths() -> Vec<PathBuf> {
 
 fn steam_appmanifest_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
+
+    if let Ok(cwd) = env::current_dir() {
+        let parts: Vec<_> = cwd.components().collect();
+        if parts.len() >= 3 {
+            let library = PathBuf::from_iter(&parts[..parts.len() - 2]);
+            paths.push(
+                library
+                    .join("steamapps")
+                    .join(format!("appmanifest_{SLAY_THE_SPIRE_APP_ID}.acf")),
+            );
+        }
+    }
 
     if let Ok(steam_dir) = env::var("STEAM_DIR") {
         push_steam_appmanifest_path_for_steam_root(&mut paths, &PathBuf::from(steam_dir));
