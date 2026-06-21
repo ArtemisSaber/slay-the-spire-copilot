@@ -746,12 +746,72 @@ fn format_line(locale: &Locale) -> &str {
     &locale.format_footer
 }
 
+fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
+    let mut lines: Vec<String> = vec![
+        locale.sections.current_state.clone(),
+        status_line(state, locale),
+        String::new(),
+        build_relics_potions_section(state, locale),
+        locale.sections.task.clone(),
+        locale.tasks.map_suggestion.clone(),
+        String::new(),
+        locale.sections.routes.clone(),
+    ];
+
+    let floor = state.floor.unwrap_or(1);
+    let paths: Vec<Vec<MapCoord>> = if state.map_first_node_chosen == Some(true) {
+        match (state.map_current_x, state.map_current_y) {
+            (Some(x), Some(y)) => enumerate_paths(x, y, &state.map_nodes),
+            _ => vec![],
+        }
+    } else {
+        let roots = enumerate_paths_from_roots(&state.map_nodes);
+        let mut all: Vec<Vec<MapCoord>> = Vec::new();
+        for r in &roots {
+            lines.push(format!(
+                "Root {}({},{}):",
+                r.root.symbol, r.root.x, r.root.y
+            ));
+            all.extend(r.paths.clone());
+        }
+        if !roots.is_empty() {
+            lines.push(String::new());
+        }
+        all
+    };
+
+    for (i, path) in paths.iter().enumerate() {
+        let label = (b'A' + i as u8) as char;
+        let route: Vec<String> = path
+            .iter()
+            .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
+            .collect();
+        let desc = describe_path(path, floor);
+        let chain = &desc.route_chain;
+        lines.push(format!(
+            "{label}. {}  [{}]",
+            route.join("→"),
+            desc.counts
+        ));
+        let mut annotation_line = format!("   {chain}");
+        if !desc.annotations.is_empty() {
+            annotation_line.push_str(&format!("  {}", desc.annotations.join("  ")));
+        }
+        lines.push(annotation_line);
+    }
+
+    lines.push(String::new());
+    lines.push(format_line(locale).to_string());
+    lines.join("\n")
+}
+
 pub fn build_prompt(state: &NormalizedState, locale: &Locale) -> String {
     match state.screen_type.as_deref() {
         Some("CARD_REWARD") => build_card_reward(state, locale),
         Some("BOSS_REWARD") => build_boss_relic(state, locale),
         Some("REST") => build_rest(state, locale),
         Some("EVENT") => build_event_choice(state, locale),
+        Some("MAP") => build_map_suggestion(state, locale),
         _ if !state.monsters.is_empty() => build_combat(state, locale),
         _ => build_generic(state, locale),
     }
