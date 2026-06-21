@@ -1,5 +1,7 @@
 use super::*;
-use crate::state::{DangerFlags, DangerLevel, MonsterInfo, NormalizedState};
+use crate::locales::Locale;
+use crate::state::{DangerFlags, DangerLevel, MonsterInfo, NormalizedState, RelicInfo};
+use crate::test_utils::test_locale;
 
 #[test]
 fn scenario_system_prompts_are_defined() {
@@ -11,8 +13,10 @@ fn scenario_system_prompts_are_defined() {
         AdviceScenario::EventChoice,
         AdviceScenario::CombatEntry,
         AdviceScenario::Generic,
+        AdviceScenario::MapSuggestion,
+        AdviceScenario::MapCrossroad,
     ] {
-        let prompt = scenario.system_prompt();
+        let prompt = scenario.system_prompt(&test_locale());
         assert!(!prompt.is_empty());
         assert!(prompt.contains("杀戮尖塔"));
         assert!(prompt.contains("推荐："));
@@ -22,28 +26,82 @@ fn scenario_system_prompts_are_defined() {
 }
 
 #[test]
+fn scenario_system_prompts_include_few_shot_examples() {
+    for scenario in [
+        AdviceScenario::CardReward,
+        AdviceScenario::BossCardReward,
+        AdviceScenario::BossRelic,
+        AdviceScenario::Rest,
+        AdviceScenario::EventChoice,
+        AdviceScenario::CombatEntry,
+        AdviceScenario::MapSuggestion,
+        AdviceScenario::MapCrossroad,
+        AdviceScenario::Generic,
+        AdviceScenario::Postmortem,
+    ] {
+        let prompt = scenario.system_prompt(&test_locale());
+        assert!(
+            prompt.contains("示例：") || prompt.contains("例：") || prompt.contains("Example:"),
+            "{scenario:?} should include a few-shot example"
+        );
+    }
+}
+
+#[test]
+fn all_locales_define_few_shot_examples() {
+    for lang in ["en", "zh", "ja", "ko"] {
+        let locale = Locale::load(lang);
+        for scenario in [
+            AdviceScenario::CardReward,
+            AdviceScenario::BossCardReward,
+            AdviceScenario::BossRelic,
+            AdviceScenario::Rest,
+            AdviceScenario::EventChoice,
+            AdviceScenario::CombatEntry,
+            AdviceScenario::MapSuggestion,
+            AdviceScenario::MapCrossroad,
+            AdviceScenario::Generic,
+            AdviceScenario::Postmortem,
+        ] {
+            assert!(
+                !scenario.few_shot_example(&locale).trim().is_empty(),
+                "{lang} {scenario:?} should define a few-shot example"
+            );
+        }
+    }
+}
+
+#[test]
+fn map_system_prompt_warns_against_candidate_number_only() {
+    let locale = Locale::load("en");
+    let prompt = AdviceScenario::MapSuggestion.system_prompt(&locale);
+    assert!(prompt.contains("Recommendation label"));
+    assert!(prompt.contains("do not answer with Candidate number alone"));
+    assert!(prompt.contains("Root 3 (3rd from left)"));
+}
+
+#[test]
 fn boss_reward_system_prompt_ignores_current_hp() {
-    let prompt = AdviceScenario::BossCardReward.system_prompt();
-    assert!(prompt.contains("当前血量"));
-    assert!(prompt.contains("不要"));
+    let prompt = AdviceScenario::BossCardReward.system_prompt(&test_locale());
+    assert!(prompt.contains("血量"));
     assert!(prompt.contains("回满血"));
-    assert!(prompt.contains("16"));
-    assert!(prompt.contains("33"));
-    assert!(prompt.contains("50"));
+    assert!(prompt.contains("下一幕"));
 }
 
 #[test]
 fn normal_card_reward_prompt_supports_skip() {
-    let prompt = AdviceScenario::CardReward.system_prompt();
+    let prompt = AdviceScenario::CardReward.system_prompt(&test_locale());
     assert!(prompt.contains("跳过"));
 }
 
 #[test]
 fn postmortem_system_prompt_is_defined() {
-    assert!(!POSTMORTEM_SYSTEM_PROMPT.is_empty());
-    assert!(POSTMORTEM_SYSTEM_PROMPT.contains("复盘"));
-    assert!(POSTMORTEM_SYSTEM_PROMPT.contains("Markdown"));
-    assert!(POSTMORTEM_SYSTEM_PROMPT.contains("不要编造"));
+    let locale = test_locale();
+    let prompt = &locale.system_prompts.postmortem;
+    assert!(!prompt.is_empty());
+    assert!(prompt.contains("复盘"));
+    assert!(prompt.contains("Markdown"));
+    assert!(prompt.contains("日志"));
 }
 
 fn test_state() -> NormalizedState {
@@ -87,6 +145,10 @@ fn test_state() -> NormalizedState {
         discard_pile: vec![],
         exhaust_cards: vec![],
         master_cards: vec![],
+        map_nodes: vec![],
+        map_first_node_chosen: None,
+        map_current_x: None,
+        map_current_y: None,
     }
 }
 
@@ -147,7 +209,10 @@ fn scenario_resolver_detects_rest() {
 fn scenario_resolver_detects_boss_relic() {
     let state = NormalizedState {
         screen_type: Some("BOSS_REWARD".into()),
-        boss_relic_choices: vec!["符文圆顶".into()],
+        boss_relic_choices: vec![RelicInfo {
+            name: "符文圆顶".into(),
+            description: String::new(),
+        }],
         ..test_state()
     };
     assert_eq!(
@@ -190,14 +255,39 @@ fn scenario_resolver_defaults_to_generic() {
 }
 
 #[test]
+fn scenario_resolver_detects_map_suggestion() {
+    let state = NormalizedState {
+        screen_type: Some("MAP".into()),
+        map_first_node_chosen: Some(false),
+        ..test_state()
+    };
+    assert_eq!(
+        AdviceScenario::from_state(&state),
+        AdviceScenario::MapSuggestion
+    );
+}
+
+#[test]
+fn scenario_resolver_detects_map_crossroad() {
+    let state = NormalizedState {
+        screen_type: Some("MAP".into()),
+        map_first_node_chosen: Some(true),
+        ..test_state()
+    };
+    assert_eq!(
+        AdviceScenario::from_state(&state),
+        AdviceScenario::MapCrossroad
+    );
+}
+
+#[test]
 fn log_includes_prompt_and_response() {
+    let dir = tempfile::tempdir().unwrap();
     let prompt = "test-prompt-🦀🤣🦖";
     let response = "test-response-吃葡萄不吐葡萄皮";
-    log_prompt(prompt, response);
+    log_prompt_to(dir.path(), prompt, response);
 
-    let log_path = crate::logging::project_root()
-        .join("logs")
-        .join("prompts.log");
+    let log_path = dir.path().join("logs").join("prompts.log");
     let contents = std::fs::read_to_string(&log_path).unwrap();
     assert!(contents.contains(prompt));
     assert!(contents.contains(response));
@@ -212,6 +302,11 @@ fn effort_from_screen_type_card_reward_is_heavy() {
         Effort::from_screen_type("CARD_REWARD"),
         Effort::Heavy
     ));
+}
+
+#[test]
+fn effort_from_screen_type_map_is_heavy() {
+    assert!(matches!(Effort::from_screen_type("MAP"), Effort::Heavy));
 }
 
 #[test]
@@ -232,7 +327,12 @@ fn effort_from_screen_type_other_is_medium() {
 async fn mock_provider_returns_structured_response() {
     let provider = LlmProvider::Mock;
     let result = provider
-        .query_advice("test prompt", Effort::Fast, AdviceScenario::Generic)
+        .query_advice(
+            "test prompt",
+            Effort::Fast,
+            AdviceScenario::Generic,
+            &test_locale(),
+        )
         .await;
     assert!(result.is_ok());
     let text = result.unwrap();
@@ -246,12 +346,40 @@ async fn mock_provider_returns_structured_response() {
 #[tokio::test]
 async fn mock_provider_returns_postmortem_report() {
     let provider = LlmProvider::Mock;
-    let result = provider.query_postmortem("deterministic summary").await;
+    let result = provider
+        .query_postmortem("deterministic summary", &test_locale())
+        .await;
     assert!(result.is_ok());
     let text = result.unwrap();
     assert!(text.contains("# 本局复盘"));
     assert!(text.contains("## 总览"));
     assert!(text.contains("## 下次改进"));
+}
+
+#[test]
+fn chat_completion_body_can_disable_thinking() {
+    let cfg = OpenAiConfig {
+        model: "deepseek-v4-flash".into(),
+        max_tokens: 300,
+        disable_thinking: true,
+    };
+
+    let body = chat_completion_body(&cfg, "system", "user", 0.7);
+
+    assert_eq!(body["thinking"]["type"], "disabled");
+}
+
+#[test]
+fn chat_completion_body_omits_thinking_when_not_configured() {
+    let cfg = OpenAiConfig {
+        model: "gpt-5-nano".into(),
+        max_tokens: 300,
+        disable_thinking: false,
+    };
+
+    let body = chat_completion_body(&cfg, "system", "user", 0.7);
+
+    assert!(body.get("thinking").is_none());
 }
 
 #[test]
@@ -267,6 +395,7 @@ fn from_config_unknown_provider() {
         max_tokens_medium: 500,
         max_tokens_heavy: 1000,
         temperature: 0.5,
+        disable_fast_thinking: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(result.is_err());
@@ -286,6 +415,7 @@ fn from_config_missing_base_url() {
         max_tokens_medium: 500,
         max_tokens_heavy: 1000,
         temperature: 0.5,
+        disable_fast_thinking: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(result.is_err());

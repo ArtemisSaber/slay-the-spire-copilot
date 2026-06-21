@@ -7,9 +7,9 @@ const COMMUNICATION_MOD_CONFIG_DIRS: &[&str] = &["CommunicationModCJK", "Communi
 const SLAY_THE_SPIRE_APP_ID: &str = "646570";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct DetectedGameLanguage {
-    value: String,
-    source: String,
+pub struct DetectedGameLanguage {
+    pub value: String,
+    pub source: String,
 }
 
 fn communication_mod_config_paths() -> Vec<PathBuf> {
@@ -217,7 +217,7 @@ fn read_steam_appmanifest_language(path: &Path) -> Option<String> {
     extract_vdf_value(&content, "language").filter(|v| !v.is_empty())
 }
 
-fn detect_game_language() -> Option<DetectedGameLanguage> {
+pub fn detect_game_language() -> Option<DetectedGameLanguage> {
     if let Ok(language) = env::var("SLAY_THE_SPIRE_LANGUAGE") {
         let language = language.trim();
         if !language.is_empty() {

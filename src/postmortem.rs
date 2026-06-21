@@ -12,9 +12,12 @@ pub fn postmortem_path_for_journal(journal_path: &Path) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from(POSTMORTEM_FILE_NAME))
 }
 
-pub fn generate_report_from_journal_file(journal_path: &Path) -> Result<String, String> {
+pub fn generate_report_from_journal_file(
+    journal_path: &Path,
+    locale: &crate::locales::Locale,
+) -> Result<String, String> {
     let content = fs::read_to_string(journal_path).map_err(|e| e.to_string())?;
-    generate_report_from_jsonl(&content)
+    generate_report_from_jsonl(&content, locale)
 }
 
 pub fn write_report_for_journal(journal_path: &Path, report: &str) -> Result<PathBuf, String> {
@@ -23,7 +26,10 @@ pub fn write_report_for_journal(journal_path: &Path, report: &str) -> Result<Pat
     Ok(report_path)
 }
 
-pub fn generate_report_from_jsonl(input: &str) -> Result<String, String> {
+pub fn generate_report_from_jsonl(
+    input: &str,
+    locale: &crate::locales::Locale,
+) -> Result<String, String> {
     let mut events = Vec::new();
     let mut malformed = 0usize;
 
@@ -86,7 +92,7 @@ pub fn generate_report_from_jsonl(input: &str) -> Result<String, String> {
     }
 
     let mut report = Vec::new();
-    report.push("# Slay the Spire Postmortem".to_string());
+    report.push(locale.postmortem.report_title.clone());
     report.push(String::new());
     report.push("## Run".to_string());
     if let Some(ts) = run_started {
@@ -101,7 +107,7 @@ pub fn generate_report_from_jsonl(input: &str) -> Result<String, String> {
 
     if let Some(state) = final_state.as_ref() {
         report.push(String::new());
-        report.push("## Final State".to_string());
+        report.push(locale.postmortem.section_overview.clone());
         report.push(format!(
             "- Floor: {}",
             state
@@ -133,33 +139,34 @@ pub fn generate_report_from_jsonl(input: &str) -> Result<String, String> {
 
     if !advice_lines.is_empty() {
         report.push(String::new());
-        report.push("## Advice".to_string());
+        report.push(locale.postmortem.section_decisions.clone());
         report.extend(advice_lines);
     }
 
     if !reward_lines.is_empty() {
         report.push(String::new());
-        report.push("## Card Rewards".to_string());
+        report.push(locale.postmortem.section_rewards.clone());
         report.extend(reward_lines);
     }
 
     Ok(report.join("\n"))
 }
 
-pub fn build_ai_postmortem_prompt(deterministic_report: &str) -> String {
+pub fn build_ai_postmortem_prompt(
+    deterministic_report: &str,
+    locale: &crate::locales::Locale,
+) -> String {
+    let pm = &locale.postmortem;
+    let lang_name = &locale.language_name;
     format!(
-        "\
-请根据下面的机器生成复盘摘要，写一份更适合玩家阅读的中文复盘报告。
-
-要求：
-- 保留事实和数字，不要补充日志里没有的内容
-- 解释建议记录代表什么，而不是只复制原文
-- 给出 2-4 条下次改进建议
-- 如果摘要信息不足，请指出缺失信息
-
-=== 机器摘要 ===
-{deterministic_report}
-"
+        "{}\n\n{}\n{}\n{}\n{}\n{}\n\n{}\n{deterministic_report}\n",
+        pm.ai_prompt.replace("{lang_name}", lang_name),
+        pm.ai_requirements,
+        pm.ai_req1,
+        pm.ai_req2,
+        pm.ai_req3,
+        pm.ai_req4,
+        pm.machine_summary,
     )
 }
 

@@ -1,22 +1,12 @@
 use super::*;
-use crate::state::DangerFlags;
-use serde_json::Value;
-
-fn load_i18n() -> crate::i18n::I18n {
-    crate::i18n::I18n::load()
-}
-
-fn load_fixture(name: &str) -> Value {
-    let path = format!("tests/fixtures/{name}");
-    let content = std::fs::read_to_string(&path).unwrap();
-    serde_json::from_str(&content).unwrap()
-}
+use crate::state::{DangerFlags, RelicInfo};
+use crate::test_utils::{load_fixture, test_locale};
+use serde_json::{Value, json};
 
 #[test]
 fn normalize_combat_state() {
-    let i18n = load_i18n();
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw, &test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("NONE"));
     assert_eq!(state.character.as_deref(), Some("IRONCLAD"));
@@ -40,7 +30,7 @@ fn normalize_combat_state() {
     assert!(state.danger.any_monster_attacking);
 
     let jaw_worm = &state.monsters[0];
-    assert_eq!(jaw_worm.name, "大颚虫");
+    assert_eq!(jaw_worm.name, "Jaw Worm");
     assert_eq!(jaw_worm.index, 0);
     assert_eq!(jaw_worm.intent.as_deref(), Some("ATTACK"));
     assert!(jaw_worm.is_scaling);
@@ -54,9 +44,8 @@ fn normalize_combat_state() {
 
 #[test]
 fn normalize_card_reward_state() {
-    let i18n = load_i18n();
     let raw = load_fixture("card-reward-state.json");
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw, &test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("CARD_REWARD"));
     assert_eq!(state.card_reward_choices.len(), 3);
@@ -75,9 +64,8 @@ fn normalize_card_reward_state() {
 
 #[test]
 fn normalize_rest_state() {
-    let i18n = load_i18n();
     let raw = load_fixture("rest-state.json");
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw, &test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("REST"));
     assert_eq!(
@@ -98,7 +86,6 @@ fn normalize_rest_state() {
 
 #[test]
 fn normalize_boss_relic_choices() {
-    let i18n = load_i18n();
     let raw = serde_json::json!({
         "in_game": true,
         "game_state": {
@@ -118,18 +105,32 @@ fn normalize_boss_relic_choices() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw, &test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("BOSS_REWARD"));
     assert_eq!(state.boss_relic_choices.len(), 3);
-    assert!(state.boss_relic_choices.iter().any(|r| r == "异蛇之眼"));
-    assert!(state.boss_relic_choices.iter().any(|r| r == "符文圆顶"));
-    assert!(state.boss_relic_choices.iter().any(|r| r == "诅咒钥匙"));
+    assert!(
+        state
+            .boss_relic_choices
+            .iter()
+            .any(|r| r.name == "Snecko Eye")
+    );
+    assert!(
+        state
+            .boss_relic_choices
+            .iter()
+            .any(|r| r.name == "Runic Dome")
+    );
+    assert!(
+        state
+            .boss_relic_choices
+            .iter()
+            .any(|r| r.name == "Cursed Key")
+    );
 }
 
 #[test]
 fn normalize_event_choices() {
-    let i18n = load_i18n();
     let raw = serde_json::json!({
         "in_game": true,
         "game_state": {
@@ -151,7 +152,7 @@ fn normalize_event_choices() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw, &test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("EVENT"));
     assert_eq!(state.event_name.as_deref(), Some("Golden Idol"));
@@ -167,7 +168,6 @@ fn normalize_event_choices() {
 
 #[test]
 fn normalize_event_choices_prefer_option_text_for_full_description() {
-    let i18n = load_i18n();
     let raw = serde_json::json!({
         "in_game": true,
         "game_state": {
@@ -189,7 +189,7 @@ fn normalize_event_choices_prefer_option_text_for_full_description() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw, &test_locale());
 
     assert_eq!(
         state.event_body.as_deref(),
@@ -203,7 +203,6 @@ fn normalize_event_choices_prefer_option_text_for_full_description() {
 
 #[test]
 fn normalize_event_choices_replaces_unreadable_locale_garble() {
-    let i18n = load_i18n();
     let raw = serde_json::json!({
         "in_game": true,
         "game_state": {
@@ -227,7 +226,7 @@ fn normalize_event_choices_replaces_unreadable_locale_garble() {
             "class": "WATCHER"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw, &test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("EVENT"));
     assert_eq!(state.room_type.as_deref(), Some("NeowRoom"));
@@ -244,7 +243,6 @@ fn normalize_event_choices_replaces_unreadable_locale_garble() {
 
 #[test]
 fn normalize_event_payload_from_communication_mod_log() {
-    let i18n = load_i18n();
     let raw = serde_json::json!({
         "available_commands": ["choose", "key", "click", "wait", "state"],
         "ready_for_command": true,
@@ -282,7 +280,7 @@ fn normalize_event_payload_from_communication_mod_log() {
             "class": "WATCHER"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw, &test_locale());
 
     assert_eq!(state.event_id.as_deref(), Some("Neow Event"));
     assert!(state.event_name.is_none());
@@ -294,7 +292,13 @@ fn normalize_event_payload_from_communication_mod_log() {
             "选项 2（事件文本不可读，请在游戏内核对按钮）".to_string(),
         ]
     );
-    assert_eq!(state.relics, vec!["至纯之水".to_string()]);
+    assert_eq!(
+        state.relics,
+        vec![RelicInfo {
+            name: "????".into(),
+            description: String::new()
+        }]
+    );
 }
 
 #[test]
@@ -404,31 +408,28 @@ fn compute_danger(
 
 #[test]
 fn stable_hash_same_state_same_hash() {
-    let i18n = load_i18n();
     let raw = load_fixture("combat-state.json");
-    let state1 = NormalizedState::from_raw(&raw, &i18n);
-    let state2 = NormalizedState::from_raw(&raw, &i18n);
+    let state1 = NormalizedState::from_raw(&raw, &test_locale());
+    let state2 = NormalizedState::from_raw(&raw, &test_locale());
 
     assert_eq!(state1.stable_hash(), state2.stable_hash());
 }
 
 #[test]
 fn stable_hash_different_state_different_hash() {
-    let i18n = load_i18n();
     let combat = load_fixture("combat-state.json");
     let reward = load_fixture("card-reward-state.json");
 
-    let state1 = NormalizedState::from_raw(&combat, &i18n);
-    let state2 = NormalizedState::from_raw(&reward, &i18n);
+    let state1 = NormalizedState::from_raw(&combat, &test_locale());
+    let state2 = NormalizedState::from_raw(&reward, &test_locale());
 
     assert_ne!(state1.stable_hash(), state2.stable_hash());
 }
 
 #[test]
 fn stable_hash_produces_hex() {
-    let i18n = load_i18n();
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw, &test_locale());
     let hash = state.stable_hash();
 
     assert_eq!(hash.len(), 64);
@@ -437,84 +438,78 @@ fn stable_hash_produces_hex() {
 
 #[test]
 fn observation_hash_changes_when_draw_pile_changes() {
-    let i18n = load_i18n();
     let raw1 = load_fixture("combat-state.json");
     let mut raw2 = raw1.clone();
     raw2["game_state"]["combat_state"]["draw_pile"][0]["uuid"] =
         Value::String("changed-draw".into());
 
-    let state1 = NormalizedState::from_raw(&raw1, &i18n);
-    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+    let state1 = NormalizedState::from_raw(&raw1, &test_locale());
+    let state2 = NormalizedState::from_raw(&raw2, &test_locale());
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
 
 #[test]
 fn observation_hash_changes_when_discard_pile_changes() {
-    let i18n = load_i18n();
     let raw1 = load_fixture("combat-state.json");
     let mut raw2 = raw1.clone();
     raw2["game_state"]["combat_state"]["discard_pile"] = serde_json::json!([
         {"id":"Strike_R","name":"Strike","cost":1,"type":"ATTACK","uuid":"discarded-card","upgrades":0}
     ]);
 
-    let state1 = NormalizedState::from_raw(&raw1, &i18n);
-    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+    let state1 = NormalizedState::from_raw(&raw1, &test_locale());
+    let state2 = NormalizedState::from_raw(&raw2, &test_locale());
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
 
 #[test]
 fn observation_hash_changes_when_monster_block_changes() {
-    let i18n = load_i18n();
     let raw1 = load_fixture("combat-state.json");
     let mut raw2 = raw1.clone();
     raw2["game_state"]["combat_state"]["monsters"][0]["block"] = Value::Number(7.into());
 
-    let state1 = NormalizedState::from_raw(&raw1, &i18n);
-    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+    let state1 = NormalizedState::from_raw(&raw1, &test_locale());
+    let state2 = NormalizedState::from_raw(&raw2, &test_locale());
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
 
 #[test]
 fn observation_hash_changes_when_monster_power_changes() {
-    let i18n = load_i18n();
     let raw1 = load_fixture("combat-state.json");
     let mut raw2 = raw1.clone();
     raw2["game_state"]["combat_state"]["monsters"][0]["powers"][0]["amount"] =
         Value::Number(9.into());
 
-    let state1 = NormalizedState::from_raw(&raw1, &i18n);
-    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+    let state1 = NormalizedState::from_raw(&raw1, &test_locale());
+    let state2 = NormalizedState::from_raw(&raw2, &test_locale());
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
 
 #[test]
 fn observation_hash_changes_when_card_uuid_changes() {
-    let i18n = load_i18n();
     let raw1 = load_fixture("combat-state.json");
     let mut raw2 = raw1.clone();
     raw2["game_state"]["combat_state"]["hand"][0]["uuid"] =
         Value::String("changed-hand-card".into());
 
-    let state1 = NormalizedState::from_raw(&raw1, &i18n);
-    let state2 = NormalizedState::from_raw(&raw2, &i18n);
+    let state1 = NormalizedState::from_raw(&raw1, &test_locale());
+    let state2 = NormalizedState::from_raw(&raw2, &test_locale());
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
 
 #[test]
 fn card_reward_filters_potion_slot() {
-    let i18n = load_i18n();
     let raw = load_fixture("card-reward-state.json");
-    let state = NormalizedState::from_raw(&raw, &i18n);
+    let state = NormalizedState::from_raw(&raw, &test_locale());
     assert!(
         !state
             .potions
             .iter()
-            .any(|p| p.contains("Potion Slot") || p == "?")
+            .any(|p| p.name.contains("Potion Slot") || p.name == "?")
     );
 }
 
@@ -550,4 +545,90 @@ fn danger_none_hp_uses_fallback() {
     assert!(d.hp_critical);
     assert!(!d.incoming_lethal);
     assert_eq!(d.level, DangerLevel::Danger);
+}
+
+#[test]
+fn map_nodes_parsed_from_state() {
+    let locale = test_locale();
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "screen_state": {},
+            "map": [
+                {
+                    "symbol": "M",
+                    "x": 0,
+                    "y": 0,
+                    "children": [{"x": 1, "y": 1}]
+                },
+                {
+                    "symbol": "R",
+                    "x": 1,
+                    "y": 1,
+                    "children": []
+                }
+            ],
+            "current_hp": 70,
+            "max_hp": 75,
+            "floor": 1,
+            "class": "IRONCLAD"
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, &locale);
+
+    assert_eq!(state.map_nodes.len(), 2);
+    assert_eq!(state.map_nodes[0].symbol, "M");
+    assert_eq!(state.map_nodes[0].x, 0);
+    assert_eq!(state.map_nodes[0].y, 0);
+    assert_eq!(state.map_nodes[0].children, vec![(1, 1)]);
+    assert_eq!(state.map_nodes[1].symbol, "R");
+    assert_eq!(state.map_nodes[1].x, 1);
+    assert_eq!(state.map_nodes[1].y, 1);
+    assert!(state.map_nodes[1].children.is_empty());
+}
+
+#[test]
+fn map_screen_state_parsed() {
+    let locale = test_locale();
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "screen_state": {
+                "first_node_chosen": true,
+                "current_node": {"x": 3, "y": 7}
+            },
+            "map": [
+                {"symbol": "M", "x": 3, "y": 7, "children": []}
+            ],
+            "current_hp": 70,
+            "max_hp": 75,
+            "floor": 5,
+            "class": "IRONCLAD"
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, &locale);
+    assert_eq!(state.map_first_node_chosen, Some(true));
+    assert_eq!(state.map_current_x, Some(3));
+    assert_eq!(state.map_current_y, Some(7));
+}
+
+#[test]
+fn map_screen_state_defaults_to_none() {
+    let locale = test_locale();
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "NONE",
+            "current_hp": 70,
+            "max_hp": 75,
+            "floor": 1,
+            "class": "IRONCLAD"
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, &locale);
+    assert_eq!(state.map_first_node_chosen, None);
+    assert_eq!(state.map_current_x, None);
+    assert_eq!(state.map_current_y, None);
 }

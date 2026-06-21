@@ -1,18 +1,8 @@
-use crate::i18n::I18n;
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-macro_rules! i18n_name {
-    ($item:expr, $i18n:expr, $method:ident) => {{
-        let id = $item.get("id").and_then(|v| v.as_str());
-        let name = $item.get("name").and_then(|v| v.as_str());
-        id.and_then(|i| $i18n.$method(i))
-            .or(name)
-            .unwrap_or("?")
-            .to_string()
-    }};
-}
+use crate::locales::Locale;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CardInfo {
@@ -22,6 +12,7 @@ pub struct CardInfo {
     pub card_type: String,
     pub upgraded: bool,
     pub uuid: Option<String>,
+    pub description: String,
 }
 
 impl CardInfo {
@@ -52,6 +43,11 @@ impl CardInfo {
                 .get("uuid")
                 .and_then(|n| n.as_str())
                 .map(|s| s.to_string()),
+            description: c
+                .get("description")
+                .and_then(|n| n.as_str())
+                .unwrap_or("")
+                .to_string(),
         }
     }
 }
@@ -133,6 +129,26 @@ impl DangerFlags {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RelicInfo {
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PotionInfo {
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct MapCoord {
+    pub symbol: String,
+    pub x: i64,
+    pub y: i64,
+    pub children: Vec<(i64, i64)>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct NormalizedState {
     pub screen_type: Option<String>,
@@ -150,13 +166,13 @@ pub struct NormalizedState {
     pub hand: Vec<CardInfo>,
     pub monsters: Vec<MonsterInfo>,
     pub card_reward_choices: Vec<CardInfo>,
-    pub boss_relic_choices: Vec<String>,
+    pub boss_relic_choices: Vec<RelicInfo>,
     pub event_id: Option<String>,
     pub event_name: Option<String>,
     pub event_body: Option<String>,
     pub event_choices: Vec<String>,
-    pub relics: Vec<String>,
-    pub potions: Vec<String>,
+    pub relics: Vec<RelicInfo>,
+    pub potions: Vec<PotionInfo>,
     pub deck_names: Vec<String>,
     pub incoming_damage: i64,
     pub rest_options: Vec<String>,
@@ -168,23 +184,38 @@ pub struct NormalizedState {
     pub discard_pile: Vec<CardInfo>,
     pub exhaust_cards: Vec<CardInfo>,
     pub master_cards: Vec<CardInfo>,
+    pub map_nodes: Vec<MapCoord>,
+    pub map_first_node_chosen: Option<bool>,
+    pub map_current_x: Option<i64>,
+    pub map_current_y: Option<i64>,
 }
 
 fn extract_cards(arr: &[Value]) -> Vec<CardInfo> {
     arr.iter().map(CardInfo::from_json).collect()
 }
 
-fn extract_powers(arr: &[Value], i18n: &I18n) -> Vec<PowerInfo> {
+fn extract_powers(arr: &[Value]) -> Vec<PowerInfo> {
     arr.iter()
         .map(|p| PowerInfo {
-            name: i18n_name!(p, i18n, power),
+            name: p
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string(),
             amount: p.get("amount").and_then(|n| n.as_i64()).unwrap_or(0),
         })
         .collect()
 }
 
-fn extract_card_names(arr: &[Value], i18n: &I18n) -> Vec<String> {
-    arr.iter().map(|c| i18n_name!(c, i18n, card)).collect()
+fn extract_card_names(arr: &[Value]) -> Vec<String> {
+    arr.iter()
+        .map(|c| {
+            c.get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string()
+        })
+        .collect()
 }
 
 fn first_array<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a Vec<Value>> {
@@ -233,12 +264,52 @@ fn is_readable_text(text: &str) -> bool {
         .any(|c| c.is_alphabetic() || ('\u{4e00}'..='\u{9fff}').contains(&c))
 }
 
-fn extract_relic_names(arr: &[Value], i18n: &I18n) -> Vec<String> {
+fn extract_relic_infos(arr: &[Value]) -> Vec<RelicInfo> {
     arr.iter()
         .map(|r| match r {
-            Value::String(name) => name.clone(),
-            Value::Object(_) => i18n_name!(r, i18n, relic),
-            _ => "?".to_string(),
+            Value::String(name) => RelicInfo {
+                name: name.clone(),
+                description: String::new(),
+            },
+            Value::Object(_) => RelicInfo {
+                name: r
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?")
+                    .to_string(),
+                description: r
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+            },
+            _ => RelicInfo {
+                name: "?".to_string(),
+                description: String::new(),
+            },
+        })
+        .collect()
+}
+
+fn extract_potion_infos(arr: &[Value]) -> Vec<PotionInfo> {
+    arr.iter()
+        .filter(|p| {
+            p.get("id")
+                .and_then(|id| id.as_str())
+                .map(|id| id != "Potion Slot")
+                .unwrap_or(true)
+        })
+        .map(|p| PotionInfo {
+            name: p
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?")
+                .to_string(),
+            description: p
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
         })
         .collect()
 }
@@ -265,7 +336,7 @@ fn extract_event_choice(option: &Value) -> Option<String> {
 }
 
 impl NormalizedState {
-    pub fn from_raw(raw: &Value, i18n: &I18n) -> Self {
+    pub fn from_raw(raw: &Value, locale: &Locale) -> Self {
         let gs = raw.get("game_state");
 
         let screen_type = gs
@@ -305,7 +376,7 @@ impl NormalizedState {
         let powers: Vec<PowerInfo> = player
             .and_then(|p| p.get("powers"))
             .and_then(|v| v.as_array())
-            .map(|arr| extract_powers(arr, i18n))
+            .map(|arr| extract_powers(arr))
             .unwrap_or_default();
 
         let hand: Vec<CardInfo> = combat
@@ -368,7 +439,11 @@ impl NormalizedState {
                         let can_be_killed = hp.map(|h| h <= total_hand_atk).unwrap_or(false);
 
                         MonsterInfo {
-                            name: i18n_name!(m, i18n, monster),
+                            name: m
+                                .get("name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("?")
+                                .to_string(),
                             index: idx,
                             current_hp: hp,
                             max_hp: m.get("max_hp").and_then(|n| n.as_i64()),
@@ -382,7 +457,7 @@ impl NormalizedState {
                             monster_powers: m
                                 .get("powers")
                                 .and_then(|v| v.as_array())
-                                .map(|arr| extract_powers(arr, i18n))
+                                .map(|arr| extract_powers(arr))
                                 .unwrap_or_default(),
                             can_be_killed,
                             is_scaling,
@@ -409,6 +484,20 @@ impl NormalizedState {
 
         let screen_state = gs.and_then(|g| g.get("screen_state"));
 
+        let map_first_node_chosen = screen_state
+            .and_then(|s| s.get("first_node_chosen"))
+            .and_then(|v| v.as_bool());
+
+        let map_current_x = screen_state
+            .and_then(|s| s.get("current_node"))
+            .and_then(|n| n.get("x"))
+            .and_then(|v| v.as_i64());
+
+        let map_current_y = screen_state
+            .and_then(|s| s.get("current_node"))
+            .and_then(|n| n.get("y"))
+            .and_then(|v| v.as_i64());
+
         let skip_available = screen_state
             .and_then(|s| s.get("skip_available"))
             .and_then(|v| v.as_bool())
@@ -420,9 +509,9 @@ impl NormalizedState {
             .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
-        let boss_relic_choices: Vec<String> = screen_state
+        let boss_relic_choices: Vec<RelicInfo> = screen_state
             .and_then(|s| first_array(s, &["relics", "boss_relics", "relic_options"]))
-            .map(|arr| extract_relic_names(arr, i18n))
+            .map(|arr| extract_relic_infos(arr))
             .unwrap_or_default();
 
         let event_id = screen_state
@@ -443,7 +532,10 @@ impl NormalizedState {
                     .enumerate()
                     .map(|(idx, choice)| {
                         extract_event_choice(choice).unwrap_or_else(|| {
-                            format!("选项 {}（事件文本不可读，请在游戏内核对按钮）", idx + 1)
+                            locale
+                                .fallback
+                                .event_unreadable_choice
+                                .replace("{idx}", &(idx + 1).to_string())
                         })
                     })
                     .collect()
@@ -466,36 +558,56 @@ impl NormalizedState {
             .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
-        let mut relics: Vec<String> = gs
-            .and_then(|g| g.get("relics"))
-            .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().map(|r| i18n_name!(r, i18n, relic)).collect())
-            .unwrap_or_default();
-
-        let mut potions: Vec<String> = gs
-            .and_then(|g| g.get("potions"))
+        let map_nodes: Vec<MapCoord> = gs
+            .and_then(|g| g.get("map"))
             .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter(|p| {
-                        p.get("id")
-                            .and_then(|id| id.as_str())
-                            .map(|id| id != "Potion Slot")
-                            .unwrap_or(true)
+                    .map(|n| MapCoord {
+                        symbol: n
+                            .get("symbol")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("?")
+                            .to_string(),
+                        x: n.get("x").and_then(|v| v.as_i64()).unwrap_or(0),
+                        y: n.get("y").and_then(|v| v.as_i64()).unwrap_or(0),
+                        children: n
+                            .get("children")
+                            .and_then(|v| v.as_array())
+                            .map(|children| {
+                                children
+                                    .iter()
+                                    .filter_map(|c| {
+                                        Some((c.get("x")?.as_i64()?, c.get("y")?.as_i64()?))
+                                    })
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
                     })
-                    .map(|p| i18n_name!(p, i18n, potion))
                     .collect()
             })
+            .unwrap_or_default();
+
+        let mut relics: Vec<RelicInfo> = gs
+            .and_then(|g| g.get("relics"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_relic_infos(arr))
+            .unwrap_or_default();
+
+        let mut potions: Vec<PotionInfo> = gs
+            .and_then(|g| g.get("potions"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_potion_infos(arr))
             .unwrap_or_default();
 
         let mut deck_names: Vec<String> = gs
             .and_then(|g| g.get("deck"))
             .and_then(|v| v.as_array())
-            .map(|arr| extract_card_names(arr, i18n))
+            .map(|arr| extract_card_names(arr))
             .unwrap_or_default();
 
-        relics.sort();
-        potions.sort();
+        relics.sort_by(|a, b| a.name.cmp(&b.name));
+        potions.sort_by(|a, b| a.name.cmp(&b.name));
         deck_names.sort();
 
         NormalizedState {
@@ -531,6 +643,10 @@ impl NormalizedState {
             discard_pile,
             exhaust_cards,
             master_cards,
+            map_nodes,
+            map_first_node_chosen,
+            map_current_x,
+            map_current_y,
         }
     }
 
@@ -655,10 +771,23 @@ impl NormalizedState {
         map.insert("card_reward_choices".to_string(), Value::Array(choices_arr));
 
         let mut sorted_boss_relics = self.boss_relic_choices.clone();
-        sorted_boss_relics.sort();
+        sorted_boss_relics.sort_by(|a, b| a.name.cmp(&b.name));
         map.insert(
             "boss_relic_choices".to_string(),
-            Value::Array(sorted_boss_relics.into_iter().map(Value::String).collect()),
+            Value::Array(
+                sorted_boss_relics
+                    .into_iter()
+                    .map(|r| {
+                        let mut rm = serde_json::Map::new();
+                        rm.insert("name".to_string(), Value::String(r.name.clone()));
+                        rm.insert(
+                            "description".to_string(),
+                            Value::String(r.description.clone()),
+                        );
+                        Value::Object(rm)
+                    })
+                    .collect(),
+            ),
         );
 
         if let Some(ref v) = self.event_name {
@@ -683,17 +812,43 @@ impl NormalizedState {
         );
 
         let mut sorted_relics = self.relics.clone();
-        sorted_relics.sort();
+        sorted_relics.sort_by(|a, b| a.name.cmp(&b.name));
         map.insert(
             "relics".to_string(),
-            Value::Array(sorted_relics.into_iter().map(Value::String).collect()),
+            Value::Array(
+                sorted_relics
+                    .into_iter()
+                    .map(|r| {
+                        let mut rm = serde_json::Map::new();
+                        rm.insert("name".to_string(), Value::String(r.name.clone()));
+                        rm.insert(
+                            "description".to_string(),
+                            Value::String(r.description.clone()),
+                        );
+                        Value::Object(rm)
+                    })
+                    .collect(),
+            ),
         );
 
         let mut sorted_potions = self.potions.clone();
-        sorted_potions.sort();
+        sorted_potions.sort_by(|a, b| a.name.cmp(&b.name));
         map.insert(
             "potions".to_string(),
-            Value::Array(sorted_potions.into_iter().map(Value::String).collect()),
+            Value::Array(
+                sorted_potions
+                    .into_iter()
+                    .map(|p| {
+                        let mut pm = serde_json::Map::new();
+                        pm.insert("name".to_string(), Value::String(p.name.clone()));
+                        pm.insert(
+                            "description".to_string(),
+                            Value::String(p.description.clone()),
+                        );
+                        Value::Object(pm)
+                    })
+                    .collect(),
+            ),
         );
 
         let mut sorted_deck = self.deck_names.clone();
@@ -714,6 +869,16 @@ impl NormalizedState {
             "skip_available".to_string(),
             Value::Bool(self.skip_available),
         );
+
+        if let Some(v) = self.map_first_node_chosen {
+            map.insert("map_first_node_chosen".to_string(), Value::Bool(v));
+        }
+        if let Some(v) = self.map_current_x {
+            map.insert("map_current_x".to_string(), Value::Number(v.into()));
+        }
+        if let Some(v) = self.map_current_y {
+            map.insert("map_current_y".to_string(), Value::Number(v.into()));
+        }
 
         Value::Object(map)
     }

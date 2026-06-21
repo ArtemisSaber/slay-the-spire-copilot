@@ -1,33 +1,9 @@
 use super::Config;
-
-fn clear_config_env() {
-    for var in &[
-        "LLM_PROVIDER",
-        "LLM_BASE_URL",
-        "LLM_API_KEY",
-        "LLM_MODEL",
-        "LLM_MODEL_FAST",
-        "LLM_MODEL_MEDIUM",
-        "LLM_MODEL_HEAVY",
-        "LLM_MAX_TOKENS",
-        "LLM_MAX_TOKENS_FAST",
-        "LLM_MAX_TOKENS_MEDIUM",
-        "LLM_MAX_TOKENS_HEAVY",
-        "LLM_TEMPERATURE",
-    ] {
-        unsafe { std::env::remove_var(var) };
-    }
-}
-
-fn set_env(key: &str, val: &str) {
-    unsafe { std::env::set_var(key, val) };
-}
+use std::collections::HashMap;
 
 #[test]
-fn config_from_env() {
-    // Sub-test: all defaults
-    clear_config_env();
-    let c = Config::from_env();
+fn defaults_when_no_env() {
+    let c = Config::from_map(&HashMap::new());
     assert_eq!(c.provider, "mock");
     assert!(c.base_url.is_none());
     assert!(c.api_key.is_none());
@@ -36,60 +12,87 @@ fn config_from_env() {
     assert_eq!(c.model_heavy, "gpt-4o-mini");
     assert_eq!(c.max_tokens_heavy, 50000);
     assert_eq!(c.max_tokens_medium, 10000);
-    assert_eq!(c.max_tokens_fast, 3000);
+    assert_eq!(c.max_tokens_fast, 300);
     assert_eq!(c.temperature, 0.7);
+    assert!(!c.disable_fast_thinking);
+}
 
-    // Sub-test: provider + base url + api key
-    clear_config_env();
-    set_env("LLM_PROVIDER", "openai-compatible");
-    set_env("LLM_BASE_URL", "https://api.example.com");
-    set_env("LLM_API_KEY", "sk-test");
-    let c = Config::from_env();
+#[test]
+fn provider_base_url_and_api_key() {
+    let c = Config::from_map(&HashMap::from([
+        ("LLM_PROVIDER", "openai-compatible"),
+        ("LLM_BASE_URL", "https://api.example.com"),
+        ("LLM_API_KEY", "sk-test"),
+    ]));
     assert_eq!(c.provider, "openai-compatible");
     assert_eq!(c.base_url.as_deref(), Some("https://api.example.com"));
     assert_eq!(c.api_key.as_deref(), Some("sk-test"));
+}
 
-    // Sub-test: model chain fallback
-    clear_config_env();
-    set_env("LLM_MODEL", "claude-3");
-    let c = Config::from_env();
+#[test]
+fn model_chain_fallback() {
+    let c = Config::from_map(&HashMap::from([("LLM_MODEL", "claude-3")]));
     assert_eq!(c.model_fast, "claude-3");
     assert_eq!(c.model_medium, "claude-3");
     assert_eq!(c.model_heavy, "claude-3");
+}
 
-    // Sub-test: per-tier model overrides
-    clear_config_env();
-    set_env("LLM_MODEL", "fallback-model");
-    set_env("LLM_MODEL_FAST", "gpt-4o-mini");
-    set_env("LLM_MODEL_HEAVY", "deepseek-v3");
-    let c = Config::from_env();
+#[test]
+fn per_tier_model_overrides() {
+    let c = Config::from_map(&HashMap::from([
+        ("LLM_MODEL", "fallback-model"),
+        ("LLM_MODEL_FAST", "gpt-4o-mini"),
+        ("LLM_MODEL_HEAVY", "deepseek-v3"),
+    ]));
     assert_eq!(c.model_fast, "gpt-4o-mini");
     assert_eq!(c.model_medium, "fallback-model");
     assert_eq!(c.model_heavy, "deepseek-v3");
+}
 
-    // Sub-test: max tokens ceiling and clamping
-    clear_config_env();
-    set_env("LLM_MAX_TOKENS", "2000");
-    set_env("LLM_MAX_TOKENS_HEAVY", "8000");
-    let c = Config::from_env();
+#[test]
+fn max_tokens_ceiling_and_clamping() {
+    let c = Config::from_map(&HashMap::from([
+        ("LLM_MAX_TOKENS", "2000"),
+        ("LLM_MAX_TOKENS_HEAVY", "8000"),
+    ]));
     assert_eq!(c.max_tokens_heavy, 8000);
     assert_eq!(c.max_tokens_medium, 8000);
-    assert_eq!(c.max_tokens_fast, 3000);
+    assert_eq!(c.max_tokens_fast, 300);
+}
 
-    // Sub-test: individual token overrides
-    clear_config_env();
-    set_env("LLM_MAX_TOKENS", "50000");
-    set_env("LLM_MAX_TOKENS_FAST", "500");
-    set_env("LLM_MAX_TOKENS_MEDIUM", "2000");
-    set_env("LLM_MAX_TOKENS_HEAVY", "16000");
-    let c = Config::from_env();
+#[test]
+fn individual_token_overrides() {
+    let c = Config::from_map(&HashMap::from([
+        ("LLM_MAX_TOKENS", "50000"),
+        ("LLM_MAX_TOKENS_FAST", "500"),
+        ("LLM_MAX_TOKENS_MEDIUM", "2000"),
+        ("LLM_MAX_TOKENS_HEAVY", "16000"),
+    ]));
     assert_eq!(c.max_tokens_fast, 500);
     assert_eq!(c.max_tokens_medium, 2000);
     assert_eq!(c.max_tokens_heavy, 16000);
+}
 
-    // Sub-test: temperature override
-    clear_config_env();
-    set_env("LLM_TEMPERATURE", "0.3");
-    let c = Config::from_env();
+#[test]
+fn temperature_override() {
+    let c = Config::from_map(&HashMap::from([("LLM_TEMPERATURE", "0.3")]));
     assert_eq!(c.temperature, 0.3);
+}
+
+#[test]
+fn deepseek_base_url_disables_fast_thinking_by_default() {
+    let c = Config::from_map(&HashMap::from([(
+        "LLM_BASE_URL",
+        "https://api.deepseek.com",
+    )]));
+    assert!(c.disable_fast_thinking);
+}
+
+#[test]
+fn fast_thinking_override_wins_over_deepseek_default() {
+    let c = Config::from_map(&HashMap::from([
+        ("LLM_BASE_URL", "https://api.deepseek.com"),
+        ("LLM_DISABLE_FAST_THINKING", "false"),
+    ]));
+    assert!(!c.disable_fast_thinking);
 }

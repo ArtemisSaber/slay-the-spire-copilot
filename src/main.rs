@@ -1,8 +1,9 @@
+#![deny(clippy::allow_attributes_without_reason)]
 mod advice;
 mod config;
-mod i18n;
 mod journal;
 mod llm;
+mod locales;
 mod logging;
 mod postmortem;
 mod prompt;
@@ -12,7 +13,8 @@ mod state;
 
 use advice::{AdviceCache, OverlayMetadata};
 use llm::{AdviceScenario, Effort};
-use std::collections::HashSet;
+use state::MapCoord;
+use std::collections::HashMap;
 use std::io::{self, BufRead, IsTerminal, Write};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -122,30 +124,139 @@ const SCREEN_CONFIG: ScreenConfig = ScreenConfig {
     // "SHOP", "HAND_SELECT", "GRID",
 };
 
-struct AdviceGate {
-    advised_combats: HashSet<String>,
+struct CombatTurnGate {
+    last_turn: Option<(String, i64)>,
 }
 
-impl AdviceGate {
+impl CombatTurnGate {
     fn new() -> Self {
-        AdviceGate {
-            advised_combats: HashSet::new(),
+        CombatTurnGate { last_turn: None }
+    }
+
+    fn is_player_turn_start(&mut self, raw: &serde_json::Value) -> bool {
+        if raw
+            .pointer("/game_state/screen_type")
+            .and_then(|v| v.as_str())
+            != Some("NONE")
+        {
+            return false;
+        }
+        if raw
+            .pointer("/game_state/action_phase")
+            .and_then(|v| v.as_str())
+            != Some("WAITING_ON_USER")
+        {
+            return false;
+        }
+        if !has_monsters(raw) {
+            return false;
+        }
+        let identity = match combat_identity(raw) {
+            Some(id) => id,
+            None => return false,
+        };
+        let turn = match raw
+            .pointer("/game_state/combat_state/turn")
+            .and_then(|v| v.as_i64())
+        {
+            Some(t) => t,
+            None => return false,
+        };
+        let key = (identity, turn);
+        if self.last_turn.as_ref() == Some(&key) {
+            return false;
+        }
+        self.last_turn = Some(key);
+        true
+    }
+}
+
+struct MapGate {
+    last_advised_next: Option<Vec<(i64, i64)>>,
+    shop_visited: bool,
+}
+
+impl MapGate {
+    fn new() -> Self {
+        MapGate {
+            last_advised_next: None,
+            shop_visited: false,
         }
     }
 
-    fn should_generate(&mut self, screen_type: &str, raw: &serde_json::Value) -> bool {
-        if should_generate_advice(screen_type, raw) {
+    fn should_generate(&mut self, raw: &serde_json::Value, map_nodes: &[MapCoord]) -> bool {
+        let rp = raw
+            .pointer("/game_state/room_phase")
+            .and_then(|v| v.as_str());
+        if rp != Some("COMPLETE") {
+            return false;
+        }
+
+        let first_chosen = raw
+            .pointer("/game_state/screen_state/first_node_chosen")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+
+        if !first_chosen {
             return true;
         }
 
-        if screen_type == "NONE"
-            && has_monsters(raw)
-            && let Some(identity) = combat_identity(raw)
-        {
-            return self.advised_combats.insert(identity);
+        let current = raw
+            .pointer("/game_state/screen_state/current_node")
+            .and_then(|v| Some((v.get("x")?.as_i64()?, v.get("y")?.as_i64()?)));
+
+        let Some((cx, cy)) = current else {
+            return false;
+        };
+
+        let node_map: HashMap<(i64, i64), &MapCoord> =
+            map_nodes.iter().map(|n| ((n.x, n.y), n)).collect();
+
+        let Some(node) = node_map.get(&(cx, cy)) else {
+            return false;
+        };
+
+        let mut next_coords: Vec<(i64, i64)> = node
+            .children
+            .iter()
+            .filter(|(x, y)| node_map.contains_key(&(*x, *y)))
+            .copied()
+            .collect();
+        next_coords.sort();
+
+        if next_coords.len() <= 1 {
+            return false;
         }
 
-        false
+        if self.last_advised_next.as_ref() == Some(&next_coords) {
+            return false;
+        }
+
+        true
+    }
+
+    fn record(&mut self, map_nodes: &[MapCoord], current_x: i64, current_y: i64) {
+        let node_map: HashMap<(i64, i64), &MapCoord> =
+            map_nodes.iter().map(|n| ((n.x, n.y), n)).collect();
+
+        if let Some(node) = node_map.get(&(current_x, current_y)) {
+            let mut next: Vec<(i64, i64)> = node
+                .children
+                .iter()
+                .filter(|(x, y)| node_map.contains_key(&(*x, *y)))
+                .copied()
+                .collect();
+            next.sort();
+            self.last_advised_next = Some(next);
+        }
+    }
+
+    fn on_shop(&mut self) {
+        self.shop_visited = true;
+    }
+
+    fn on_act_entry(&mut self) {
+        self.shop_visited = false;
     }
 }
 
@@ -193,9 +304,13 @@ fn available_event_choice_count(raw: &serde_json::Value) -> usize {
         .unwrap_or(0)
 }
 
-async fn postmortem_report_text(deterministic_report: &str, provider: &llm::LlmProvider) -> String {
-    let prompt = postmortem::build_ai_postmortem_prompt(deterministic_report);
-    match provider.query_postmortem(&prompt).await {
+async fn postmortem_report_text(
+    deterministic_report: &str,
+    provider: &llm::LlmProvider,
+    locale: &locales::Locale,
+) -> String {
+    let prompt = postmortem::build_ai_postmortem_prompt(deterministic_report, locale);
+    match provider.query_postmortem(&prompt, locale).await {
         Ok(report) => report,
         Err(e) => {
             tracing::warn!("AI postmortem failed, saving deterministic report: {e}");
@@ -209,6 +324,7 @@ async fn finalize_run_once(
     provider: &llm::LlmProvider,
     reason: &str,
     finalized: &mut bool,
+    locale: &locales::Locale,
 ) {
     if *finalized {
         return;
@@ -217,14 +333,15 @@ async fn finalize_run_once(
 
     journal.log_run_ended(reason);
 
-    let deterministic_report = match postmortem::generate_report_from_journal_file(journal.path()) {
-        Ok(report) => report,
-        Err(e) => {
-            tracing::error!("failed to generate postmortem report: {e}");
-            return;
-        }
-    };
-    let report = postmortem_report_text(&deterministic_report, provider).await;
+    let deterministic_report =
+        match postmortem::generate_report_from_journal_file(journal.path(), locale) {
+            Ok(report) => report,
+            Err(e) => {
+                tracing::error!("failed to generate postmortem report: {e}");
+                return;
+            }
+        };
+    let report = postmortem_report_text(&deterministic_report, provider, locale).await;
 
     match postmortem::write_report_for_journal(journal.path(), &report) {
         Ok(path) => tracing::info!("wrote postmortem report to {}", path.display()),
@@ -240,10 +357,13 @@ async fn main() {
     let options = RuntimeOptions::from_env_and_args();
 
     if let Some(path) = options.postmortem_path.as_deref() {
+        let postmortem_locale = locales::Locale::load("en");
+
         let deterministic_report = match std::fs::read_to_string(path)
             .map_err(|e| e.to_string())
-            .and_then(|content| postmortem::generate_report_from_jsonl(&content))
-        {
+            .and_then(|content| {
+                postmortem::generate_report_from_jsonl(&content, &postmortem_locale)
+            }) {
             Ok(report) => report,
             Err(e) => {
                 eprintln!("failed to generate postmortem: {e}");
@@ -259,8 +379,11 @@ async fn main() {
         let config = config::Config::from_env();
         match llm::LlmProvider::from_config(&config) {
             Ok(provider) => {
-                let prompt = postmortem::build_ai_postmortem_prompt(&deterministic_report);
-                match provider.query_postmortem(&prompt).await {
+                let prompt = postmortem::build_ai_postmortem_prompt(
+                    &deterministic_report,
+                    &postmortem_locale,
+                );
+                match provider.query_postmortem(&prompt, &postmortem_locale).await {
                     Ok(report) => println!("{report}"),
                     Err(e) => {
                         eprintln!("AI postmortem failed, falling back to plain report: {e}");
@@ -312,11 +435,17 @@ async fn main() {
     protocol::send_ready();
     tracing::info!("sent ready");
 
-    let i18n_data = i18n::I18n::load();
+    let detected = startup::detect_game_language();
+    let lang = detected.as_ref().map(|d| d.value.as_str()).unwrap_or("en");
+    let locale_key = locales::lang_to_locale_key(lang);
+    tracing::info!("detected language: {lang} -> locale: {locale_key}");
+    let locale = locales::Locale::load(locale_key);
+
     let mut cache = AdviceCache::new();
     let mut journal = journal::Journal::new();
     journal.log_run_started_with_config(&config);
-    let mut advice_gate = AdviceGate::new();
+    let mut combat_turn_gate = CombatTurnGate::new();
+    let mut map_gate = MapGate::new();
     let mut saw_game_state = false;
     let mut run_finalized = false;
     let stdin = io::stdin();
@@ -353,7 +482,7 @@ async fn main() {
         if !is_in_game(&raw) {
             if should_end_run(&raw, saw_game_state) {
                 let reason = run_end_reason(&raw, saw_game_state).unwrap_or("left_game");
-                finalize_run_once(&journal, &provider, reason, &mut run_finalized).await;
+                finalize_run_once(&journal, &provider, reason, &mut run_finalized, &locale).await;
                 break;
             }
             tracing::debug!("skipping non-game state");
@@ -371,16 +500,109 @@ async fn main() {
             .and_then(|v| v.as_str())
             .unwrap_or("?");
 
-        let normalized = state::NormalizedState::from_raw(&raw, &i18n_data);
+        let normalized = state::NormalizedState::from_raw(&raw, &locale);
         let hash = normalized.stable_hash();
         journal.log_state_change(&hash, &normalized);
 
+        if screen_type == "MAP" {
+            let rp = raw
+                .pointer("/game_state/room_phase")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            if rp == "COMPLETE" {
+                let first_chosen = raw
+                    .pointer("/game_state/screen_state/first_node_chosen")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
+                if first_chosen {
+                    let paths = raw
+                        .pointer("/game_state/screen_state/current_node")
+                        .and_then(|v| Some((v.get("x")?.as_i64()?, v.get("y")?.as_i64()?)))
+                        .map(|(x, y)| prompt::enumerate_paths(x, y, &normalized.map_nodes))
+                        .unwrap_or_default();
+                    tracing::info!(
+                        "MAP: {} paths from current_node, room_phase=COMPLETE",
+                        paths.len(),
+                    );
+                    for (i, path) in paths.iter().enumerate() {
+                        let route: Vec<String> = path
+                            .iter()
+                            .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
+                            .collect();
+                        let summary = prompt::summarize_path(path);
+                        tracing::info!(
+                            "  Path {}: {}  [{}]",
+                            (b'A' + i as u8) as char,
+                            route.join(" → "),
+                            summary,
+                        );
+                    }
+                } else {
+                    let roots = prompt::enumerate_paths_from_roots(&normalized.map_nodes);
+                    let total: usize = roots.iter().map(|r| r.paths.len()).sum();
+                    tracing::info!(
+                        "MAP: {} roots, {} paths total, room_phase=COMPLETE",
+                        roots.len(),
+                        total,
+                    );
+                    for (ri, root_group) in roots.iter().enumerate() {
+                        let root_label = format!(
+                            "{}({},{})",
+                            root_group.root.symbol, root_group.root.x, root_group.root.y
+                        );
+                        tracing::info!(
+                            "  Root {} {}: {} paths",
+                            (b'A' + ri as u8) as char,
+                            root_label,
+                            root_group.paths.len(),
+                        );
+                        for (pi, path) in root_group.paths.iter().enumerate() {
+                            let route: Vec<String> = path
+                                .iter()
+                                .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
+                                .collect();
+                            let summary = prompt::summarize_path(path);
+                            tracing::info!(
+                                "    Path {}.{}: {}  [{}]",
+                                (b'A' + ri as u8) as char,
+                                pi + 1,
+                                route.join(" → "),
+                                summary,
+                            );
+                        }
+                    }
+                }
+            } else {
+                tracing::debug!("MAP screen but room_phase={rp} or no current_node");
+            }
+        }
+
         if is_game_over_state(&raw) {
-            finalize_run_once(&journal, &provider, "game_over", &mut run_finalized).await;
+            finalize_run_once(
+                &journal,
+                &provider,
+                "game_over",
+                &mut run_finalized,
+                &locale,
+            )
+            .await;
             break;
         }
 
-        if !advice_gate.should_generate(screen_type, &raw) {
+        if screen_type == "SHOP" {
+            map_gate.on_shop();
+        }
+        if screen_type == "MAP" && normalized.map_first_node_chosen == Some(false) {
+            map_gate.on_act_entry();
+        }
+
+        let map_should_generate =
+            screen_type == "MAP" && map_gate.should_generate(&raw, &normalized.map_nodes);
+
+        if !should_generate_advice(screen_type, &raw)
+            && !combat_turn_gate.is_player_turn_start(&raw)
+            && !map_should_generate
+        {
             tracing::debug!("skipping screen type: {screen_type}");
             continue;
         }
@@ -404,7 +626,7 @@ async fn main() {
         let effort = Effort::from_screen_type(screen_type);
         let scenario = AdviceScenario::from_state(&normalized);
 
-        let prompt = prompt::build_prompt(&normalized, &i18n_data);
+        let prompt = prompt::build_prompt(&normalized, &locale, map_gate.shop_visited);
         tracing::debug!(
             "prompt ({} chars): {}",
             prompt.len(),
@@ -422,11 +644,11 @@ async fn main() {
         cache.write_overlay_loading(&metadata);
 
         let advice = cache
-            .get_or_compute(&hash, &prompt, effort, scenario, &provider)
+            .get_or_compute(&hash, &prompt, effort, scenario, &provider, &locale)
             .await;
 
-        let fields = advice::parse_advice_response(&advice);
-        let status = if advice.contains("LLM 调用失败") {
+        let fields = advice::parse_advice_response(&advice, &locale);
+        let status = if advice.contains(&locale.fallback.llm_error) {
             "error"
         } else {
             "ok"
@@ -436,11 +658,27 @@ async fn main() {
         journal.log_advice(&hash, effort, scenario, &prompt, &advice);
         tracing::info!("wrote advice ({} chars hash={})", advice.len(), &hash[..16]);
         cache.write_advice(&advice);
+
+        if screen_type == "MAP"
+            && let (Some(cx), Some(cy)) = (normalized.map_current_x, normalized.map_current_y)
+        {
+            map_gate.record(&normalized.map_nodes, cx, cy);
+        }
     }
 
-    finalize_run_once(&journal, &provider, "stdin_closed", &mut run_finalized).await;
+    finalize_run_once(
+        &journal,
+        &provider,
+        "stdin_closed",
+        &mut run_finalized,
+        &locale,
+    )
+    .await;
     tracing::info!("stdin closed, exiting");
 }
+
+#[cfg(test)]
+mod test_utils;
 
 #[cfg(test)]
 #[path = "tests/main_tests.rs"]

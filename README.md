@@ -103,10 +103,11 @@ Optional model tiers:
 LLM_MODEL_FAST=gpt-4o-mini
 LLM_MODEL_MEDIUM=gpt-4o
 LLM_MODEL_HEAVY=gpt-4o
-LLM_MAX_TOKENS_FAST=3000
+LLM_MAX_TOKENS_FAST=300
 LLM_MAX_TOKENS_MEDIUM=10000
 LLM_MAX_TOKENS_HEAVY=50000
 LLM_TEMPERATURE=0.7
+LLM_DISABLE_FAST_THINKING=true  # DeepSeek: force non-thinking mode for combat/fast advice
 ```
 
 ## Game Configuration / 游戏配置

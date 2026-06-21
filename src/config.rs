@@ -1,5 +1,8 @@
 use std::env;
 
+#[cfg(test)]
+use std::collections::HashMap;
+
 pub struct Config {
     pub provider: String,
     pub base_url: Option<String>,
@@ -11,6 +14,7 @@ pub struct Config {
     pub max_tokens_medium: u32,
     pub max_tokens_heavy: u32,
     pub temperature: f64,
+    pub disable_fast_thinking: bool,
 }
 
 impl Config {
@@ -18,39 +22,46 @@ impl Config {
         #[cfg(not(test))]
         dotenvy::dotenv().ok();
 
-        let provider = env::var("LLM_PROVIDER").unwrap_or_else(|_| "mock".to_string());
+        Self::from_lookup(|key| env::var(key).ok())
+    }
 
-        let base_url = env::var("LLM_BASE_URL").ok();
-        let api_key = env::var("LLM_API_KEY").ok();
+    pub fn from_lookup(mut lookup: impl FnMut(&str) -> Option<String>) -> Self {
+        let provider = lookup("LLM_PROVIDER").unwrap_or_else(|| "mock".to_string());
 
-        let fallback_model = env::var("LLM_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+        let base_url = lookup("LLM_BASE_URL");
+        let api_key = lookup("LLM_API_KEY");
 
-        let model_fast = env::var("LLM_MODEL_FAST").unwrap_or_else(|_| fallback_model.clone());
-        let model_medium = env::var("LLM_MODEL_MEDIUM").unwrap_or_else(|_| fallback_model.clone());
-        let model_heavy = env::var("LLM_MODEL_HEAVY").unwrap_or_else(|_| fallback_model.clone());
+        let fallback_model = lookup("LLM_MODEL").unwrap_or_else(|| "gpt-4o-mini".to_string());
 
-        let ceiling = env::var("LLM_MAX_TOKENS")
-            .ok()
+        let model_fast = lookup("LLM_MODEL_FAST").unwrap_or_else(|| fallback_model.clone());
+        let model_medium = lookup("LLM_MODEL_MEDIUM").unwrap_or_else(|| fallback_model.clone());
+        let model_heavy = lookup("LLM_MODEL_HEAVY").unwrap_or_else(|| fallback_model.clone());
+
+        let ceiling = lookup("LLM_MAX_TOKENS")
             .and_then(|v| v.parse().ok())
             .unwrap_or(50000);
 
-        let max_tokens_heavy = env::var("LLM_MAX_TOKENS_HEAVY")
-            .ok()
+        let max_tokens_heavy = lookup("LLM_MAX_TOKENS_HEAVY")
             .and_then(|v| v.parse().ok())
             .unwrap_or(ceiling);
-        let max_tokens_medium = env::var("LLM_MAX_TOKENS_MEDIUM")
-            .ok()
+        let max_tokens_medium = lookup("LLM_MAX_TOKENS_MEDIUM")
             .and_then(|v| v.parse().ok())
             .unwrap_or(max_tokens_heavy.min(10000));
-        let max_tokens_fast = env::var("LLM_MAX_TOKENS_FAST")
-            .ok()
+        let max_tokens_fast = lookup("LLM_MAX_TOKENS_FAST")
             .and_then(|v| v.parse().ok())
-            .unwrap_or(max_tokens_heavy.min(3000));
+            .unwrap_or(max_tokens_heavy.min(300));
 
-        let temperature = env::var("LLM_TEMPERATURE")
-            .ok()
+        let temperature = lookup("LLM_TEMPERATURE")
             .and_then(|v| v.parse().ok())
             .unwrap_or(0.7);
+
+        let disable_fast_thinking = lookup("LLM_DISABLE_FAST_THINKING")
+            .map(|v| matches!(v.as_str(), "1" | "true" | "yes" | "on"))
+            .unwrap_or_else(|| {
+                base_url
+                    .as_deref()
+                    .is_some_and(|url| url.contains("api.deepseek.com"))
+            });
 
         Config {
             provider,
@@ -63,7 +74,14 @@ impl Config {
             max_tokens_medium,
             max_tokens_heavy,
             temperature,
+            disable_fast_thinking,
         }
+    }
+
+    #[cfg(test)]
+    pub fn from_map(vars: &HashMap<&str, &str>) -> Self {
+        let lookup = |key: &str| vars.get(key).map(|v| v.to_string());
+        Self::from_lookup(lookup)
     }
 }
 

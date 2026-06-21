@@ -6,12 +6,16 @@ fn make_state(screen_type: &str, monsters: Option<Vec<serde_json::Value>>) -> se
         "in_game": true,
         "game_state": {
             "screen_type": screen_type,
+            "action_phase": "WAITING_ON_USER",
             "floor": 1,
             "room_type": "MonsterRoom",
         }
     });
     if let Some(monster_list) = monsters {
-        state["game_state"]["combat_state"] = json!({"monsters": monster_list});
+        state["game_state"]["combat_state"] = json!({
+            "monsters": monster_list,
+            "turn": 1,
+        });
     }
     state
 }
@@ -147,28 +151,43 @@ fn event_with_single_choice_does_not_generate_advice() {
 }
 
 #[test]
-fn combat_entry_generates_advice_on_first_combat_state() {
-    let mut gate = AdviceGate::new();
+fn combat_entry_generates_advice_on_player_turn_start() {
+    let mut gate = CombatTurnGate::new();
     let state = with_monsters("NONE");
 
-    assert!(gate.should_generate("NONE", &state));
+    assert!(gate.is_player_turn_start(&state));
 }
 
 #[test]
-fn combat_followup_state_does_not_generate_advice() {
-    let mut gate = AdviceGate::new();
+fn combat_same_turn_does_not_generate() {
+    let mut gate = CombatTurnGate::new();
     let state = with_monsters("NONE");
 
-    assert!(gate.should_generate("NONE", &state));
-    assert!(!gate.should_generate("NONE", &state));
+    assert!(gate.is_player_turn_start(&state));
+    assert!(!gate.is_player_turn_start(&state));
 }
 
 #[test]
-fn combat_entry_requires_active_monsters() {
-    let mut gate = AdviceGate::new();
+fn combat_entry_requires_waiting_on_user() {
+    let mut gate = CombatTurnGate::new();
 
-    assert!(!gate.should_generate("NONE", &without_monsters("NONE")));
-    assert!(!gate.should_generate("NONE", &make_state("NONE", Some(vec![gone_monster()]))));
+    assert!(!gate.is_player_turn_start(&without_monsters("NONE")));
+    assert!(!gate.is_player_turn_start(&make_state("NONE", Some(vec![gone_monster()]))));
+
+    let mut non_waiting = with_monsters("NONE");
+    non_waiting["game_state"]["action_phase"] = json!("EXECUTING_ACTIONS");
+    assert!(!gate.is_player_turn_start(&non_waiting));
+}
+
+#[test]
+fn combat_new_turn_generates_advice() {
+    let mut gate = CombatTurnGate::new();
+    let state = with_monsters("NONE");
+    assert!(gate.is_player_turn_start(&state));
+
+    let mut state2 = state.clone();
+    state2["game_state"]["combat_state"]["turn"] = json!(2);
+    assert!(gate.is_player_turn_start(&state2));
 }
 
 #[test]
@@ -223,18 +242,24 @@ async fn finalize_run_writes_postmortem_report() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = crate::journal::Journal::new_at(dir.path(), "run-1");
     let config = crate::config::Config::from_env();
-    let i18n = crate::i18n::I18n::load();
     let raw = serde_json::from_str::<serde_json::Value>(include_str!(
         "../../tests/fixtures/combat-state.json"
     ))
     .unwrap();
-    let state = crate::state::NormalizedState::from_raw(&raw, &i18n);
+    let state = crate::state::NormalizedState::from_raw(&raw, &crate::test_utils::test_locale());
     let provider = crate::llm::LlmProvider::Mock;
     let mut finalized = false;
 
     journal.log_run_started_with_config(&config);
     journal.log_state_change(&state.stable_hash(), &state);
-    finalize_run_once(&journal, &provider, "game_over", &mut finalized).await;
+    finalize_run_once(
+        &journal,
+        &provider,
+        "game_over",
+        &mut finalized,
+        &crate::test_utils::test_locale(),
+    )
+    .await;
 
     assert!(finalized);
     let report = std::fs::read_to_string(dir.path().join("run-1").join("postmortem.md")).unwrap();
@@ -253,8 +278,22 @@ async fn finalize_run_is_idempotent() {
     let mut finalized = false;
 
     journal.log_run_started_with_config(&config);
-    finalize_run_once(&journal, &provider, "game_over", &mut finalized).await;
-    finalize_run_once(&journal, &provider, "stdin_closed", &mut finalized).await;
+    finalize_run_once(
+        &journal,
+        &provider,
+        "game_over",
+        &mut finalized,
+        &crate::test_utils::test_locale(),
+    )
+    .await;
+    finalize_run_once(
+        &journal,
+        &provider,
+        "stdin_closed",
+        &mut finalized,
+        &crate::test_utils::test_locale(),
+    )
+    .await;
 
     let events = std::fs::read_to_string(journal.path()).unwrap();
     assert_eq!(events.matches("\"event\":\"run_ended\"").count(), 1);
@@ -293,4 +332,180 @@ fn screens_not_in_config_dont_generate() {
             "{screen} should not generate advice"
         );
     }
+}
+
+fn map_json(first_node_chosen: bool, children: Vec<(i64, i64)>) -> serde_json::Value {
+    let children_json: Vec<serde_json::Value> = children
+        .iter()
+        .map(|(x, y)| json!({"x": x, "y": y}))
+        .collect();
+    json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "room_phase": "COMPLETE",
+            "floor": 5,
+            "room_type": "MonsterRoom",
+            "screen_state": {
+                "first_node_chosen": first_node_chosen,
+                "current_node": {"x": 1, "y": 2}
+            },
+            "map": [
+                {"symbol": "M", "x": 1, "y": 2, "children": children_json},
+                {"symbol": "E", "x": 3, "y": 3, "children": []},
+                {"symbol": "?", "x": 4, "y": 3, "children": []},
+                {"symbol": "M", "x": 5, "y": 3, "children": []}
+            ]
+        }
+    })
+}
+
+fn map_nodes_for(children: Vec<(i64, i64)>) -> Vec<crate::state::MapCoord> {
+    vec![
+        crate::state::MapCoord {
+            symbol: "M".into(),
+            x: 1,
+            y: 2,
+            children,
+        },
+        crate::state::MapCoord {
+            symbol: "E".into(),
+            x: 3,
+            y: 3,
+            children: vec![],
+        },
+        crate::state::MapCoord {
+            symbol: "?".into(),
+            x: 4,
+            y: 3,
+            children: vec![],
+        },
+        crate::state::MapCoord {
+            symbol: "M".into(),
+            x: 5,
+            y: 3,
+            children: vec![],
+        },
+    ]
+}
+
+fn map_nodes() -> Vec<crate::state::MapCoord> {
+    map_nodes_for(vec![(3, 3), (4, 3), (5, 3)])
+}
+
+#[test]
+fn map_gate_act_entry_generates() {
+    let mut gate = MapGate::new();
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "room_phase": "COMPLETE",
+            "screen_state": {
+                "first_node_chosen": false,
+                "current_node": {"x": -1, "y": 15}
+            }
+        }
+    });
+    assert!(gate.should_generate(&raw, &map_nodes()));
+}
+
+#[test]
+fn map_gate_crossroads_generates() {
+    let mut gate = MapGate::new();
+    let raw = map_json(true, vec![(3, 3), (4, 3)]);
+    let nodes = map_nodes_for(vec![(3, 3), (4, 3)]);
+    assert!(gate.should_generate(&raw, &nodes));
+}
+
+#[test]
+fn map_gate_single_child_skips() {
+    let mut gate = MapGate::new();
+    let raw = map_json(true, vec![(3, 3)]);
+    let nodes = map_nodes_for(vec![(3, 3)]);
+    assert!(!gate.should_generate(&raw, &nodes));
+}
+
+#[test]
+fn map_gate_same_crossroads_skips() {
+    let mut gate = MapGate::new();
+    let raw = map_json(true, vec![(3, 3), (4, 3)]);
+    let nodes = map_nodes_for(vec![(3, 3), (4, 3)]);
+    assert!(gate.should_generate(&raw, &nodes));
+    gate.record(&nodes, 1, 2);
+    assert!(!gate.should_generate(&raw, &nodes));
+}
+
+#[test]
+fn map_gate_different_crossroads_generates() {
+    let mut gate = MapGate::new();
+    let raw1 = map_json(true, vec![(3, 3)]);
+    let nodes1 = map_nodes_for(vec![(3, 3)]);
+    assert!(!gate.should_generate(&raw1, &nodes1));
+    let raw2 = map_json(true, vec![(3, 3), (4, 3)]);
+    let nodes2 = map_nodes_for(vec![(3, 3), (4, 3)]);
+    assert!(gate.should_generate(&raw2, &nodes2));
+}
+
+#[test]
+fn map_gate_room_phase_not_complete_skips() {
+    let mut gate = MapGate::new();
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "room_phase": "NORMAL",
+            "screen_state": {
+                "first_node_chosen": true,
+                "current_node": {"x": 1, "y": 2}
+            }
+        }
+    });
+    assert!(!gate.should_generate(&raw, &map_nodes()));
+}
+
+#[test]
+fn map_gate_no_current_node_skips() {
+    let mut gate = MapGate::new();
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "room_phase": "COMPLETE",
+            "screen_state": {
+                "first_node_chosen": true
+            }
+        }
+    });
+    assert!(!gate.should_generate(&raw, &map_nodes()));
+}
+
+#[test]
+fn map_gate_resets_shop_visited_on_act_entry() {
+    let mut gate = MapGate::new();
+    gate.on_shop();
+    assert!(gate.shop_visited);
+    gate.on_act_entry();
+    assert!(!gate.shop_visited);
+}
+
+#[test]
+fn map_gate_sets_shop_visited_on_shop_screen() {
+    let mut gate = MapGate::new();
+    assert!(!gate.shop_visited);
+    gate.on_shop();
+    assert!(gate.shop_visited);
+}
+
+#[test]
+fn map_not_in_simple_config_gating() {
+    let state = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "room_phase": "COMPLETE",
+            "floor": 5
+        }
+    });
+    assert!(!should_generate_advice("MAP", &state));
 }
