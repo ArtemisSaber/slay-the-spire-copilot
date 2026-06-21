@@ -116,7 +116,7 @@ struct ScreenConfig {
 }
 
 const SCREEN_CONFIG: ScreenConfig = ScreenConfig {
-    generate: &["CARD_REWARD", "BOSS_REWARD", "EVENT", "REST"],
+    generate: &["CARD_REWARD", "BOSS_REWARD", "EVENT", "REST", "MAP"],
     generate_on_combat: &[],
     // Future screens to add to `generate`:
     // "SHOP", "HAND_SELECT", "GRID",
@@ -181,6 +181,12 @@ fn combat_identity(raw: &serde_json::Value) -> Option<String> {
 fn should_generate_advice(screen_type: &str, raw: &serde_json::Value) -> bool {
     if screen_type == "EVENT" {
         return available_event_choice_count(raw) > 1;
+    }
+    if screen_type == "MAP" {
+        return raw
+            .pointer("/game_state/room_phase")
+            .and_then(|v| v.as_str())
+            == Some("COMPLETE");
     }
     if SCREEN_CONFIG.generate.contains(&screen_type) {
         return true;

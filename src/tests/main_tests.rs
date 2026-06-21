@@ -103,7 +103,7 @@ fn menu_before_any_observed_state_does_not_end_run() {
 #[test]
 fn generate_screens_produce_advice() {
     for &screen in SCREEN_CONFIG.generate {
-        if screen == "EVENT" {
+        if screen == "EVENT" || screen == "MAP" {
             continue;
         }
         assert!(
