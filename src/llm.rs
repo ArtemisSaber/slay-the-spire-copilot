@@ -112,8 +112,8 @@ impl AdviceScenario {
         }
     }
 
-    pub fn system_prompt(self, locale: &Locale) -> &str {
-        match self {
+    pub fn system_prompt(self, locale: &Locale) -> String {
+        let base = match self {
             AdviceScenario::CardReward => &locale.system_prompts.card_reward,
             AdviceScenario::BossCardReward => &locale.system_prompts.boss_card_reward,
             AdviceScenario::BossRelic => &locale.system_prompts.boss_relic,
@@ -124,6 +124,22 @@ impl AdviceScenario {
             AdviceScenario::MapCrossroad => &locale.system_prompts.map_crossroad,
             AdviceScenario::Generic => &locale.system_prompts.generic,
             AdviceScenario::Postmortem => &locale.system_prompts.postmortem,
+        };
+        format!("{base}\n\n{}", self.few_shot_example(locale))
+    }
+
+    fn few_shot_example(self, locale: &Locale) -> &str {
+        match self {
+            AdviceScenario::CardReward => &locale.few_shot_examples.card_reward,
+            AdviceScenario::BossCardReward => &locale.few_shot_examples.boss_card_reward,
+            AdviceScenario::BossRelic => &locale.few_shot_examples.boss_relic,
+            AdviceScenario::Rest => &locale.few_shot_examples.rest,
+            AdviceScenario::EventChoice => &locale.few_shot_examples.event_choice,
+            AdviceScenario::CombatEntry => &locale.few_shot_examples.combat_entry,
+            AdviceScenario::MapSuggestion => &locale.few_shot_examples.map_suggestion,
+            AdviceScenario::MapCrossroad => &locale.few_shot_examples.map_crossroad,
+            AdviceScenario::Generic => &locale.few_shot_examples.generic,
+            AdviceScenario::Postmortem => &locale.few_shot_examples.postmortem,
         }
     }
 }
@@ -193,17 +209,15 @@ impl LlmProvider {
         scenario: AdviceScenario,
         locale: &Locale,
     ) -> anyhow::Result<String> {
-        self.query_with_system_prompt(scenario.system_prompt(locale), prompt, effort)
+        let system_prompt = scenario.system_prompt(locale);
+        self.query_with_system_prompt(&system_prompt, prompt, effort)
             .await
     }
 
     pub async fn query_postmortem(&self, prompt: &str, locale: &Locale) -> anyhow::Result<String> {
-        self.query_with_system_prompt(
-            AdviceScenario::Postmortem.system_prompt(locale),
-            prompt,
-            Effort::Heavy,
-        )
-        .await
+        let system_prompt = AdviceScenario::Postmortem.system_prompt(locale);
+        self.query_with_system_prompt(&system_prompt, prompt, Effort::Heavy)
+            .await
     }
 
     async fn query_with_system_prompt(

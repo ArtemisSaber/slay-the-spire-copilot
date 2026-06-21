@@ -76,6 +76,17 @@ pub struct SectionLocale {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct MapPositionLocale {
+    pub only: String,
+    pub left: String,
+    pub right: String,
+    pub middle: String,
+    pub leftmost: String,
+    pub rightmost: String,
+    pub from_left: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct TaskLocale {
     pub combat_entry: String,
     pub card_reward: String,
@@ -117,6 +128,20 @@ pub struct FallbackLocale {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SystemPromptLocale {
+    pub card_reward: String,
+    pub boss_card_reward: String,
+    pub rest: String,
+    pub combat_entry: String,
+    pub boss_relic: String,
+    pub event_choice: String,
+    pub map_suggestion: String,
+    pub map_crossroad: String,
+    pub generic: String,
+    pub postmortem: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct FewShotExampleLocale {
     pub card_reward: String,
     pub boss_card_reward: String,
     pub rest: String,
@@ -188,12 +213,14 @@ pub struct Locale {
     pub monster: MonsterLocale,
     pub card: CardLocale,
     pub sections: SectionLocale,
+    pub map_position: MapPositionLocale,
     pub tasks: TaskLocale,
     pub warnings: WarningLocale,
     pub format_footer: String,
     pub parser: ParserLocale,
     pub fallback: FallbackLocale,
     pub system_prompts: SystemPromptLocale,
+    pub few_shot_examples: FewShotExampleLocale,
     pub postmortem: PostmortemLocale,
     pub i18n: I18nLocale,
     pub language_name: String,

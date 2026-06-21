@@ -1067,6 +1067,22 @@ fn describe_path_route_chain_compact() {
 }
 
 #[test]
+fn position_label_uses_readable_ordinals() {
+    assert_eq!(position_label(2, 5, &Locale::load("en")), "3rd from left");
+    assert_eq!(position_label(2, 5, &Locale::load("zh")), "左起第3个");
+    assert_eq!(position_label(2, 5, &Locale::load("ja")), "左から3番目");
+    assert_eq!(position_label(2, 5, &Locale::load("ko")), "왼쪽에서 3번째");
+}
+
+#[test]
+fn compact_route_chain_shortens_long_routes() {
+    assert_eq!(
+        compact_route_chain("M→$→M→?→M→?→R→M→T→M→E→R→M→M→R"),
+        "M→$→M→?→M→…→R→M→M→R"
+    );
+}
+
+#[test]
 fn describe_path_exposes_ranking_metrics() {
     let path = path_of(&["M", "$", "R", "E", "?", "R"]);
     let desc = describe_path(&path, 1);
@@ -1156,8 +1172,9 @@ fn build_map_suggestion_includes_route_chains_and_counts() {
         ..test_state()
     };
     let prompt = build_map_suggestion(&state, &locale);
-    assert!(prompt.contains("Route 1 (only)"));
+    assert!(prompt.contains("Route 1 (唯一)"));
     assert!(prompt.contains("Candidate 1"));
+    assert!(prompt.contains("Recommendation label: Route 1 (唯一) — M→?→R"));
     assert!(prompt.contains("M→?→R"));
     assert!(prompt.contains("Monsters:1"));
     assert!(prompt.contains("140字"));
@@ -1182,8 +1199,8 @@ fn build_map_suggestion_multiple_paths_labeled() {
         ..test_state()
     };
     let prompt = build_map_suggestion(&state, &locale);
-    assert!(prompt.contains("Route 1 (left)"));
-    assert!(prompt.contains("Route 2 (right)"));
+    assert!(prompt.contains("Route 1 (左侧)"));
+    assert!(prompt.contains("Route 2 (右侧)"));
     assert!(!prompt.contains("Route 3"));
 }
 
@@ -1216,6 +1233,7 @@ fn build_map_suggestion_limits_current_route_candidates() {
     assert_eq!(prompt.matches("Candidate ").count(), 5);
     assert!(prompt.contains("Candidate 5"));
     assert!(!prompt.contains("Candidate 6"));
+    assert!(prompt.contains("Recommendation label: Route"));
 }
 
 #[test]
@@ -1234,8 +1252,9 @@ fn build_map_suggestion_root_selection() {
         ..test_state()
     };
     let prompt = build_map_suggestion(&state, &locale);
-    assert!(prompt.contains("Root 1 (left)"));
-    assert!(prompt.contains("Root 2 (right)"));
+    assert!(prompt.contains("Root 1 (左侧)"));
+    assert!(prompt.contains("Root 2 (右侧)"));
+    assert!(prompt.contains("Recommendation label: Root"));
 }
 
 #[test]
@@ -1329,9 +1348,9 @@ fn build_map_crossroad_shows_next_nodes() {
         ..test_state()
     };
     let prompt = build_map_crossroad(&state, &locale, false);
-    assert!(prompt.contains("(left)"));
-    assert!(prompt.contains("(right)"));
-    assert!(!prompt.contains("(middle)"));
+    assert!(prompt.contains("(左侧)"));
+    assert!(prompt.contains("(右侧)"));
+    assert!(!prompt.contains("(中间)"));
 }
 
 #[test]

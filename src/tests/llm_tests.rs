@@ -1,4 +1,5 @@
 use super::*;
+use crate::locales::Locale;
 use crate::state::{DangerFlags, DangerLevel, MonsterInfo, NormalizedState, RelicInfo};
 use crate::test_utils::test_locale;
 
@@ -22,6 +23,61 @@ fn scenario_system_prompts_are_defined() {
         assert!(prompt.contains("理由："));
         assert!(prompt.contains("风险："));
     }
+}
+
+#[test]
+fn scenario_system_prompts_include_few_shot_examples() {
+    for scenario in [
+        AdviceScenario::CardReward,
+        AdviceScenario::BossCardReward,
+        AdviceScenario::BossRelic,
+        AdviceScenario::Rest,
+        AdviceScenario::EventChoice,
+        AdviceScenario::CombatEntry,
+        AdviceScenario::MapSuggestion,
+        AdviceScenario::MapCrossroad,
+        AdviceScenario::Generic,
+        AdviceScenario::Postmortem,
+    ] {
+        let prompt = scenario.system_prompt(&test_locale());
+        assert!(
+            prompt.contains("示例：") || prompt.contains("例：") || prompt.contains("Example:"),
+            "{scenario:?} should include a few-shot example"
+        );
+    }
+}
+
+#[test]
+fn all_locales_define_few_shot_examples() {
+    for lang in ["en", "zh", "ja", "ko"] {
+        let locale = Locale::load(lang);
+        for scenario in [
+            AdviceScenario::CardReward,
+            AdviceScenario::BossCardReward,
+            AdviceScenario::BossRelic,
+            AdviceScenario::Rest,
+            AdviceScenario::EventChoice,
+            AdviceScenario::CombatEntry,
+            AdviceScenario::MapSuggestion,
+            AdviceScenario::MapCrossroad,
+            AdviceScenario::Generic,
+            AdviceScenario::Postmortem,
+        ] {
+            assert!(
+                !scenario.few_shot_example(&locale).trim().is_empty(),
+                "{lang} {scenario:?} should define a few-shot example"
+            );
+        }
+    }
+}
+
+#[test]
+fn map_system_prompt_warns_against_candidate_number_only() {
+    let locale = Locale::load("en");
+    let prompt = AdviceScenario::MapSuggestion.system_prompt(&locale);
+    assert!(prompt.contains("Recommendation label"));
+    assert!(prompt.contains("do not answer with Candidate number alone"));
+    assert!(prompt.contains("Root 3 (3rd from left)"));
 }
 
 #[test]

@@ -749,19 +749,41 @@ fn format_line(locale: &Locale) -> &str {
     &locale.format_footer
 }
 
-fn position_label(index: usize, total: usize) -> String {
+fn position_label(index: usize, total: usize, locale: &Locale) -> String {
     match (index, total) {
-        (0, 1) => "only",
-        (0, 2) => "left",
-        (1, 2) => "right",
-        (0, 3) => "left",
-        (1, 3) => "middle",
-        (2, 3) => "right",
-        (0, _) => "leftmost",
-        _ if index + 1 == total => "rightmost",
-        _ => return format!("{}th from left", index + 1),
+        (0, 1) => &locale.map_position.only,
+        (0, 2) => &locale.map_position.left,
+        (1, 2) => &locale.map_position.right,
+        (0, 3) => &locale.map_position.left,
+        (1, 3) => &locale.map_position.middle,
+        (2, 3) => &locale.map_position.right,
+        (0, _) => &locale.map_position.leftmost,
+        _ if index + 1 == total => &locale.map_position.rightmost,
+        _ => return from_left_label(index + 1, locale),
     }
     .to_string()
+}
+
+fn from_left_label(n: usize, locale: &Locale) -> String {
+    locale
+        .map_position
+        .from_left
+        .replace("{ordinal}", &ordinal(n))
+        .replace("{n}", &n.to_string())
+}
+
+fn ordinal(n: usize) -> String {
+    let suffix = if (11..=13).contains(&(n % 100)) {
+        "th"
+    } else {
+        match n % 10 {
+            1 => "st",
+            2 => "nd",
+            3 => "rd",
+            _ => "th",
+        }
+    };
+    format!("{n}{suffix}")
 }
 
 struct LabeledPath {
@@ -794,8 +816,61 @@ fn rank_labeled_paths(
     ranked
 }
 
-fn format_candidate_label(index: usize, base_label: &str) -> String {
-    format!("Candidate {} — {base_label}", index + 1)
+fn format_candidate_label(index: usize) -> String {
+    format!("Candidate {}", index + 1)
+}
+
+fn recommendation_features(eval: &PathEvaluation) -> String {
+    let metrics = eval.description.metrics;
+    let counts = metrics.counts;
+    let mut parts = Vec::new();
+
+    match metrics.shop_timing {
+        ShopTiming::Early | ShopTiming::Mid | ShopTiming::Late => {
+            parts.push(format!("{} shop", metrics.shop_timing.label()));
+        }
+        ShopTiming::None => {}
+    }
+    if metrics.rest_before_first_elite {
+        parts.push("rest before elite".to_string());
+    }
+    if counts.elites > 0 {
+        parts.push(format!("{} elite{}", counts.elites, plural(counts.elites)));
+    }
+    if counts.rests >= 2 {
+        parts.push(format!("{} rests", counts.rests));
+    }
+    if counts.events >= 3 {
+        parts.push(format!("{} events", counts.events));
+    }
+
+    if parts.is_empty() {
+        "safe route".to_string()
+    } else {
+        parts.join(", ")
+    }
+}
+
+fn compact_route_chain(chain: &str) -> String {
+    let parts: Vec<&str> = chain.split('→').collect();
+    if parts.len() <= 10 {
+        return chain.to_string();
+    }
+
+    format!(
+        "{}→…→{}",
+        parts[..5].join("→"),
+        parts[parts.len() - 4..].join("→")
+    )
+}
+
+fn recommendation_label(base_label: &str, eval: &PathEvaluation) -> String {
+    format!(
+        "{} — {} — {}",
+        base_label,
+        compact_route_chain(&eval.description.route_chain),
+        recommendation_features(eval)
+    )
 }
 
 fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: bool) -> String {
@@ -833,7 +908,7 @@ fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: b
     let total = valid_children.len();
     let mut child_candidates: Vec<(String, Vec<MapCoord>)> = Vec::new();
     for (i, child) in valid_children.iter().enumerate() {
-        let label = position_label(i, total);
+        let label = position_label(i, total, locale);
         let paths = enumerate_paths(child.x, child.y, &state.map_nodes);
         let path = if let Some(path) = paths.first() {
             path.clone()
@@ -875,11 +950,12 @@ fn build_map_crossroad(state: &NormalizedState, locale: &Locale, shop_visited: b
         }
         details.push(format_evaluation_line(eval));
 
+        lines.push(format!("{}:", format_candidate_label(i)));
         lines.push(format!(
-            "{}:  {}",
-            format_candidate_label(i, &candidate.label),
-            details.join("  ")
+            "  Recommendation label: {}",
+            recommendation_label(&candidate.label, eval)
         ));
+        lines.push(format!("  {}", details.join("  ")));
     }
 
     lines.push(String::new());
@@ -909,7 +985,7 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
             .into_iter()
             .enumerate()
             .map(|(i, path)| {
-                let pos = position_label(i, total);
+                let pos = position_label(i, total, locale);
                 (format!("Route {} ({pos})", i + 1), path)
             })
             .collect();
@@ -922,7 +998,11 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
                 .collect();
             let eval = &candidate.evaluation;
             let desc = &eval.description;
-            lines.push(format!("{}:", format_candidate_label(i, &candidate.label)));
+            lines.push(format!("{}:", format_candidate_label(i)));
+            lines.push(format!(
+                "  Recommendation label: {}",
+                recommendation_label(&candidate.label, eval)
+            ));
             lines.push(format!("  {}  [{}]", route.join("→"), desc.counts));
             let mut ann_line = format!("  {}", desc.route_chain);
             if !desc.annotations.is_empty() {
@@ -937,7 +1017,7 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
         let root_total = roots.len();
         let mut labeled_paths: Vec<(String, Vec<MapCoord>)> = Vec::new();
         for (ri, r) in roots.iter().enumerate() {
-            let pos = position_label(ri, root_total);
+            let pos = position_label(ri, root_total, locale);
             for path in &r.paths {
                 labeled_paths.push((format!("Root {} ({pos})", ri + 1), path.clone()));
             }
@@ -951,7 +1031,11 @@ fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
                 .collect();
             let eval = &candidate.evaluation;
             let desc = &eval.description;
-            lines.push(format!("{}:", format_candidate_label(i, &candidate.label)));
+            lines.push(format!("{}:", format_candidate_label(i)));
+            lines.push(format!(
+                "  Recommendation label: {}",
+                recommendation_label(&candidate.label, eval)
+            ));
             lines.push(format!("  {}  [{}]", route.join("→"), desc.counts));
             let mut ann_line = format!("  {}", desc.route_chain);
             if !desc.annotations.is_empty() {
