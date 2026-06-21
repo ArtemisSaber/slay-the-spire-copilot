@@ -319,7 +319,6 @@ fn screens_not_in_config_dont_generate() {
     let unconfigured = &[
         "COMBAT_REWARD",
         "SHOP",
-        "MAP",
         "GAME_OVER",
         "HAND_SELECT",
         "GRID",
@@ -332,4 +331,64 @@ fn screens_not_in_config_dont_generate() {
             "{screen} should not generate advice"
         );
     }
+}
+
+fn map_state(room_phase: &str) -> serde_json::Value {
+    json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "room_phase": room_phase,
+            "floor": 5,
+            "room_type": "MonsterRoom",
+            "screen_state": {
+                "first_node_chosen": true,
+                "current_node": {"x": 3, "y": 7}
+            }
+        }
+    })
+}
+
+#[test]
+fn map_generates_advice_when_room_phase_complete() {
+    assert!(should_generate_advice("MAP", &map_state("COMPLETE")));
+}
+
+#[test]
+fn map_does_not_generate_when_room_phase_not_complete() {
+    assert!(!should_generate_advice("MAP", &map_state("NORMAL")));
+    assert!(!should_generate_advice("MAP", &map_state("INCOMPLETE")));
+}
+
+#[test]
+fn map_does_not_generate_when_room_phase_missing() {
+    let state = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "floor": 5
+        }
+    });
+    assert!(!should_generate_advice("MAP", &state));
+}
+
+#[test]
+fn map_generates_regardless_of_first_node_chosen() {
+    // true case
+    assert!(should_generate_advice("MAP", &map_state("COMPLETE")));
+    // false case
+    let state = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "room_phase": "COMPLETE",
+            "floor": 1,
+            "room_type": "MonsterRoom",
+            "screen_state": {
+                "first_node_chosen": false,
+                "current_node": {"x": -1, "y": 15}
+            }
+        }
+    });
+    assert!(should_generate_advice("MAP", &state));
 }

@@ -1,7 +1,7 @@
 use super::*;
 use crate::state::{DangerFlags, RelicInfo};
 use crate::test_utils::{load_fixture, test_locale};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 #[test]
 fn normalize_combat_state() {
@@ -545,4 +545,90 @@ fn danger_none_hp_uses_fallback() {
     assert!(d.hp_critical);
     assert!(!d.incoming_lethal);
     assert_eq!(d.level, DangerLevel::Danger);
+}
+
+#[test]
+fn map_nodes_parsed_from_state() {
+    let locale = test_locale();
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "screen_state": {},
+            "map": [
+                {
+                    "symbol": "M",
+                    "x": 0,
+                    "y": 0,
+                    "children": [{"x": 1, "y": 1}]
+                },
+                {
+                    "symbol": "R",
+                    "x": 1,
+                    "y": 1,
+                    "children": []
+                }
+            ],
+            "current_hp": 70,
+            "max_hp": 75,
+            "floor": 1,
+            "class": "IRONCLAD"
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, &locale);
+
+    assert_eq!(state.map_nodes.len(), 2);
+    assert_eq!(state.map_nodes[0].symbol, "M");
+    assert_eq!(state.map_nodes[0].x, 0);
+    assert_eq!(state.map_nodes[0].y, 0);
+    assert_eq!(state.map_nodes[0].children, vec![(1, 1)]);
+    assert_eq!(state.map_nodes[1].symbol, "R");
+    assert_eq!(state.map_nodes[1].x, 1);
+    assert_eq!(state.map_nodes[1].y, 1);
+    assert!(state.map_nodes[1].children.is_empty());
+}
+
+#[test]
+fn map_screen_state_parsed() {
+    let locale = test_locale();
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "screen_state": {
+                "first_node_chosen": true,
+                "current_node": {"x": 3, "y": 7}
+            },
+            "map": [
+                {"symbol": "M", "x": 3, "y": 7, "children": []}
+            ],
+            "current_hp": 70,
+            "max_hp": 75,
+            "floor": 5,
+            "class": "IRONCLAD"
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, &locale);
+    assert_eq!(state.map_first_node_chosen, Some(true));
+    assert_eq!(state.map_current_x, Some(3));
+    assert_eq!(state.map_current_y, Some(7));
+}
+
+#[test]
+fn map_screen_state_defaults_to_none() {
+    let locale = test_locale();
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "NONE",
+            "current_hp": 70,
+            "max_hp": 75,
+            "floor": 1,
+            "class": "IRONCLAD"
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, &locale);
+    assert_eq!(state.map_first_node_chosen, None);
+    assert_eq!(state.map_current_x, None);
+    assert_eq!(state.map_current_y, None);
 }

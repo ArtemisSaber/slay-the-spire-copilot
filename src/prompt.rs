@@ -845,16 +845,24 @@ pub fn summarize_path(path: &[MapCoord]) -> String {
     parts.join("  ")
 }
 
-pub fn enumerate_paths_from_roots(nodes: &[MapCoord]) -> Vec<Vec<MapCoord>> {
-    let mut all_paths = Vec::new();
+pub struct RootPaths {
+    pub root: MapCoord,
+    pub paths: Vec<Vec<MapCoord>>,
+}
+
+pub fn enumerate_paths_from_roots(nodes: &[MapCoord]) -> Vec<RootPaths> {
+    let mut result = Vec::new();
     let roots: Vec<&MapCoord> = nodes.iter().filter(|n| n.y == 0).collect();
 
     for root in roots {
         let paths = enumerate_paths(root.x, root.y, nodes);
-        all_paths.extend(paths);
+        result.push(RootPaths {
+            root: (*root).clone(),
+            paths,
+        });
     }
 
-    all_paths
+    result
 }
 
 #[cfg(test)]

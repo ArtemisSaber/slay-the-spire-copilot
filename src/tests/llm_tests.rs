@@ -12,6 +12,7 @@ fn scenario_system_prompts_are_defined() {
         AdviceScenario::EventChoice,
         AdviceScenario::CombatEntry,
         AdviceScenario::Generic,
+        AdviceScenario::MapSuggestion,
     ] {
         let prompt = scenario.system_prompt(&test_locale());
         assert!(!prompt.is_empty());
@@ -190,6 +191,18 @@ fn scenario_resolver_defaults_to_generic() {
     assert_eq!(
         AdviceScenario::from_state(&test_state()),
         AdviceScenario::Generic
+    );
+}
+
+#[test]
+fn scenario_resolver_detects_map() {
+    let state = NormalizedState {
+        screen_type: Some("MAP".into()),
+        ..test_state()
+    };
+    assert_eq!(
+        AdviceScenario::from_state(&state),
+        AdviceScenario::MapSuggestion
     );
 }
 

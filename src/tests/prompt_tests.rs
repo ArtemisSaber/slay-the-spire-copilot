@@ -1,6 +1,6 @@
 use super::*;
 use crate::locales::Locale;
-use crate::state::{DangerFlags, DangerLevel, MonsterInfo, PowerInfo, RelicInfo};
+use crate::state::{DangerFlags, DangerLevel, MapCoord, MonsterInfo, PowerInfo, RelicInfo};
 use crate::test_utils::card;
 
 fn test_locale() -> Locale {
@@ -906,4 +906,404 @@ fn deck_section_single_cards() {
     let output = format_deck_section(&cards, &locale);
     assert!(output.contains("打击(1费)"));
     assert!(!output.contains("（共"));
+}
+
+// --- describe_path tests ---
+
+fn path_node(symbol: &str) -> MapCoord {
+    MapCoord {
+        symbol: symbol.to_string(),
+        x: 0,
+        y: 0,
+        children: vec![],
+    }
+}
+
+fn path_of(symbols: &[&str]) -> Vec<MapCoord> {
+    symbols.iter().map(|s| path_node(s)).collect()
+}
+
+#[test]
+fn describe_path_rest_before_elite_annotated() {
+    let path = path_of(&["R", "E", "M", "?"]);
+    let desc = describe_path(&path, 1);
+    assert!(
+        desc.annotations
+            .iter()
+            .any(|a| a.contains("Rest before first Elite"))
+    );
+}
+
+#[test]
+fn describe_path_no_rest_before_elite_not_annotated() {
+    let path = path_of(&["M", "E", "M", "R"]);
+    let desc = describe_path(&path, 1);
+    assert!(!desc.annotations.iter().any(|a| a.contains("Rest before")));
+}
+
+#[test]
+fn describe_path_double_elite_annotated() {
+    let path = path_of(&["R", "E", "M", "E", "R"]);
+    let desc = describe_path(&path, 1);
+    assert!(desc.annotations.iter().any(|a| a.contains("Double Elite")));
+}
+
+#[test]
+fn describe_path_single_elite_no_double_warning() {
+    let path = path_of(&["R", "E", "M", "R", "M", "R"]);
+    let desc = describe_path(&path, 1);
+    assert!(!desc.annotations.iter().any(|a| a.contains("Double Elite")));
+}
+
+#[test]
+fn describe_path_risk_gap_exceeds_threshold_act1() {
+    let path = path_of(&["E", "M", "M", "M", "R"]); // E(10)+M(2)+M(2)+M(2)=16 > 15
+    let desc = describe_path(&path, 1);
+    assert!(desc.annotations.iter().any(|a| a.contains("E→R gap")));
+    assert!(desc.annotations.iter().any(|a| a.contains("16")));
+}
+
+#[test]
+fn describe_path_risk_gap_below_threshold_act1() {
+    let path = path_of(&["E", "M", "M", "R"]); // E(10)+M(2)+M(2)=14 ≤ 15
+    let desc = describe_path(&path, 1);
+    assert!(!desc.annotations.iter().any(|a| a.contains("E→R gap")));
+}
+
+#[test]
+fn describe_path_risk_gap_E_R_silent() {
+    let path = path_of(&["E", "R"]); // E(10)=10 ≤ 15
+    let desc = describe_path(&path, 1);
+    assert!(!desc.annotations.iter().any(|a| a.contains("E→R gap")));
+}
+
+#[test]
+fn describe_path_risk_varies_by_act() {
+    let path = path_of(&["E", "M", "M", "R"]);
+    // Act 1: E(10)+M(2)+M(2)=14 ≤ 15 (silent)
+    let desc1 = describe_path(&path, 1);
+    assert!(!desc1.annotations.iter().any(|a| a.contains("E→R gap")));
+    // Act 2: E(10)+M(4)+M(4)=18 > 15 (warned)
+    let desc2 = describe_path(&path, 17);
+    assert!(desc2.annotations.iter().any(|a| a.contains("E→R gap")));
+    assert!(desc2.annotations.iter().any(|a| a.contains("18")));
+}
+
+#[test]
+fn describe_path_risk_resets_at_R() {
+    // Segment 1: E→M→R gap=12 ≤ 15, Segment 2: E→M→R gap=12 ≤ 15
+    let path = path_of(&["E", "M", "R", "E", "M", "R"]);
+    let desc = describe_path(&path, 1);
+    assert!(!desc.annotations.iter().any(|a| a.contains("E→R gap")));
+}
+
+#[test]
+fn describe_path_risk_from_start_to_R() {
+    // No R before first E, segment is start→R: M→E→M→R gap from E=12 ≤ 15
+    let path = path_of(&["M", "E", "M", "R"]);
+    let desc = describe_path(&path, 1);
+    assert!(!desc.annotations.iter().any(|a| a.contains("E→R gap")));
+}
+
+#[test]
+fn describe_path_no_shop() {
+    let path = path_of(&["M", "R", "M", "R"]);
+    let desc = describe_path(&path, 1);
+    assert!(desc.annotations.iter().any(|a| a.contains("No shop")));
+}
+
+#[test]
+fn describe_path_shop_early() {
+    // $ at index 1, path length 9 → position 0.125 < 0.33 = early
+    let path = path_of(&["M", "$", "M", "?", "R", "E", "M", "R", "M"]);
+    let desc = describe_path(&path, 1);
+    assert!(desc.annotations.iter().any(|a| a.contains("Shop (early)")));
+}
+
+#[test]
+fn describe_path_shop_mid() {
+    // $ at index 4, path length 9 → position 0.5 < 0.66 = mid
+    let path = path_of(&["M", "M", "M", "R", "$", "E", "M", "R", "M"]);
+    let desc = describe_path(&path, 1);
+    assert!(desc.annotations.iter().any(|a| a.contains("Shop (mid)")));
+}
+
+#[test]
+fn describe_path_shop_late() {
+    // $ at index 7, path length 9 → position 0.875 > 0.66 = late
+    let path = path_of(&["M", "M", "M", "R", "E", "M", "?", "$", "R"]);
+    let desc = describe_path(&path, 1);
+    assert!(desc.annotations.iter().any(|a| a.contains("Shop (late)")));
+}
+
+#[test]
+fn describe_path_no_elites_no_warnings() {
+    let path = path_of(&["M", "?", "R", "M", "R"]);
+    let desc = describe_path(&path, 1);
+    assert!(!desc.annotations.iter().any(|a| a.contains("Elite")));
+    assert!(!desc.annotations.iter().any(|a| a.contains("E→R")));
+}
+
+#[test]
+fn describe_path_counts_includes_all_types() {
+    let path = path_of(&["M", "E", "?", "$", "R", "T", "M"]);
+    let desc = describe_path(&path, 1);
+    assert!(desc.counts.contains("Monsters:2"));
+    assert!(desc.counts.contains("Elites:1"));
+    assert!(desc.counts.contains("Events:1"));
+    assert!(desc.counts.contains("Shops:1"));
+    assert!(desc.counts.contains("Rests:1"));
+    assert!(desc.counts.contains("Treasures:1"));
+}
+
+#[test]
+fn describe_path_route_chain_compact() {
+    let path = path_of(&["M", "R", "E", "?", "R"]);
+    let desc = describe_path(&path, 1);
+    assert_eq!(desc.route_chain, "M→R→E→?→R");
+}
+
+// --- build_map_suggestion tests ---
+
+#[test]
+fn build_map_suggestion_includes_route_chains_and_counts() {
+    let locale = test_locale();
+    let state = NormalizedState {
+        screen_type: Some("MAP".into()),
+        floor: Some(5),
+        map_nodes: vec![
+            make_node("M", 0, 0, vec![(0, 1)]),
+            make_node("?", 0, 1, vec![(0, 2)]),
+            make_node("R", 0, 2, vec![]),
+        ],
+        map_first_node_chosen: Some(true),
+        map_current_x: Some(0),
+        map_current_y: Some(0),
+        ..test_state()
+    };
+    let prompt = build_prompt(&state, &locale);
+    assert!(prompt.contains("M→?→R"));
+    assert!(prompt.contains("Monsters:1"));
+}
+
+#[test]
+fn build_map_suggestion_multiple_paths_labeled() {
+    let locale = test_locale();
+    let state = NormalizedState {
+        screen_type: Some("MAP".into()),
+        floor: Some(5),
+        map_nodes: vec![
+            make_node("M", 0, 0, vec![(0, 1), (1, 1)]),
+            make_node("R", 0, 1, vec![(0, 2)]),
+            make_node("E", 1, 1, vec![(1, 2)]),
+            make_node("?", 0, 2, vec![]),
+            make_node("$", 1, 2, vec![]),
+        ],
+        map_first_node_chosen: Some(true),
+        map_current_x: Some(0),
+        map_current_y: Some(0),
+        ..test_state()
+    };
+    let prompt = build_prompt(&state, &locale);
+    assert!(prompt.contains("A."));
+    assert!(prompt.contains("B."));
+    assert!(!prompt.contains("C."));
+}
+
+#[test]
+fn build_map_suggestion_root_selection() {
+    let locale = test_locale();
+    let state = NormalizedState {
+        screen_type: Some("MAP".into()),
+        floor: Some(1),
+        map_nodes: vec![
+            make_node("M", 0, 0, vec![(0, 1)]),
+            make_node("?", 0, 1, vec![]),
+            make_node("E", 1, 0, vec![(1, 1)]),
+            make_node("R", 1, 1, vec![]),
+        ],
+        map_first_node_chosen: Some(false),
+        ..test_state()
+    };
+    let prompt = build_prompt(&state, &locale);
+    assert!(prompt.contains("Root"));
+}
+
+#[test]
+fn build_map_suggestion_includes_status_line() {
+    let locale = test_locale();
+    let state = NormalizedState {
+        screen_type: Some("MAP".into()),
+        character: Some("IRONCLAD".into()),
+        floor: Some(5),
+        current_hp: Some(62),
+        max_hp: Some(75),
+        gold: Some(180),
+        map_nodes: vec![
+            make_node("M", 0, 0, vec![(0, 1)]),
+            make_node("R", 0, 1, vec![]),
+        ],
+        map_first_node_chosen: Some(true),
+        map_current_x: Some(0),
+        map_current_y: Some(0),
+        ..test_state()
+    };
+    let prompt = build_prompt(&state, &locale);
+    assert!(prompt.contains("铁甲战士"));
+    assert!(prompt.contains("62/75"));
+    assert!(prompt.contains("180"));
+}
+
+#[test]
+fn build_map_suggestion_empty_paths_graceful() {
+    let locale = test_locale();
+    let state = NormalizedState {
+        screen_type: Some("MAP".into()),
+        floor: Some(5),
+        map_nodes: vec![],
+        map_first_node_chosen: Some(true),
+        map_current_x: Some(99),
+        map_current_y: Some(99),
+        ..test_state()
+    };
+    let prompt = build_prompt(&state, &locale);
+    assert!(prompt.contains("=== 任务 ==="));
+}
+
+// --- enumerate_paths tests ---
+
+fn make_node(symbol: &str, x: i64, y: i64, children: Vec<(i64, i64)>) -> MapCoord {
+    MapCoord {
+        symbol: symbol.to_string(),
+        x,
+        y,
+        children,
+    }
+}
+
+#[test]
+fn enumerate_paths_single_root_no_branches() {
+    let nodes = vec![
+        make_node("M", 0, 0, vec![(0, 1)]),
+        make_node("R", 0, 1, vec![(0, 2)]),
+        make_node("?", 0, 2, vec![]),
+    ];
+    let paths = enumerate_paths(0, 0, &nodes);
+    assert_eq!(paths.len(), 1);
+    assert_eq!(paths[0].len(), 3);
+    assert_eq!(paths[0][0].symbol, "M");
+    assert_eq!(paths[0][1].symbol, "R");
+    assert_eq!(paths[0][2].symbol, "?");
+}
+
+#[test]
+fn enumerate_paths_multiple_branches() {
+    let nodes = vec![
+        make_node("M", 0, 0, vec![(0, 1), (1, 1)]),
+        make_node("R", 0, 1, vec![(0, 2)]),
+        make_node("?", 1, 1, vec![(1, 2)]),
+        make_node("$", 0, 2, vec![]),
+        make_node("T", 1, 2, vec![]),
+    ];
+    let paths = enumerate_paths(0, 0, &nodes);
+    assert_eq!(paths.len(), 2);
+    // Path A: M → R → $
+    assert!(
+        paths
+            .iter()
+            .any(|p| p[1].symbol == "R" && p[2].symbol == "$")
+    );
+    // Path B: M → ? → T
+    assert!(
+        paths
+            .iter()
+            .any(|p| p[1].symbol == "?" && p[2].symbol == "T")
+    );
+}
+
+#[test]
+fn enumerate_paths_missing_child_terminates() {
+    let nodes = vec![
+        make_node("M", 0, 0, vec![(0, 1)]),
+        make_node("R", 0, 1, vec![(0, 2)]),
+        // (0,2) missing — child points to nonexistent node
+    ];
+    let paths = enumerate_paths(0, 0, &nodes);
+    assert_eq!(paths.len(), 1);
+    assert_eq!(paths[0].len(), 2); // terminates at R
+    assert_eq!(paths[0][1].symbol, "R");
+}
+
+#[test]
+fn enumerate_paths_start_not_found_returns_empty() {
+    let nodes = vec![make_node("M", 0, 0, vec![])];
+    let paths = enumerate_paths(99, 99, &nodes);
+    assert!(paths.is_empty());
+}
+
+#[test]
+fn enumerate_paths_from_roots_groups_by_root() {
+    let nodes = vec![
+        make_node("M", 0, 0, vec![(0, 1)]),
+        make_node("R", 0, 1, vec![]),
+        make_node("E", 1, 0, vec![(1, 1)]),
+        make_node("$", 1, 1, vec![]),
+    ];
+    let result = enumerate_paths_from_roots(&nodes);
+    assert_eq!(result.len(), 2);
+    assert_eq!(result[0].root.symbol, "M");
+    assert_eq!(result[1].root.symbol, "E");
+    assert_eq!(result[0].paths.len(), 1);
+    assert_eq!(result[1].paths.len(), 1);
+}
+
+#[test]
+fn enumerate_paths_from_roots_single_root() {
+    let nodes = vec![
+        make_node("M", 0, 0, vec![(0, 1)]),
+        make_node("R", 0, 1, vec![]),
+    ];
+    let result = enumerate_paths_from_roots(&nodes);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].paths.len(), 1);
+}
+
+#[test]
+fn summarize_path_all_types() {
+    let path = vec![
+        make_node("M", 0, 0, vec![]),
+        make_node("E", 1, 0, vec![]),
+        make_node("?", 2, 0, vec![]),
+        make_node("$", 3, 0, vec![]),
+        make_node("R", 4, 0, vec![]),
+        make_node("T", 5, 0, vec![]),
+        make_node("M", 6, 0, vec![]),
+    ];
+    let summary = summarize_path(&path);
+    assert!(summary.contains("Monsters:2"));
+    assert!(summary.contains("Elites:1"));
+    assert!(summary.contains("Events:1"));
+    assert!(summary.contains("Shops:1"));
+    assert!(summary.contains("Rests:1"));
+    assert!(summary.contains("Treasures:1"));
+}
+
+#[test]
+fn summarize_path_empty() {
+    let path: Vec<MapCoord> = vec![];
+    let summary = summarize_path(&path);
+    assert_eq!(summary, "");
+}
+
+#[test]
+fn summarize_path_only_monsters() {
+    let path = vec![
+        make_node("M", 0, 0, vec![]),
+        make_node("M", 1, 0, vec![]),
+        make_node("M", 2, 0, vec![]),
+    ];
+    let summary = summarize_path(&path);
+    assert!(summary.contains("Monsters:3"));
+    assert!(!summary.contains("Elites"));
+    assert!(!summary.contains("Events"));
 }

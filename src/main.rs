@@ -422,30 +422,63 @@ async fn main() {
                     .pointer("/game_state/screen_state/first_node_chosen")
                     .and_then(|v| v.as_bool())
                     .unwrap_or(true);
-                let paths = if first_chosen {
-                    raw.pointer("/game_state/screen_state/current_node")
+                if first_chosen {
+                    let paths = raw
+                        .pointer("/game_state/screen_state/current_node")
                         .and_then(|v| Some((v.get("x")?.as_i64()?, v.get("y")?.as_i64()?)))
                         .map(|(x, y)| prompt::enumerate_paths(x, y, &normalized.map_nodes))
-                        .unwrap_or_default()
-                } else {
-                    prompt::enumerate_paths_from_roots(&normalized.map_nodes)
-                };
-                tracing::info!(
-                    "MAP: {} paths, first_chosen={first_chosen}, room_phase=COMPLETE",
-                    paths.len(),
-                );
-                for (i, path) in paths.iter().enumerate() {
-                    let route: Vec<String> = path
-                        .iter()
-                        .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
-                        .collect();
-                    let summary = prompt::summarize_path(path);
+                        .unwrap_or_default();
                     tracing::info!(
-                        "  Path {}: {}  [{}]",
-                        (b'A' + i as u8) as char,
-                        route.join(" → "),
-                        summary,
+                        "MAP: {} paths from current_node, room_phase=COMPLETE",
+                        paths.len(),
                     );
+                    for (i, path) in paths.iter().enumerate() {
+                        let route: Vec<String> = path
+                            .iter()
+                            .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
+                            .collect();
+                        let summary = prompt::summarize_path(path);
+                        tracing::info!(
+                            "  Path {}: {}  [{}]",
+                            (b'A' + i as u8) as char,
+                            route.join(" → "),
+                            summary,
+                        );
+                    }
+                } else {
+                    let roots = prompt::enumerate_paths_from_roots(&normalized.map_nodes);
+                    let total: usize = roots.iter().map(|r| r.paths.len()).sum();
+                    tracing::info!(
+                        "MAP: {} roots, {} paths total, room_phase=COMPLETE",
+                        roots.len(),
+                        total,
+                    );
+                    for (ri, root_group) in roots.iter().enumerate() {
+                        let root_label = format!(
+                            "{}({},{})",
+                            root_group.root.symbol, root_group.root.x, root_group.root.y
+                        );
+                        tracing::info!(
+                            "  Root {} {}: {} paths",
+                            (b'A' + ri as u8) as char,
+                            root_label,
+                            root_group.paths.len(),
+                        );
+                        for (pi, path) in root_group.paths.iter().enumerate() {
+                            let route: Vec<String> = path
+                                .iter()
+                                .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
+                                .collect();
+                            let summary = prompt::summarize_path(path);
+                            tracing::info!(
+                                "    Path {}.{}: {}  [{}]",
+                                (b'A' + ri as u8) as char,
+                                pi + 1,
+                                route.join(" → "),
+                                summary,
+                            );
+                        }
+                    }
                 }
             } else {
                 tracing::debug!("MAP screen but room_phase={rp} or no current_node");
