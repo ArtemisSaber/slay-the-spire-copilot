@@ -240,7 +240,8 @@ impl Locale {
 }
 
 pub fn lang_to_locale_key(detected: &str) -> &str {
-    match detected {
+    let detected = detected.trim().to_ascii_lowercase();
+    match detected.as_str() {
         "zhs" | "zht" | "zh" | "zhcn" | "zhtw" | "schinese" | "tchinese" | "chinesesimplified"
         | "chinesetraditional" => "zh",
         "jpn" | "ja" | "jp" | "japanese" => "ja",
@@ -248,3 +249,7 @@ pub fn lang_to_locale_key(detected: &str) -> &str {
         _ => "en",
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/locale_tests.rs"]
+mod tests;
