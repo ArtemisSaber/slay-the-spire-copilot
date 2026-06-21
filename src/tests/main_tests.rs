@@ -103,7 +103,7 @@ fn menu_before_any_observed_state_does_not_end_run() {
 #[test]
 fn generate_screens_produce_advice() {
     for &screen in SCREEN_CONFIG.generate {
-        if screen == "EVENT" || screen == "MAP" {
+        if screen == "EVENT" {
             continue;
         }
         assert!(
@@ -319,6 +319,7 @@ fn screens_not_in_config_dont_generate() {
     let unconfigured = &[
         "COMBAT_REWARD",
         "SHOP",
+        "MAP",
         "GAME_OVER",
         "HAND_SELECT",
         "GRID",
@@ -333,62 +334,149 @@ fn screens_not_in_config_dont_generate() {
     }
 }
 
-fn map_state(room_phase: &str) -> serde_json::Value {
+fn map_json(first_node_chosen: bool, children: Vec<(i64, i64)>) -> serde_json::Value {
+    let children_json: Vec<serde_json::Value> = children
+        .into_iter()
+        .map(|(x, y)| json!({"x": x, "y": y}))
+        .collect();
     json!({
         "in_game": true,
         "game_state": {
             "screen_type": "MAP",
-            "room_phase": room_phase,
+            "room_phase": "COMPLETE",
             "floor": 5,
             "room_type": "MonsterRoom",
             "screen_state": {
-                "first_node_chosen": true,
-                "current_node": {"x": 3, "y": 7}
-            }
+                "first_node_chosen": first_node_chosen,
+                "current_node": {"x": 1, "y": 2}
+            },
+            "map": [
+                {"symbol": "M", "x": 1, "y": 2, "children": children_json},
+                {"symbol": "E", "x": 3, "y": 3, "children": []},
+                {"symbol": "?", "x": 4, "y": 3, "children": []},
+                {"symbol": "M", "x": 5, "y": 3, "children": []}
+            ]
         }
     })
 }
 
-#[test]
-fn map_generates_advice_when_room_phase_complete() {
-    assert!(should_generate_advice("MAP", &map_state("COMPLETE")));
+fn map_nodes() -> Vec<crate::state::MapCoord> {
+    vec![
+        crate::state::MapCoord { symbol: "M".into(), x: 1, y: 2, children: vec![(3, 3), (4, 3), (5, 3)] },
+        crate::state::MapCoord { symbol: "E".into(), x: 3, y: 3, children: vec![] },
+        crate::state::MapCoord { symbol: "?".into(), x: 4, y: 3, children: vec![] },
+        crate::state::MapCoord { symbol: "M".into(), x: 5, y: 3, children: vec![] },
+    ]
 }
 
 #[test]
-fn map_does_not_generate_when_room_phase_not_complete() {
-    assert!(!should_generate_advice("MAP", &map_state("NORMAL")));
-    assert!(!should_generate_advice("MAP", &map_state("INCOMPLETE")));
-}
-
-#[test]
-fn map_does_not_generate_when_room_phase_missing() {
-    let state = json!({
-        "in_game": true,
-        "game_state": {
-            "screen_type": "MAP",
-            "floor": 5
-        }
-    });
-    assert!(!should_generate_advice("MAP", &state));
-}
-
-#[test]
-fn map_generates_regardless_of_first_node_chosen() {
-    // true case
-    assert!(should_generate_advice("MAP", &map_state("COMPLETE")));
-    // false case
-    let state = json!({
+fn map_gate_act_entry_generates() {
+    let mut gate = MapGate::new();
+    let raw = json!({
         "in_game": true,
         "game_state": {
             "screen_type": "MAP",
             "room_phase": "COMPLETE",
-            "floor": 1,
-            "room_type": "MonsterRoom",
             "screen_state": {
                 "first_node_chosen": false,
                 "current_node": {"x": -1, "y": 15}
             }
         }
     });
-    assert!(should_generate_advice("MAP", &state));
+    assert!(gate.should_generate(&raw, &map_nodes()));
+}
+
+#[test]
+fn map_gate_crossroads_generates() {
+    let mut gate = MapGate::new();
+    let raw = map_json(true, vec![(3, 3), (4, 3)]);
+    assert!(gate.should_generate(&raw, &map_nodes()));
+}
+
+#[test]
+fn map_gate_single_child_skips() {
+    let mut gate = MapGate::new();
+    let raw = map_json(true, vec![(3, 3)]);
+    assert!(!gate.should_generate(&raw, &map_nodes()));
+}
+
+#[test]
+fn map_gate_same_crossroads_skips() {
+    let mut gate = MapGate::new();
+    let raw = map_json(true, vec![(3, 3), (4, 3)]);
+    assert!(gate.should_generate(&raw, &map_nodes()));
+    gate.record(&map_nodes(), 1, 2);
+    assert!(!gate.should_generate(&raw, &map_nodes()));
+}
+
+#[test]
+fn map_gate_different_crossroads_generates() {
+    let mut gate = MapGate::new();
+    let raw1 = map_json(true, vec![(3, 3)]);
+    assert!(!gate.should_generate(&raw1, &map_nodes()));
+    let raw2 = map_json(true, vec![(3, 3), (4, 3)]);
+    assert!(gate.should_generate(&raw2, &map_nodes()));
+}
+
+#[test]
+fn map_gate_room_phase_not_complete_skips() {
+    let mut gate = MapGate::new();
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "room_phase": "NORMAL",
+            "screen_state": {
+                "first_node_chosen": true,
+                "current_node": {"x": 1, "y": 2}
+            }
+        }
+    });
+    assert!(!gate.should_generate(&raw, &map_nodes()));
+}
+
+#[test]
+fn map_gate_no_current_node_skips() {
+    let mut gate = MapGate::new();
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "room_phase": "COMPLETE",
+            "screen_state": {
+                "first_node_chosen": true
+            }
+        }
+    });
+    assert!(!gate.should_generate(&raw, &map_nodes()));
+}
+
+#[test]
+fn map_gate_resets_shop_visited_on_act_entry() {
+    let mut gate = MapGate::new();
+    gate.on_shop();
+    assert!(gate.shop_visited);
+    gate.on_act_entry();
+    assert!(!gate.shop_visited);
+}
+
+#[test]
+fn map_gate_sets_shop_visited_on_shop_screen() {
+    let mut gate = MapGate::new();
+    assert!(!gate.shop_visited);
+    gate.on_shop();
+    assert!(gate.shop_visited);
+}
+
+#[test]
+fn map_not_in_simple_config_gating() {
+    let state = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "MAP",
+            "room_phase": "COMPLETE",
+            "floor": 5
+        }
+    });
+    assert!(!should_generate_advice("MAP", &state));
 }

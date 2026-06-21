@@ -13,6 +13,7 @@ fn scenario_system_prompts_are_defined() {
         AdviceScenario::CombatEntry,
         AdviceScenario::Generic,
         AdviceScenario::MapSuggestion,
+        AdviceScenario::MapCrossroad,
     ] {
         let prompt = scenario.system_prompt(&test_locale());
         assert!(!prompt.is_empty());
@@ -198,14 +199,28 @@ fn scenario_resolver_defaults_to_generic() {
 }
 
 #[test]
-fn scenario_resolver_detects_map() {
+fn scenario_resolver_detects_map_suggestion() {
     let state = NormalizedState {
         screen_type: Some("MAP".into()),
+        map_first_node_chosen: Some(false),
         ..test_state()
     };
     assert_eq!(
         AdviceScenario::from_state(&state),
         AdviceScenario::MapSuggestion
+    );
+}
+
+#[test]
+fn scenario_resolver_detects_map_crossroad() {
+    let state = NormalizedState {
+        screen_type: Some("MAP".into()),
+        map_first_node_chosen: Some(true),
+        ..test_state()
+    };
+    assert_eq!(
+        AdviceScenario::from_state(&state),
+        AdviceScenario::MapCrossroad
     );
 }
 
