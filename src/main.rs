@@ -8,6 +8,7 @@ mod logging;
 mod postmortem;
 mod prompt;
 mod protocol;
+mod setup_wizard;
 mod startup;
 mod state;
 
@@ -21,6 +22,7 @@ use std::io::{self, BufRead, IsTerminal, Write};
 struct RuntimeOptions {
     skip_startup_check: bool,
     force_mock_provider: bool,
+    setup_only: bool,
     postmortem_path: Option<String>,
     postmortem_plain: bool,
 }
@@ -39,6 +41,7 @@ fn runtime_options_from<'a>(
 ) -> RuntimeOptions {
     let mut skip_startup_check = matches!(skip_comm_config, Some("1" | "true" | "yes"));
     let mut force_mock_provider = false;
+    let mut setup_only = false;
     let mut postmortem_path = None;
     let mut postmortem_plain = false;
     let mut iter = args.into_iter();
@@ -49,6 +52,10 @@ fn runtime_options_from<'a>(
             "--stdin-test" => {
                 skip_startup_check = true;
                 force_mock_provider = true;
+            }
+            "setup" | "configure" => {
+                setup_only = true;
+                skip_startup_check = true;
             }
             "postmortem" => {
                 for next in iter.by_ref() {
@@ -67,6 +74,7 @@ fn runtime_options_from<'a>(
     RuntimeOptions {
         skip_startup_check,
         force_mock_provider,
+        setup_only,
         postmortem_path,
         postmortem_plain,
     }
@@ -355,6 +363,28 @@ async fn main() {
     let project_root = logging::project_root();
     let _ = dotenvy::from_path(project_root.join(".env"));
     let options = RuntimeOptions::from_env_and_args();
+    let manual_run = std::io::stdin().is_terminal();
+
+    if options.setup_only {
+        match setup_wizard::run_api_setup(&project_root) {
+            Ok(true) => {
+                let _ = dotenvy::from_path_override(project_root.join(".env"));
+            }
+            Ok(false) => {}
+            Err(e) => eprintln!("setup failed: {e}"),
+        }
+        return;
+    }
+
+    if manual_run && !options.force_mock_provider && !options.postmortem_plain {
+        match setup_wizard::maybe_run_api_setup(&project_root) {
+            Ok(true) => {
+                let _ = dotenvy::from_path_override(project_root.join(".env"));
+            }
+            Ok(false) => {}
+            Err(e) => eprintln!("setup failed: {e}"),
+        }
+    }
 
     if let Some(path) = options.postmortem_path.as_deref() {
         let postmortem_locale = locales::Locale::load("en");

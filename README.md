@@ -66,19 +66,42 @@ cargo test
 cargo build --release
 ```
 
-## Environment File / 创建环境变量文件
+## API Setup / API 配置
 
-Copy `.env.example` to `.env` in the same directory where you run the binary.
+When you run the app manually in a terminal and `.env` is missing or incomplete, it opens an interactive setup wizard for the API connection. You can also run the wizard directly:
 
-将 `.env.example` 复制为 `.env`。`.env` 应放在运行二进制文件时所在的项目目录中。
+当你在终端手动运行程序，并且 `.env` 不存在或配置不完整时，程序会打开交互式配置向导来设置 API 连接。也可以直接运行向导：
 
 ```bash
-cp .env.example .env
+slay-the-spire-copilot setup
 ```
 
-Mock mode works without a real API key:
+When running from source:
 
-Mock 模式不需要真实 API key：
+从源码运行时：
+
+```bash
+cargo run -- setup
+```
+
+The wizard writes `.env` next to the binary and preserves unrelated lines in an existing `.env`. Built-in presets include Pollinations Free for no-account/no-key onboarding, OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Groq, OpenRouter Free Router, Mistral, Cerebras, a custom OpenAI-compatible endpoint, and Mock provider for offline smoke tests. Pollinations Free uses a public shared endpoint, so it is convenient for first runs but BYOK or local providers are better for reliability.
+
+向导会把 `.env` 写到二进制文件旁边，并保留已有 `.env` 中无关的行。内置预设包括无需账号/无需 API key 的 Pollinations Free、OpenAI、Anthropic Claude、Google Gemini、DeepSeek、Groq、OpenRouter Free Router、Mistral、Cerebras、自定义 OpenAI-compatible endpoint，以及用于离线快速测试的 Mock provider。Pollinations Free 使用公共共享端点，适合首次体验；如果追求稳定，建议改用 BYOK 或本地模型。
+
+Manual `.env` editing is still supported. For a real free no-key cloud setup:
+
+仍然支持手动编辑 `.env`。如果想使用真实、免费且不需要 API key 的云端配置：
+
+```env
+LLM_PROVIDER=pollinations-free
+LLM_BASE_URL=https://text.pollinations.ai/openai
+LLM_API_KEY=
+LLM_MODEL=openai-fast
+```
+
+Mock mode works without a real API key, but only returns canned test advice:
+
+Mock 模式不需要真实 API key，但只会返回固定的测试建议：
 
 ```env
 LLM_PROVIDER=mock
@@ -93,6 +116,17 @@ LLM_PROVIDER=openai-compatible
 LLM_BASE_URL=https://api.openai.com/v1
 LLM_API_KEY=sk-your-key
 LLM_MODEL=gpt-4o-mini
+```
+
+For Anthropic Claude:
+
+如果使用 Anthropic Claude：
+
+```env
+LLM_PROVIDER=anthropic
+LLM_BASE_URL=https://api.anthropic.com
+LLM_API_KEY=sk-ant-your-key
+LLM_MODEL=claude-sonnet-4-6
 ```
 
 Optional model tiers:
@@ -384,6 +418,7 @@ src/
   advice.rs        latest advice file output and cache, overlay JSON
   journal.rs       JSONL run journal with schema versioning
   postmortem.rs    postmortem report generation
+  setup_wizard.rs  interactive API setup wizard
   startup.rs       CommunicationMod config validation, auto-fix, language detection
   logging.rs       file logger
   test_utils.rs    test helpers and shared locale data
