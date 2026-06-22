@@ -66,6 +66,10 @@ async fn finalize_run_once(
             }
         };
     let report = postmortem_report_text(&deterministic_report, provider, locale).await;
+    let report = format!(
+        "{report}\n\n---\n\n{}\n\n{deterministic_report}",
+        locale.postmortem.section_machine,
+    );
 
     match postmortem::write_report_for_journal(journal_path, &report) {
         Ok(path) => tracing::info!("wrote postmortem report to {}", path.display()),

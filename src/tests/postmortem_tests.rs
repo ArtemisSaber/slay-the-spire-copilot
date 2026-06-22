@@ -223,6 +223,7 @@ fn postmortem_lists_deck_cards_with_duplicates_counted() {
 #[test]
 fn postmortem_tracks_unique_monsters_and_combat_hp() {
     let mut combat1 = normalized_fixture("combat-state.json");
+    combat1["room_type"] = json!("MonsterRoom");
     combat1["screen_type"] = json!("BATTLE");
     combat1["monsters"] = json!([
         {"name": "邪教徒", "current_hp": 48, "max_hp": 48, "block": 0, "intent": "ATTACK", "damage": 6, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false}
@@ -258,4 +259,100 @@ fn postmortem_advice_includes_full_multiline_text() {
     assert!(report.contains("理由：非常强"));
     assert!(report.contains("风险：可能会卡手"));
     assert!(report.contains("吐槽：勇敢的人才敢选"));
+}
+
+#[test]
+fn postmortem_uses_elite_label_for_elite_combats() {
+    let mut combat = normalized_fixture("combat-state.json");
+    combat["room_type"] = json!("MonsterRoomElite");
+    combat["screen_type"] = json!("NONE");
+    combat["monsters"] = json!([
+        {"name": "地精大法师", "current_hp": 60, "max_hp": 60, "block": 0, "intent": "ATTACK", "damage": 10, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false}
+    ]);
+    combat["current_hp"] = json!(68);
+
+    let mut combat_end = combat.clone();
+    combat_end["screen_type"] = json!("COMBAT_REWARD");
+    combat_end["monsters"] = json!([]);
+    combat_end["current_hp"] = json!(42);
+
+    let input = [state_event(combat), state_event(combat_end)].join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+
+    assert!(report.contains("(精英)"));
+    assert!(report.contains("地精大法师"));
+    assert!(report.contains("(普通:0 精英:1 Boss:0)"));
+}
+
+#[test]
+fn postmortem_uses_boss_label_for_boss_combats() {
+    let mut combat = normalized_fixture("combat-state.json");
+    combat["room_type"] = json!("MonsterRoomBoss");
+    combat["screen_type"] = json!("NONE");
+    combat["monsters"] = json!([
+        {"name": "六火亡魂", "current_hp": 250, "max_hp": 250, "block": 0, "intent": "ATTACK", "damage": 20, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false}
+    ]);
+    combat["current_hp"] = json!(75);
+
+    let mut combat_end = combat.clone();
+    combat_end["screen_type"] = json!("COMBAT_REWARD");
+    combat_end["monsters"] = json!([]);
+    combat_end["current_hp"] = json!(0);
+
+    let input = [state_event(combat), state_event(combat_end)].join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+
+    assert!(report.contains("(Boss)"));
+    assert!(report.contains("六火亡魂"));
+    assert!(report.contains("(普通:0 精英:0 Boss:1)"));
+}
+
+#[test]
+fn postmortem_derives_death_cause_from_final_state() {
+    let mut combat = normalized_fixture("combat-state.json");
+    combat["room_type"] = json!("MonsterRoom");
+    combat["screen_type"] = json!("NONE");
+    combat["monsters"] = json!([
+        {"name": "邪教徒", "current_hp": 10, "max_hp": 10, "block": 0, "intent": "ATTACK", "damage": 6, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false},
+        {"name": "邪教徒", "current_hp": 12, "max_hp": 12, "block": 0, "intent": "ATTACK", "damage": 6, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false}
+    ]);
+    combat["current_hp"] = json!(5);
+    combat["floor"] = json!(22);
+
+    let mut game_over = combat.clone();
+    game_over["screen_type"] = json!("GAME_OVER");
+    game_over["current_hp"] = json!(0);
+
+    let input = [
+        event_line(json!({"schema_version":1,"event":"run_started","ts_ms":123})),
+        state_event(combat),
+        state_event(game_over),
+        event_line(json!({"schema_version":1,"event":"run_ended","reason":"game_over"})),
+    ]
+    .join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+
+    assert!(report.contains("阵亡原因: 第22层 MonsterRoom — 死于 邪教徒×2"));
+}
+
+#[test]
+fn postmortem_shows_per_combat_monsters_in_output() {
+    let mut combat = normalized_fixture("combat-state.json");
+    combat["room_type"] = json!("MonsterRoom");
+    combat["screen_type"] = json!("NONE");
+    combat["monsters"] = json!([
+        {"name": "虱虫", "current_hp": 11, "max_hp": 11, "block": 0, "intent": "ATTACK", "damage": 6, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false},
+        {"name": "虱虫", "current_hp": 12, "max_hp": 12, "block": 0, "intent": "ATTACK", "damage": 6, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false}
+    ]);
+    combat["current_hp"] = json!(68);
+
+    let mut combat_end = combat.clone();
+    combat_end["screen_type"] = json!("COMBAT_REWARD");
+    combat_end["monsters"] = json!([]);
+    combat_end["current_hp"] = json!(62);
+
+    let input = [state_event(combat), state_event(combat_end)].join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+
+    assert!(report.contains("虱虫×2"));
 }

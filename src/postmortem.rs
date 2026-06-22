@@ -26,6 +26,15 @@ pub fn write_report_for_journal(journal_path: &Path, report: &str) -> Result<Pat
     Ok(report_path)
 }
 
+#[derive(Debug, Default)]
+struct CombatRecord {
+    room_type: String,
+    start_hp: Option<i64>,
+    end_hp: Option<i64>,
+    monsters: Vec<String>,
+    is_fatal: bool,
+}
+
 pub fn generate_report_from_jsonl(
     input: &str,
     locale: &crate::locales::Locale,
@@ -49,17 +58,20 @@ pub fn generate_report_from_jsonl(
     }
 
     let mut run_started = None;
-    let mut run_ended = None;
+    let mut run_ended_reason = None;
     let mut run_metadata = None;
     let mut final_state = None;
     let mut advice_lines = Vec::new();
     let mut reward_lines = Vec::new();
     let mut pending_reward: Option<RewardSnapshot> = None;
-    let mut monster_names: Vec<String> = Vec::new();
-    let mut combat_count = 0usize;
+    let mut global_monster_names: Vec<String> = Vec::new();
+    let mut combat_records: Vec<CombatRecord> = Vec::new();
     let mut in_combat = false;
-    let mut combat_hp_start: Option<i64> = None;
-    let mut combat_hp_history: Vec<(Option<i64>, Option<i64>)> = Vec::new();
+    let mut current_combat: CombatRecord = CombatRecord::default();
+    let mut seen_indexes: Vec<usize> = Vec::new();
+    let mut elite_count = 0usize;
+    let mut boss_count = 0usize;
+    let mut normal_count = 0usize;
 
     let pm = &locale.postmortem;
 
@@ -67,7 +79,7 @@ pub fn generate_report_from_jsonl(
         match event.get("event").and_then(|v| v.as_str()) {
             Some("run_started") => run_started = event.get("ts_ms").and_then(|v| v.as_i64()),
             Some("run_ended") => {
-                run_ended = event
+                run_ended_reason = event
                     .get("reason")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string())
@@ -107,28 +119,81 @@ pub fn generate_report_from_jsonl(
                         .is_some_and(|arr| !arr.is_empty());
 
                     if has_monsters {
-                        if let Some(monsters) = state.get("monsters").and_then(|v| v.as_array()) {
+                        if !in_combat {
+                            in_combat = true;
+                            let room_type = state
+                                .get("room_type")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("?")
+                                .to_string();
+                            let mut combat_monsters = Vec::new();
+                            if let Some(monsters) = state.get("monsters").and_then(|v| v.as_array())
+                            {
+                                for m in monsters {
+                                    if let Some(name) = m.get("name").and_then(|v| v.as_str()) {
+                                        combat_monsters.push(name.to_string());
+                                    }
+                                    if let Some(idx) = m.get("index").and_then(|v| v.as_u64()) {
+                                        let idx = idx as usize;
+                                        if !seen_indexes.contains(&idx) {
+                                            seen_indexes.push(idx);
+                                        }
+                                    }
+                                }
+                            }
+                            current_combat = CombatRecord {
+                                room_type,
+                                start_hp: state.get("current_hp").and_then(|v| v.as_i64()),
+                                end_hp: None,
+                                monsters: combat_monsters,
+                                is_fatal: false,
+                            };
+                        } else if let Some(monsters) =
+                            state.get("monsters").and_then(|v| v.as_array())
+                        {
                             for m in monsters {
-                                if let Some(name) = m.get("name").and_then(|v| v.as_str())
-                                    && !monster_names.contains(&name.to_string())
+                                if let Some(idx) = m.get("index").and_then(|v| v.as_u64())
+                                    && !seen_indexes.contains(&(idx as usize))
                                 {
-                                    monster_names.push(name.to_string());
+                                    seen_indexes.push(idx as usize);
+                                    if let Some(name) = m.get("name").and_then(|v| v.as_str())
+                                        && !current_combat.monsters.contains(&name.to_string())
+                                    {
+                                        current_combat.monsters.push(name.to_string());
+                                    }
                                 }
                             }
                         }
 
-                        if !in_combat {
-                            in_combat = true;
-                            combat_count += 1;
-                            combat_hp_start = state.get("current_hp").and_then(|v| v.as_i64());
+                        if let Some(monsters) = state.get("monsters").and_then(|v| v.as_array()) {
+                            for m in monsters {
+                                if let Some(name) = m.get("name").and_then(|v| v.as_str())
+                                    && !global_monster_names.contains(&name.to_string())
+                                {
+                                    global_monster_names.push(name.to_string());
+                                }
+                            }
                         }
                     }
 
                     if screen != "BATTLE" && screen != "NONE" && in_combat {
-                        let final_hp = state.get("current_hp").and_then(|v| v.as_i64());
-                        combat_hp_history.push((combat_hp_start, final_hp));
+                        current_combat.end_hp = state.get("current_hp").and_then(|v| v.as_i64());
+                        if current_combat.end_hp == Some(0) {
+                            current_combat.is_fatal = true;
+                        }
+                        match current_combat.room_type.as_str() {
+                            "MonsterRoomElite" | "MonsterRoomBoss" => {
+                                if current_combat.room_type.contains("Boss") {
+                                    boss_count += 1;
+                                } else {
+                                    elite_count += 1;
+                                }
+                            }
+                            _ => normal_count += 1,
+                        }
+                        combat_records.push(std::mem::take(&mut current_combat));
                         in_combat = false;
-                        combat_hp_start = None;
+                        seen_indexes.clear();
                     }
 
                     final_state = Some(state.clone());
@@ -138,6 +203,10 @@ pub fn generate_report_from_jsonl(
         }
     }
 
+    if in_combat {
+        combat_records.push(current_combat);
+    }
+
     let mut report = Vec::new();
     report.push(pm.report_title.clone());
     report.push(String::new());
@@ -145,9 +214,65 @@ pub fn generate_report_from_jsonl(
     if let Some(ts) = run_started {
         report.push(pm.label_started.replace("{ts}", &ts.to_string()));
     }
-    if let Some(reason) = run_ended.as_ref() {
+
+    let death_cause = final_state.as_ref().and_then(|state| {
+        let hp = state.get("current_hp").and_then(|v| v.as_i64());
+        if hp == Some(0) {
+            let floor = state
+                .get("floor")
+                .and_then(|v| v.as_i64())
+                .map_or("?".to_string(), |v| v.to_string());
+            let room = state
+                .get("room_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            let monsters: Vec<String> = state
+                .get("monsters")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|m| {
+                            m.get("name")
+                                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            let monster_list = if monsters.is_empty() {
+                "?".to_string()
+            } else {
+                let mut counts: HashMap<&str, usize> = HashMap::new();
+                for m in &monsters {
+                    *counts.entry(m.as_str()).or_insert(0) += 1;
+                }
+                let mut entries: Vec<String> = counts
+                    .iter()
+                    .map(|(name, &count)| {
+                        if count > 1 {
+                            format!("{name}×{count}")
+                        } else {
+                            name.to_string()
+                        }
+                    })
+                    .collect();
+                entries.sort();
+                entries.join("、")
+            };
+            Some(format!("第{floor}层 {room} — 死于 {monster_list}"))
+        } else {
+            None
+        }
+    });
+
+    if let Some(ref cause) = death_cause {
+        report.push(pm.label_death.replace("{cause}", cause));
+        if let Some(reason) = run_ended_reason.as_ref() {
+            report.push(pm.label_ended.replace("{reason}", reason));
+        }
+    } else if let Some(reason) = run_ended_reason.as_ref() {
         report.push(pm.label_ended.replace("{reason}", reason));
     }
+
     if malformed > 0 {
         report.push(pm.label_malformed.replace("{n}", &malformed.to_string()));
     }
@@ -283,28 +408,67 @@ pub fn generate_report_from_jsonl(
         }
     }
 
-    if !monster_names.is_empty() {
+    if !combat_records.is_empty() {
         report.push(String::new());
         report.push(pm.section_monsters.clone());
+        let total = combat_records.len();
         report.push(
             pm.label_combats_summary
-                .replace("{n}", &combat_count.to_string())
-                .replace("{list}", &monster_names.join(", ")),
+                .replace("{n}", &total.to_string())
+                .replace("{list}", &global_monster_names.join(", ")),
         );
-        for (i, (start_hp, end_hp)) in combat_hp_history.iter().enumerate() {
-            if let (Some(start), Some(end)) = (start_hp, end_hp) {
+        report.push(
+            pm.label_combat_type_count
+                .replace("{normal}", &normal_count.to_string())
+                .replace("{elite}", &elite_count.to_string())
+                .replace("{boss}", &boss_count.to_string()),
+        );
+
+        for (i, combat) in combat_records.iter().enumerate() {
+            if let (Some(start), Some(end)) = (combat.start_hp, combat.end_hp) {
                 let delta = end - start;
                 let hp_change = if delta >= 0 {
                     format!("+{delta}")
                 } else {
                     delta.to_string()
                 };
+                let monster_list = if combat.monsters.is_empty() {
+                    String::new()
+                } else {
+                    let mut name_counts: HashMap<&str, usize> = HashMap::new();
+                    for m in &combat.monsters {
+                        *name_counts.entry(m.as_str()).or_insert(0) += 1;
+                    }
+                    let mut entries: Vec<String> = name_counts
+                        .into_iter()
+                        .map(|(name, count)| {
+                            if count > 1 {
+                                format!("{name}×{count}")
+                            } else {
+                                name.to_string()
+                            }
+                        })
+                        .collect();
+                    entries.sort();
+                    entries.join("、")
+                };
+
+                let label = match combat.room_type.as_str() {
+                    "MonsterRoomElite" => &pm.label_combat_elite,
+                    "MonsterRoomBoss" => &pm.label_combat_boss,
+                    _ => &pm.label_combat_hp,
+                };
                 report.push(
-                    pm.label_combat_hp
-                        .replace("{n}", &(i + 1).to_string())
-                        .replace("{start}", &start.to_string())
-                        .replace("{end}", &end.to_string())
-                        .replace("{delta}", &hp_change),
+                    (if combat.is_fatal {
+                        format!("💀 {label}")
+                    } else {
+                        label.clone()
+                    })
+                    .replace("{n}", &(i + 1).to_string())
+                    .replace("{start}", &start.to_string())
+                    .replace("{end}", &end.to_string())
+                    .replace("{delta}", &hp_change)
+                    .replace("{monsters}", &monster_list),
                 );
             }
         }
