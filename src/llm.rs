@@ -173,6 +173,47 @@ fn chat_completion_body(
     body
 }
 
+fn anthropic_messages_body(
+    cfg: &OpenAiConfig,
+    system_prompt: &str,
+    prompt: &str,
+) -> serde_json::Value {
+    serde_json::json!({
+        "model": cfg.model,
+        "system": system_prompt,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": cfg.max_tokens
+    })
+}
+
+fn anthropic_response_text(json: &serde_json::Value) -> anyhow::Result<String> {
+    let content = json["content"]
+        .as_array()
+        .context("missing content in Anthropic response")?;
+    let text = content
+        .iter()
+        .filter_map(|block| {
+            (block["type"].as_str() == Some("text"))
+                .then(|| block["text"].as_str())
+                .flatten()
+        })
+        .collect::<Vec<_>>()
+        .join("");
+    if text.is_empty() {
+        anyhow::bail!("missing text content in Anthropic response");
+    }
+    Ok(text)
+}
+
+fn chat_response_text(json: &serde_json::Value) -> anyhow::Result<String> {
+    json["choices"][0]["message"]["content"]
+        .as_str()
+        .context("missing content in LLM response")
+        .map(ToOwned::to_owned)
+}
+
 #[derive(Debug)]
 pub enum LlmProvider {
     Mock,
@@ -180,6 +221,22 @@ pub enum LlmProvider {
         base_url: String,
         api_key: String,
         temperature: f64,
+        client: reqwest::Client,
+        fast: OpenAiConfig,
+        medium: OpenAiConfig,
+        heavy: OpenAiConfig,
+    },
+    PollinationsFree {
+        base_url: String,
+        temperature: f64,
+        client: reqwest::Client,
+        fast: OpenAiConfig,
+        medium: OpenAiConfig,
+        heavy: OpenAiConfig,
+    },
+    Anthropic {
+        base_url: String,
+        api_key: String,
         client: reqwest::Client,
         fast: OpenAiConfig,
         medium: OpenAiConfig,
@@ -211,6 +268,67 @@ impl LlmProvider {
                         model: config.model_fast.clone(),
                         max_tokens: config.max_tokens_fast,
                         disable_thinking: config.disable_fast_thinking,
+                    },
+                    medium: OpenAiConfig {
+                        model: config.model_medium.clone(),
+                        max_tokens: config.max_tokens_medium,
+                        disable_thinking: false,
+                    },
+                    heavy: OpenAiConfig {
+                        model: config.model_heavy.clone(),
+                        max_tokens: config.max_tokens_heavy,
+                        disable_thinking: false,
+                    },
+                })
+            }
+            "pollinations-free" => {
+                let base_url = config
+                    .base_url
+                    .as_deref()
+                    .unwrap_or("https://text.pollinations.ai/openai")
+                    .trim_end_matches('/')
+                    .to_string();
+                Ok(LlmProvider::PollinationsFree {
+                    base_url,
+                    temperature: config.temperature,
+                    client: reqwest::Client::new(),
+                    fast: OpenAiConfig {
+                        model: config.model_fast.clone(),
+                        max_tokens: config.max_tokens_fast,
+                        disable_thinking: false,
+                    },
+                    medium: OpenAiConfig {
+                        model: config.model_medium.clone(),
+                        max_tokens: config.max_tokens_medium,
+                        disable_thinking: false,
+                    },
+                    heavy: OpenAiConfig {
+                        model: config.model_heavy.clone(),
+                        max_tokens: config.max_tokens_heavy,
+                        disable_thinking: false,
+                    },
+                })
+            }
+            "anthropic" => {
+                let base_url = config
+                    .base_url
+                    .as_deref()
+                    .unwrap_or("https://api.anthropic.com")
+                    .trim_end_matches('/')
+                    .to_string();
+                let api_key = config
+                    .api_key
+                    .as_ref()
+                    .context("LLM_API_KEY is required for anthropic provider")?
+                    .clone();
+                Ok(LlmProvider::Anthropic {
+                    base_url,
+                    api_key,
+                    client: reqwest::Client::new(),
+                    fast: OpenAiConfig {
+                        model: config.model_fast.clone(),
+                        max_tokens: config.max_tokens_fast,
+                        disable_thinking: false,
                     },
                     medium: OpenAiConfig {
                         model: config.model_medium.clone(),
@@ -312,12 +430,118 @@ impl LlmProvider {
                     .await
                     .context("failed to parse LLM response")?;
 
-                let content = json["choices"][0]["message"]["content"]
-                    .as_str()
-                    .context("missing content in LLM response")?
-                    .to_string();
+                let content = chat_response_text(&json)?;
                 tracing::info!(
                     "LLM response effort={} model={} duration_ms={} response_chars={}",
+                    effort.as_str(),
+                    cfg.model,
+                    started.elapsed().as_millis(),
+                    content.len(),
+                );
+                content
+            }
+            LlmProvider::PollinationsFree {
+                base_url,
+                temperature,
+                client,
+                fast,
+                medium,
+                heavy,
+            } => {
+                let cfg = match effort {
+                    Effort::Fast => fast,
+                    Effort::Medium => medium,
+                    Effort::Heavy => heavy,
+                };
+
+                let started = Instant::now();
+                tracing::info!(
+                    "Pollinations free request effort={} model={} prompt_chars={} system_chars={} max_tokens={}",
+                    effort.as_str(),
+                    cfg.model,
+                    prompt.len(),
+                    system_prompt.len(),
+                    cfg.max_tokens,
+                );
+
+                let body = chat_completion_body(cfg, system_prompt, prompt, *temperature);
+                let response = client
+                    .post(base_url.as_str())
+                    .header("Content-Type", "application/json")
+                    .json(&body)
+                    .send()
+                    .await
+                    .context("failed to send Pollinations free request")?;
+
+                let status = response.status();
+                if !status.is_success() {
+                    let err_body = response.text().await.unwrap_or_default();
+                    anyhow::bail!("Pollinations free API error {status}: {err_body}");
+                }
+
+                let json: serde_json::Value = response
+                    .json()
+                    .await
+                    .context("failed to parse Pollinations free response")?;
+                let content = chat_response_text(&json)?;
+                tracing::info!(
+                    "Pollinations free response effort={} model={} duration_ms={} response_chars={}",
+                    effort.as_str(),
+                    cfg.model,
+                    started.elapsed().as_millis(),
+                    content.len(),
+                );
+                content
+            }
+            LlmProvider::Anthropic {
+                base_url,
+                api_key,
+                client,
+                fast,
+                medium,
+                heavy,
+            } => {
+                let cfg = match effort {
+                    Effort::Fast => fast,
+                    Effort::Medium => medium,
+                    Effort::Heavy => heavy,
+                };
+
+                let url = format!("{base_url}/v1/messages");
+                let started = Instant::now();
+                tracing::info!(
+                    "Anthropic request effort={} model={} prompt_chars={} system_chars={} max_tokens={}",
+                    effort.as_str(),
+                    cfg.model,
+                    prompt.len(),
+                    system_prompt.len(),
+                    cfg.max_tokens,
+                );
+
+                let body = anthropic_messages_body(cfg, system_prompt, prompt);
+                let response = client
+                    .post(&url)
+                    .header("x-api-key", api_key)
+                    .header("anthropic-version", "2023-06-01")
+                    .header("Content-Type", "application/json")
+                    .json(&body)
+                    .send()
+                    .await
+                    .context("failed to send Anthropic request")?;
+
+                let status = response.status();
+                if !status.is_success() {
+                    let err_body = response.text().await.unwrap_or_default();
+                    anyhow::bail!("Anthropic API error {status}: {err_body}");
+                }
+
+                let json: serde_json::Value = response
+                    .json()
+                    .await
+                    .context("failed to parse Anthropic response")?;
+                let content = anthropic_response_text(&json)?;
+                tracing::info!(
+                    "Anthropic response effort={} model={} duration_ms={} response_chars={}",
                     effort.as_str(),
                     cfg.model,
                     started.elapsed().as_millis(),

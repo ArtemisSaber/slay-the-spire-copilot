@@ -195,6 +195,7 @@ fn startup_check_enabled_by_default() {
     let opts = runtime_options_from([], None);
     assert!(!opts.skip_startup_check);
     assert!(!opts.force_mock_provider);
+    assert!(!opts.setup_only);
 }
 
 #[test]
@@ -215,6 +216,22 @@ fn stdin_test_mode_uses_mock_provider_by_default() {
     let opts = runtime_options_from(["--stdin-test"], None);
     assert!(opts.skip_startup_check);
     assert!(opts.force_mock_provider);
+    assert!(!opts.setup_only);
+}
+
+#[test]
+fn setup_mode_runs_without_startup_check() {
+    let opts = runtime_options_from(["setup"], None);
+    assert!(opts.skip_startup_check);
+    assert!(opts.setup_only);
+    assert!(!opts.force_mock_provider);
+}
+
+#[test]
+fn configure_alias_runs_setup_mode() {
+    let opts = runtime_options_from(["configure"], None);
+    assert!(opts.skip_startup_check);
+    assert!(opts.setup_only);
 }
 
 #[test]

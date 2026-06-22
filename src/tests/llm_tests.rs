@@ -383,6 +383,52 @@ fn chat_completion_body_omits_thinking_when_not_configured() {
 }
 
 #[test]
+fn anthropic_messages_body_uses_system_and_user_prompt() {
+    let cfg = OpenAiConfig {
+        model: "claude-sonnet-4-6".into(),
+        max_tokens: 500,
+        disable_thinking: false,
+    };
+
+    let body = anthropic_messages_body(&cfg, "system", "user");
+
+    assert_eq!(body["model"], "claude-sonnet-4-6");
+    assert_eq!(body["system"], "system");
+    assert_eq!(body["messages"][0]["role"], "user");
+    assert_eq!(body["messages"][0]["content"], "user");
+    assert_eq!(body["max_tokens"], 500);
+    assert!(body.get("temperature").is_none());
+}
+
+#[test]
+fn anthropic_response_text_collects_text_blocks() {
+    let json = serde_json::json!({
+        "content": [
+            {"type": "text", "text": "hello"},
+            {"type": "thinking", "thinking": "..."},
+            {"type": "text", "text": " world"}
+        ]
+    });
+
+    let text = anthropic_response_text(&json).unwrap();
+
+    assert_eq!(text, "hello world");
+}
+
+#[test]
+fn chat_response_text_extracts_openai_compatible_content() {
+    let json = serde_json::json!({
+        "choices": [
+            {"message": {"content": "hello"}}
+        ]
+    });
+
+    let text = chat_response_text(&json).unwrap();
+
+    assert_eq!(text, "hello");
+}
+
+#[test]
 fn from_config_unknown_provider() {
     let config = crate::config::Config {
         provider: "unknown-provider".into(),
@@ -419,4 +465,62 @@ fn from_config_missing_base_url() {
     };
     let result = LlmProvider::from_config(&config);
     assert!(result.is_err());
+}
+
+#[test]
+fn from_config_pollinations_free_accepts_no_api_key() {
+    let config = crate::config::Config {
+        provider: "pollinations-free".into(),
+        base_url: None,
+        api_key: None,
+        model_fast: "openai-fast".into(),
+        model_medium: "openai-fast".into(),
+        model_heavy: "openai-fast".into(),
+        max_tokens_fast: 100,
+        max_tokens_medium: 500,
+        max_tokens_heavy: 1000,
+        temperature: 0.5,
+        disable_fast_thinking: false,
+    };
+    let result = LlmProvider::from_config(&config);
+    assert!(matches!(result, Ok(LlmProvider::PollinationsFree { .. })));
+}
+
+#[test]
+fn from_config_anthropic_requires_api_key() {
+    let config = crate::config::Config {
+        provider: "anthropic".into(),
+        base_url: Some("https://api.anthropic.com".into()),
+        api_key: None,
+        model_fast: "claude-haiku-4-5".into(),
+        model_medium: "claude-sonnet-4-6".into(),
+        model_heavy: "claude-sonnet-4-6".into(),
+        max_tokens_fast: 100,
+        max_tokens_medium: 500,
+        max_tokens_heavy: 1000,
+        temperature: 0.5,
+        disable_fast_thinking: false,
+    };
+    let result = LlmProvider::from_config(&config);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("LLM_API_KEY"));
+}
+
+#[test]
+fn from_config_anthropic_accepts_valid_config() {
+    let config = crate::config::Config {
+        provider: "anthropic".into(),
+        base_url: None,
+        api_key: Some("sk-ant-test".into()),
+        model_fast: "claude-haiku-4-5".into(),
+        model_medium: "claude-sonnet-4-6".into(),
+        model_heavy: "claude-sonnet-4-6".into(),
+        max_tokens_fast: 100,
+        max_tokens_medium: 500,
+        max_tokens_heavy: 1000,
+        temperature: 0.5,
+        disable_fast_thinking: false,
+    };
+    let result = LlmProvider::from_config(&config);
+    assert!(matches!(result, Ok(LlmProvider::Anthropic { .. })));
 }

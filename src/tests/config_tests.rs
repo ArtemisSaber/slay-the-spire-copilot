@@ -38,6 +38,19 @@ fn model_chain_fallback() {
 }
 
 #[test]
+fn blank_model_overrides_fall_back_to_base_model() {
+    let c = Config::from_map(&HashMap::from([
+        ("LLM_MODEL", "fallback-model"),
+        ("LLM_MODEL_FAST", ""),
+        ("LLM_MODEL_MEDIUM", ""),
+        ("LLM_MODEL_HEAVY", ""),
+    ]));
+    assert_eq!(c.model_fast, "fallback-model");
+    assert_eq!(c.model_medium, "fallback-model");
+    assert_eq!(c.model_heavy, "fallback-model");
+}
+
+#[test]
 fn per_tier_model_overrides() {
     let c = Config::from_map(&HashMap::from([
         ("LLM_MODEL", "fallback-model"),
@@ -86,6 +99,18 @@ fn deepseek_base_url_disables_fast_thinking_by_default() {
         "https://api.deepseek.com",
     )]));
     assert!(c.disable_fast_thinking);
+}
+
+#[test]
+fn blank_api_fields_are_treated_as_absent() {
+    let c = Config::from_map(&HashMap::from([
+        ("LLM_PROVIDER", ""),
+        ("LLM_BASE_URL", ""),
+        ("LLM_API_KEY", ""),
+    ]));
+    assert_eq!(c.provider, "mock");
+    assert!(c.base_url.is_none());
+    assert!(c.api_key.is_none());
 }
 
 #[test]

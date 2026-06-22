@@ -189,19 +189,53 @@ fn write_command_quotes_paths_with_spaces() {
 
     let updated = fs::read_to_string(&config).unwrap();
     assert!(updated.contains(&format!("command={}", format_command_value(command))));
+    assert!(updated.contains("runAtGameStart=true"));
+}
+
+#[test]
+fn write_command_enables_run_at_game_start() {
+    let (_dir, config) = temp_config("command=/old/path\nrunAtGameStart=false\n");
+
+    assert!(write_command_to_config(&config, "/usr/bin/copilot"));
+
+    let updated = fs::read_to_string(&config).unwrap();
+    assert!(updated.contains("command=/usr/bin/copilot"));
+    assert!(updated.contains("runAtGameStart=true"));
 }
 
 #[test]
 fn correct_config_passes() {
     let current = env::current_exe().unwrap();
-    let (_dir, config) = temp_config(&format!("command={}\n", current.display()));
+    let (_dir, config) = temp_config(&format!(
+        "command={}\nrunAtGameStart=true\n",
+        current.display()
+    ));
     let paths = vec![config];
     assert!(check_config_matches_current_exe(&paths));
 }
 
 #[test]
+fn correct_command_without_run_at_game_start_fails() {
+    let current = env::current_exe().unwrap();
+    let (_dir, config) = temp_config(&format!("command={}\n", current.display()));
+    let paths = vec![config];
+    assert!(!check_config_matches_current_exe(&paths));
+}
+
+#[test]
+fn correct_command_with_run_at_game_start_false_fails() {
+    let current = env::current_exe().unwrap();
+    let (_dir, config) = temp_config(&format!(
+        "command={}\nrunAtGameStart=false\n",
+        current.display()
+    ));
+    let paths = vec![config];
+    assert!(!check_config_matches_current_exe(&paths));
+}
+
+#[test]
 fn wrong_config_fails() {
-    let (_dir, config) = temp_config("command=/usr/bin/other-bot\n");
+    let (_dir, config) = temp_config("command=/usr/bin/other-bot\nrunAtGameStart=true\n");
     let paths = vec![config];
     assert!(!check_config_matches_current_exe(&paths));
 }
@@ -213,6 +247,7 @@ fn empty_command_auto_fixes() {
     assert!(write_command_to_config(&config, &current));
     let updated = fs::read_to_string(&config).unwrap();
     assert!(updated.contains(&format!("command={}", format_command_value(&current))));
+    assert!(updated.contains("runAtGameStart=true"));
 }
 
 #[test]
@@ -233,10 +268,11 @@ fn setup_message_contains_key_info() {
 
     assert!(output.contains("尚未配置"));
     assert!(output.contains("ModTheSpire"));
-    assert!(output.contains("CommunicationMod"));
     assert!(output.contains("Communication Mod CJK"));
     assert!(output.contains("steamcommunity.com/sharedfiles/filedetails/?id=3748153752"));
     assert!(output.contains("github.com/ArtemisSaber/CommunicationMod/releases"));
+    assert!(!output.contains("ForgottenArbiter"));
+    assert!(!output.contains("原版 CommunicationMod"));
     assert!(output.contains("command="));
     assert!(output.contains("runAtGameStart=true"));
     assert!(output.contains("/test/config/path"));

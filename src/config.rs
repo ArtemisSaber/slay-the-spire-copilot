@@ -26,37 +26,47 @@ impl Config {
     }
 
     pub fn from_lookup(mut lookup: impl FnMut(&str) -> Option<String>) -> Self {
-        let provider = lookup("LLM_PROVIDER").unwrap_or_else(|| "mock".to_string());
+        let mut lookup_non_empty = |key: &str| {
+            lookup(key)
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+        };
 
-        let base_url = lookup("LLM_BASE_URL");
-        let api_key = lookup("LLM_API_KEY");
+        let provider = lookup_non_empty("LLM_PROVIDER").unwrap_or_else(|| "mock".to_string());
 
-        let fallback_model = lookup("LLM_MODEL").unwrap_or_else(|| "gpt-4o-mini".to_string());
+        let base_url = lookup_non_empty("LLM_BASE_URL");
+        let api_key = lookup_non_empty("LLM_API_KEY");
 
-        let model_fast = lookup("LLM_MODEL_FAST").unwrap_or_else(|| fallback_model.clone());
-        let model_medium = lookup("LLM_MODEL_MEDIUM").unwrap_or_else(|| fallback_model.clone());
-        let model_heavy = lookup("LLM_MODEL_HEAVY").unwrap_or_else(|| fallback_model.clone());
+        let fallback_model =
+            lookup_non_empty("LLM_MODEL").unwrap_or_else(|| "gpt-4o-mini".to_string());
 
-        let ceiling = lookup("LLM_MAX_TOKENS")
+        let model_fast =
+            lookup_non_empty("LLM_MODEL_FAST").unwrap_or_else(|| fallback_model.clone());
+        let model_medium =
+            lookup_non_empty("LLM_MODEL_MEDIUM").unwrap_or_else(|| fallback_model.clone());
+        let model_heavy =
+            lookup_non_empty("LLM_MODEL_HEAVY").unwrap_or_else(|| fallback_model.clone());
+
+        let ceiling = lookup_non_empty("LLM_MAX_TOKENS")
             .and_then(|v| v.parse().ok())
             .unwrap_or(50000);
 
-        let max_tokens_heavy = lookup("LLM_MAX_TOKENS_HEAVY")
+        let max_tokens_heavy = lookup_non_empty("LLM_MAX_TOKENS_HEAVY")
             .and_then(|v| v.parse().ok())
             .unwrap_or(ceiling);
-        let max_tokens_medium = lookup("LLM_MAX_TOKENS_MEDIUM")
+        let max_tokens_medium = lookup_non_empty("LLM_MAX_TOKENS_MEDIUM")
             .and_then(|v| v.parse().ok())
             .unwrap_or(max_tokens_heavy.min(10000));
-        let max_tokens_fast = lookup("LLM_MAX_TOKENS_FAST")
+        let max_tokens_fast = lookup_non_empty("LLM_MAX_TOKENS_FAST")
             .and_then(|v| v.parse().ok())
             .unwrap_or(max_tokens_heavy.min(300));
 
-        let temperature = lookup("LLM_TEMPERATURE")
+        let temperature = lookup_non_empty("LLM_TEMPERATURE")
             .and_then(|v| v.parse().ok())
             .unwrap_or(0.7);
 
-        let disable_fast_thinking = lookup("LLM_DISABLE_FAST_THINKING")
-            .map(|v| matches!(v.as_str(), "1" | "true" | "yes" | "on"))
+        let disable_fast_thinking = lookup_non_empty("LLM_DISABLE_FAST_THINKING")
+            .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
             .unwrap_or_else(|| {
                 base_url
                     .as_deref()
