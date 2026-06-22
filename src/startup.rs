@@ -367,6 +367,21 @@ fn extract_command_value(path: &Path) -> Option<String> {
     None
 }
 
+fn extract_property_value(path: &Path, key: &str) -> Option<String> {
+    let content = fs::read_to_string(path).ok()?;
+    let prefix = format!("{key}=");
+    for line in content.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with('#') {
+            continue;
+        }
+        if let Some(value) = trimmed.strip_prefix(&prefix) {
+            return Some(value.trim().to_string());
+        }
+    }
+    None
+}
+
 fn paths_equal(a: &Path, b: &Path) -> bool {
     match (a.canonicalize(), b.canonicalize()) {
         (Ok(ca), Ok(cb)) => ca == cb,
@@ -374,8 +389,21 @@ fn paths_equal(a: &Path, b: &Path) -> bool {
     }
 }
 
-fn config_is_valid(path: &Path) -> bool {
+fn config_has_command(path: &Path) -> bool {
     extract_command_value(path).is_some()
+}
+
+fn run_at_game_start_enabled(path: &Path) -> bool {
+    extract_property_value(path, "runAtGameStart").is_some_and(|value| {
+        matches!(
+            value.to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        )
+    })
+}
+
+fn config_is_valid(path: &Path) -> bool {
+    config_has_command(path) && run_at_game_start_enabled(path)
 }
 
 fn config_points_to_this_binary(path: &Path) -> bool {
@@ -434,18 +462,25 @@ fn write_command_to_config(path: &Path, command: &str) -> bool {
     let command = format_command_value(command);
 
     let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
-    let mut found = false;
+    let mut found_command = false;
+    let mut found_run_at_game_start = false;
 
     for line in &mut lines {
         if line.starts_with("command=") {
             *line = format!("command={command}");
-            found = true;
-            break;
+            found_command = true;
+        }
+        if line.starts_with("runAtGameStart=") {
+            *line = "runAtGameStart=true".to_string();
+            found_run_at_game_start = true;
         }
     }
 
-    if !found {
+    if !found_command {
         lines.push(format!("command={command}"));
+    }
+    if !found_run_at_game_start {
+        lines.push("runAtGameStart=true".to_string());
     }
 
     // Ensure newline at end
@@ -528,14 +563,31 @@ fn try_fix_config(paths: &[PathBuf], exe_path: &str) -> bool {
 
     // Case: config file exists but command= is empty or missing
     if let Some(existing) = find_existing_config(paths) {
-        let has_valid_command = config_is_valid(existing);
+        let has_command = config_has_command(existing);
         let points_here = config_points_to_this_binary(existing);
+        let startup_enabled = run_at_game_start_enabled(existing);
 
-        if points_here {
+        if points_here && startup_enabled {
             return true; // already good, shouldn't reach here
         }
 
-        if !has_valid_command {
+        if points_here && !startup_enabled {
+            if write_command_to_config(existing, exe_path) {
+                let mut stdout = std::io::stdout().lock();
+                let _ = writeln!(
+                    stdout,
+                    "检测到 CommunicationMod 未启用启动命令，已自动设置 runAtGameStart=true"
+                );
+                let _ = stdout.flush();
+                restart_hint();
+                tracing::info!("auto-enabled runAtGameStart in config");
+                return true;
+            }
+            tracing::error!("failed to write config file");
+            return false;
+        }
+
+        if !has_command {
             // Empty command → auto-fix
             if write_command_to_config(existing, exe_path) {
                 let mut stdout = std::io::stdout().lock();
