@@ -389,6 +389,7 @@ fn compute_danger(
 
     let powers: Vec<PowerInfo> = if wrath {
         vec![PowerInfo {
+            id: "".into(),
             name: "Wrath".into(),
             amount: 1,
         }]

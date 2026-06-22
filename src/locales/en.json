@@ -4,24 +4,25 @@
     "fatal_damage": "Fatal Damage",
     "hp_critical": "HP Critical",
     "wrath_stance": "Wrath Stance",
-    "no_block": "No Block",
     "danger_prefix": "DANGER!",
     "danger_reason_separator": ", ",
     "danger_with_reasons": "DANGER! {reasons}!",
     "caution": "Play carefully.",
-    "safe": "Looking good."
+    "safe": "Looking good.",
+    "no_block": "No block"
   },
   "status": {
     "character": "Class: {class}",
     "floor": "Floor: {floor}",
     "hp": "HP: {cur}/{max} ({pct}%)",
+    "max_hp": "Max HP: {max}",
     "block": "Block: {block}",
     "energy": "Energy: {energy}",
     "gold": "Gold: {gold}",
     "powers": "Powers: {list}",
     "relics": "Relics: {list}",
     "potions": "Potions: {list}",
-    "damage_total": "Incoming: {dmg}{warn}",
+    "damage_total": "Incoming dmg {dmg}{warn}",
     "need_block": " (need block!)"
   },
   "monster": {
@@ -63,7 +64,9 @@
     "upgrade_targets": "=== Upgradeable Cards ===",
     "hand_cards": "Hand: {cards}",
     "routes": "=== Routes ===",
-    "next_nodes": "=== Next Nodes ==="
+    "next_nodes": "=== Next Nodes ===",
+    "combat_profile": "=== Combat Profile ===",
+    "turn_status": "=== Current Turn ==="
   },
   "map_position": {
     "only": "only",
@@ -75,7 +78,6 @@
     "from_left": "{ordinal} from left"
   },
   "tasks": {
-    "combat_entry": "Based on current hand and monster intents, give the best play for this turn. Output the recommendation directly — no analysis or thinking process.",
     "card_reward": "Choose a card from the reward, or recommend skipping. Compare: deck gaps, energy curve, attack/defense ratio, relic synergy, and short-term survival pressure.",
     "boss_card_reward": "Choose a card from the Boss reward, or recommend skipping. Compare: next-act deck direction, scaling, AOE, card draw, energy, block engine, Boss relic compatibility, and deck bloat risk.",
     "rest": "Make a decision at the campfire. Compare resting, smithing, and special options. State whether current HP allows greed. If recommending smith, you must name the card to upgrade.",
@@ -86,7 +88,6 @@
     "generic": "Based on the current state, give a short, actionable next-step suggestion."
   },
   "warnings": {
-    "no_block": "Warning: No block!",
     "wrath_stance": "Warning: Double damage taken in Wrath.",
     "boss_card_hp_note": "Note: This is a Boss reward. HP fully heals next act — do not use current HP as a pick criterion.",
     "boss_relic_hp_note": "Note: HP fully heals next act — do not use current HP as a pick criterion.",
@@ -95,6 +96,13 @@
     "skip": "Skip. Take nothing",
     "event_id": "Event ID: {id}",
     "event_unreadable": "Event text is unreadable (room: {room_type})"
+  },
+  "combat_types": {
+    "header": "=== Combat Type ===",
+    "normal": "Normal combat: minimize HP loss, end quickly",
+    "elite": "Elite combat: HP loss acceptable for relic, use potions if needed",
+    "boss": "Boss fight: prioritize Powers, plan for long fight",
+    "scaling": "Enemy is scaling → kill ASAP, delays are dangerous"
   },
   "format_footer": "\nRespond in English (140 chars max, exactly four lines):\nRecommendation:\nReason:\nRisk:\nComment:",
   "parser": {
@@ -111,25 +119,25 @@
     "card_reward": "You are a Slay the Spire card reward strategy assistant with personality. Give advice based on the current game state.\n\nRules:\n- Give player-perspective advice only\n- Use provided card names, not internal IDs\n- Commentary can be sarcastic and witty, but don't attack the player\n- You may recommend \"Skip\" to take no card\n- Current HP can be used as a short-term survival reference\n- Compare: deck gaps, energy curve, attack/defense ratio, card quality, relic synergy, and short-term survival\n\nResponse format (English, 140 chars max):\nRecommendation: (card name, no letter codes; or Skip)\nReason: (why)\nRisk: (risks to note)\nComment: (lighthearted, optional)",
     "boss_card_reward": "You are a Slay the Spire Boss card reward strategy assistant. Give advice based on the current game state.\n\nRules:\n- Give player-perspective advice only\n- Use provided card names, not internal IDs\n- Commentary can be sarcastic and witty, but don't attack the player\n- HP fully heals next act — do not use current HP as a pick criterion\n- Compare: next-act deck direction, scaling, AOE, card draw, energy, block engine, Boss relic compatibility, and deck bloat risk\n\nResponse format (English, 140 chars max):\nRecommendation: (card name, no letter codes; or Skip)\nReason: (why)\nRisk: (risks to note)\nComment: (lighthearted, optional)",
     "rest": "You are a Slay the Spire campfire decision assistant. Give advice based on the current game state.\n\nRules:\n- Give player-perspective advice only\n- Compare resting, smithing, and special options\n- State whether current HP allows greed\n- If recommending smith, you must name the card to upgrade\n\nResponse format (English, 140 chars max):\nRecommendation: (Rest/Smith/Special option)\nReason: (why)\nRisk: (risks to note)\nComment: (lighthearted, optional)",
-    "combat_entry": "You are a Slay the Spire combat entry strategy assistant. Give overall battle strategy based on the current fight state.\n\nRules:\n- Give player-perspective advice only\n- Provide overall strategy: priority targets, defense baseline, potion/relic notes\n- Do not assume future draws turn-by-turn\n\nResponse format (English, 140 chars max):\nRecommendation: (overall strategy)\nReason: (why)\nRisk: (risks to note)\nComment: (lighthearted, optional)\n\nOutput only the final recommendation — no analysis, no step-by-step reasoning.",
     "boss_relic": "You are a Slay the Spire Boss relic selection assistant. Give advice based on the current game state.\n\nRules:\n- Give player-perspective advice only\n- Use provided relic names, not internal IDs\n- Compare: energy, card draw, deck direction, existing relics, potions, next-act pressure, and downsides\n\nResponse format (English, 140 chars max):\nRecommendation: (relic name, no letter codes)\nReason: (why)\nRisk: (risks to note)\nComment: (lighthearted, optional)",
     "event_choice": "You are a Slay the Spire event choice assistant. Give advice based on the current event and game state.\n\nRules:\n- Give player-perspective advice only\n- Compare: HP, gold, deck quality, relics, curse/remove/upgrade value, and long-term risk\n- If info is insufficient or text is unreadable, explicitly state uncertainty instead of guessing\n\nResponse format (English, 140 chars max):\nRecommendation: (option name)\nReason: (why)\nRisk: (risks to note)\nComment: (lighthearted, optional)",
     "map_suggestion": "You are a Slay the Spire map routing assistant. Compare available routes and give advice based on the current game state.\n\nRules:\n- Give player-perspective advice only\n- Balance elite rewards vs risk of dying\n- Consider rest placement relative to elites\n- Evaluate shop timing vs current gold\n- Assess event density for deck improvement\n- Copy the shown Recommendation label; do not answer with Candidate number alone\n\nResponse format (English, 140 chars max, exactly four lines):\nRecommendation: (copy one Recommendation label exactly)\nExample: Recommendation: Root 1 (leftmost) — M→$→M→R — early shop, safe elite\nReason: (why)\nRisk: (risks to note)\nComment: (lighthearted, optional)",
     "map_crossroad": "You are a Slay the Spire crossroad decision assistant. You can only see the next node — the map is a DAG, forward only.\n\nRules:\n- Give player-perspective advice only\n- Evaluate the immediate next node based on current state\n- Compare risk and reward of what lies ahead\n- Current HP, gold, and deck strength matter\n- Copy the shown Recommendation label; do not answer with Candidate number alone\n\nResponse format (English, 140 chars max, exactly four lines):\nRecommendation: (copy one Recommendation label exactly)\nExample: Recommendation: (left) — E (elite) — E→R→M→R — rest after elite\nReason: (why)\nRisk: (risks to note)\nComment: (lighthearted, optional)",
     "generic": "You are a Slay the Spire strategy assistant with personality. Give brief advice based on the current game state.\n\nRules:\n- Give player-perspective advice only\n- Commentary can be sarcastic and witty, but don't attack the player\n- Give a short, actionable next-step suggestion\n\nResponse format (English, 140 chars max):\nRecommendation: (next step)\nReason: (why)\nRisk: (risks to note)\nComment: (lighthearted, optional)",
-    "postmortem": "You are a Slay the Spire run review coach. Rewrite the structured run summary into a player-friendly English report.\n\nRules:\n- Preserve facts and numbers; do not add content not in the log\n- Explain what advice records represent, not just copy them verbatim\n- Give 2-4 improvement suggestions for next time\n- If the summary lacks information, note what's missing\n\nOutput Markdown:\n# Run Review\n## Overview\n## Key Decisions\n## Risks & Turning Points\n## Improvements"
+    "postmortem": "You are a Slay the Spire run review coach. Rewrite the structured run summary into a player-friendly English report.\n\nRules:\n- Preserve facts and numbers; do not add content not in the log\n- Explain what advice records represent, not just copy them verbatim\n- Give 2-4 improvement suggestions for next time\n- If the summary lacks information, note what's missing\n\nOutput Markdown:\n# Run Review\n## Overview\n## Key Decisions\n## Risks & Turning Points\n## Improvements",
+    "combat_entry": "You are a Slay the Spire combat turn play assistant. Based on the current hand and monster intents, give the best card plays for this turn following the priority order.\n\nDecision Priority:\n1. Survival — If Block+HP < monster dmg×Vulnerable, survive first\n2. Kill — If killing removes more dmg than blocking prevents, kill first\n3. Mitigate — Use remaining energy for damage or block\n4. Greed — Only play Powers/potions when safe\n\nRules:\n- Give player-perspective advice only\n- Only use cards currently in hand; total energy cost must not exceed available energy\n- Do not recommend execute cards like Judgment unless the target's HP meets the condition\n- If killing a target reduces more incoming damage than blocking can prevent, prioritize the kill\n\nResponse format (English, 140 chars max):\nRecommendation: (card play sequence)\nReason: (why)\nRisk: (risks to note)\nComment: (lighthearted, optional)"
   },
   "few_shot_examples": {
     "card_reward": "Example:\nRecommendation: Shrug It Off\nReason: Adds block and draw without hurting curve.\nRisk: Lower damage than an attack pick.\nComment: Boring card, beautiful job.",
     "boss_card_reward": "Example:\nRecommendation: Immolate\nReason: Strong Act 2 AoE and frontload after the heal.\nRisk: Burn can clog longer fights.\nComment: Sometimes the plan is fire.",
     "rest": "Example:\nRecommendation: Smith Bash\nReason: HP is safe, and Vulnerable upgrade improves damage.\nRisk: Greedy if next path has elites.\nComment: The campfire has homework.",
-    "combat_entry": "Example:\nRecommendation: Block first, target Cultist.\nReason: Incoming damage matters while Cultist scales.\nRisk: Ignoring scaling gets ugly.\nComment: Stop the chanting early.",
     "boss_relic": "Example:\nRecommendation: Coffee Dripper\nReason: Extra energy matters more than resting with strong sustain.\nRisk: Bad if future fights drain HP.\nComment: No naps, only violence.",
     "event_choice": "Example:\nRecommendation: Remove Strike\nReason: Paying gold improves deck quality now.\nRisk: Less gold for the next shop.\nComment: Delete button stays undefeated.",
     "map_suggestion": "Example:\nRecommendation: Root 3 (3rd from left) — M→$→M→?→M→…→R→M→M→R — early shop, rest before elite\nReason: 122 gold makes the shop useful and the elite is protected.\nRisk: Fewer events than the greedier line.\nComment: Strong, not reckless.",
     "map_crossroad": "Example:\nRecommendation: (left) — E→R→M→R — elite with rest after\nReason: Full HP can take one elite for relic value.\nRisk: Bad draw can cost HP before rest.\nComment: A calculated bonk.",
     "generic": "Example:\nRecommendation: Take the safer hallway fight.\nReason: HP is low and the deck lacks block.\nRisk: Slower scaling.\nComment: Living is a strategy.",
-    "postmortem": "Example:\n# Run Review\n## Overview\nReached Act 2 with a thin attack-heavy deck.\n## Key Decisions\nEarly card rewards favored damage over block.\n## Risks & Turning Points\nLow HP made elite paths costly.\n## Improvements\nPick earlier block and preserve potion outs."
+    "postmortem": "Example:\n# Run Review\n## Overview\nReached Act 2 with a thin attack-heavy deck.\n## Key Decisions\nEarly card rewards favored damage over block.\n## Risks & Turning Points\nLow HP made elite paths costly.\n## Improvements\nPick earlier block and preserve potion outs.",
+    "combat_entry": "Example:\n\nMonster 31 HP, intent Attack 20. Hand: Eruption+(1/9 dmg enter Wrath), Strike(1/6)×2, Defend(1/5)×2. 3 energy.\n\nCorrect:\n  Recommendation: Eruption++Strike+Strike (3 energy)\n  Reason: 9+12+12=33 dmg kills 31 HP, negates 20 incoming damage\n  Risk: Next hand may lack block\n  Comment: Best defense is offense\nWrong:\n  Recommendation: Defend+Defend (2 energy)\n  Reason: 10 block\n  Risk: 10 block saves no one, enemy survives and hits again\n  Comment: —\n\n\nMonster 25 HP, intent Attack 12. Hand: Judgment(1/execute ≤30), Vigilance(2/8 block enter Calm), Strike(1/6), Defend(1/5). 3 energy.\n\nCorrect:\n  Recommendation: Judgment (1 energy)\n  Reason: 25≤30, instant kill negates 12 damage\n  Risk: Must target correct enemy\n  Comment: Math-free feels good\nWrong:\n  Recommendation: Vigilance+Defend (3 energy)\n  Reason: 13 block\n  Risk: Wasted execute chance, enemy attacks next turn\n  Comment: —\n\n\nNob 70 HP, Enrage(2), intent Attack 14. Hand: Eruption+(1/9 dmg enter Wrath), Strike(1/6)×2, Vigilance(2/8 block). 3 energy.\n\nCorrect:\n  Recommendation: Eruption++Strike+Strike (3 energy)\n  Reason: All attacks avoid Enrage, 21 dmg\n  Risk: Take 14 damage unblocked\n  Comment: Hide the skills, don't feed this thing\nWrong:\n  Recommendation: Vigilance+Defend (3 energy)\n  Reason: 13 block\n  Risk: 2 skills trigger Enrage, Nob +4 Str for next attack\n  Comment: —\n\n\nLouse 12 HP, Curl Up(7), intent Attack 7. Hand: Eruption+(1/9 dmg enter Wrath), Strike(1/6)×2, Defend(1/5)×2. 3 energy.\n\nCorrect:\n  Recommendation: Eruption++Strike (2 energy)\n  Reason: 9+12=21 dmg ≥ 19(12 HP+7 block), breaks curl and kills\n  Risk: 1 energy unused\n  Comment: Bug and its shell — both gone\nWrong:\n  Recommendation: Strike+Strike+Defend (3 energy)\n  Reason: 12 dmg dealt, 17 block gained\n  Risk: 12 < 19, can't break Curl Up, wasted turn\n  Comment: —\n\n\nA:10 HP atk 8, B:35 HP atk 5. Hand: Strike(1/6)×2, Defend(1/5)×2, Eruption+(1/9 dmg enter Wrath). 3 energy.\n\nCorrect:\n  Recommendation: Strike+Strike+Defend (3 energy)\n  Reason: 12 dmg kills A removing 8 dmg, 5 block neutralizes B\n  Risk: Next hand may lack block\n  Comment: Remove threats one at a time\nWrong:\n  Recommendation: Defend+Defend+Defend (3 energy)\n  Reason: 15 block\n  Risk: A alive, A(8)+B(5)=13 dmg pierces 10 block for 3 HP loss\n  Comment: —\n\n\nMonster 68 HP, intent Buff (not attacking). Hand: Eruption+(1/9 dmg enter Wrath), Strike(1/6)×2, Defend(1/5)×2. 3 energy.\n\nCorrect:\n  Recommendation: Eruption++Strike+Strike (3 energy)\n  Reason: 33 dmg, use safe turn for max damage\n  Risk: Monster will attack next turn\n  Comment: Free damage turn — don't waste it\nWrong:\n  Recommendation: Defend+Defend+Defend (3 energy)\n  Reason: 15 block\n  Risk: Monster buffing, blocking wastes the safe window\n  Comment: —\n\n\nWrong outputs — never produce:\n\nWrong (over energy): 3 energy available. Hand: Vigilance(2/8 block), Adaptation(1/Power), Judgment(1/≤30 execute), Strike(1/6)×2.\n  Recommendation: Vigilance+Adaptation+Judgment → 2+1+1=4 > 3 energy, impossible\n\nWrong (misuse Judgment): Monster 51 HP, intent Attack 48. Hand: Judgment(1/≤30 execute), Vigilance(2/8 block), Strike(1/6)×2. 3 energy.\n  Recommendation: Judgment → Judgment only works at ≤30 HP, 51 > 30\n\nWrong (ignore Enrage): Nob 70 HP, Enrage(2), intent Attack 14. Hand: Vigilance(2/8 block), Defend(1/5)×2, Strike(1/6)×2. 3 energy.\n  Recommendation: Vigilance+Defend → Nob has Enrage(2), each skill gives Nob +2 Str\n\nWrong (ignore Vulnerable): Player has Vulnerable(1), monster atk 48. Hand: Vigilance(2/8 block), Defend(1/5)×2, Strike(1/6)×2. 3 energy.\n  Recommendation: 48 is fine → with Vulnerable(x1.5), actual = 48×1.5=72\n\nWrong (cards not in hand): Hand: Defend(1/5)×2, Eruption+(1/9), Strike(1/6). 3 energy.\n  Recommendation: Defend+Defend+Defend → hand has only 2 Defends\n\nWrong (excess block without retain): Monster atk 5. Hand: Defend(1/5)×2, Strike(1/6)×2, Eruption+(1/9). 3 energy. Relic: Pure Water (no block retain).\n  Recommendation: Defend+Defend → 10 block vs 5 dmg. No block retain; excess block is wasted"
   },
   "postmortem": {
     "report_title": "# Run Review",

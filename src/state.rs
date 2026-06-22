@@ -69,6 +69,7 @@ pub struct MonsterInfo {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PowerInfo {
+    pub id: String,
     pub name: String,
     pub amount: i64,
 }
@@ -197,6 +198,11 @@ fn extract_cards(arr: &[Value]) -> Vec<CardInfo> {
 fn extract_powers(arr: &[Value]) -> Vec<PowerInfo> {
     arr.iter()
         .map(|p| PowerInfo {
+            id: p
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             name: p
                 .get("name")
                 .and_then(|v| v.as_str())

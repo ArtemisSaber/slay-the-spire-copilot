@@ -18,6 +18,7 @@ pub struct StatusLocale {
     pub character: String,
     pub floor: String,
     pub hp: String,
+    pub max_hp: String,
     pub block: String,
     pub energy: String,
     pub gold: String,
@@ -73,6 +74,8 @@ pub struct SectionLocale {
     pub hand_cards: String,
     pub routes: String,
     pub next_nodes: String,
+    pub combat_profile: String,
+    pub turn_status: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -88,7 +91,6 @@ pub struct MapPositionLocale {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TaskLocale {
-    pub combat_entry: String,
     pub card_reward: String,
     pub boss_card_reward: String,
     pub rest: String,
@@ -101,7 +103,6 @@ pub struct TaskLocale {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct WarningLocale {
-    pub no_block: String,
     pub wrath_stance: String,
     pub boss_card_hp_note: String,
     pub boss_relic_hp_note: String,
@@ -110,6 +111,15 @@ pub struct WarningLocale {
     pub skip: String,
     pub event_id: String,
     pub event_unreadable: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CombatTypesLocale {
+    pub header: String,
+    pub normal: String,
+    pub elite: String,
+    pub boss: String,
+    pub scaling: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -252,6 +262,7 @@ pub struct Locale {
     pub map_position: MapPositionLocale,
     pub tasks: TaskLocale,
     pub warnings: WarningLocale,
+    pub combat_types: CombatTypesLocale,
     pub format_footer: String,
     pub parser: ParserLocale,
     pub fallback: FallbackLocale,
@@ -260,18 +271,22 @@ pub struct Locale {
     pub postmortem: PostmortemLocale,
     pub i18n: I18nLocale,
     pub language_name: String,
+    #[serde(default)]
+    pub lang_code: String,
 }
 
 impl Locale {
     pub fn load(lang: &str) -> Self {
-        let json = match lang {
-            "zh" => include_str!("zh.json"),
-            "en" => include_str!("en.json"),
-            "ja" => include_str!("ja.json"),
-            "ko" => include_str!("ko.json"),
-            _ => include_str!("en.json"),
+        let (json, code) = match lang {
+            "zh" => (include_str!("zh.json"), "zh"),
+            "en" => (include_str!("en.json"), "en"),
+            "ja" => (include_str!("ja.json"), "ja"),
+            "ko" => (include_str!("ko.json"), "ko"),
+            _ => (include_str!("en.json"), "en"),
         };
-        serde_json::from_str(json).expect("failed to parse locale JSON")
+        let mut locale: Self = serde_json::from_str(json).expect("failed to parse locale JSON");
+        locale.lang_code = code.to_string();
+        locale
     }
 }
 

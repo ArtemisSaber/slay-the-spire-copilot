@@ -2,6 +2,7 @@ use crate::locales::Locale;
 use crate::state::{CardInfo, DangerLevel, MapCoord, MonsterInfo, NormalizedState};
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::sync::OnceLock;
 
 use super::routing::{
     PathEvaluation, ShopTiming, enumerate_paths, enumerate_paths_from_roots, evaluate_path, plural,
@@ -39,6 +40,101 @@ pub(crate) fn danger_prefix(state: &NormalizedState, locale: &Locale) -> String 
         DangerLevel::Caution => locale.danger.caution.clone(),
         DangerLevel::Safe => locale.danger.safe.clone(),
     }
+}
+
+pub(crate) fn combat_profile_line(state: &NormalizedState, locale: &Locale) -> String {
+    let mut parts: Vec<String> = Vec::new();
+
+    if let Some(ref c) = state.character {
+        let class_name = match c.as_str() {
+            "IRONCLAD" => &locale.i18n.class_ironclad,
+            "THE_SILENT" => &locale.i18n.class_silent,
+            "DEFECT" => &locale.i18n.class_defect,
+            "WATCHER" => &locale.i18n.class_watcher,
+            _ => c.as_str(),
+        };
+        parts.push(locale.status.character.replace("{class}", class_name));
+    }
+    if let Some(f) = state.floor {
+        parts.push(locale.status.floor.replace("{floor}", &f.to_string()));
+    }
+    if let Some(max) = state.max_hp {
+        parts.push(locale.status.max_hp.replace("{max}", &max.to_string()));
+    }
+    if let Some(g) = state.gold {
+        parts.push(locale.status.gold.replace("{gold}", &g.to_string()));
+    }
+    if !state.relics.is_empty() {
+        let names: Vec<&str> = state.relics.iter().map(|r| r.name.as_str()).collect();
+        parts.push(locale.status.relics.replace("{list}", &names.join(" ")));
+    }
+
+    parts.join("  ")
+}
+
+pub(crate) fn turn_status_line(state: &NormalizedState, locale: &Locale) -> String {
+    let mut parts: Vec<String> = Vec::new();
+
+    parts.push(danger_prefix(state, locale));
+
+    if let (Some(cur), Some(max)) = (state.current_hp, state.max_hp) {
+        let pct = if max > 0 {
+            (cur as f64 / max as f64 * 100.0) as i64
+        } else {
+            0
+        };
+        parts.push(
+            locale
+                .status
+                .hp
+                .replace("{cur}", &cur.to_string())
+                .replace("{max}", &max.to_string())
+                .replace("{pct}", &pct.to_string()),
+        );
+    }
+    if let Some(b) = state.block {
+        parts.push(locale.status.block.replace("{block}", &b.to_string()));
+    }
+    if let Some(e) = state.energy {
+        parts.push(locale.status.energy.replace("{energy}", &e.to_string()));
+    }
+
+    if !state.powers.is_empty() {
+        let powers_str: Vec<String> = state
+            .powers
+            .iter()
+            .map(|p| format!("{}({})", p.name, p.amount))
+            .collect();
+        parts.push(
+            locale
+                .status
+                .powers
+                .replace("{list}", &powers_str.join(" ")),
+        );
+    }
+
+    if !state.potions.is_empty() {
+        let names: Vec<&str> = state.potions.iter().map(|p| p.name.as_str()).collect();
+        parts.push(locale.status.potions.replace("{list}", &names.join(" ")));
+    }
+
+    if state.incoming_damage > 0 {
+        let warn =
+            if state.block.unwrap_or(0) > 0 && state.incoming_damage > state.block.unwrap_or(0) {
+                locale.status.need_block.as_str()
+            } else {
+                ""
+            };
+        parts.push(
+            locale
+                .status
+                .damage_total
+                .replace("{dmg}", &state.incoming_damage.to_string())
+                .replace("{warn}", warn),
+        );
+    }
+
+    parts.join("  ")
 }
 
 pub(crate) fn status_line(state: &NormalizedState, locale: &Locale) -> String {
@@ -174,6 +270,23 @@ pub(crate) fn format_card(c: &CardInfo, locale: &Locale) -> String {
     result
 }
 
+type PowerDescMap = HashMap<String, HashMap<String, String>>;
+
+fn power_descs() -> &'static PowerDescMap {
+    static DESCS: OnceLock<PowerDescMap> = OnceLock::new();
+    DESCS.get_or_init(|| {
+        serde_json::from_str(include_str!("../i18n/powers.json")).unwrap_or_default()
+    })
+}
+
+fn power_desc_line(id: &str, amount: i64, locale: &Locale) -> Option<String> {
+    let descs = power_descs();
+    let entry = descs.get(id)?;
+    let template = entry.get(locale.lang_code.as_str())?;
+    let desc = template.replace("{amount}", &amount.to_string());
+    Some(format!("[{}]", desc))
+}
+
 pub(crate) fn format_monster(m: &MonsterInfo, locale: &Locale) -> String {
     let mut lines: Vec<String> = Vec::new();
 
@@ -242,7 +355,14 @@ pub(crate) fn format_monster(m: &MonsterInfo, locale: &Locale) -> String {
         let pwr_str: Vec<String> = m
             .monster_powers
             .iter()
-            .map(|p| format!("{}({})", p.name, p.amount))
+            .map(|p| {
+                let base = format!("{}({})", p.name, p.amount);
+                if let Some(desc) = power_desc_line(&p.id, p.amount, locale) {
+                    format!("{}{}", base, desc)
+                } else {
+                    base
+                }
+            })
             .collect();
         let mut line = locale.monster.powers.replace("{list}", &pwr_str.join(" "));
         if m.is_scaling {
@@ -455,18 +575,30 @@ pub(crate) fn build_relics_potions_section(state: &NormalizedState, locale: &Loc
 }
 
 pub(crate) fn build_combat(state: &NormalizedState, locale: &Locale) -> String {
-    let mut lines: Vec<String> = vec![
-        locale.sections.current_state.clone(),
-        status_line(state, locale),
-        String::new(),
-        locale.sections.task.clone(),
-        locale.tasks.combat_entry.clone(),
-        String::new(),
-    ];
+    let mut lines: Vec<String> = Vec::new();
 
-    if state.danger.no_block_against_hit {
-        lines.push(locale.warnings.no_block.clone());
+    lines.push(locale.combat_types.header.clone());
+    let mut type_text = match state.room_type.as_deref() {
+        Some("MonsterRoomElite") => locale.combat_types.elite.clone(),
+        Some("MonsterRoomBoss") => locale.combat_types.boss.clone(),
+        _ => locale.combat_types.normal.clone(),
+    };
+    let has_scaling = state.monsters.iter().any(|m| m.is_scaling);
+    if has_scaling {
+        type_text.push(' ');
+        type_text.push_str(&locale.combat_types.scaling);
     }
+    lines.push(type_text);
+    lines.push(String::new());
+
+    lines.push(locale.sections.combat_profile.clone());
+    lines.push(combat_profile_line(state, locale));
+    lines.push(String::new());
+
+    lines.push(locale.sections.turn_status.clone());
+    lines.push(turn_status_line(state, locale));
+    lines.push(String::new());
+
     if state.danger.wrath_stance {
         lines.push(locale.warnings.wrath_stance.clone());
     }
@@ -499,7 +631,6 @@ pub(crate) fn build_combat(state: &NormalizedState, locale: &Locale) -> String {
         ));
     }
 
-    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 

@@ -1,0 +1,104 @@
+{
+  "Enrage": {
+    "zh": "每打技能牌+{amount}力量",
+    "en": "+{amount} Str per Skill played",
+    "ja": "スキル使用時+{amount}筋力",
+    "ko": "스킬 사용 시 +{amount} 힘"
+  },
+  "Thorns": {
+    "zh": "受攻击反伤{amount}点",
+    "en": "Deal {amount} damage when attacked",
+    "ja": "攻撃時{amount}反撃ダメージ",
+    "ko": "공격 시 {amount} 피해 반사"
+  },
+  "Sharp Hide": {
+    "zh": "受攻击反伤{amount}点",
+    "en": "Deal {amount} damage when attacked",
+    "ja": "攻撃時{amount}反撃ダメージ",
+    "ko": "공격 시 {amount} 피해 반사"
+  },
+  "Curiosity": {
+    "zh": "每打能力牌+{amount}力量",
+    "en": "+{amount} Str per Power played",
+    "ja": "パワー使用時+{amount}筋力",
+    "ko": "파워 사용 시 +{amount} 힘"
+  },
+  "Strength": {
+    "zh": "攻击伤害+{amount}",
+    "en": "Attack damage +{amount}",
+    "ja": "攻撃ダメージ+{amount}",
+    "ko": "공격 피해 +{amount}"
+  },
+  "Ritual": {
+    "zh": "每回合结束+{amount}力量",
+    "en": "Gain {amount} Str each turn",
+    "ja": "毎ターン終了時+{amount}筋力",
+    "ko": "턴 종료 시 +{amount} 힘"
+  },
+  "Regeneration": {
+    "zh": "每回合结束回复{amount}生命",
+    "en": "Heal {amount} HP each turn",
+    "ja": "毎ターン終了時{amount}HP回復",
+    "ko": "턴 종료 시 {amount} HP 회복"
+  },
+  "Metallicize": {
+    "zh": "每回合结束+{amount}格挡",
+    "en": "Gain {amount} Block each turn",
+    "ja": "毎ターン終了時+{amount}ブロック",
+    "ko": "턴 종료 시 +{amount} 방어도"
+  },
+  "Plated Armor": {
+    "zh": "每回合开始+{amount}格挡，受无格挡伤害-1层",
+    "en": "Gain {amount} Block/turn, lose 1 on unblocked dmg",
+    "ja": "毎ターン開始時+{amount}ブロック、被弾で1層減少",
+    "ko": "턴 시작 시 +{amount} 방어도, 피격 시 1중첩 감소"
+  },
+  "Curl Up": {
+    "zh": "首次受攻击时获得{amount}格挡(触发后消失)",
+    "en": "Gain {amount} Block on first hit (then removed)",
+    "ja": "初回被攻撃時{amount}ブロック獲得(1回限り)",
+    "ko": "첫 피격 시 {amount} 방어도 획득 (1회)"
+  },
+  "Flight": {
+    "zh": "减伤50%，{amount}层(受攻击减层)",
+    "en": "50% dmg reduction, {amount} stacks (lost on hit)",
+    "ja": "被ダメ50%減、{amount}層(被弾で減少)",
+    "ko": "피해 50% 감소, {amount}중첩 (피격 시 감소)"
+  },
+  "Intangible": {
+    "zh": "所有伤害降至1，持续{amount}回合",
+    "en": "All damage reduced to 1 for {amount} turns",
+    "ja": "全ダメージ1に軽減、{amount}ターン",
+    "ko": "모든 피해 1로 감소, {amount}턴"
+  },
+  "Invincible": {
+    "zh": "每回合受伤害上限{amount}点",
+    "en": "Capped at {amount} dmg taken per turn",
+    "ja": "1ターン被ダメ上限{amount}",
+    "ko": "턴당 피해 상한 {amount}"
+  },
+  "Artifact": {
+    "zh": "抵消{amount}次负面效果",
+    "en": "Negate next {amount} debuff(s)",
+    "ja": "{amount}回のデバフ無効化",
+    "ko": "{amount}회 디버프 무효"
+  },
+  "Time Warp": {
+    "zh": "累计打出12张牌后强制结束回合并加力量",
+    "en": "Ends turn after 12 cards total, gains Str",
+    "ja": "合計12枚でターン強制終了&筋力増加",
+    "ko": "총 12장 사용 시 턴 종료 & 힘 증가"
+  },
+  "Split": {
+    "zh": "生命低于50%时分裂",
+    "en": "Splits when HP below 50%",
+    "ja": "HP50%未満で分裂",
+    "ko": "HP 50% 미만 시 분열"
+  },
+  "Reactive": {
+    "zh": "受到伤害时改变意图",
+    "en": "Changes intent when damaged",
+    "ja": "被ダメで意図変化",
+    "ko": "피해 시 의도 변화"
+  }
+}

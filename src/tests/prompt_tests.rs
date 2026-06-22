@@ -112,10 +112,9 @@ fn combat_prompt_marks_entry_plan_task() {
     };
 
     let prompt = build_prompt(&state, &locale, false);
-    assert!(prompt.contains("=== 任务 ==="));
-    assert!(prompt.contains("本回合"));
-    assert!(prompt.contains("最佳出牌"));
-    assert!(prompt.contains("不要写分析过程"));
+    assert!(prompt.contains("=== 战斗类型 ==="));
+    assert!(prompt.contains("=== 战斗概况 ==="));
+    assert!(prompt.contains("=== 当前回合 ==="));
 }
 
 #[test]
@@ -212,6 +211,7 @@ fn monster_section_shows_scaling() {
             damage: Some(12),
             hits: None,
             monster_powers: vec![PowerInfo {
+                id: "Strength".into(),
                 name: "力量".into(),
                 amount: 2,
             }],
@@ -559,6 +559,7 @@ fn danger_prefix_shows_wrath_warning() {
     let locale = test_locale();
     let state = NormalizedState {
         powers: vec![PowerInfo {
+            id: "".into(),
             name: "Wrath".into(),
             amount: 1,
         }],
