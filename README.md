@@ -1,15 +1,15 @@
 # Slay the Spire AI Copilot
 
-A local CLI copilot for Slay the Spire. It reads game state from Communication Mod CJK (recommended) or the original CommunicationMod, asks an LLM for advice, writes the latest suggestion to `output/advice.txt` (plain text) and `output/overlay.json` (structured JSON), and records structured run history under `runs/<run_id>/events.jsonl` for postmortem analysis.
+A local CLI copilot for Slay the Spire. It reads detailed game state from Communication Mod CJK, asks an LLM for advice, writes the latest suggestion to `output/advice.txt` (plain text) and `output/overlay.json` (structured JSON), and records structured run history under `runs/<run_id>/events.jsonl` for postmortem analysis.
 
-本项目是一个本地运行的《杀戮尖塔》AI 助手。它通过 Communication Mod CJK（推荐）或原版 CommunicationMod 读取游戏状态，调用 LLM 生成建议，把最新建议写入 `output/advice.txt`（纯文本）和 `output/overlay.json`（结构化 JSON），并将结构化运行记录保存到 `runs/<run_id>/events.jsonl`，方便之后复盘。
+本项目是一个本地运行的《杀戮尖塔》AI 助手。它通过 Communication Mod CJK 读取详细游戏状态，调用 LLM 生成建议，把最新建议写入 `output/advice.txt`（纯文本）和 `output/overlay.json`（结构化 JSON），并将结构化运行记录保存到 `runs/<run_id>/events.jsonl`，方便之后复盘。
 
 ## Requirements / 环境要求
 
 - Rust 1.85+ (edition 2024), if building from source
 - Slay the Spire
 - ModTheSpire
-- Communication Mod CJK (recommended) or CommunicationMod
+- Communication Mod CJK
 
 ## Download Or Build / 下载或构建
 
@@ -146,9 +146,9 @@ LLM_DISABLE_FAST_THINKING=true  # DeepSeek: force non-thinking mode for combat/f
 
 ## Game Configuration / 游戏配置
 
-Install ModTheSpire and Communication Mod CJK first. The original CommunicationMod is still supported, but the CJK build is recommended for Chinese/Japanese/Korean game text.
+Install ModTheSpire and Communication Mod CJK first. The app relies on the detailed descriptions emitted by Communication Mod CJK.
 
-请先安装 ModTheSpire 和 Communication Mod CJK。原版 CommunicationMod 仍然兼容，但如果需要中文/日文/韩文游戏文本，推荐使用 CJK 版本。
+请先安装 ModTheSpire 和 Communication Mod CJK。本程序依赖 Communication Mod CJK 输出的详细描述信息。
 
 Communication Mod CJK is available from:
 
@@ -198,9 +198,9 @@ Common config locations / 常见配置位置：
 - macOS: `~/Library/Preferences/ModTheSpire/CommunicationModCJK/config.properties`
 - Windows: `%LOCALAPPDATA%\ModTheSpire\CommunicationModCJK\config.properties`
 
-The app checks `CommunicationModCJK` first, then falls back to the original `CommunicationMod` config directory.
+The app validates the `CommunicationModCJK` config directory.
 
-程序会优先检查 `CommunicationModCJK` 配置目录，然后再回退检查原版 `CommunicationMod` 配置目录。
+程序会检查 `CommunicationModCJK` 配置目录。
 
 The app detects the game language from multiple sources, in order:
 
@@ -208,9 +208,9 @@ The app detects the game language from multiple sources, in order:
 2. `STSGameplaySettings` preferences file — searched under the current working directory (`<CWD>/preferences/`), the `.prefs/` user directory, and common Steam library paths
 3. Steam's `appmanifest_646570.acf` (last resort)
 
-Because CommunicationMod launches the copilot from the game install directory, the CWD-based path works for any Steam library location and non-Steam installs (GOG, etc.).
+Because Communication Mod CJK launches the copilot from the game install directory, the CWD-based path works for any Steam library location and non-Steam installs (GOG, etc.).
 
-If the detected language is Chinese, Japanese, or Korean, the app will prompt you to use Communication Mod CJK instead of the original CommunicationMod.
+Detailed card/relic/event descriptions are expected to come from Communication Mod CJK.
 
 程序会从以下来源检测游戏语言（按优先级）：
 
@@ -218,9 +218,9 @@ If the detected language is Chinese, Japanese, or Korean, the app will prompt yo
 2. `STSGameplaySettings` 偏好文件 — 依次搜索当前工作目录（`<CWD>/preferences/`）、用户 `.prefs/` 目录，以及常见 Steam 库路径
 3. Steam 的 `appmanifest_646570.acf`（兜底方案）
 
-由于 CommunicationMod 会从游戏安装目录启动 copilot，基于 CWD 的路径适用于任意 Steam 库位置以及非 Steam 安装（如 GOG 等）。
+由于 Communication Mod CJK 会从游戏安装目录启动 copilot，基于 CWD 的路径适用于任意 Steam 库位置以及非 Steam 安装（如 GOG 等）。
 
-如果检测到游戏语言是中文、日文或韩文，程序会提示你改用 Communication Mod CJK，而不是原版 CommunicationMod。
+详细的卡牌、遗物和事件描述信息预期由 Communication Mod CJK 提供。
 
 PowerShell example / PowerShell 示例：
 
@@ -235,9 +235,9 @@ The app also tries to detect and repair an empty or wrong `command=` value at st
 
 ## Local Smoke Test / 本地快速测试
 
-Use `--stdin-test` to bypass CommunicationMod setup and force the mock provider. Use `--no-startup-check` to skip config validation only, or set `SKIP_COMM_CONFIG=1`.
+Use `--stdin-test` to bypass Communication Mod CJK setup and force the mock provider. Use `--no-startup-check` to skip config validation only, or set `SKIP_COMM_CONFIG=1`.
 
-使用 `--stdin-test` 可以跳过 CommunicationMod 配置检查，并强制使用 mock provider。使用 `--no-startup-check` 仅跳过配置校验，或设置 `SKIP_COMM_CONFIG=1`。
+使用 `--stdin-test` 可以跳过 Communication Mod CJK 配置检查，并强制使用 mock provider。使用 `--no-startup-check` 仅跳过配置校验，或设置 `SKIP_COMM_CONFIG=1`。
 
 ```bash
 echo '{"in_game":true,"game_state":{"screen_type":"CARD_REWARD","screen_state":{"cards":[{"id":"Uppercut","name":"Uppercut","cost":2,"type":"ATTACK","upgrades":0}],"skip_available":true},"class":"IRONCLAD","floor":1,"current_hp":68,"max_hp":75,"gold":99}}' \
@@ -264,7 +264,7 @@ output/overlay.json  (structured JSON, for overlay mod)
 
 ## Runtime Behavior / 运行行为
 
-- stdout is reserved for CommunicationMod protocol messages.
+- stdout is reserved for Communication Mod CJK protocol messages.
 - logs go to `logs/sts-ai.log`.
 - prompts and LLM responses are logged to `logs/prompts.log`.
 - latest advice is written to `output/advice.txt` (plain text) and `output/overlay.json` (structured JSON).
@@ -277,7 +277,7 @@ output/overlay.json  (structured JSON, for overlay mod)
 
 运行行为：
 
-- stdout 专门用于 CommunicationMod 协议消息。
+- stdout 专门用于 Communication Mod CJK 协议消息。
 - 普通日志写入 `logs/sts-ai.log`。
 - prompt 和 LLM 回复写入 `logs/prompts.log`。
 - 最新建议写入 `output/advice.txt`（纯文本）和 `output/overlay.json`（结构化 JSON）。
@@ -314,9 +314,9 @@ The overlay polls `output/overlay.json` every 500ms. Resolution order:
 1. `COPILOT_ADVICE_PATH` environment variable (absolute path to `output/overlay.json`)
 2. `output/overlay.json` relative to the game's working directory
 
-When used with CommunicationMod, the working directory is the Slay the Spire install directory — the same directory where the copilot writes `output/overlay.json` by default.
+When used with Communication Mod CJK, the working directory is the Slay the Spire install directory — the same directory where the copilot writes `output/overlay.json` by default.
 
-通过 CommunicationMod 使用时，工作目录就是 Slay the Spire 安装目录，与 copilot 默认写入 `output/overlay.json` 的目录一致。
+通过 Communication Mod CJK 使用时，工作目录就是 Slay the Spire 安装目录，与 copilot 默认写入 `output/overlay.json` 的目录一致。
 
 ### Behavior / 行为
 
@@ -335,9 +335,9 @@ When used with CommunicationMod, the working directory is the Slay the Spire ins
 
 ## Postmortem / 复盘
 
-When launched by CommunicationMod, the app automatically generates a Markdown postmortem when the run ends. The report is saved next to the journal:
+When launched by Communication Mod CJK, the app automatically generates a Markdown postmortem when the run ends. The report is saved next to the journal:
 
-通过 CommunicationMod 启动时，程序会在本局结束时自动生成 Markdown 复盘。复盘会保存在对应日志旁边：
+通过 Communication Mod CJK 启动时，程序会在本局结束时自动生成 Markdown 复盘。复盘会保存在对应日志旁边：
 
 ```text
 runs/<run_id>/postmortem.md
@@ -411,7 +411,7 @@ Release workflow 会构建并上传 Linux、macOS、Windows 的可下载压缩�
 src/
   main.rs          main loop, CLI modes, screen gating, MapGate (map crossroads/act-entry gating)
   config.rs        environment variable loading
-  protocol.rs      CommunicationMod protocol messages
+  protocol.rs      Communication Mod CJK protocol messages
   state.rs         normalized game state, MapCoord, advice hash, observation hash, danger assessment
   prompt.rs        LLM prompt builder — card, relic, rest, event, combat, map_suggestion, map_crossroad; describe_path risk analysis; path enumeration
   llm.rs           LLM provider abstraction, effort routing, AdviceScenario (MapSuggestion, MapCrossroad, etc.)
@@ -419,7 +419,7 @@ src/
   journal.rs       JSONL run journal with schema versioning
   postmortem.rs    postmortem report generation
   setup_wizard.rs  interactive API setup wizard
-  startup.rs       CommunicationMod config validation, auto-fix, language detection
+  startup.rs       Communication Mod CJK config validation, auto-fix, language detection
   logging.rs       file logger
   test_utils.rs    test helpers and shared locale data
   locales/         locale data: JSON translations, system prompts, few-shot examples, i18n terms
@@ -430,7 +430,7 @@ src/
     mod.rs         Locale struct, loading, language code mapping
   tests/           embedded unit test modules
 tests/
-  fixtures/        sample CommunicationMod JSON states
+  fixtures/        sample Communication Mod CJK JSON states
   integration_test.rs
 schemas/
   overlay.d.ts     TypeScript type definition for output/overlay.json

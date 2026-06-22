@@ -496,21 +496,19 @@ fn show_setup_message_to(writer: &mut impl Write, config_path: &str, exe_path: &
          ╔═══════════════════════════════════════════════╗\n\
          ║   Slay the Spire AI Copilot — 尚未配置       ║\n\
          ╚═══════════════════════════════════════════════╝\n\n\
-         尚未找到指向当前二进制文件的 CommunicationMod 配置。\n\n\
+         尚未找到指向当前二进制文件的 Communication Mod CJK 配置。\n\n\
          配置步骤：\n\
-         1. 安装 ModTheSpire 和 Communication Mod CJK（推荐）或 CommunicationMod\n\
+         1. 安装 ModTheSpire 和 Communication Mod CJK\n\
             https://github.com/kiooeht/ModTheSpire\n\
             Communication Mod CJK:\n\
             https://steamcommunity.com/sharedfiles/filedetails/?id=3748153752\n\
-            https://github.com/ArtemisSaber/CommunicationMod/releases\n\
-            原版 CommunicationMod:\n\
-            https://github.com/ForgottenArbiter/CommunicationMod\n\n\
+            https://github.com/ArtemisSaber/CommunicationMod/releases\n\n\
          2. 编辑配置文件：\n\
             {config_path}\n\n\
          3. 添加以下内容（确保 command 指向当前二进制文件）：\n\
             command={exe_path}\n\
             runAtGameStart=true\n\n\
-         4. 通过 ModTheSpire 启动游戏并启用 CommunicationMod\n\n\
+         4. 通过 ModTheSpire 启动游戏并启用 Communication Mod CJK\n\n\
          也可以手动测试（mock provider）：\n\
             echo '{{\"in_game\":true,...}}' | {exe_path}\n"
     );
@@ -576,7 +574,7 @@ fn try_fix_config(paths: &[PathBuf], exe_path: &str) -> bool {
                 let mut stdout = std::io::stdout().lock();
                 let _ = writeln!(
                     stdout,
-                    "检测到 CommunicationMod 未启用启动命令，已自动设置 runAtGameStart=true"
+                    "检测到 Communication Mod CJK 未启用启动命令，已自动设置 runAtGameStart=true"
                 );
                 let _ = stdout.flush();
                 restart_hint();
