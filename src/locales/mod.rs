@@ -65,7 +65,6 @@ pub struct SectionLocale {
     pub relics: String,
     pub potions: String,
     pub current_state: String,
-    pub task: String,
     pub card_reward: String,
     pub boss_relic: String,
     pub event: String,
@@ -90,18 +89,6 @@ pub struct MapPositionLocale {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct TaskLocale {
-    pub card_reward: String,
-    pub boss_card_reward: String,
-    pub rest: String,
-    pub boss_relic: String,
-    pub event_choice: String,
-    pub map_suggestion: String,
-    pub map_crossroad: String,
-    pub generic: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
 pub struct WarningLocale {
     pub wrath_stance: String,
     pub boss_card_hp_note: String,
@@ -116,10 +103,32 @@ pub struct WarningLocale {
 #[derive(Debug, Clone, Deserialize)]
 pub struct CombatTypesLocale {
     pub header: String,
-    pub normal: String,
-    pub elite: String,
-    pub boss: String,
-    pub scaling: String,
+    pub type_line: String,
+    pub primary: String,
+    pub secondary: String,
+    pub trade: String,
+    pub power_play: String,
+    pub priority: String,
+    pub type_normal: String,
+    pub type_elite: String,
+    pub type_boss: String,
+    pub goal_normal: String,
+    pub goal_elite: String,
+    pub goal_boss: String,
+    pub sub_normal: String,
+    pub sub_elite: String,
+    pub sub_boss: String,
+    pub trade_normal: String,
+    pub trade_elite: String,
+    pub trade_boss: String,
+    pub power_normal_high: String,
+    pub power_normal_low: String,
+    pub power_elite: String,
+    pub power_boss: String,
+    pub prio_scaling: String,
+    pub prio_punish: String,
+    pub prio_killable: String,
+    pub prio_default: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -260,10 +269,8 @@ pub struct Locale {
     pub card: CardLocale,
     pub sections: SectionLocale,
     pub map_position: MapPositionLocale,
-    pub tasks: TaskLocale,
     pub warnings: WarningLocale,
     pub combat_types: CombatTypesLocale,
-    pub format_footer: String,
     pub parser: ParserLocale,
     pub fallback: FallbackLocale,
     pub system_prompts: SystemPromptLocale,
@@ -273,6 +280,7 @@ pub struct Locale {
     pub language_name: String,
     #[serde(default)]
     pub lang_code: String,
+    pub unified_preamble: String,
 }
 
 impl Locale {

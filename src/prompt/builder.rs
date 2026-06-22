@@ -540,7 +540,6 @@ pub(crate) fn format_deck_section(cards: &[CardInfo], locale: &Locale) -> String
         }
     }
 
-    lines.push(String::new());
     lines.join("\n")
 }
 
@@ -575,22 +574,77 @@ pub(crate) fn build_relics_potions_section(state: &NormalizedState, locale: &Loc
 }
 
 pub(crate) fn build_combat(state: &NormalizedState, locale: &Locale) -> String {
-    let mut lines: Vec<String> = Vec::new();
+    let mut lines: Vec<String> = vec!["[mode: combat]\n".to_string()];
 
+    // === 战斗类型 ===
     lines.push(locale.combat_types.header.clone());
-    let mut type_text = match state.room_type.as_deref() {
-        Some("MonsterRoomElite") => locale.combat_types.elite.clone(),
-        Some("MonsterRoomBoss") => locale.combat_types.boss.clone(),
-        _ => locale.combat_types.normal.clone(),
+
+    let room = state.room_type.as_deref();
+    let type_name = match room {
+        Some("MonsterRoomElite") => &locale.combat_types.type_elite,
+        Some("MonsterRoomBoss") => &locale.combat_types.type_boss,
+        _ => &locale.combat_types.type_normal,
     };
-    let has_scaling = state.monsters.iter().any(|m| m.is_scaling);
-    if has_scaling {
-        type_text.push(' ');
-        type_text.push_str(&locale.combat_types.scaling);
-    }
-    lines.push(type_text);
+    lines.push(locale.combat_types.type_line.replace("{type}", type_name));
+
+    let goal = match room {
+        Some("MonsterRoomElite") => &locale.combat_types.goal_elite,
+        Some("MonsterRoomBoss") => &locale.combat_types.goal_boss,
+        _ => &locale.combat_types.goal_normal,
+    };
+    lines.push(locale.combat_types.primary.replace("{goal}", goal));
+
+    let sub = match room {
+        Some("MonsterRoomElite") => &locale.combat_types.sub_elite,
+        Some("MonsterRoomBoss") => &locale.combat_types.sub_boss,
+        _ => &locale.combat_types.sub_normal,
+    };
+    lines.push(locale.combat_types.secondary.replace("{sub}", sub));
+
+    let trade = match room {
+        Some("MonsterRoomElite") => &locale.combat_types.trade_elite,
+        Some("MonsterRoomBoss") => &locale.combat_types.trade_boss,
+        _ => &locale.combat_types.trade_normal,
+    };
+    lines.push(locale.combat_types.trade.replace("{advice}", trade));
+
+    let max_hp = state.max_hp.unwrap_or(75);
+    let power = match room {
+        Some("MonsterRoomElite") => &locale.combat_types.power_elite,
+        Some("MonsterRoomBoss") => &locale.combat_types.power_boss,
+        _ if state.incoming_damage > max_hp / 5 => &locale.combat_types.power_normal_high,
+        _ => &locale.combat_types.power_normal_low,
+    };
+    lines.push(locale.combat_types.power_play.replace("{advice}", power));
+
+    let prio: Vec<String> = state
+        .monsters
+        .iter()
+        .map(|m| {
+            if m.is_scaling {
+                locale.combat_types.prio_scaling.replace("{name}", &m.name)
+            } else if m
+                .monster_powers
+                .iter()
+                .any(|p| matches!(p.id.as_str(), "Enrage" | "Thorns" | "Curiosity"))
+            {
+                locale.combat_types.prio_punish.replace("{name}", &m.name)
+            } else if m.can_be_killed {
+                locale.combat_types.prio_killable.replace("{name}", &m.name)
+            } else {
+                locale.combat_types.prio_default.replace("{name}", &m.name)
+            }
+        })
+        .collect();
+    lines.push(
+        locale
+            .combat_types
+            .priority
+            .replace("{list}", &prio.join("；")),
+    );
     lines.push(String::new());
 
+    // === 战斗概况 ===
     lines.push(locale.sections.combat_profile.clone());
     lines.push(combat_profile_line(state, locale));
     lines.push(String::new());
@@ -635,20 +689,18 @@ pub(crate) fn build_combat(state: &NormalizedState, locale: &Locale) -> String {
 }
 
 pub(crate) fn build_card_reward(state: &NormalizedState, locale: &Locale) -> String {
-    let task = if state.is_boss_card_reward() {
-        &locale.tasks.boss_card_reward
+    let mode = if state.is_boss_card_reward() {
+        "[mode: boss_card_reward]\n"
     } else {
-        &locale.tasks.card_reward
+        "[mode: card_reward]\n"
     };
 
     let mut lines: Vec<String> = vec![
+        mode.to_string(),
         locale.sections.current_state.clone(),
         status_line(state, locale),
         String::new(),
         build_relics_potions_section(state, locale),
-        locale.sections.task.clone(),
-        task.clone(),
-        String::new(),
     ];
 
     if state.is_boss_card_reward() {
@@ -669,19 +721,16 @@ pub(crate) fn build_card_reward(state: &NormalizedState, locale: &Locale) -> Str
         }
     }
 
-    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 
 pub(crate) fn build_rest(state: &NormalizedState, locale: &Locale) -> String {
     let mut lines: Vec<String> = vec![
+        "[mode: rest]\n".to_string(),
         locale.sections.current_state.clone(),
         status_line(state, locale),
         String::new(),
         build_relics_potions_section(state, locale),
-        locale.sections.task.clone(),
-        locale.tasks.rest.clone(),
-        String::new(),
     ];
 
     let mut seen_upgradeable = std::collections::HashSet::new();
@@ -738,12 +787,12 @@ pub(crate) fn build_rest(state: &NormalizedState, locale: &Locale) -> String {
         }
     }
 
-    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 
 pub(crate) fn build_boss_relic(state: &NormalizedState, locale: &Locale) -> String {
     let mut lines: Vec<String> = vec![
+        "[mode: boss_relic]\n".to_string(),
         locale.sections.current_state.clone(),
         status_line(state, locale),
     ];
@@ -755,9 +804,6 @@ pub(crate) fn build_boss_relic(state: &NormalizedState, locale: &Locale) -> Stri
 
     lines.push(String::new());
     lines.push(build_relics_potions_section(state, locale));
-    lines.push(locale.sections.task.clone());
-    lines.push(locale.tasks.boss_relic.clone());
-    lines.push(String::new());
     lines.push(format_deck_section(&state.master_cards, locale));
 
     if !state.boss_relic_choices.is_empty() {
@@ -773,19 +819,16 @@ pub(crate) fn build_boss_relic(state: &NormalizedState, locale: &Locale) -> Stri
         lines.push(String::new());
     }
 
-    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 
 pub(crate) fn build_event_choice(state: &NormalizedState, locale: &Locale) -> String {
     let mut lines: Vec<String> = vec![
+        "[mode: event_choice]\n".to_string(),
         locale.sections.current_state.clone(),
         status_line(state, locale),
         String::new(),
         build_relics_potions_section(state, locale),
-        locale.sections.task.clone(),
-        locale.tasks.event_choice.clone(),
-        String::new(),
     ];
 
     if state.event_name.is_some() || state.event_id.is_some() || state.room_type.is_some() {
@@ -822,19 +865,16 @@ pub(crate) fn build_event_choice(state: &NormalizedState, locale: &Locale) -> St
         lines.push(String::new());
     }
 
-    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 
 pub(crate) fn build_generic(state: &NormalizedState, locale: &Locale) -> String {
     let mut lines: Vec<String> = vec![
+        "[mode: generic]\n".to_string(),
         locale.sections.current_state.clone(),
         status_line(state, locale),
         String::new(),
         build_relics_potions_section(state, locale),
-        locale.sections.task.clone(),
-        locale.tasks.generic.clone(),
-        String::new(),
     ];
 
     if !state.monsters.is_empty() {
@@ -864,12 +904,7 @@ pub(crate) fn build_generic(state: &NormalizedState, locale: &Locale) -> String 
         );
     }
 
-    lines.push(format_line(locale).to_string());
     lines.join("\n")
-}
-
-pub(crate) fn format_line(locale: &Locale) -> &str {
-    &locale.format_footer
 }
 
 pub(crate) fn position_label(index: usize, total: usize, locale: &Locale) -> String {
@@ -1002,13 +1037,11 @@ pub(crate) fn build_map_crossroad(
     shop_visited: bool,
 ) -> String {
     let mut lines: Vec<String> = vec![
+        "[mode: map_crossroad]\n".to_string(),
         locale.sections.current_state.clone(),
         status_line(state, locale),
         String::new(),
         build_relics_potions_section(state, locale),
-        locale.sections.task.clone(),
-        locale.tasks.map_crossroad.clone(),
-        String::new(),
         locale.sections.next_nodes.clone(),
     ];
 
@@ -1021,7 +1054,6 @@ pub(crate) fn build_map_crossroad(
     };
 
     let Some(current_node) = current else {
-        lines.push(format_line(locale).to_string());
         return lines.join("\n");
     };
 
@@ -1085,20 +1117,16 @@ pub(crate) fn build_map_crossroad(
         lines.push(format!("  {}", details.join("  ")));
     }
 
-    lines.push(String::new());
-    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 
 pub(crate) fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> String {
     let mut lines: Vec<String> = vec![
+        "[mode: map_suggestion]\n".to_string(),
         locale.sections.current_state.clone(),
         status_line(state, locale),
         String::new(),
         build_relics_potions_section(state, locale),
-        locale.sections.task.clone(),
-        locale.tasks.map_suggestion.clone(),
-        String::new(),
         locale.sections.routes.clone(),
     ];
 
@@ -1173,8 +1201,6 @@ pub(crate) fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> 
         }
     }
 
-    lines.push(String::new());
-    lines.push(format_line(locale).to_string());
     lines.join("\n")
 }
 

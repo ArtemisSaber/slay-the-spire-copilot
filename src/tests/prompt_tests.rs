@@ -262,9 +262,8 @@ fn card_reward_prompt_marks_pick_or_skip_task() {
     };
 
     let prompt = build_prompt(&state, &locale, false);
-    assert!(prompt.contains("=== 任务 ==="));
-    assert!(prompt.contains("选择一张牌"));
-    assert!(prompt.contains("推荐跳过"));
+    assert!(prompt.starts_with("[mode: card_reward]"));
+    assert!(prompt.contains("上勾拳"));
 }
 
 #[test]
@@ -287,7 +286,7 @@ fn boss_card_reward_prompt_includes_full_heal_note() {
         )
     );
     assert!(prompt.contains("下一幕"));
-    assert!(prompt.contains("卡组方向"));
+    assert!(prompt.starts_with("[mode: boss_card_reward]"));
 }
 
 #[test]
@@ -371,10 +370,7 @@ fn prompt_is_structured() {
     let locale = test_locale();
     let prompt = build_prompt(&test_state(), &locale, false);
     assert!(prompt.contains("=== 当前状态 ==="));
-    assert!(prompt.contains("推荐："));
-    assert!(prompt.contains("理由："));
-    assert!(prompt.contains("风险："));
-    assert!(prompt.contains("吐槽："));
+    assert!(prompt.starts_with("[mode: generic]"));
 }
 
 #[test]
@@ -410,8 +406,7 @@ fn rest_prompt_marks_campfire_decision_task() {
     };
 
     let prompt = build_prompt(&state, &locale, false);
-    assert!(prompt.contains("=== 任务 ==="));
-    assert!(prompt.contains("篝火选项"));
+    assert!(prompt.starts_with("[mode: rest]"));
     assert!(prompt.contains("休息"));
     assert!(prompt.contains("锻造"));
 }
@@ -430,7 +425,6 @@ fn rest_prompt_requires_smith_upgrade_target() {
     };
 
     let prompt = build_prompt(&state, &locale, false);
-    assert!(prompt.contains("必须写出要升级哪张牌"));
     assert!(prompt.contains("=== 可锻造升级目标 ==="));
     assert!(prompt.contains("痛击"));
     assert!(prompt.contains("武装"));
@@ -464,7 +458,7 @@ fn boss_relic_prompt_lists_choices() {
     assert!(prompt.contains("A. 蛇眼"));
     assert!(prompt.contains("B. 符文圆顶"));
     assert!(prompt.contains("C. 诅咒钥匙"));
-    assert!(prompt.contains("副作用"));
+    assert!(prompt.starts_with("[mode: boss_relic]"));
 }
 
 #[test]
@@ -519,9 +513,7 @@ fn generic_prompt_shows_status_and_format() {
     };
 
     let prompt = build_prompt(&state, &locale, false);
-    assert!(prompt.contains("=== 当前状态 ==="));
-    assert!(prompt.contains("角色：铁甲战士"));
-    assert!(prompt.contains("推荐："));
+    assert!(prompt.starts_with("[mode: generic]"));
 }
 
 #[test]
@@ -748,7 +740,7 @@ fn build_prompt_routes_event_choice() {
         ..test_state()
     };
     let prompt = build_prompt(&state, &locale, false);
-    assert!(prompt.contains("事件选项"));
+    assert!(prompt.starts_with("[mode: event_choice]"));
 }
 
 #[test]
@@ -1217,7 +1209,7 @@ fn build_map_suggestion_includes_route_chains_and_counts() {
     assert!(prompt.contains("Recommendation label: Route 1 (唯一) — M→?→R"));
     assert!(prompt.contains("M→?→R"));
     assert!(prompt.contains("Monsters:1"));
-    assert!(prompt.contains("140字"));
+    assert!(prompt.starts_with("[mode: map_suggestion]"));
 }
 
 #[test]
@@ -1364,7 +1356,7 @@ fn build_map_suggestion_empty_paths_graceful() {
         ..test_state()
     };
     let prompt = build_map_suggestion(&state, &locale);
-    assert!(prompt.contains("=== 任务 ==="));
+    assert!(prompt.starts_with("[mode: map_suggestion]"));
 }
 
 // --- build_map_crossroad tests ---
