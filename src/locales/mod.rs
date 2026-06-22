@@ -206,6 +206,18 @@ pub struct I18nLocale {
     pub rest_girya: String,
 }
 
+impl I18nLocale {
+    pub fn character_display_name<'a>(&'a self, class: &'a str) -> &'a str {
+        match class {
+            "IRONCLAD" => &self.class_ironclad,
+            "THE_SILENT" => &self.class_silent,
+            "DEFECT" => &self.class_defect,
+            "WATCHER" => &self.class_watcher,
+            _ => class,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Locale {
     pub danger: DangerLocale,

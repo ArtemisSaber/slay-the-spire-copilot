@@ -22,7 +22,7 @@ fn state_changes_are_logged_as_jsonl() {
 
     journal.log_state_change(&hash, &state);
 
-    let events = read_events(journal.path());
+    let events = read_events(journal.path().unwrap());
     assert_eq!(events.len(), 2);
     assert_eq!(events[0]["event"], "run_metadata");
     assert_eq!(events[1]["event"], "state_changed");
@@ -45,7 +45,7 @@ fn repeated_state_hashes_are_deduplicated() {
     journal.log_state_change(&hash, &state);
     journal.log_state_change(&hash, &state);
 
-    let events = read_events(journal.path());
+    let events = read_events(journal.path().unwrap());
     assert_eq!(events.len(), 2);
     assert_eq!(events[0]["event"], "run_metadata");
     assert_eq!(events[1]["event"], "state_changed");
@@ -64,7 +64,7 @@ fn advice_events_are_logged() {
         "advice text",
     );
 
-    let events = read_events(journal.path());
+    let events = read_events(journal.path().unwrap());
     assert_eq!(events.len(), 1);
     assert_eq!(events[0]["event"], "advice");
     assert_eq!(events[0]["schema_version"], 1);
@@ -83,7 +83,7 @@ fn run_started_event_is_logged() {
 
     journal.log_run_started();
 
-    let events = read_events(journal.path());
+    let events = read_events(journal.path().unwrap());
     assert_eq!(events.len(), 1);
     assert_eq!(events[0]["event"], "run_started");
     assert_eq!(events[0]["schema_version"], 1);
@@ -98,7 +98,7 @@ fn run_ended_event_is_logged_with_reason() {
 
     journal.log_run_ended("stdin_closed");
 
-    let events = read_events(journal.path());
+    let events = read_events(journal.path().unwrap());
     assert_eq!(events.len(), 1);
     assert_eq!(events[0]["event"], "run_ended");
     assert_eq!(events[0]["schema_version"], 1);
@@ -125,7 +125,7 @@ fn journal_events_include_schema_version() {
     );
     journal.log_run_ended("stdin_closed");
 
-    let events = read_events(journal.path());
+    let events = read_events(journal.path().unwrap());
     assert!(events.iter().all(|event| event["schema_version"] == 1));
 }
 
@@ -147,7 +147,7 @@ fn journal_dedupes_by_observation_hash_not_advice_hash() {
     journal.log_state_change(&advice_hash, &state1);
     journal.log_state_change(&advice_hash, &state2);
 
-    let events = read_events(journal.path());
+    let events = read_events(journal.path().unwrap());
     let state_events: Vec<&Value> = events
         .iter()
         .filter(|event| event["event"] == "state_changed")
@@ -175,7 +175,7 @@ fn run_started_includes_provider_and_models() {
 
     journal.log_run_started_with_config(&config);
 
-    let events = read_events(journal.path());
+    let events = read_events(journal.path().unwrap());
     assert_eq!(events[0]["event"], "run_started");
     assert_eq!(events[0]["provider"], "openai-compatible");
     assert_eq!(events[0]["model_fast"], "fast-model");
@@ -193,7 +193,7 @@ fn first_observed_state_can_update_run_metadata() {
 
     journal.log_state_change(&state.stable_hash(), &state);
 
-    let events = read_events(journal.path());
+    let events = read_events(journal.path().unwrap());
     assert_eq!(events[0]["event"], "run_metadata");
     assert_eq!(events[0]["character"], "IRONCLAD");
     assert_eq!(events[0]["ascension_level"], 20);
@@ -210,7 +210,7 @@ fn metadata_fields_are_null_when_missing() {
 
     journal.log_state_change(&state.stable_hash(), &state);
 
-    let events = read_events(journal.path());
+    let events = read_events(journal.path().unwrap());
     assert_eq!(events[0]["event"], "run_metadata");
     assert!(events[0]["character"].is_null());
     assert!(events[0]["ascension_level"].is_null());
@@ -236,7 +236,156 @@ fn advice_events_are_written_to_journal() {
         "second",
     );
 
-    let content = std::fs::read_to_string(journal.path()).unwrap();
+    let content = std::fs::read_to_string(journal.path().unwrap()).unwrap();
     assert!(content.contains("first"));
     assert!(content.contains("second"));
+}
+
+#[test]
+fn not_confirmed_until_confirm_called() {
+    let dir = tempfile::tempdir().unwrap();
+    let journal = Journal::new(dir.path().to_path_buf());
+    assert!(!journal.is_confirmed());
+    assert!(journal.path().is_none());
+}
+
+#[test]
+fn confirm_creates_readable_folder_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut journal = Journal::new(dir.path().to_path_buf());
+    let config = crate::config::Config::from_env();
+    let locale = test_locale();
+
+    journal.confirm(42, "IRONCLAD", 20, &config, &locale);
+    assert!(journal.is_confirmed());
+
+    let path = journal.path().unwrap();
+    let folder_name = path
+        .parent()
+        .unwrap()
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap();
+    let expected_class = locale.i18n.character_display_name("IRONCLAD");
+    assert!(
+        folder_name.contains(expected_class),
+        "folder should contain class name '{expected_class}': {folder_name}"
+    );
+    assert!(
+        folder_name.contains("_A20"),
+        "folder should contain ascension: {folder_name}"
+    );
+}
+
+#[test]
+fn confirm_finds_existing_unfinished_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let locale = test_locale();
+    let seed = -3047511808784702860_i64;
+
+    let mut existing = Journal::new_at(dir.path(), "existing-run");
+    let raw = load_fixture("combat-state.json");
+    let state = crate::state::NormalizedState::from_raw(&raw, &locale);
+    existing.log_state_change(&state.stable_hash(), &state);
+
+    let config = crate::config::Config::from_env();
+    let mut journal = Journal::new(dir.path().to_path_buf());
+    journal.confirm(seed, "IRONCLAD", 20, &config, &locale);
+
+    assert!(journal.is_confirmed());
+    assert!(journal.is_continued_run());
+    assert_eq!(
+        journal
+            .path()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .file_name()
+            .unwrap(),
+        "existing-run"
+    );
+
+    let events = read_events(journal.path().unwrap());
+    let continued: Vec<_> = events
+        .iter()
+        .filter(|e| e["event"] == "run_continued")
+        .collect();
+    assert_eq!(continued.len(), 1);
+    assert_eq!(continued[0]["seed"], seed);
+    assert_eq!(continued[0]["character"], "IRONCLAD");
+}
+
+#[test]
+fn confirm_skips_ended_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let locale = test_locale();
+    let seed = -3047511808784702860_i64;
+
+    let mut existing = Journal::new_at(dir.path(), "ended-run");
+    let raw = load_fixture("combat-state.json");
+    let state = crate::state::NormalizedState::from_raw(&raw, &locale);
+    existing.log_state_change(&state.stable_hash(), &state);
+    existing.log_run_ended("game_over");
+
+    let config = crate::config::Config::from_env();
+    let mut journal = Journal::new(dir.path().to_path_buf());
+    journal.confirm(seed, "IRONCLAD", 20, &config, &locale);
+
+    assert!(!journal.is_continued_run());
+    assert_ne!(
+        journal
+            .path()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .file_name()
+            .unwrap(),
+        "ended-run"
+    );
+}
+
+#[test]
+fn confirm_is_idempotent() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut journal = Journal::new(dir.path().to_path_buf());
+    let config = crate::config::Config::from_env();
+    let locale = test_locale();
+
+    journal.confirm(99, "DEFECT", 5, &config, &locale);
+    let path1 = journal.path().unwrap().to_path_buf();
+    let count1 = read_events(&path1).len();
+
+    journal.confirm(99, "DEFECT", 5, &config, &locale);
+    let path2 = journal.path().unwrap().to_path_buf();
+    let count2 = read_events(&path2).len();
+
+    assert_eq!(path1, path2);
+    assert_eq!(count1, count2);
+}
+
+#[test]
+fn run_continued_includes_metadata() {
+    let dir = tempfile::tempdir().unwrap();
+    let locale = test_locale();
+    let seed = -3047511808784702860_i64;
+
+    let mut existing = Journal::new_at(dir.path(), "existing-run");
+    let raw = load_fixture("combat-state.json");
+    let state = crate::state::NormalizedState::from_raw(&raw, &locale);
+    existing.log_state_change(&state.stable_hash(), &state);
+
+    let config = crate::config::Config::from_env();
+    let mut journal = Journal::new(dir.path().to_path_buf());
+    journal.confirm(seed, "IRONCLAD", 20, &config, &locale);
+
+    let events = read_events(journal.path().unwrap());
+    let continued = events
+        .iter()
+        .find(|e| e["event"] == "run_continued")
+        .unwrap();
+    assert_eq!(continued["seed"], seed);
+    assert_eq!(continued["character"], "IRONCLAD");
+    assert_eq!(continued["ascension_level"], 20);
+    assert!(!continued["app_version"].as_str().unwrap().is_empty());
 }

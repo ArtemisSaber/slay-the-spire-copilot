@@ -264,7 +264,7 @@ async fn finalize_run_writes_postmortem_report() {
     assert!(finalized);
     let report = std::fs::read_to_string(dir.path().join("run-1").join("postmortem.md")).unwrap();
     assert!(report.contains("# 本局复盘"));
-    let events = std::fs::read_to_string(journal.path()).unwrap();
+    let events = std::fs::read_to_string(journal.path().unwrap()).unwrap();
     assert!(events.contains("\"event\":\"run_ended\""));
     assert!(events.contains("\"reason\":\"game_over\""));
 }
@@ -295,7 +295,7 @@ async fn finalize_run_is_idempotent() {
     )
     .await;
 
-    let events = std::fs::read_to_string(journal.path()).unwrap();
+    let events = std::fs::read_to_string(journal.path().unwrap()).unwrap();
     assert_eq!(events.matches("\"event\":\"run_ended\"").count(), 1);
     assert!(events.contains("\"reason\":\"game_over\""));
 }
