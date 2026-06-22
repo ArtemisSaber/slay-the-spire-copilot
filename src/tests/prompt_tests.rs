@@ -1,7 +1,9 @@
-use super::*;
+use super::builder::*;
+use super::routing::*;
 use crate::locales::Locale;
 use crate::state::{
-    DangerFlags, DangerLevel, MapCoord, MonsterInfo, PotionInfo, PowerInfo, RelicInfo,
+    CardInfo, DangerFlags, DangerLevel, MapCoord, MonsterInfo, NormalizedState, PotionInfo,
+    PowerInfo, RelicInfo,
 };
 use crate::test_utils::card;
 
@@ -590,7 +592,7 @@ fn danger_prefix_shows_wrath_warning() {
 fn compact_pile_aggregates_duplicates() {
     let locale = test_locale();
     let cards = vec![card("Strike_R", "打击", 1, "ATTACK"); 3];
-    let output = super::compact_pile("=== 抽牌堆", &cards, &locale);
+    let output = compact_pile("=== 抽牌堆", &cards, &locale);
     assert!(output.contains("抽牌堆（3张）"));
     assert!(output.contains("打击×3"));
 }
