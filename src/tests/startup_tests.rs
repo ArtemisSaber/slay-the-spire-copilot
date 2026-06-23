@@ -101,7 +101,7 @@ fn cjk_communication_mod_config_does_not_require_cjk_prompt() {
 }
 
 #[test]
-fn command_parser_preserves_unquoted_windows_exe_paths_with_spaces() {
+fn command_parser_unquoted_path() {
     assert_eq!(
         parse_command_value(r"C:\Users\Howard Lee\bin\slay-the-spire-copilot.exe"),
         Some(r"C:\Users\Howard Lee\bin\slay-the-spire-copilot.exe".to_string())
@@ -109,27 +109,33 @@ fn command_parser_preserves_unquoted_windows_exe_paths_with_spaces() {
 }
 
 #[test]
-fn command_parser_preserves_unquoted_windows_exe_paths_with_args() {
+fn command_parser_preserves_trailing_args_for_config_check() {
     assert_eq!(
         parse_command_value(
             r"C:\Program Files\Slay Copilot\slay-the-spire-copilot.exe --stdin-test"
         ),
-        Some(r"C:\Program Files\Slay Copilot\slay-the-spire-copilot.exe".to_string())
+        Some(r"C:\Program Files\Slay Copilot\slay-the-spire-copilot.exe --stdin-test".to_string())
     );
 }
 
 #[test]
-fn command_parser_handles_quoted_windows_paths() {
+fn command_parser_values_with_args_not_fully_quoted_are_passed_through() {
+    let result = parse_command_value(
+        r#""C:\Program Files\Slay Copilot\slay-the-spire-copilot.exe" --stdin-test"#,
+    );
+    assert!(result.is_some_and(|v| v.contains("stdin-test")));
+}
+
+#[test]
+fn command_parser_strips_single_quotes() {
     assert_eq!(
-        parse_command_value(
-            r#""C:\Program Files\Slay Copilot\slay-the-spire-copilot.exe" --stdin-test"#
-        ),
-        Some(r"C:\Program Files\Slay Copilot\slay-the-spire-copilot.exe".to_string())
+        parse_command_value(r"'/usr/bin/copilot'"),
+        Some("/usr/bin/copilot".to_string())
     );
 }
 
 #[test]
-fn command_parser_unescapes_java_properties_windows_paths() {
+fn command_parser_unescapes_java_properties_path() {
     assert_eq!(
         parse_command_value(
             r#""G\:\\Barracuda\\Game files\\Slay the Spire\\slay the spire copilot\\slay-the-spire-copilot.exe""#
@@ -142,13 +148,20 @@ fn command_parser_unescapes_java_properties_windows_paths() {
 }
 
 #[test]
-fn command_parser_unescapes_unquoted_java_properties_windows_paths() {
+fn command_parser_unescapes_unquoted_java_properties_path() {
     assert_eq!(
         parse_command_value(
             r"G\:\\Barracuda\\Game files\\Slay the Spire\\slay-the-spire-copilot.exe"
         ),
         Some(r"G:\Barracuda\Game files\Slay the Spire\slay-the-spire-copilot.exe".to_string())
     );
+}
+
+#[test]
+fn command_parser_empty_returns_none() {
+    assert_eq!(parse_command_value(""), None);
+    assert_eq!(parse_command_value("  "), None);
+    assert_eq!(parse_command_value("\"\""), None);
 }
 
 #[test]

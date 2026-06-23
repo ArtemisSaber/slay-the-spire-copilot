@@ -311,50 +311,26 @@ fn parse_command_value(value: &str) -> Option<String> {
         return None;
     }
 
-    if let Some(quoted) = value.strip_prefix('"')
-        && let Some(end) = quoted.find('"')
+    let raw = if (value.starts_with('"') && value.ends_with('"'))
+        || (value.starts_with('\'') && value.ends_with('\''))
     {
-        let command = quoted[..end].trim();
-        if !command.is_empty() {
-            return Some(unescape_properties_command_value(command));
-        }
-    }
+        &value[1..value.len() - 1]
+    } else {
+        value
+    };
 
-    if let Some(quoted) = value.strip_prefix('\'')
-        && let Some(end) = quoted.find('\'')
-    {
-        let command = quoted[..end].trim();
-        if !command.is_empty() {
-            return Some(unescape_properties_command_value(command));
-        }
-    }
-
-    let normalized = unescape_properties_command_value(value);
-
-    if Path::new(&normalized).exists() {
-        return Some(normalized);
-    }
-
-    if let Some(exe_end) = normalized.to_ascii_lowercase().find(".exe") {
-        let command = normalized[..exe_end + 4].trim();
-        if !command.is_empty() {
-            return Some(command.to_string());
-        }
-    }
-
-    let first_token = normalized.split_whitespace().next().unwrap_or("");
-    if !first_token.is_empty() {
-        return Some(first_token.to_string());
-    }
-
-    None
-}
-
-fn unescape_properties_command_value(value: &str) -> String {
-    value
+    let unescaped = raw
         .replace("\\\\", "\\")
         .replace("\\:", ":")
         .replace("\\=", "=")
+        .trim()
+        .to_string();
+
+    if unescaped.is_empty() {
+        None
+    } else {
+        Some(unescaped)
+    }
 }
 
 fn extract_command_value(path: &Path) -> Option<String> {
