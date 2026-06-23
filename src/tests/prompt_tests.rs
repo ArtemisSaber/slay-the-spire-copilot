@@ -137,6 +137,7 @@ fn combat_prompt_omits_verbose_relic_and_potion_descriptions() {
         relics: vec![RelicInfo {
             name: "燃烧之血".into(),
             description: "战斗结束时回复6点生命。".into(),
+            counter: None,
         }],
         potions: vec![PotionInfo {
             name: "恐惧药水".into(),
@@ -439,14 +440,17 @@ fn boss_relic_prompt_lists_choices() {
             RelicInfo {
                 name: "蛇眼".into(),
                 description: "".into(),
+                counter: None,
             },
             RelicInfo {
                 name: "符文圆顶".into(),
                 description: "".into(),
+                counter: None,
             },
             RelicInfo {
                 name: "诅咒钥匙".into(),
                 description: "".into(),
+                counter: None,
             },
         ],
         master_cards: vec![card("Bash", "Bash", 2, "ATTACK")],
@@ -724,6 +728,7 @@ fn build_prompt_routes_boss_relic() {
         boss_relic_choices: vec![RelicInfo {
             name: "蛇眼".into(),
             description: String::new(),
+            counter: None,
         }],
         ..test_state()
     };

@@ -296,7 +296,8 @@ fn normalize_event_payload_from_communication_mod_log() {
         state.relics,
         vec![RelicInfo {
             name: "????".into(),
-            description: String::new()
+            description: String::new(),
+            counter: None,
         }]
     );
 }

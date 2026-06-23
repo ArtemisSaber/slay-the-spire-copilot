@@ -176,7 +176,11 @@ pub fn generate_report_from_jsonl(
                         }
                     }
 
-                    if screen != "BATTLE" && screen != "NONE" && in_combat {
+                    if screen != "BATTLE"
+                        && screen != "NONE"
+                        && screen != "HAND_SELECT"
+                        && in_combat
+                    {
                         current_combat.end_hp = state.get("current_hp").and_then(|v| v.as_i64());
                         if current_combat.end_hp == Some(0) {
                             current_combat.is_fatal = true;

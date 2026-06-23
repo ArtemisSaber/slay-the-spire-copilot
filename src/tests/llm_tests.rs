@@ -272,6 +272,7 @@ fn scenario_resolver_detects_boss_relic() {
         boss_relic_choices: vec![RelicInfo {
             name: "符文圆顶".into(),
             description: String::new(),
+            counter: None,
         }],
         ..test_state()
     };

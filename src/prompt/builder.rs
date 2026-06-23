@@ -65,7 +65,14 @@ pub(crate) fn combat_profile_line(state: &NormalizedState, locale: &Locale) -> S
         parts.push(locale.status.gold.replace("{gold}", &g.to_string()));
     }
     if !state.relics.is_empty() {
-        let names: Vec<&str> = state.relics.iter().map(|r| r.name.as_str()).collect();
+        let names: Vec<String> = state
+            .relics
+            .iter()
+            .map(|r| match r.counter {
+                Some(c) => format!("{} ({})", r.name, c),
+                None => r.name.clone(),
+            })
+            .collect();
         parts.push(locale.status.relics.replace("{list}", &names.join(" ")));
     }
 
@@ -195,7 +202,14 @@ pub(crate) fn status_line(state: &NormalizedState, locale: &Locale) -> String {
     }
 
     if !state.relics.is_empty() {
-        let names: Vec<&str> = state.relics.iter().map(|r| r.name.as_str()).collect();
+        let names: Vec<String> = state
+            .relics
+            .iter()
+            .map(|r| match r.counter {
+                Some(c) => format!("{} ({})", r.name, c),
+                None => r.name.clone(),
+            })
+            .collect();
         parts.push(locale.status.relics.replace("{list}", &names.join(" ")));
     }
     if !state.potions.is_empty() {
@@ -549,9 +563,13 @@ pub(crate) fn build_relics_potions_section(state: &NormalizedState, locale: &Loc
     if !state.relics.is_empty() {
         lines.push(locale.sections.relics.clone());
         for r in &state.relics {
+            let name = match r.counter {
+                Some(c) => format!("{} ({})", r.name, c),
+                None => r.name.clone(),
+            };
             lines.push(format!(
                 "{}：{}",
-                r.name,
+                name,
                 clean_description(&r.description, locale)
             ));
         }

@@ -134,6 +134,7 @@ impl DangerFlags {
 pub struct RelicInfo {
     pub name: String,
     pub description: String,
+    pub counter: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -276,6 +277,7 @@ fn extract_relic_infos(arr: &[Value]) -> Vec<RelicInfo> {
             Value::String(name) => RelicInfo {
                 name: name.clone(),
                 description: String::new(),
+                counter: None,
             },
             Value::Object(_) => RelicInfo {
                 name: r
@@ -288,10 +290,15 @@ fn extract_relic_infos(arr: &[Value]) -> Vec<RelicInfo> {
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
+                counter: r
+                    .get("counter")
+                    .and_then(|v| v.as_i64())
+                    .filter(|&c| c >= 0),
             },
             _ => RelicInfo {
                 name: "?".to_string(),
                 description: String::new(),
+                counter: None,
             },
         })
         .collect()
