@@ -135,6 +135,7 @@ fn combat_prompt_omits_verbose_relic_and_potion_descriptions() {
             is_scaling: false,
         }],
         relics: vec![RelicInfo {
+            id: "Burning Blood".into(),
             name: "燃烧之血".into(),
             description: "战斗结束时回复6点生命。".into(),
             counter: None,
@@ -438,16 +439,19 @@ fn boss_relic_prompt_lists_choices() {
         screen_type: Some("BOSS_REWARD".into()),
         boss_relic_choices: vec![
             RelicInfo {
+                id: "Snecko Eye".into(),
                 name: "蛇眼".into(),
                 description: "".into(),
                 counter: None,
             },
             RelicInfo {
+                id: "Runic Dome".into(),
                 name: "符文圆顶".into(),
                 description: "".into(),
                 counter: None,
             },
             RelicInfo {
+                id: "Cursed Key".into(),
                 name: "诅咒钥匙".into(),
                 description: "".into(),
                 counter: None,
@@ -726,6 +730,7 @@ fn build_prompt_routes_boss_relic() {
     let state = NormalizedState {
         screen_type: Some("BOSS_REWARD".into()),
         boss_relic_choices: vec![RelicInfo {
+            id: "Snecko Eye".into(),
             name: "蛇眼".into(),
             description: String::new(),
             counter: None,

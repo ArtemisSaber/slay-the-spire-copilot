@@ -295,6 +295,7 @@ fn normalize_event_payload_from_communication_mod_log() {
     assert_eq!(
         state.relics,
         vec![RelicInfo {
+            id: "PureWater".into(),
             name: "????".into(),
             description: String::new(),
             counter: None,

@@ -221,5 +221,18 @@
     "rest_lift": "Lift (permanent +1 STR)",
     "rest_recall": "Recall (key)",
     "rest_girya": "Girya (strength)"
+  },
+  "relic_counter_cycles": {
+    "Happy Flower":    "in {count} turns: gain [E]",
+    "Incense Burner":  "in {count} turns: gain 1 Intangible",
+    "StoneCalendar":   "in {count} turns: deal damage to ALL enemies",
+    "Pen Nib":         "in {count} attacks: deal double damage",
+    "Nunchaku":        "in {count} attacks: gain [E]",
+    "Kunai":           "in {count} attacks: gain Dexterity",
+    "Shuriken":        "in {count} attacks: gain Strength",
+    "Ornamental Fan":  "in {count} attacks: gain Block",
+    "Letter Opener":   "in {count} skills: deal damage to ALL enemies",
+    "Sundial":         "in {count} shuffles: gain [E] [E]",
+    "InkBottle":       "in {count} cards: draw 1 card"
   }
 }

@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DangerLocale {
@@ -281,6 +282,8 @@ pub struct Locale {
     #[serde(default)]
     pub lang_code: String,
     pub unified_preamble: String,
+    #[serde(default)]
+    pub relic_counter_cycles: HashMap<String, String>,
 }
 
 impl Locale {

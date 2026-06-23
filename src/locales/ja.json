@@ -221,5 +221,18 @@
     "rest_lift": "挙重（永続筋力+1）",
     "rest_recall": "回想（鍵）",
     "rest_girya": "ギリヤ（筋力）"
+  },
+  "relic_counter_cycles": {
+    "Happy Flower":    "{count} ターン後に [E] を得る",
+    "Incense Burner":  "{count} ターン後に 無形 1 を得る",
+    "StoneCalendar":   "{count} ターン後に敵全体にダメージ",
+    "Pen Nib":         "{count} 回の攻撃後にダメージ2倍",
+    "Nunchaku":        "{count} 回の攻撃後に [E] を得る",
+    "Kunai":           "{count} 回の攻撃後に敏捷性を得る",
+    "Shuriken":        "{count} 回の攻撃後に筋力を得る",
+    "Ornamental Fan":  "{count} 回の攻撃後にブロックを得る",
+    "Letter Opener":   "{count} 回のスキル後に敵全体にダメージ",
+    "Sundial":         "{count} 回シャッフル後に [E] [E] を得る",
+    "InkBottle":       "{count} 枚のカード後に 1枚引く"
   }
 }

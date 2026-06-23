@@ -221,5 +221,18 @@
     "rest_lift": "举重(永久+1力量)",
     "rest_recall": "回忆钥匙",
     "rest_girya": "深蹲(力量)"
+  },
+  "relic_counter_cycles": {
+    "Happy Flower":    "{count} 回合后获得 [E]",
+    "Incense Burner":  "{count} 回合后获得 1 层 无实体",
+    "StoneCalendar":   "{count} 回合后对全体敌人造成伤害",
+    "Pen Nib":         "{count} 次攻击后造成双倍伤害",
+    "Nunchaku":        "{count} 次攻击后获得 [E]",
+    "Kunai":           "{count} 次攻击后获得敏捷",
+    "Shuriken":        "{count} 次攻击后获得力量",
+    "Ornamental Fan":  "{count} 次攻击后获得格挡",
+    "Letter Opener":   "{count} 次技能后对全体敌人造成伤害",
+    "Sundial":         "{count} 次洗牌后获得 [E] [E]",
+    "InkBottle":       "{count} 张牌后抽 1 张牌"
   }
 }

@@ -9,6 +9,7 @@ mod logging;
 mod postmortem;
 mod prompt;
 mod protocol;
+mod relic_counters;
 mod runtime;
 mod setup_wizard;
 mod startup;

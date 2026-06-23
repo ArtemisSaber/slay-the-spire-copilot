@@ -1,4 +1,5 @@
 use crate::locales::Locale;
+use crate::relic_counters::rewrite_relic_description;
 use crate::state::{CardInfo, DangerLevel, MapCoord, MonsterInfo, NormalizedState};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -567,11 +568,11 @@ pub(crate) fn build_relics_potions_section(state: &NormalizedState, locale: &Loc
                 Some(c) => format!("{} ({})", r.name, c),
                 None => r.name.clone(),
             };
-            lines.push(format!(
-                "{}：{}",
-                name,
-                clean_description(&r.description, locale)
-            ));
+            let desc = match r.counter {
+                Some(c) => rewrite_relic_description(&r.id, c, &r.description, locale),
+                None => r.description.clone(),
+            };
+            lines.push(format!("{}：{}", name, clean_description(&desc, locale)));
         }
         lines.push(String::new());
     }

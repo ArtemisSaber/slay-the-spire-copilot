@@ -221,5 +221,18 @@
     "rest_lift": "역도 (영구 힘 +1)",
     "rest_recall": "회상 (열쇠)",
     "rest_girya": "기르야 (힘)"
+  },
+  "relic_counter_cycles": {
+    "Happy Flower":    "{count} 턴 후 [E] 획득",
+    "Incense Burner":  "{count} 턴 후 불가침 1 획득",
+    "StoneCalendar":   "{count} 턴 후 적 전체 피해",
+    "Pen Nib":         "{count} 번의 공격 후 두 배 피해",
+    "Nunchaku":        "{count} 번의 공격 후 [E] 획득",
+    "Kunai":           "{count} 번의 공격 후 민첩 획득",
+    "Shuriken":        "{count} 번의 공격 후 힘 획득",
+    "Ornamental Fan":  "{count} 번의 공격 후 방어도 획득",
+    "Letter Opener":   "{count} 번의 스킬 후 적 전체 피해",
+    "Sundial":         "{count} 번 섞은 후 [E] [E] 획득",
+    "InkBottle":       "{count} 장의 카드 후 1장 드로우"
   }
 }

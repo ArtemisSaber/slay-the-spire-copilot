@@ -270,6 +270,7 @@ fn scenario_resolver_detects_boss_relic() {
     let state = NormalizedState {
         screen_type: Some("BOSS_REWARD".into()),
         boss_relic_choices: vec![RelicInfo {
+            id: "Runic Dome".into(),
             name: "符文圆顶".into(),
             description: String::new(),
             counter: None,
