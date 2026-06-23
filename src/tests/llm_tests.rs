@@ -104,6 +104,66 @@ fn postmortem_system_prompt_is_defined() {
     assert!(prompt.contains("日志"));
 }
 
+#[test]
+fn unified_system_prompt_contains_preamble() {
+    let prompt = AdviceScenario::CombatEntry.system_prompt(&test_locale());
+    assert!(prompt.contains("策略助手"));
+    assert!(prompt.contains("游戏事实"));
+    assert!(prompt.contains("易伤"));
+    assert!(prompt.contains("格挡在回合结束时清零"));
+    assert!(prompt.contains("通用规则"));
+}
+
+#[test]
+fn unified_system_prompt_contains_all_modes() {
+    let prompt = AdviceScenario::CombatEntry.system_prompt(&test_locale());
+    for mode in [
+        "combat",
+        "card_reward",
+        "boss_card_reward",
+        "rest",
+        "boss_relic",
+        "event_choice",
+        "map_suggestion",
+        "map_crossroad",
+        "generic",
+    ] {
+        assert!(
+            prompt.contains(&format!("[mode: {mode}]")),
+            "missing mode: {mode}"
+        );
+    }
+}
+
+#[test]
+fn unified_system_prompt_excludes_postmortem() {
+    let prompt = AdviceScenario::CombatEntry.system_prompt(&test_locale());
+    assert!(!prompt.contains("[mode: postmortem]"));
+    assert!(!prompt.contains("复盘"));
+}
+
+#[test]
+fn postmortem_uses_standalone_system_prompt() {
+    let prompt = AdviceScenario::Postmortem.system_prompt(&test_locale());
+    assert!(prompt.contains("复盘"));
+    assert!(!prompt.contains("[mode: "));
+}
+
+#[test]
+fn unified_system_prompt_modes_separated() {
+    let prompt = AdviceScenario::CombatEntry.system_prompt(&test_locale());
+    let sections: Vec<_> = prompt.matches("[mode:").collect();
+    assert_eq!(sections.len(), 9);
+    assert!(prompt.contains("\n---\n\n[mode:"));
+}
+
+#[test]
+fn all_scenarios_return_same_unified_prompt() {
+    let combat = AdviceScenario::CombatEntry.system_prompt(&test_locale());
+    let card = AdviceScenario::CardReward.system_prompt(&test_locale());
+    assert_eq!(combat, card);
+}
+
 fn test_state() -> NormalizedState {
     NormalizedState {
         screen_type: Some("NONE".into()),
@@ -210,8 +270,10 @@ fn scenario_resolver_detects_boss_relic() {
     let state = NormalizedState {
         screen_type: Some("BOSS_REWARD".into()),
         boss_relic_choices: vec![RelicInfo {
+            id: "Runic Dome".into(),
             name: "符文圆顶".into(),
             description: String::new(),
+            counter: None,
         }],
         ..test_state()
     };

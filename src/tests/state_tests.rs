@@ -295,8 +295,10 @@ fn normalize_event_payload_from_communication_mod_log() {
     assert_eq!(
         state.relics,
         vec![RelicInfo {
+            id: "PureWater".into(),
             name: "????".into(),
-            description: String::new()
+            description: String::new(),
+            counter: None,
         }]
     );
 }
@@ -389,6 +391,7 @@ fn compute_danger(
 
     let powers: Vec<PowerInfo> = if wrath {
         vec![PowerInfo {
+            id: "".into(),
             name: "Wrath".into(),
             amount: 1,
         }]

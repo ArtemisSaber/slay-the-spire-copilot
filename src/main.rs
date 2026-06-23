@@ -1,6 +1,7 @@
 #![deny(clippy::allow_attributes_without_reason)]
 mod advice;
 mod config;
+mod gate;
 mod journal;
 mod llm;
 mod locales;
@@ -8,309 +9,20 @@ mod logging;
 mod postmortem;
 mod prompt;
 mod protocol;
+mod relic_counters;
+mod runtime;
 mod setup_wizard;
 mod startup;
 mod state;
 
 use advice::{AdviceCache, OverlayMetadata};
+use gate::{CombatTurnGate, MapGate, should_generate_advice};
 use llm::{AdviceScenario, Effort};
-use state::MapCoord;
-use std::collections::HashMap;
-use std::io::{self, BufRead, IsTerminal, Write};
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct RuntimeOptions {
-    skip_startup_check: bool,
-    force_mock_provider: bool,
-    setup_only: bool,
-    postmortem_path: Option<String>,
-    postmortem_plain: bool,
-}
-
-impl RuntimeOptions {
-    fn from_env_and_args() -> Self {
-        let args: Vec<String> = std::env::args().skip(1).collect();
-        let skip_env = std::env::var("SKIP_COMM_CONFIG").ok();
-        runtime_options_from(args.iter().map(|s| s.as_str()), skip_env.as_deref())
-    }
-}
-
-fn runtime_options_from<'a>(
-    args: impl IntoIterator<Item = &'a str>,
-    skip_comm_config: Option<&str>,
-) -> RuntimeOptions {
-    let mut skip_startup_check = matches!(skip_comm_config, Some("1" | "true" | "yes"));
-    let mut force_mock_provider = false;
-    let mut setup_only = false;
-    let mut postmortem_path = None;
-    let mut postmortem_plain = false;
-    let mut iter = args.into_iter();
-
-    while let Some(arg) = iter.next() {
-        match arg {
-            "--no-startup-check" => skip_startup_check = true,
-            "--stdin-test" => {
-                skip_startup_check = true;
-                force_mock_provider = true;
-            }
-            "setup" | "configure" => {
-                setup_only = true;
-                skip_startup_check = true;
-            }
-            "postmortem" => {
-                for next in iter.by_ref() {
-                    if next == "--plain" {
-                        postmortem_plain = true;
-                    } else {
-                        postmortem_path = Some(next.to_string());
-                        break;
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    RuntimeOptions {
-        skip_startup_check,
-        force_mock_provider,
-        setup_only,
-        postmortem_path,
-        postmortem_plain,
-    }
-}
-
-fn is_in_game(raw: &serde_json::Value) -> bool {
-    raw.get("in_game")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false)
-}
-
-fn is_error(raw: &serde_json::Value) -> bool {
-    raw.get("error").is_some()
-}
-
-fn is_game_over_state(raw: &serde_json::Value) -> bool {
-    raw.pointer("/game_state/screen_type")
-        .and_then(|v| v.as_str())
-        .is_some_and(|screen| screen == "GAME_OVER")
-}
-
-fn should_end_run(raw: &serde_json::Value, has_seen_game_state: bool) -> bool {
-    is_game_over_state(raw) || (has_seen_game_state && !is_in_game(raw))
-}
-
-fn run_end_reason(raw: &serde_json::Value, has_seen_game_state: bool) -> Option<&'static str> {
-    if is_game_over_state(raw) {
-        Some("game_over")
-    } else if has_seen_game_state && !is_in_game(raw) {
-        Some("left_game")
-    } else {
-        None
-    }
-}
-
-fn has_monsters(raw: &serde_json::Value) -> bool {
-    raw.pointer("/game_state/combat_state/monsters")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .any(|m| !m.get("is_gone").and_then(|g| g.as_bool()).unwrap_or(false))
-        })
-        .unwrap_or(false)
-}
-
-struct ScreenConfig {
-    generate: &'static [&'static str],
-    generate_on_combat: &'static [&'static str],
-}
-
-const SCREEN_CONFIG: ScreenConfig = ScreenConfig {
-    generate: &["CARD_REWARD", "BOSS_REWARD", "EVENT", "REST"],
-    generate_on_combat: &[],
-    // Future screens to add to `generate`:
-    // "SHOP", "HAND_SELECT", "GRID",
+use runtime::{
+    RuntimeOptions, has_monsters, is_error, is_game_over_state, is_in_game, run_end_reason,
+    should_end_run,
 };
-
-struct CombatTurnGate {
-    last_turn: Option<(String, i64)>,
-}
-
-impl CombatTurnGate {
-    fn new() -> Self {
-        CombatTurnGate { last_turn: None }
-    }
-
-    fn is_player_turn_start(&mut self, raw: &serde_json::Value) -> bool {
-        if raw
-            .pointer("/game_state/screen_type")
-            .and_then(|v| v.as_str())
-            != Some("NONE")
-        {
-            return false;
-        }
-        if raw
-            .pointer("/game_state/action_phase")
-            .and_then(|v| v.as_str())
-            != Some("WAITING_ON_USER")
-        {
-            return false;
-        }
-        if !has_monsters(raw) {
-            return false;
-        }
-        let identity = match combat_identity(raw) {
-            Some(id) => id,
-            None => return false,
-        };
-        let turn = match raw
-            .pointer("/game_state/combat_state/turn")
-            .and_then(|v| v.as_i64())
-        {
-            Some(t) => t,
-            None => return false,
-        };
-        let key = (identity, turn);
-        if self.last_turn.as_ref() == Some(&key) {
-            return false;
-        }
-        self.last_turn = Some(key);
-        true
-    }
-}
-
-struct MapGate {
-    last_advised_next: Option<Vec<(i64, i64)>>,
-    shop_visited: bool,
-}
-
-impl MapGate {
-    fn new() -> Self {
-        MapGate {
-            last_advised_next: None,
-            shop_visited: false,
-        }
-    }
-
-    fn should_generate(&mut self, raw: &serde_json::Value, map_nodes: &[MapCoord]) -> bool {
-        let rp = raw
-            .pointer("/game_state/room_phase")
-            .and_then(|v| v.as_str());
-        if rp != Some("COMPLETE") {
-            return false;
-        }
-
-        let first_chosen = raw
-            .pointer("/game_state/screen_state/first_node_chosen")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(true);
-
-        if !first_chosen {
-            return true;
-        }
-
-        let current = raw
-            .pointer("/game_state/screen_state/current_node")
-            .and_then(|v| Some((v.get("x")?.as_i64()?, v.get("y")?.as_i64()?)));
-
-        let Some((cx, cy)) = current else {
-            return false;
-        };
-
-        let node_map: HashMap<(i64, i64), &MapCoord> =
-            map_nodes.iter().map(|n| ((n.x, n.y), n)).collect();
-
-        let Some(node) = node_map.get(&(cx, cy)) else {
-            return false;
-        };
-
-        let mut next_coords: Vec<(i64, i64)> = node
-            .children
-            .iter()
-            .filter(|(x, y)| node_map.contains_key(&(*x, *y)))
-            .copied()
-            .collect();
-        next_coords.sort();
-
-        if next_coords.len() <= 1 {
-            return false;
-        }
-
-        if self.last_advised_next.as_ref() == Some(&next_coords) {
-            return false;
-        }
-
-        true
-    }
-
-    fn record(&mut self, map_nodes: &[MapCoord], current_x: i64, current_y: i64) {
-        let node_map: HashMap<(i64, i64), &MapCoord> =
-            map_nodes.iter().map(|n| ((n.x, n.y), n)).collect();
-
-        if let Some(node) = node_map.get(&(current_x, current_y)) {
-            let mut next: Vec<(i64, i64)> = node
-                .children
-                .iter()
-                .filter(|(x, y)| node_map.contains_key(&(*x, *y)))
-                .copied()
-                .collect();
-            next.sort();
-            self.last_advised_next = Some(next);
-        }
-    }
-
-    fn on_shop(&mut self) {
-        self.shop_visited = true;
-    }
-
-    fn on_act_entry(&mut self) {
-        self.shop_visited = false;
-    }
-}
-
-fn combat_identity(raw: &serde_json::Value) -> Option<String> {
-    let floor = raw.pointer("/game_state/floor")?.as_i64()?;
-    let room_type = raw
-        .pointer("/game_state/room_type")
-        .and_then(|v| v.as_str())
-        .unwrap_or("?");
-    Some(format!("{floor}:{room_type}"))
-}
-
-fn should_generate_advice(screen_type: &str, raw: &serde_json::Value) -> bool {
-    if screen_type == "EVENT" {
-        return available_event_choice_count(raw) > 1;
-    }
-    if SCREEN_CONFIG.generate.contains(&screen_type) {
-        return true;
-    }
-    if SCREEN_CONFIG.generate_on_combat.contains(&screen_type) && has_monsters(raw) {
-        return true;
-    }
-    false
-}
-
-fn available_event_choice_count(raw: &serde_json::Value) -> usize {
-    let choices = raw
-        .pointer("/game_state/screen_state/options")
-        .or_else(|| raw.pointer("/game_state/screen_state/choices"))
-        .or_else(|| raw.pointer("/game_state/screen_state/buttons"))
-        .or_else(|| raw.pointer("/game_state/choice_list"));
-
-    choices
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter(|choice| {
-                    !choice
-                        .get("disabled")
-                        .and_then(|disabled| disabled.as_bool())
-                        .unwrap_or(false)
-                })
-                .count()
-        })
-        .unwrap_or(0)
-}
+use std::io::{self, BufRead, IsTerminal, Write};
 
 async fn postmortem_report_text(
     deterministic_report: &str,
@@ -355,6 +67,10 @@ async fn finalize_run_once(
             }
         };
     let report = postmortem_report_text(&deterministic_report, provider, locale).await;
+    let report = format!(
+        "{report}\n\n---\n\n{}\n\n{deterministic_report}",
+        locale.postmortem.section_machine,
+    );
 
     match postmortem::write_report_for_journal(journal_path, &report) {
         Ok(path) => tracing::info!("wrote postmortem report to {}", path.display()),
@@ -636,7 +352,14 @@ async fn main() {
                 &locale,
             )
             .await;
-            break;
+            journal = journal::Journal::new(project_root.join("runs"));
+            cache = AdviceCache::new();
+            combat_turn_gate = CombatTurnGate::new();
+            map_gate = MapGate::new();
+            saw_game_state = false;
+            run_finalized = false;
+            tracing::info!("run ended, waiting for next run...");
+            continue;
         }
 
         if screen_type == "SHOP" {

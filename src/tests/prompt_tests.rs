@@ -1,7 +1,9 @@
-use super::*;
+use super::builder::*;
+use super::routing::*;
 use crate::locales::Locale;
 use crate::state::{
-    DangerFlags, DangerLevel, MapCoord, MonsterInfo, PotionInfo, PowerInfo, RelicInfo,
+    CardInfo, DangerFlags, DangerLevel, MapCoord, MonsterInfo, NormalizedState, PotionInfo,
+    PowerInfo, RelicInfo,
 };
 use crate::test_utils::card;
 
@@ -110,10 +112,9 @@ fn combat_prompt_marks_entry_plan_task() {
     };
 
     let prompt = build_prompt(&state, &locale, false);
-    assert!(prompt.contains("=== 任务 ==="));
-    assert!(prompt.contains("本回合"));
-    assert!(prompt.contains("最佳出牌"));
-    assert!(prompt.contains("不要写分析过程"));
+    assert!(prompt.contains("=== 战斗类型 ==="));
+    assert!(prompt.contains("=== 战斗概况 ==="));
+    assert!(prompt.contains("=== 当前回合 ==="));
 }
 
 #[test]
@@ -134,8 +135,10 @@ fn combat_prompt_omits_verbose_relic_and_potion_descriptions() {
             is_scaling: false,
         }],
         relics: vec![RelicInfo {
+            id: "Burning Blood".into(),
             name: "燃烧之血".into(),
             description: "战斗结束时回复6点生命。".into(),
+            counter: None,
         }],
         potions: vec![PotionInfo {
             name: "恐惧药水".into(),
@@ -210,6 +213,7 @@ fn monster_section_shows_scaling() {
             damage: Some(12),
             hits: None,
             monster_powers: vec![PowerInfo {
+                id: "Strength".into(),
                 name: "力量".into(),
                 amount: 2,
             }],
@@ -260,9 +264,8 @@ fn card_reward_prompt_marks_pick_or_skip_task() {
     };
 
     let prompt = build_prompt(&state, &locale, false);
-    assert!(prompt.contains("=== 任务 ==="));
-    assert!(prompt.contains("选择一张牌"));
-    assert!(prompt.contains("推荐跳过"));
+    assert!(prompt.starts_with("[mode: card_reward]"));
+    assert!(prompt.contains("上勾拳"));
 }
 
 #[test]
@@ -285,7 +288,7 @@ fn boss_card_reward_prompt_includes_full_heal_note() {
         )
     );
     assert!(prompt.contains("下一幕"));
-    assert!(prompt.contains("卡组方向"));
+    assert!(prompt.starts_with("[mode: boss_card_reward]"));
 }
 
 #[test]
@@ -369,10 +372,7 @@ fn prompt_is_structured() {
     let locale = test_locale();
     let prompt = build_prompt(&test_state(), &locale, false);
     assert!(prompt.contains("=== 当前状态 ==="));
-    assert!(prompt.contains("推荐："));
-    assert!(prompt.contains("理由："));
-    assert!(prompt.contains("风险："));
-    assert!(prompt.contains("吐槽："));
+    assert!(prompt.starts_with("[mode: generic]"));
 }
 
 #[test]
@@ -408,8 +408,7 @@ fn rest_prompt_marks_campfire_decision_task() {
     };
 
     let prompt = build_prompt(&state, &locale, false);
-    assert!(prompt.contains("=== 任务 ==="));
-    assert!(prompt.contains("篝火选项"));
+    assert!(prompt.starts_with("[mode: rest]"));
     assert!(prompt.contains("休息"));
     assert!(prompt.contains("锻造"));
 }
@@ -428,7 +427,6 @@ fn rest_prompt_requires_smith_upgrade_target() {
     };
 
     let prompt = build_prompt(&state, &locale, false);
-    assert!(prompt.contains("必须写出要升级哪张牌"));
     assert!(prompt.contains("=== 可锻造升级目标 ==="));
     assert!(prompt.contains("痛击"));
     assert!(prompt.contains("武装"));
@@ -441,16 +439,22 @@ fn boss_relic_prompt_lists_choices() {
         screen_type: Some("BOSS_REWARD".into()),
         boss_relic_choices: vec![
             RelicInfo {
+                id: "Snecko Eye".into(),
                 name: "蛇眼".into(),
                 description: "".into(),
+                counter: None,
             },
             RelicInfo {
+                id: "Runic Dome".into(),
                 name: "符文圆顶".into(),
                 description: "".into(),
+                counter: None,
             },
             RelicInfo {
+                id: "Cursed Key".into(),
                 name: "诅咒钥匙".into(),
                 description: "".into(),
+                counter: None,
             },
         ],
         master_cards: vec![card("Bash", "Bash", 2, "ATTACK")],
@@ -462,7 +466,7 @@ fn boss_relic_prompt_lists_choices() {
     assert!(prompt.contains("A. 蛇眼"));
     assert!(prompt.contains("B. 符文圆顶"));
     assert!(prompt.contains("C. 诅咒钥匙"));
-    assert!(prompt.contains("副作用"));
+    assert!(prompt.starts_with("[mode: boss_relic]"));
 }
 
 #[test]
@@ -517,9 +521,7 @@ fn generic_prompt_shows_status_and_format() {
     };
 
     let prompt = build_prompt(&state, &locale, false);
-    assert!(prompt.contains("=== 当前状态 ==="));
-    assert!(prompt.contains("角色：铁甲战士"));
-    assert!(prompt.contains("推荐："));
+    assert!(prompt.starts_with("[mode: generic]"));
 }
 
 #[test]
@@ -557,6 +559,7 @@ fn danger_prefix_shows_wrath_warning() {
     let locale = test_locale();
     let state = NormalizedState {
         powers: vec![PowerInfo {
+            id: "".into(),
             name: "Wrath".into(),
             amount: 1,
         }],
@@ -590,7 +593,7 @@ fn danger_prefix_shows_wrath_warning() {
 fn compact_pile_aggregates_duplicates() {
     let locale = test_locale();
     let cards = vec![card("Strike_R", "打击", 1, "ATTACK"); 3];
-    let output = super::compact_pile("=== 抽牌堆", &cards, &locale);
+    let output = compact_pile("=== 抽牌堆", &cards, &locale);
     assert!(output.contains("抽牌堆（3张）"));
     assert!(output.contains("打击×3"));
 }
@@ -727,8 +730,10 @@ fn build_prompt_routes_boss_relic() {
     let state = NormalizedState {
         screen_type: Some("BOSS_REWARD".into()),
         boss_relic_choices: vec![RelicInfo {
+            id: "Snecko Eye".into(),
             name: "蛇眼".into(),
             description: String::new(),
+            counter: None,
         }],
         ..test_state()
     };
@@ -745,7 +750,7 @@ fn build_prompt_routes_event_choice() {
         ..test_state()
     };
     let prompt = build_prompt(&state, &locale, false);
-    assert!(prompt.contains("事件选项"));
+    assert!(prompt.starts_with("[mode: event_choice]"));
 }
 
 #[test]
@@ -1214,7 +1219,7 @@ fn build_map_suggestion_includes_route_chains_and_counts() {
     assert!(prompt.contains("Recommendation label: Route 1 (唯一) — M→?→R"));
     assert!(prompt.contains("M→?→R"));
     assert!(prompt.contains("Monsters:1"));
-    assert!(prompt.contains("140字"));
+    assert!(prompt.starts_with("[mode: map_suggestion]"));
 }
 
 #[test]
@@ -1361,7 +1366,7 @@ fn build_map_suggestion_empty_paths_graceful() {
         ..test_state()
     };
     let prompt = build_map_suggestion(&state, &locale);
-    assert!(prompt.contains("=== 任务 ==="));
+    assert!(prompt.starts_with("[mode: map_suggestion]"));
 }
 
 // --- build_map_crossroad tests ---

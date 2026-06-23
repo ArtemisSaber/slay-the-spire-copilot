@@ -114,19 +114,14 @@ impl AdviceScenario {
     }
 
     pub fn system_prompt(self, locale: &Locale) -> String {
-        let base = match self {
-            AdviceScenario::CardReward => &locale.system_prompts.card_reward,
-            AdviceScenario::BossCardReward => &locale.system_prompts.boss_card_reward,
-            AdviceScenario::BossRelic => &locale.system_prompts.boss_relic,
-            AdviceScenario::Rest => &locale.system_prompts.rest,
-            AdviceScenario::EventChoice => &locale.system_prompts.event_choice,
-            AdviceScenario::CombatEntry => &locale.system_prompts.combat_entry,
-            AdviceScenario::MapSuggestion => &locale.system_prompts.map_suggestion,
-            AdviceScenario::MapCrossroad => &locale.system_prompts.map_crossroad,
-            AdviceScenario::Generic => &locale.system_prompts.generic,
-            AdviceScenario::Postmortem => &locale.system_prompts.postmortem,
-        };
-        format!("{base}\n\n{}", self.few_shot_example(locale))
+        if matches!(self, AdviceScenario::Postmortem) {
+            return format!(
+                "{}\n\n{}",
+                &locale.system_prompts.postmortem,
+                self.few_shot_example(locale)
+            );
+        }
+        unified_system_prompt(locale)
     }
 
     fn few_shot_example(self, locale: &Locale) -> &str {
@@ -143,6 +138,61 @@ impl AdviceScenario {
             AdviceScenario::Postmortem => &locale.few_shot_examples.postmortem,
         }
     }
+}
+
+fn unified_system_prompt(locale: &Locale) -> String {
+    let mut out = vec![locale.unified_preamble.clone()];
+    let modes: &[(&str, &str, &str)] = &[
+        (
+            "combat",
+            &locale.system_prompts.combat_entry,
+            &locale.few_shot_examples.combat_entry,
+        ),
+        (
+            "card_reward",
+            &locale.system_prompts.card_reward,
+            &locale.few_shot_examples.card_reward,
+        ),
+        (
+            "boss_card_reward",
+            &locale.system_prompts.boss_card_reward,
+            &locale.few_shot_examples.boss_card_reward,
+        ),
+        (
+            "rest",
+            &locale.system_prompts.rest,
+            &locale.few_shot_examples.rest,
+        ),
+        (
+            "boss_relic",
+            &locale.system_prompts.boss_relic,
+            &locale.few_shot_examples.boss_relic,
+        ),
+        (
+            "event_choice",
+            &locale.system_prompts.event_choice,
+            &locale.few_shot_examples.event_choice,
+        ),
+        (
+            "map_suggestion",
+            &locale.system_prompts.map_suggestion,
+            &locale.few_shot_examples.map_suggestion,
+        ),
+        (
+            "map_crossroad",
+            &locale.system_prompts.map_crossroad,
+            &locale.few_shot_examples.map_crossroad,
+        ),
+        (
+            "generic",
+            &locale.system_prompts.generic,
+            &locale.few_shot_examples.generic,
+        ),
+    ];
+    for (mode, sp, fs) in modes {
+        out.push(format!("\n---\n\n[mode: {mode}]\n{sp}\n\n{fs}"));
+    }
+    out.concat()
 }
 
 #[derive(Debug)]

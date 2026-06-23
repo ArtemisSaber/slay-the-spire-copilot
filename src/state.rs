@@ -69,6 +69,7 @@ pub struct MonsterInfo {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PowerInfo {
+    pub id: String,
     pub name: String,
     pub amount: i64,
 }
@@ -131,8 +132,10 @@ impl DangerFlags {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RelicInfo {
+    pub id: String,
     pub name: String,
     pub description: String,
+    pub counter: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -197,6 +200,11 @@ fn extract_cards(arr: &[Value]) -> Vec<CardInfo> {
 fn extract_powers(arr: &[Value]) -> Vec<PowerInfo> {
     arr.iter()
         .map(|p| PowerInfo {
+            id: p
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             name: p
                 .get("name")
                 .and_then(|v| v.as_str())
@@ -268,10 +276,17 @@ fn extract_relic_infos(arr: &[Value]) -> Vec<RelicInfo> {
     arr.iter()
         .map(|r| match r {
             Value::String(name) => RelicInfo {
+                id: String::new(),
                 name: name.clone(),
                 description: String::new(),
+                counter: None,
             },
             Value::Object(_) => RelicInfo {
+                id: r
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?")
+                    .to_string(),
                 name: r
                     .get("name")
                     .and_then(|v| v.as_str())
@@ -282,10 +297,16 @@ fn extract_relic_infos(arr: &[Value]) -> Vec<RelicInfo> {
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
+                counter: r
+                    .get("counter")
+                    .and_then(|v| v.as_i64())
+                    .filter(|&c| c >= 0),
             },
             _ => RelicInfo {
+                id: String::new(),
                 name: "?".to_string(),
                 description: String::new(),
+                counter: None,
             },
         })
         .collect()
