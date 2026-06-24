@@ -672,6 +672,18 @@ pub(crate) fn build_combat(state: &NormalizedState, locale: &Locale) -> String {
     lines.push(turn_status_line(state, locale));
     lines.push(String::new());
 
+    if !state.potions.is_empty() {
+        lines.push(locale.sections.potions.clone());
+        for p in &state.potions {
+            lines.push(format!(
+                "{}：{}",
+                p.name,
+                clean_description(&p.description, locale)
+            ));
+        }
+        lines.push(String::new());
+    }
+
     if state.danger.wrath_stance {
         lines.push(locale.warnings.wrath_stance.clone());
     }

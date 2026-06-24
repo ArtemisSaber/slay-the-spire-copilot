@@ -14,6 +14,10 @@ pub enum AutoPlayAction {
         hand_index: usize,
         target_index: Option<usize>,
     },
+    Drink {
+        slot_index: usize,
+        target_index: Option<usize>,
+    },
     End,
     Skip,
     Proceed,
@@ -136,6 +140,10 @@ pub fn execute_action_to(writer: &mut impl Write, action: &AutoPlayAction) {
             hand_index,
             target_index,
         } => protocol::send_play_to(writer, *hand_index, *target_index),
+        AutoPlayAction::Drink {
+            slot_index,
+            target_index,
+        } => protocol::send_potion_to(writer, "use", *slot_index, *target_index),
         AutoPlayAction::End => protocol::send_end_to(writer),
         AutoPlayAction::Skip => protocol::send_skip_to(writer),
         AutoPlayAction::Proceed => protocol::send_proceed_to(writer),
@@ -533,6 +541,21 @@ fn combat_candidates(
         }
     }
 
+    if command_state.has_command("potion") {
+        for (slot, potion) in state.potions.iter().enumerate() {
+            if !potion.can_use {
+                continue;
+            }
+            let action_id = format!("combat:potion:{slot}");
+            let label = format!("Drink {}", potion.name);
+            if potion.requires_target {
+                candidates.push(targeted_candidate("drink", action_id, label));
+            } else {
+                candidates.push(candidate("drink", action_id, label));
+            }
+        }
+    }
+
     if command_state.has_command("end") {
         candidates.push(candidate(
             "end",
@@ -552,39 +575,66 @@ fn resolve_requested_combat(
         return Some(AutoPlayAction::End);
     }
 
-    if request.kind != "play" {
-        return None;
-    }
-
-    let uuid = request.action_id.strip_prefix("combat:play:")?;
-    let (hand_index, card) = state
-        .hand
-        .iter()
-        .enumerate()
-        .find(|(_, card)| card.uuid.as_deref() == Some(uuid))?;
-
-    if card.cost > state.energy.unwrap_or(0) {
-        return None;
-    }
-
-    let target_index = if card.has_target {
-        let target_index = request.target_index?;
-        if !state
-            .monsters
+    if request.kind == "play" {
+        let uuid = request.action_id.strip_prefix("combat:play:")?;
+        let (hand_index, card) = state
+            .hand
             .iter()
-            .any(|monster| monster.index == target_index)
-        {
+            .enumerate()
+            .find(|(_, card)| card.uuid.as_deref() == Some(uuid))?;
+
+        if card.cost > state.energy.unwrap_or(0) {
             return None;
         }
-        Some(target_index)
-    } else {
-        None
-    };
 
-    Some(AutoPlayAction::Play {
-        hand_index,
-        target_index,
-    })
+        let target_index = if card.has_target {
+            let target_index = request.target_index?;
+            if !state
+                .monsters
+                .iter()
+                .any(|monster| monster.index == target_index)
+            {
+                return None;
+            }
+            Some(target_index)
+        } else {
+            None
+        };
+
+        return Some(AutoPlayAction::Play {
+            hand_index,
+            target_index,
+        });
+    }
+
+    if request.kind == "drink" {
+        let slot_index: usize = request
+            .action_id
+            .strip_prefix("combat:potion:")?
+            .parse()
+            .ok()?;
+        let potion = state.potions.get(slot_index)?;
+        if !potion.can_use {
+            return None;
+        }
+
+        let target_index = if potion.requires_target {
+            let target = request.target_index?;
+            if !state.monsters.iter().any(|monster| monster.index == target) {
+                return None;
+            }
+            Some(target)
+        } else {
+            None
+        };
+
+        return Some(AutoPlayAction::Drink {
+            slot_index,
+            target_index,
+        });
+    }
+
+    None
 }
 
 #[cfg(test)]
@@ -1045,6 +1095,20 @@ mod tests {
                 target_index: Some(0),
             },
         );
+        execute_action_to(
+            &mut buf,
+            &AutoPlayAction::Drink {
+                slot_index: 0,
+                target_index: None,
+            },
+        );
+        execute_action_to(
+            &mut buf,
+            &AutoPlayAction::Drink {
+                slot_index: 1,
+                target_index: Some(2),
+            },
+        );
         execute_action_to(&mut buf, &AutoPlayAction::End);
         execute_action_to(&mut buf, &AutoPlayAction::Skip);
         execute_action_to(&mut buf, &AutoPlayAction::Proceed);
@@ -1054,7 +1118,16 @@ mod tests {
         let lines: Vec<&str> = output.lines().collect();
         assert_eq!(
             lines,
-            vec!["choose 2", "play 2 0", "end", "skip", "proceed", "leave"]
+            vec![
+                "choose 2",
+                "play 2 0",
+                "potion use 0",
+                "potion use 1 2",
+                "end",
+                "skip",
+                "proceed",
+                "leave"
+            ]
         );
     }
 

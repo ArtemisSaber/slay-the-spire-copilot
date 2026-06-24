@@ -134,7 +134,7 @@ fn combat_prompt_marks_entry_plan_task() {
 }
 
 #[test]
-fn combat_prompt_omits_verbose_relic_and_potion_descriptions() {
+fn combat_prompt_includes_potion_descriptions_but_omits_relic_descriptions() {
     let locale = test_locale();
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
@@ -161,6 +161,9 @@ fn combat_prompt_omits_verbose_relic_and_potion_descriptions() {
             name: "恐惧药水".into(),
             description: "给予3层易伤。".into(),
             price: None,
+            can_use: true,
+            can_discard: false,
+            requires_target: false,
         }],
         ..test_state()
     };
@@ -169,7 +172,7 @@ fn combat_prompt_omits_verbose_relic_and_potion_descriptions() {
     assert!(prompt.contains("燃烧之血"));
     assert!(prompt.contains("恐惧药水"));
     assert!(!prompt.contains("战斗结束时回复6点生命"));
-    assert!(!prompt.contains("给予3层易伤"));
+    assert!(prompt.contains("给予3层易伤"));
 }
 
 #[test]
@@ -1689,6 +1692,9 @@ fn shop_prompt_contains_mode_tag() {
             name: "再生药水".into(),
             description: "获得 5 层 再生 。".into(),
             price: Some(79),
+            can_use: false,
+            can_discard: false,
+            requires_target: false,
         }],
         purge_available: true,
         purge_cost: Some(75),

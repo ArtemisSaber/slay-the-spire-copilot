@@ -89,6 +89,22 @@ pub fn send_state_to(writer: &mut impl Write) {
     write_command_to(writer, "state");
 }
 
+pub fn send_potion_to(
+    writer: &mut impl Write,
+    action: &str,
+    slot_index: usize,
+    target_index: Option<usize>,
+) {
+    match target_index {
+        Some(target) => {
+            write_command_to(writer, &format!("potion {action} {slot_index} {target}"));
+        }
+        None => {
+            write_command_to(writer, &format!("potion {action} {slot_index}"));
+        }
+    }
+}
+
 pub fn send_ready() {
     send_ready_to(&mut io::stdout().lock());
 }

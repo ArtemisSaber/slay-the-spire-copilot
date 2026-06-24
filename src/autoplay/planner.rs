@@ -241,6 +241,15 @@ fn state_summary(state: &NormalizedState) -> serde_json::Value {
                 "type": card.card_type,
             })
         }).collect::<Vec<_>>(),
+        "potions": state.potions.iter().enumerate().map(|(slot, potion)| {
+            json!({
+                "slot": slot,
+                "name": potion.name,
+                "description": potion.description,
+                "can_use": potion.can_use,
+                "requires_target": potion.requires_target,
+            })
+        }).collect::<Vec<_>>(),
         "monsters": state.monsters.iter().map(|monster| {
             json!({
                 "index": monster.index,
@@ -523,7 +532,7 @@ mod tests {
                 }
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
+        let control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
         let candidates = available_action_candidates(
@@ -577,7 +586,7 @@ mod tests {
                 "choice_list": ["Leave"]
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
+        let control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
         let candidates = available_action_candidates(
@@ -618,7 +627,7 @@ mod tests {
                 "choice_list": ["Leave"]
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
+        let control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
         let candidates = available_action_candidates(
@@ -650,7 +659,7 @@ mod tests {
                 "choice_list": ["Leave"]
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
+        let control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
         let candidates = available_action_candidates(
@@ -727,7 +736,7 @@ mod tests {
                 "choice_list": ["Fight", "Leave"]
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
+        let control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
 
@@ -744,7 +753,7 @@ mod tests {
                 "choice_list": ["M", "?"]
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
+        let control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
 
@@ -761,7 +770,7 @@ mod tests {
                 "choice_list": ["unknown_reward"]
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
+        let control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
 
@@ -778,7 +787,7 @@ mod tests {
                 "choice_list": ["Strike", "Defend"]
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
+        let control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
 
@@ -805,7 +814,7 @@ mod tests {
                 }
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
+        let control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
 
@@ -1003,7 +1012,7 @@ mod tests {
                 "choice_list": []
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
+        let control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
 
@@ -1020,7 +1029,7 @@ mod tests {
                 "choice_list": []
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
+        let control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
 

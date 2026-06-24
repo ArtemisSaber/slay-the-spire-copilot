@@ -156,6 +156,9 @@ pub struct PotionInfo {
     pub name: String,
     pub description: String,
     pub price: Option<i64>,
+    pub can_use: bool,
+    pub can_discard: bool,
+    pub requires_target: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -374,6 +377,15 @@ fn extract_potion_infos(arr: &[Value]) -> Vec<PotionInfo> {
                 .unwrap_or("")
                 .to_string(),
             price: p.get("price").and_then(|v| v.as_i64()),
+            can_use: p.get("can_use").and_then(|v| v.as_bool()).unwrap_or(false),
+            can_discard: p
+                .get("can_discard")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            requires_target: p
+                .get("requires_target")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
         })
         .collect()
 }
