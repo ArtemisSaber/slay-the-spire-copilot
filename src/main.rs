@@ -327,8 +327,15 @@ async fn main() {
         journal.log_state_change(&hash, &normalized);
 
         if let Some(control) = current_autoplay_control.as_ref() {
-            match autoplay::planner::plan_action(&provider, control, &command_state, &normalized)
-                .await
+            match autoplay::planner::plan_action(
+                &provider,
+                control,
+                &command_state,
+                &normalized,
+                &locale,
+                map_gate.shop_visited,
+            )
+            .await
             {
                 Ok(Some(action)) => {
                     tracing::info!(

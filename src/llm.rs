@@ -212,6 +212,13 @@ Choose exactly one action_id from the provided available_actions.
 Never invent an action_id. Never output prose or Markdown.
 For targeted combat cards, include target_index. If no available action is safe, choose an available non-destructive exit such as end/leave/proceed when present."#;
 
+fn autoplay_action_system_prompt(locale: &Locale) -> String {
+    format!(
+        "{}\n\n{}",
+        locale.unified_preamble, AUTOPLAY_ACTION_SYSTEM_PROMPT
+    )
+}
+
 #[derive(Debug)]
 pub(crate) struct OpenAiConfig {
     model: String,
@@ -283,6 +290,23 @@ fn chat_response_text(json: &serde_json::Value) -> anyhow::Result<String> {
 
 fn mock_autoplay_action_response(prompt: &str) -> String {
     let prompt_json: serde_json::Value = serde_json::from_str(prompt).unwrap_or_default();
+    let localized_status_context = prompt_json
+        .get("localized_status_context")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
+    let has_rejections = prompt_json
+        .get("rejected_attempts")
+        .and_then(|v| v.as_array())
+        .is_some_and(|arr| !arr.is_empty());
+
+    if localized_status_context.contains("fallback_test_marker") {
+        return r#"{"schema_version":1,"actions":[{"kind":"choose","action_id":"event:99","label":"Invalid","reason":"","risk":""}]}"#.to_string();
+    }
+
+    if localized_status_context.contains("retry_test_marker") && !has_rejections {
+        return r#"{"schema_version":1,"actions":[{"kind":"choose","action_id":"event:99","label":"Invalid","reason":"","risk":""}]}"#.to_string();
+    }
+
     let actions = prompt_json
         .get("available_actions")
         .and_then(|v| v.as_array())
@@ -493,8 +517,10 @@ impl LlmProvider {
         &self,
         prompt: &str,
         effort: Effort,
+        locale: &Locale,
     ) -> anyhow::Result<String> {
-        self.query_with_system_prompt(AUTOPLAY_ACTION_SYSTEM_PROMPT, prompt, effort)
+        let system_prompt = autoplay_action_system_prompt(locale);
+        self.query_with_system_prompt(&system_prompt, prompt, effort)
             .await
     }
 
