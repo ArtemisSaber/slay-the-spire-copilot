@@ -252,21 +252,22 @@ fn fallback_action(
             && command_state.has_command("choose"))
         .then_some(AutoPlayAction::Choose(0)),
         Some("REST") if control.allow_rest => fallback_rest_action(command_state, state),
-        Some("EVENT") if control.allow_events => (state.event_choices.len() == 1
+        Some("EVENT") if control.allow_events => (!state.event_choices.is_empty()
             && command_state.has_command("choose"))
         .then_some(AutoPlayAction::Choose(0)),
         Some("SHOP_SCREEN") if control.allow_shop => command_state
             .has_command("leave")
             .then_some(AutoPlayAction::Leave),
-        Some("MAP") if control.allow_map => (command_state.choice_list.len() == 1
+        Some("MAP") if control.allow_map => (!command_state.choice_list.is_empty()
             && command_state.has_command("choose"))
         .then_some(AutoPlayAction::Choose(0)),
         Some("NONE") if control.allow_combat => fallback_combat_action(command_state, state),
-        Some("GRID") if control.allow_selection_screens => {
-            command_state
-                .has_command("choose")
-                .then_some(AutoPlayAction::Choose(0))
-        }
+        Some("GRID") if control.allow_selection_screens => command_state
+            .has_command("choose")
+            .then_some(AutoPlayAction::Choose(0)),
+        Some("HAND_SELECT") if control.allow_selection_screens => command_state
+            .has_command("choose")
+            .then_some(AutoPlayAction::Choose(0)),
         _ => None,
     }
 }
@@ -284,6 +285,9 @@ fn fallback_combat_reward_action(
         });
         if let Some(index) = index {
             return Some(AutoPlayAction::Choose(index));
+        }
+        if !command_state.choice_list.is_empty() {
+            return Some(AutoPlayAction::Choose(0));
         }
     }
 
@@ -353,12 +357,8 @@ fn fallback_combat_action(
                         return None;
                     }
 
-                    let target_index = if card.card_type == "ATTACK" {
-                        first_target
-                    } else {
-                        None
-                    };
-                    if card.card_type == "ATTACK" && target_index.is_none() {
+                    let target_index = if card.has_target { first_target } else { None };
+                    if card.has_target && target_index.is_none() {
                         return None;
                     }
 
@@ -581,6 +581,109 @@ mod tests {
         .unwrap();
 
         assert_eq!(action, Some(AutoPlayAction::Skip));
+    }
+
+    #[test]
+    fn fallback_event_with_multiple_choices_returns_first() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "game_state": {
+                "screen_type": "EVENT",
+                "choice_list": ["Fight", "Leave"]
+            }
+        });
+        let control = AutoPlayControl::default_enabled();
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+
+        let action = fallback_action(&control, &command_state, &state);
+        assert_eq!(action, Some(AutoPlayAction::Choose(0)));
+    }
+
+    #[test]
+    fn fallback_map_with_multiple_children_returns_first() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "game_state": {
+                "screen_type": "MAP",
+                "choice_list": ["M", "?"]
+            }
+        });
+        let control = AutoPlayControl::default_enabled();
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+
+        let action = fallback_action(&control, &command_state, &state);
+        assert_eq!(action, Some(AutoPlayAction::Choose(0)));
+    }
+
+    #[test]
+    fn fallback_combat_reward_unknown_choice_returns_first() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "game_state": {
+                "screen_type": "COMBAT_REWARD",
+                "choice_list": ["unknown_reward"]
+            }
+        });
+        let control = AutoPlayControl::default_enabled();
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+
+        let action = fallback_action(&control, &command_state, &state);
+        assert_eq!(action, Some(AutoPlayAction::Choose(0)));
+    }
+
+    #[test]
+    fn fallback_hand_select_returns_first_choice() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "game_state": {
+                "screen_type": "HAND_SELECT",
+                "choice_list": ["Strike", "Defend"]
+            }
+        });
+        let control = AutoPlayControl::default_enabled();
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+
+        let action = fallback_action(&control, &command_state, &state);
+        assert_eq!(action, Some(AutoPlayAction::Choose(0)));
+    }
+
+    #[test]
+    fn fallback_combat_uses_has_target_not_card_type() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 3, "block": 0, "powers": []},
+                    "hand": [
+                        {"id": "Neutralize", "name": "Neutralize", "cost": 0, "type": "SKILL", "uuid": "neut-1", "has_target": true, "is_playable": true},
+                        {"id": "Defend", "name": "Defend", "cost": 1, "type": "SKILL", "uuid": "def-1", "has_target": false, "is_playable": true}
+                    ],
+                    "monsters": [
+                        {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
+                    ]
+                }
+            }
+        });
+        let control = AutoPlayControl::default_enabled();
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+
+        let action = fallback_action(&control, &command_state, &state);
+        match action {
+            Some(AutoPlayAction::Play { target_index, .. }) => {
+                assert!(
+                    target_index.is_some(),
+                    "skill with has_target must include target"
+                );
+            }
+            other => panic!("expected Play with target, got {other:?}"),
+        }
     }
 
     #[tokio::test]

@@ -26,5 +26,6 @@ pub fn card(id: &str, name: &str, cost: i64, card_type: &str) -> crate::state::C
         description: String::new(),
         price: None,
         playable: true,
+        has_target: card_type == "ATTACK",
     }
 }

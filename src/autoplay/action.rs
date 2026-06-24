@@ -71,8 +71,9 @@ pub fn available_action_candidates(
         Some("SHOP_SCREEN") if control.allow_shop => shop_candidates(command_state),
         Some("MAP") if control.allow_map => map_candidates(command_state),
         Some("NONE") if control.allow_combat => combat_candidates(command_state, state),
-        Some("GRID") if control.allow_selection_screens => {
-            grid_candidates(command_state)
+        Some("GRID") if control.allow_selection_screens => grid_candidates(command_state),
+        Some("HAND_SELECT") if control.allow_selection_screens => {
+            hand_select_candidates(command_state)
         }
         _ => vec![],
     }
@@ -104,6 +105,9 @@ pub fn resolve_requested_action(
         Some("NONE") => resolve_requested_combat(state, request),
         Some("GRID") => {
             resolve_requested_indexed("grid:", command_state.choice_list.len(), request)
+        }
+        Some("HAND_SELECT") => {
+            resolve_requested_indexed("hand_select:", command_state.choice_list.len(), request)
         }
         _ => None,
     }
@@ -395,6 +399,19 @@ fn grid_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
         .collect()
 }
 
+fn hand_select_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
+    if !command_state.has_command("choose") {
+        return vec![];
+    }
+
+    command_state
+        .choice_list
+        .iter()
+        .enumerate()
+        .map(|(index, choice)| candidate("choose", format!("hand_select:{index}"), choice.clone()))
+        .collect()
+}
+
 fn combat_candidates(
     command_state: &CommandState,
     state: &NormalizedState,
@@ -411,7 +428,7 @@ fn combat_candidates(
             };
             let action_id = format!("combat:play:{uuid}");
             let label = format!("Play {}", card.name);
-            if card.card_type == "ATTACK" {
+            if card.has_target {
                 candidates.push(targeted_candidate("play", action_id, label));
             } else {
                 candidates.push(candidate("play", action_id, label));
@@ -453,7 +470,7 @@ fn resolve_requested_combat(
         return None;
     }
 
-    let target_index = if card.card_type == "ATTACK" {
+    let target_index = if card.has_target {
         let target_index = request.target_index?;
         if !state
             .monsters
@@ -762,8 +779,8 @@ mod tests {
                 "combat_state": {
                     "player": {"energy": 3, "block": 0, "powers": []},
                     "hand": [
-                        {"id": "Strike_R", "name": "Strike", "cost": 1, "type": "ATTACK", "uuid": "strike-1"},
-                        {"id": "Defend_R", "name": "Defend", "cost": 1, "type": "SKILL", "uuid": "defend-1"}
+                        {"id": "Strike_R", "name": "Strike", "cost": 1, "type": "ATTACK", "uuid": "strike-1", "has_target": true},
+                        {"id": "Defend_R", "name": "Defend", "cost": 1, "type": "SKILL", "uuid": "defend-1", "has_target": false}
                     ],
                     "monsters": [
                         {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
@@ -797,7 +814,7 @@ mod tests {
                 "combat_state": {
                     "player": {"energy": 1, "block": 0, "powers": []},
                     "hand": [
-                        {"id": "Bash", "name": "Bash", "cost": 2, "type": "ATTACK", "uuid": "bash-1"}
+                        {"id": "Bash", "name": "Bash", "cost": 2, "type": "ATTACK", "uuid": "bash-1", "has_target": true}
                     ],
                     "monsters": [
                         {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
@@ -874,8 +891,8 @@ mod tests {
                 "combat_state": {
                     "player": {"energy": 1, "block": 0, "powers": []},
                     "hand": [
-                        {"id": "Bash", "name": "Bash", "cost": 2, "type": "ATTACK", "uuid": "bash-1"},
-                        {"id": "Defend_R", "name": "Defend", "cost": 1, "type": "SKILL", "uuid": "defend-1"}
+                        {"id": "Bash", "name": "Bash", "cost": 2, "type": "ATTACK", "uuid": "bash-1", "has_target": true},
+                        {"id": "Defend_R", "name": "Defend", "cost": 1, "type": "SKILL", "uuid": "defend-1", "has_target": false}
                     ],
                     "monsters": [
                         {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
@@ -923,5 +940,104 @@ mod tests {
             lines,
             vec!["choose 2", "play 1 0", "end", "skip", "proceed", "leave"]
         );
+    }
+
+    #[test]
+    fn combat_skill_with_has_target_needs_target() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 3, "block": 0, "powers": []},
+                    "hand": [
+                        {"id": "Neutralize", "name": "Neutralize", "cost": 0, "type": "SKILL", "uuid": "neut-1", "has_target": true, "is_playable": true}
+                    ],
+                    "monsters": [
+                        {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
+                    ]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_combat = true;
+        let candidates = available_action_candidates(&control, &command_state(&raw), &state(raw));
+        let neut = candidates
+            .iter()
+            .find(|c| c.action_id == "combat:play:neut-1")
+            .unwrap();
+        assert_eq!(
+            neut.target_required,
+            Some(true),
+            "has_target skill should require target"
+        );
+    }
+
+    #[test]
+    fn combat_skill_without_has_target_does_not_need_target() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 3, "block": 0, "powers": []},
+                    "hand": [
+                        {"id": "Defend", "name": "Defend", "cost": 1, "type": "SKILL", "uuid": "def-1", "has_target": false, "is_playable": true}
+                    ],
+                    "monsters": [
+                        {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
+                    ]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_combat = true;
+        let candidates = available_action_candidates(&control, &command_state(&raw), &state(raw));
+        let defend = candidates
+            .iter()
+            .find(|c| c.action_id == "combat:play:def-1")
+            .unwrap();
+        assert_eq!(
+            defend.target_required, None,
+            "defend has no target, should not require one"
+        );
+    }
+
+    #[test]
+    fn hand_select_candidates_use_choice_list() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "HAND_SELECT",
+                "choice_list": ["Strike", "Defend"]
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        let candidates = available_action_candidates(&control, &command_state(&raw), &state(raw));
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].action_id, "hand_select:0");
+        assert_eq!(candidates[1].action_id, "hand_select:1");
+    }
+
+    #[test]
+    fn grid_candidates_use_choice_list() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "GRID",
+                "choice_list": ["Strike", "Strike", "Defend"]
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        let candidates = available_action_candidates(&control, &command_state(&raw), &state(raw));
+        assert_eq!(candidates.len(), 3);
+        assert_eq!(candidates[0].action_id, "grid:0");
+        assert_eq!(candidates[2].action_id, "grid:2");
     }
 }

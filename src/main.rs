@@ -227,6 +227,12 @@ async fn main() {
     } else {
         None
     };
+    let mut last_autoplay_state: Option<(
+        serde_json::Value,
+        state::NormalizedState,
+        autoplay::command_state::CommandState,
+    )> = None;
+    let mut consecutive_errors: usize = 0;
     let mut saw_game_state = false;
     let mut run_finalized = false;
     let stdin = io::stdin();
@@ -257,6 +263,48 @@ async fn main() {
 
         if is_error(&raw) {
             tracing::warn!("received error from CommunicationMod: {}", trimmed);
+            if let Some((_saved_raw, saved_normalized, saved_command_state)) =
+                last_autoplay_state.take()
+            {
+                consecutive_errors += 1;
+                if consecutive_errors > 5 {
+                    tracing::error!(
+                        "autoplay reached {} consecutive errors, blocking",
+                        consecutive_errors
+                    );
+                    current_autoplay_control = None;
+                    continue;
+                }
+                if let Some(control) = current_autoplay_control.as_ref() {
+                    tracing::info!("autoplay retrying after error #{}", consecutive_errors);
+                    match autoplay::planner::plan_action(
+                        &provider,
+                        control,
+                        &saved_command_state,
+                        &saved_normalized,
+                        &locale,
+                        map_gate.shop_visited,
+                    )
+                    .await
+                    {
+                        Ok(Some(action)) => {
+                            tracing::info!(
+                                "autoplay retry executing {:?} screen={}",
+                                action,
+                                saved_normalized.screen_type.as_deref().unwrap_or("?"),
+                            );
+                            let mut stdout = io::stdout().lock();
+                            autoplay::action::execute_action_to(&mut stdout, &action);
+                        }
+                        Ok(None) => {
+                            tracing::warn!("autoplay retry produced no action");
+                        }
+                        Err(e) => {
+                            tracing::warn!("autoplay retry planner failed: {e}");
+                        }
+                    }
+                }
+            }
             continue;
         }
 
@@ -271,6 +319,7 @@ async fn main() {
         }
 
         saw_game_state = true;
+        consecutive_errors = 0;
 
         let screen_type = raw
             .pointer("/game_state/screen_type")
@@ -351,6 +400,8 @@ async fn main() {
                         screen_type,
                         &hash[..16],
                     );
+                    last_autoplay_state =
+                        Some((raw.clone(), normalized.clone(), command_state.clone()));
                     let mut stdout = io::stdout().lock();
                     autoplay::action::execute_action_to(&mut stdout, &action);
                     continue;
@@ -450,6 +501,8 @@ async fn main() {
             map_gate = MapGate::new();
             saw_game_state = false;
             run_finalized = false;
+            last_autoplay_state = None;
+            consecutive_errors = 0;
             tracing::info!("run ended, waiting for next run...");
             continue;
         }

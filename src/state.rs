@@ -15,6 +15,7 @@ pub struct CardInfo {
     pub description: String,
     pub price: Option<i64>,
     pub playable: bool,
+    pub has_target: bool,
 }
 
 impl CardInfo {
@@ -55,6 +56,10 @@ impl CardInfo {
                 .get("is_playable")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(true),
+            has_target: c
+                .get("has_target")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
         }
     }
 }
