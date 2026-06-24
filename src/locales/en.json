@@ -184,6 +184,7 @@
     "label_combat_elite": "Combat {n} (Elite): HP {start}→{end} ({delta}) — {monsters}",
     "label_combat_boss": "Combat {n} (Boss): HP {start}→{end} ({delta}) — {monsters}",
     "label_death": "Cause of death: {cause}",
+    "label_victory": "Victory!",
     "label_combat_type_count": "(normal:{normal} elite:{elite} boss:{boss})",
     "section_machine": "## Machine Summary",
     "ai_prompt": "Rewrite the machine-generated run summary into a player-friendly {lang_name} report.",

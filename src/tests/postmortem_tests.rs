@@ -147,12 +147,14 @@ fn ai_postmortem_prompt_wraps_deterministic_report() {
     let prompt = build_ai_postmortem_prompt(
         "# Slay the Spire Postmortem\n- Floor: 5",
         &crate::test_utils::test_locale(),
+        "Victory",
     );
 
     assert!(prompt.contains("中文复盘报告"));
     assert!(prompt.contains("不要补充日志里没有的内容"));
     assert!(prompt.contains("# Slay the Spire Postmortem"));
     assert!(prompt.contains("Floor: 5"));
+    assert!(prompt.contains("Outcome: Victory"));
 }
 
 #[test]

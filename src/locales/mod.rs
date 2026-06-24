@@ -209,6 +209,7 @@ pub struct PostmortemLocale {
     pub label_combat_elite: String,
     pub label_combat_boss: String,
     pub label_death: String,
+    pub label_victory: String,
     pub label_combat_type_count: String,
     pub section_machine: String,
     pub ai_prompt: String,

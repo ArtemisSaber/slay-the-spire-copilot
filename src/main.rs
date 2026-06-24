@@ -61,7 +61,12 @@ async fn finalize_run_once(
         postmortem::postmortem_path_for_journal(journal_path).display(),
     );
 
-    let prompt = postmortem::build_ai_postmortem_prompt(&deterministic_report, locale);
+    let outcome = if deterministic_report.contains(&locale.postmortem.label_victory) {
+        "Victory"
+    } else {
+        "Defeated"
+    };
+    let prompt = postmortem::build_ai_postmortem_prompt(&deterministic_report, locale, outcome);
     match provider.query_postmortem(&prompt, locale).await {
         Ok(ai_report) => {
             let combined = format!(
@@ -134,9 +139,16 @@ async fn main() {
         let config = config::Config::from_env();
         match llm::LlmProvider::from_config(&config) {
             Ok(provider) => {
+                let outcome =
+                    if deterministic_report.contains(&postmortem_locale.postmortem.label_victory) {
+                        "Victory"
+                    } else {
+                        "Defeated"
+                    };
                 let prompt = postmortem::build_ai_postmortem_prompt(
                     &deterministic_report,
                     &postmortem_locale,
+                    outcome,
                 );
                 match provider.query_postmortem(&prompt, &postmortem_locale).await {
                     Ok(report) => println!("{report}"),

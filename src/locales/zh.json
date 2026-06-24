@@ -184,6 +184,7 @@
     "label_combat_elite": "战斗{n} (精英): 血量{start}→{end} ({delta}) — {monsters}",
     "label_combat_boss": "战斗{n} (Boss): 血量{start}→{end} ({delta}) — {monsters}",
     "label_death": "阵亡原因: {cause}",
+    "label_victory": "本局胜利！",
     "label_combat_type_count": "(普通:{normal} 精英:{elite} Boss:{boss})",
     "section_machine": "## 机器摘要",
     "ai_prompt": "请根据下面的机器生成复盘摘要，写一份更适合玩家阅读的{lang_name}复盘报告。",

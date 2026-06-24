@@ -184,6 +184,7 @@
     "label_combat_elite": "전투{n} (엘리트): HP {start}→{end} ({delta}) — {monsters}",
     "label_combat_boss": "전투{n} (보스): HP {start}→{end} ({delta}) — {monsters}",
     "label_death": "사망 원인: {cause}",
+    "label_victory": "승리!",
     "label_combat_type_count": "(일반:{normal} 엘리트:{elite} 보스:{boss})",
     "section_machine": "## 기계 요약",
     "ai_prompt": "아래 기계 생성 런 요약을 플레이어 친화적인 {lang_name} 보고서로 다시 작성하세요.",

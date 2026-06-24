@@ -184,6 +184,7 @@
     "label_combat_elite": "戦闘{n} (エリート): HP {start}→{end} ({delta}) — {monsters}",
     "label_combat_boss": "戦闘{n} (ボス): HP {start}→{end} ({delta}) — {monsters}",
     "label_death": "死因: {cause}",
+    "label_victory": "勝利！",
     "label_combat_type_count": "(通常:{normal} エリート:{elite} ボス:{boss})",
     "section_machine": "## 機械サマリー",
     "ai_prompt": "以下の機械生成のランサマリーを、プレイヤー向けの{lang_name}レポートに書き直してください。",
