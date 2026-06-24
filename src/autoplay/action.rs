@@ -8,6 +8,11 @@ use crate::state::NormalizedState;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AutoPlayAction {
     Choose(usize),
+    Play {
+        hand_index: usize,
+        target_index: Option<usize>,
+    },
+    End,
     Skip,
     Proceed,
     Leave,
@@ -46,6 +51,7 @@ pub fn resolve_action(
         Some("EVENT") if control.allow_events => resolve_event_action(command_state, state),
         Some("SHOP_SCREEN") if control.allow_shop => resolve_shop_action(command_state),
         Some("MAP") if control.allow_map => resolve_map_action(command_state),
+        Some("NONE") if control.allow_combat => resolve_combat_action(command_state, state),
         _ => None,
     }
 }
@@ -53,6 +59,11 @@ pub fn resolve_action(
 pub fn execute_action_to(writer: &mut impl Write, action: &AutoPlayAction) {
     match action {
         AutoPlayAction::Choose(index) => protocol::send_choose_to(writer, *index),
+        AutoPlayAction::Play {
+            hand_index,
+            target_index,
+        } => protocol::send_play_to(writer, *hand_index, *target_index),
+        AutoPlayAction::End => protocol::send_end_to(writer),
         AutoPlayAction::Skip => protocol::send_skip_to(writer),
         AutoPlayAction::Proceed => protocol::send_proceed_to(writer),
         AutoPlayAction::Leave => protocol::send_leave_to(writer),
@@ -162,6 +173,57 @@ fn resolve_map_action(command_state: &CommandState) -> Option<AutoPlayAction> {
     }
 
     None
+}
+
+fn resolve_combat_action(
+    command_state: &CommandState,
+    state: &NormalizedState,
+) -> Option<AutoPlayAction> {
+    let energy = state.energy.unwrap_or(0);
+
+    if command_state.has_command("play")
+        && let Some((hand_index, target_index)) = first_playable_combat_card(state, energy)
+    {
+        return Some(AutoPlayAction::Play {
+            hand_index,
+            target_index,
+        });
+    }
+
+    if command_state.has_command("end") {
+        return Some(AutoPlayAction::End);
+    }
+
+    None
+}
+
+fn first_playable_combat_card(
+    state: &NormalizedState,
+    energy: i64,
+) -> Option<(usize, Option<usize>)> {
+    let first_target = state.monsters.first().map(|monster| monster.index);
+
+    state
+        .hand
+        .iter()
+        .enumerate()
+        .find_map(|(hand_index, card)| {
+            if card.cost > energy || card.card_type == "STATUS" || card.card_type == "CURSE" {
+                return None;
+            }
+
+            let target_index = if card.card_type == "ATTACK" {
+                first_target
+            } else {
+                None
+            };
+
+            if card.card_type == "ATTACK" && target_index.is_none() {
+                return None;
+            }
+
+            Some((hand_index, target_index))
+        })
 }
 
 #[cfg(test)]
@@ -499,16 +561,145 @@ mod tests {
     }
 
     #[test]
+    fn combat_plays_first_affordable_attack_at_first_monster_when_allowed() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 3, "block": 0, "powers": []},
+                    "hand": [
+                        {"id": "Strike_R", "name": "Strike", "cost": 1, "type": "ATTACK", "uuid": "strike-1"},
+                        {"id": "Defend_R", "name": "Defend", "cost": 1, "type": "SKILL", "uuid": "defend-1"}
+                    ],
+                    "monsters": [
+                        {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
+                    ]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_combat = true;
+
+        assert_eq!(
+            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
+            Some(AutoPlayAction::Play {
+                hand_index: 0,
+                target_index: Some(0),
+            })
+        );
+    }
+
+    #[test]
+    fn combat_skips_unaffordable_cards() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 1, "block": 0, "powers": []},
+                    "hand": [
+                        {"id": "Bash", "name": "Bash", "cost": 2, "type": "ATTACK", "uuid": "bash-1"},
+                        {"id": "Defend_R", "name": "Defend", "cost": 1, "type": "SKILL", "uuid": "defend-1"}
+                    ],
+                    "monsters": [
+                        {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
+                    ]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_combat = true;
+
+        assert_eq!(
+            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
+            Some(AutoPlayAction::Play {
+                hand_index: 1,
+                target_index: None,
+            })
+        );
+    }
+
+    #[test]
+    fn combat_ends_when_no_card_is_playable() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 0, "block": 0, "powers": []},
+                    "hand": [
+                        {"id": "Strike_R", "name": "Strike", "cost": 1, "type": "ATTACK", "uuid": "strike-1"}
+                    ],
+                    "monsters": [
+                        {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
+                    ]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_combat = true;
+
+        assert_eq!(
+            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
+            Some(AutoPlayAction::End)
+        );
+    }
+
+    #[test]
+    fn combat_is_disabled_by_default_until_explicitly_allowed() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 3, "block": 0, "powers": []},
+                    "hand": [
+                        {"id": "Strike_R", "name": "Strike", "cost": 1, "type": "ATTACK", "uuid": "strike-1"}
+                    ],
+                    "monsters": [
+                        {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
+                    ]
+                }
+            }
+        });
+
+        assert_eq!(
+            resolve_action(
+                &AutoPlayControl::default_enabled(),
+                &command_state(&raw),
+                &state(raw.clone())
+            ),
+            None
+        );
+    }
+
+    #[test]
     fn execute_action_writes_protocol_command() {
         let mut buf = Vec::new();
 
         execute_action_to(&mut buf, &AutoPlayAction::Choose(2));
+        execute_action_to(
+            &mut buf,
+            &AutoPlayAction::Play {
+                hand_index: 1,
+                target_index: Some(0),
+            },
+        );
+        execute_action_to(&mut buf, &AutoPlayAction::End);
         execute_action_to(&mut buf, &AutoPlayAction::Skip);
         execute_action_to(&mut buf, &AutoPlayAction::Proceed);
         execute_action_to(&mut buf, &AutoPlayAction::Leave);
 
         let output = String::from_utf8(buf).unwrap();
         let lines: Vec<&str> = output.lines().collect();
-        assert_eq!(lines, vec!["choose 2", "skip", "proceed", "leave"]);
+        assert_eq!(
+            lines,
+            vec!["choose 2", "play 1 0", "end", "skip", "proceed", "leave"]
+        );
     }
 }
