@@ -69,9 +69,10 @@ async fn finalize_run_once(
     let prompt = postmortem::build_ai_postmortem_prompt(&deterministic_report, locale, outcome);
     match provider.query_postmortem(&prompt, locale).await {
         Ok(ai_report) => {
-            let combined = format!(
-                "{ai_report}\n\n---\n\n{}\n\n{deterministic_report}",
-                locale.postmortem.section_machine,
+            let combined = postmortem::combine_postmortem_report(
+                &ai_report,
+                &deterministic_report,
+                &locale.postmortem.section_machine,
             );
             match postmortem::write_report_for_journal(journal_path, &combined) {
                 Ok(path) => tracing::info!("wrote AI postmortem report to {}", path.display()),
@@ -151,7 +152,14 @@ async fn main() {
                     outcome,
                 );
                 match provider.query_postmortem(&prompt, &postmortem_locale).await {
-                    Ok(report) => println!("{report}"),
+                    Ok(report) => {
+                        let combined = postmortem::combine_postmortem_report(
+                            &report,
+                            &deterministic_report,
+                            &postmortem_locale.postmortem.section_machine,
+                        );
+                        println!("{combined}");
+                    }
                     Err(e) => {
                         eprintln!("AI postmortem failed, falling back to plain report: {e}");
                         println!("{deterministic_report}");

@@ -20,6 +20,14 @@ pub fn generate_report_from_journal_file(
     generate_report_from_jsonl(&content, locale)
 }
 
+pub fn combine_postmortem_report(
+    ai_report: &str,
+    deterministic_report: &str,
+    section_machine: &str,
+) -> String {
+    format!("{ai_report}\n\n---\n\n{section_machine}\n\n{deterministic_report}")
+}
+
 pub fn write_report_for_journal(journal_path: &Path, report: &str) -> Result<PathBuf, String> {
     let report_path = postmortem_path_for_journal(journal_path);
     atomic_write(&report_path, report).map_err(|e| e.to_string())?;
