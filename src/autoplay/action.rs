@@ -10,6 +10,7 @@ pub enum AutoPlayAction {
     Choose(usize),
     Skip,
     Proceed,
+    Leave,
 }
 
 pub fn active_control(load: &ControlLoad) -> Option<&AutoPlayControl> {
@@ -38,6 +39,13 @@ pub fn resolve_action(
         Some("CARD_REWARD") if control.allow_card_rewards => {
             resolve_card_reward_action(command_state, state)
         }
+        Some("BOSS_REWARD") if control.allow_boss_rewards => {
+            resolve_boss_reward_action(command_state, state)
+        }
+        Some("REST") if control.allow_rest => resolve_rest_action(command_state, state),
+        Some("EVENT") if control.allow_events => resolve_event_action(command_state, state),
+        Some("SHOP_SCREEN") if control.allow_shop => resolve_shop_action(command_state),
+        Some("MAP") if control.allow_map => resolve_map_action(command_state),
         _ => None,
     }
 }
@@ -47,6 +55,7 @@ pub fn execute_action_to(writer: &mut impl Write, action: &AutoPlayAction) {
         AutoPlayAction::Choose(index) => protocol::send_choose_to(writer, *index),
         AutoPlayAction::Skip => protocol::send_skip_to(writer),
         AutoPlayAction::Proceed => protocol::send_proceed_to(writer),
+        AutoPlayAction::Leave => protocol::send_leave_to(writer),
     }
 }
 
@@ -83,6 +92,73 @@ fn resolve_card_reward_action(
 ) -> Option<AutoPlayAction> {
     if state.skip_available && command_state.has_command("skip") {
         return Some(AutoPlayAction::Skip);
+    }
+
+    None
+}
+
+fn resolve_boss_reward_action(
+    command_state: &CommandState,
+    state: &NormalizedState,
+) -> Option<AutoPlayAction> {
+    if !state.boss_relic_choices.is_empty() && command_state.has_command("choose") {
+        return Some(AutoPlayAction::Choose(0));
+    }
+
+    None
+}
+
+fn resolve_rest_action(
+    command_state: &CommandState,
+    state: &NormalizedState,
+) -> Option<AutoPlayAction> {
+    if !command_state.has_command("choose") {
+        return None;
+    }
+
+    let rest_index = state
+        .rest_options
+        .iter()
+        .position(|option| option == "rest");
+    let smith_index = state
+        .rest_options
+        .iter()
+        .position(|option| option == "smith");
+
+    let hp_is_low = match (state.current_hp, state.max_hp) {
+        (Some(current), Some(max)) if max > 0 => current * 2 < max,
+        _ => false,
+    };
+
+    if hp_is_low {
+        rest_index.or(smith_index).map(AutoPlayAction::Choose)
+    } else {
+        smith_index.or(rest_index).map(AutoPlayAction::Choose)
+    }
+}
+
+fn resolve_event_action(
+    command_state: &CommandState,
+    state: &NormalizedState,
+) -> Option<AutoPlayAction> {
+    if command_state.has_command("choose") && state.event_choices.len() == 1 {
+        return Some(AutoPlayAction::Choose(0));
+    }
+
+    None
+}
+
+fn resolve_shop_action(command_state: &CommandState) -> Option<AutoPlayAction> {
+    if command_state.has_command("leave") {
+        return Some(AutoPlayAction::Leave);
+    }
+
+    None
+}
+
+fn resolve_map_action(command_state: &CommandState) -> Option<AutoPlayAction> {
+    if command_state.has_command("choose") && command_state.choice_list.len() == 1 {
+        return Some(AutoPlayAction::Choose(0));
     }
 
     None
@@ -248,15 +324,191 @@ mod tests {
     }
 
     #[test]
+    fn boss_reward_chooses_first_relic() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "BOSS_REWARD",
+                "screen_state": {
+                    "relics": [
+                        {"id": "Coffee Dripper", "name": "Coffee Dripper"},
+                        {"id": "Astrolabe", "name": "Astrolabe"}
+                    ]
+                }
+            }
+        });
+
+        assert_eq!(
+            resolve_action(
+                &AutoPlayControl::default_enabled(),
+                &command_state(&raw),
+                &state(raw.clone())
+            ),
+            Some(AutoPlayAction::Choose(0))
+        );
+    }
+
+    #[test]
+    fn rest_chooses_rest_when_hp_is_low() {
+        let raw = json!({
+            "available_commands": ["choose", "return"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "REST",
+                "current_hp": 25,
+                "max_hp": 75,
+                "screen_state": {
+                    "rest_options": ["rest", "smith", "toke"]
+                }
+            }
+        });
+
+        assert_eq!(
+            resolve_action(
+                &AutoPlayControl::default_enabled(),
+                &command_state(&raw),
+                &state(raw.clone())
+            ),
+            Some(AutoPlayAction::Choose(0))
+        );
+    }
+
+    #[test]
+    fn rest_chooses_smith_when_hp_is_not_low() {
+        let raw = json!({
+            "available_commands": ["choose", "return"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "REST",
+                "current_hp": 60,
+                "max_hp": 75,
+                "screen_state": {
+                    "rest_options": ["rest", "smith", "toke"]
+                }
+            }
+        });
+
+        assert_eq!(
+            resolve_action(
+                &AutoPlayControl::default_enabled(),
+                &command_state(&raw),
+                &state(raw.clone())
+            ),
+            Some(AutoPlayAction::Choose(1))
+        );
+    }
+
+    #[test]
+    fn single_choice_event_chooses_the_only_option() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "EVENT",
+                "choice_list": ["Continue"]
+            }
+        });
+
+        assert_eq!(
+            resolve_action(
+                &AutoPlayControl::default_enabled(),
+                &command_state(&raw),
+                &state(raw.clone())
+            ),
+            Some(AutoPlayAction::Choose(0))
+        );
+    }
+
+    #[test]
+    fn multiple_choice_event_blocks_for_advice() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "EVENT",
+                "choice_list": ["Fight", "Leave"]
+            }
+        });
+
+        assert_eq!(
+            resolve_action(
+                &AutoPlayControl::default_enabled(),
+                &command_state(&raw),
+                &state(raw.clone())
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn shop_leaves_without_buying_by_default() {
+        let raw = json!({
+            "available_commands": ["choose", "leave"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "SHOP_SCREEN",
+                "choice_list": ["purge", "Strike"]
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_shop = true;
+
+        assert_eq!(
+            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
+            Some(AutoPlayAction::Leave)
+        );
+    }
+
+    #[test]
+    fn map_chooses_single_available_choice_when_allowed() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "MAP",
+                "choice_list": ["M"]
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_map = true;
+
+        assert_eq!(
+            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
+            Some(AutoPlayAction::Choose(0))
+        );
+    }
+
+    #[test]
+    fn map_blocks_when_more_than_one_choice_is_available() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "MAP",
+                "choice_list": ["M", "?"]
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_map = true;
+
+        assert_eq!(
+            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
+            None
+        );
+    }
+
+    #[test]
     fn execute_action_writes_protocol_command() {
         let mut buf = Vec::new();
 
         execute_action_to(&mut buf, &AutoPlayAction::Choose(2));
         execute_action_to(&mut buf, &AutoPlayAction::Skip);
         execute_action_to(&mut buf, &AutoPlayAction::Proceed);
+        execute_action_to(&mut buf, &AutoPlayAction::Leave);
 
         let output = String::from_utf8(buf).unwrap();
         let lines: Vec<&str> = output.lines().collect();
-        assert_eq!(lines, vec!["choose 2", "skip", "proceed"]);
+        assert_eq!(lines, vec!["choose 2", "skip", "proceed", "leave"]);
     }
 }
