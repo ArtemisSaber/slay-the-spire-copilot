@@ -1226,7 +1226,7 @@ mod tests {
                 ]
             }
         });
-        let command_state = CommandState::from_raw(&raw);
+        let _command_state = CommandState::from_raw(&raw);
         let state = state(raw);
         let mut session = AutoPlaySession {
             skipped_combat_reward_potion: true,
@@ -1263,7 +1263,7 @@ mod tests {
                 }
             }
         });
-        let command_state = CommandState::from_raw(&raw);
+        let _command_state = CommandState::from_raw(&raw);
         let state = state(raw);
         let mut session = AutoPlaySession::default();
         let action = Some(AutoPlayAction::Skip);
