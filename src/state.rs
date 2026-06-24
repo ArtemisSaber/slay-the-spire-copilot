@@ -74,14 +74,15 @@ pub struct PowerInfo {
     pub amount: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
 pub enum DangerLevel {
+    #[default]
     Safe,
     Caution,
     Danger,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct DangerFlags {
     pub hp_critical: bool,
     pub incoming_lethal: bool,
@@ -152,7 +153,7 @@ pub struct MapCoord {
     pub children: Vec<(i64, i64)>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct NormalizedState {
     pub screen_type: Option<String>,
     pub room_type: Option<String>,
@@ -191,6 +192,9 @@ pub struct NormalizedState {
     pub map_first_node_chosen: Option<bool>,
     pub map_current_x: Option<i64>,
     pub map_current_y: Option<i64>,
+
+    pub action_phase: Option<String>,
+    pub turn: Option<i64>,
 }
 
 fn extract_cards(arr: &[Value]) -> Vec<CardInfo> {
@@ -370,6 +374,11 @@ impl NormalizedState {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
+        let action_phase = gs
+            .and_then(|g| g.get("action_phase"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
         let character = gs
             .and_then(|g| g.get("class"))
             .and_then(|v| v.as_str())
@@ -388,6 +397,8 @@ impl NormalizedState {
 
         let combat = gs.and_then(|g| g.get("combat_state"));
         let player = combat.and_then(|c| c.get("player"));
+
+        let turn = combat.and_then(|c| c.get("turn")).and_then(|v| v.as_i64());
 
         let energy = player
             .and_then(|p| p.get("energy"))
@@ -668,6 +679,8 @@ impl NormalizedState {
             map_first_node_chosen,
             map_current_x,
             map_current_y,
+            action_phase,
+            turn,
         }
     }
 
@@ -899,6 +912,12 @@ impl NormalizedState {
         }
         if let Some(v) = self.map_current_y {
             map.insert("map_current_y".to_string(), Value::Number(v.into()));
+        }
+        if let Some(ref v) = self.action_phase {
+            map.insert("action_phase".to_string(), Value::String(v.clone()));
+        }
+        if let Some(v) = self.turn {
+            map.insert("turn".to_string(), Value::Number(v.into()));
         }
 
         Value::Object(map)

@@ -35,6 +35,11 @@ struct CombatRecord {
     is_fatal: bool,
 }
 
+struct NormalizedSlice<'a> {
+    data: Option<&'a Value>,
+    hash: &'a str,
+}
+
 pub fn generate_report_from_jsonl(
     input: &str,
     locale: &crate::locales::Locale,
@@ -72,6 +77,22 @@ pub fn generate_report_from_jsonl(
     let mut elite_count = 0usize;
     let mut boss_count = 0usize;
     let mut normal_count = 0usize;
+
+    let mut route_lines: Vec<String> = Vec::new();
+    let mut rest_lines: Vec<String> = Vec::new();
+    let mut shop_lines: Vec<String> = Vec::new();
+    let mut potion_lines: Vec<String> = Vec::new();
+    let mut boss_relic_lines: Vec<String> = Vec::new();
+
+    let mut prev_floor: Option<i64> = None;
+    let mut prev_hp: Option<i64> = None;
+    let mut prev_gold: Option<i64> = None;
+    let mut prev_relics: Vec<String> = Vec::new();
+    let mut prev_potions: Vec<String> = Vec::new();
+    let mut prev_deck: HashMap<String, usize> = HashMap::new();
+    let mut pending_rest: Option<i64> = None;
+    let mut pending_shop: Option<i64> = None;
+    let mut pending_boss_relic: Option<Vec<(String, String)>> = None;
 
     let pm = &locale.postmortem;
 
@@ -200,6 +221,190 @@ pub fn generate_report_from_jsonl(
                         seen_indexes.clear();
                     }
 
+                    let floor = state.get("floor").and_then(|v| v.as_i64());
+                    let hp = state.get("current_hp").and_then(|v| v.as_i64());
+                    let gold = state.get("gold").and_then(|v| v.as_i64());
+
+                    let current_relics: Vec<String> = state
+                        .get("relics")
+                        .and_then(|v| v.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|r| {
+                                    r.get("name")
+                                        .and_then(|n| n.as_str())
+                                        .map(|s| s.to_string())
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+
+                    let current_potions: Vec<String> = state
+                        .get("potions")
+                        .and_then(|v| v.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|p| {
+                                    p.get("name")
+                                        .and_then(|n| n.as_str())
+                                        .map(|s| s.to_string())
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+
+                    let current_deck = deck_counts(state);
+
+                    if screen == "MAP"
+                        && state.get("map_first_node_chosen").and_then(|v| v.as_bool())
+                            == Some(true)
+                        && let (Some(cx), Some(cy)) = (
+                            state.get("map_current_x").and_then(|v| v.as_i64()),
+                            state.get("map_current_y").and_then(|v| v.as_i64()),
+                        )
+                    {
+                        let room = state
+                            .get("room_type")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("?");
+                        let symbol = state
+                            .get("map_nodes")
+                            .and_then(|v| v.as_array())
+                            .and_then(|arr| {
+                                arr.iter().find_map(|n| {
+                                    if n.get("x").and_then(|v| v.as_i64()) == Some(cx)
+                                        && n.get("y").and_then(|v| v.as_i64()) == Some(cy)
+                                    {
+                                        n.get("symbol")
+                                            .and_then(|v| v.as_str())
+                                            .map(|s| s.to_string())
+                                    } else {
+                                        None
+                                    }
+                                })
+                            })
+                            .unwrap_or_else(|| room.to_string());
+                        if prev_floor != floor {
+                            route_lines.push(format_route_entry(&symbol, room));
+                            prev_floor = floor;
+                        }
+                    }
+
+                    if floor == Some(0) && route_lines.is_empty() {
+                        route_lines.push("起始".to_string());
+                        prev_floor = Some(0);
+                    }
+
+                    if screen != "REST" && screen != "SHOP" && screen != "BOSS_REWARD" {
+                        if let Some(rest_floor) = pending_rest.take()
+                            && let (Some(prev_hp), Some(hp)) = (prev_hp, hp)
+                        {
+                            let healed = hp.saturating_sub(prev_hp);
+                            let is_shop_or_event = screen == "SHOP" || screen == "EVENT";
+                            if healed > 0 && !is_shop_or_event {
+                                rest_lines.push(
+                                    pm.label_rest_entry
+                                        .replace("{floor}", &rest_floor.to_string())
+                                        .replace("{choice}", &pm.label_rest_rested.clone()),
+                                );
+                            } else {
+                                rest_lines.push(
+                                    pm.label_rest_entry
+                                        .replace("{floor}", &rest_floor.to_string())
+                                        .replace("{choice}", &pm.label_rest_smithed.clone()),
+                                );
+                            }
+                        }
+
+                        if let Some(shop_floor) = pending_shop.take() {
+                            let mut bought = Vec::new();
+                            for (id, count) in &current_deck {
+                                let prev = prev_deck.get(id).copied().unwrap_or(0);
+                                if *count > prev
+                                    && let Some(name) = card_name_from_master_cards(state, id)
+                                {
+                                    bought.push(name);
+                                }
+                            }
+                            let mut removed = Vec::new();
+                            for (id, count) in &prev_deck {
+                                let curr = current_deck.get(id).copied().unwrap_or(0);
+                                if curr < *count {
+                                    removed.push(id.clone());
+                                }
+                            }
+                            for relic in &current_relics {
+                                if !prev_relics.contains(relic) {
+                                    bought.push(format!("[遗物] {relic}"));
+                                }
+                            }
+                            let spent = prev_gold
+                                .and_then(|pg| gold.map(|g| pg.saturating_sub(g)))
+                                .unwrap_or(0);
+                            if spent > 0 || !bought.is_empty() || !removed.is_empty() {
+                                shop_lines.push(
+                                    pm.label_shop_spent
+                                        .replace("{floor}", &shop_floor.to_string())
+                                        .replace("{gold}", &spent.to_string()),
+                                );
+                                for item in &bought {
+                                    shop_lines.push(pm.label_shop_bought.replace("{item}", item));
+                                }
+                                for card_id in &removed {
+                                    let name = card_name_from_deck_map(&prev_deck, card_id)
+                                        .unwrap_or_else(|| card_id.clone());
+                                    shop_lines.push(pm.label_shop_removed.replace("{card}", &name));
+                                }
+                            }
+                        }
+
+                        if let Some(choices) = pending_boss_relic.take() {
+                            for relic in &current_relics {
+                                if !prev_relics.contains(relic) {
+                                    for (_, name) in &choices {
+                                        if relic == name {
+                                            boss_relic_lines.push(
+                                                pm.label_boss_relic_entry.replace("{name}", name),
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if screen == "REST" {
+                        pending_rest = floor;
+                    }
+                    if screen == "SHOP" {
+                        pending_shop = floor;
+                    }
+                    if screen == "BOSS_REWARD" {
+                        let choices = extract_boss_relic_choices(state);
+                        if !choices.is_empty() {
+                            pending_boss_relic = Some(choices);
+                        }
+                    }
+
+                    if !prev_potions.is_empty() {
+                        for potion in &prev_potions {
+                            if !current_potions.contains(potion) {
+                                let floor_label = floor.map_or("?".to_string(), |f| f.to_string());
+                                potion_lines.push(
+                                    pm.label_potion_used
+                                        .replace("{name}", potion)
+                                        .replace("{floor}", &floor_label),
+                                );
+                            }
+                        }
+                    }
+
+                    prev_hp = hp;
+                    prev_gold = gold;
+                    prev_relics = current_relics;
+                    prev_potions = current_potions;
+                    prev_deck = current_deck;
+
                     final_state = Some(state.clone());
                 }
             }
@@ -209,6 +414,18 @@ pub fn generate_report_from_jsonl(
 
     if in_combat {
         combat_records.push(current_combat);
+    }
+
+    if let Some(ref state) = final_state
+        && let (Some(final_floor), Some(last_route_floor)) =
+            (state.get("floor").and_then(|v| v.as_i64()), prev_floor)
+        && final_floor > last_route_floor
+    {
+        let room = state
+            .get("room_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("?");
+        route_lines.push(room_display(room).to_string());
     }
 
     let mut report = Vec::new();
@@ -481,7 +698,7 @@ pub fn generate_report_from_jsonl(
     if !advice_lines.is_empty() {
         report.push(String::new());
         report.push(pm.section_decisions.clone());
-        report.extend(advice_lines);
+        report.extend(advice_lines.clone());
     }
 
     if !reward_lines.is_empty() {
@@ -490,7 +707,344 @@ pub fn generate_report_from_jsonl(
         report.extend(reward_lines);
     }
 
+    if !route_lines.is_empty() {
+        report.push(String::new());
+        report.push(pm.section_route.clone());
+        report.push(route_lines.join(" → "));
+    }
+
+    if !rest_lines.is_empty() {
+        report.push(String::new());
+        report.push(pm.section_rest_choices.clone());
+        report.extend(rest_lines);
+    }
+
+    if !shop_lines.is_empty() {
+        report.push(String::new());
+        report.push(pm.section_shop.clone());
+        report.extend(shop_lines);
+    }
+
+    if !boss_relic_lines.is_empty() {
+        report.push(String::new());
+        report.push(pm.section_boss_relic.clone());
+        report.extend(boss_relic_lines);
+    }
+
+    let final_combat_lines = build_final_combat_lines(&events, &advice_lines, pm);
+    if !final_combat_lines.is_empty() {
+        report.push(String::new());
+        report.extend(final_combat_lines);
+    }
+
+    if !potion_lines.is_empty() {
+        report.push(String::new());
+        report.push(pm.section_potions.clone());
+        report.extend(potion_lines);
+    }
+
     Ok(report.join("\n"))
+}
+
+fn build_final_combat_lines(
+    events: &[Value],
+    advice_lines: &[String],
+    pm: &crate::locales::PostmortemLocale,
+) -> Vec<String> {
+    let fatal_floor = events
+        .iter()
+        .filter_map(|e| e.get("normalized"))
+        .find(|n| n.get("current_hp").and_then(|v| v.as_i64()) == Some(0))
+        .and_then(|n| n.get("floor").and_then(|v| v.as_i64()));
+
+    let Some(fatal_floor) = fatal_floor else {
+        return Vec::new();
+    };
+
+    let states: Vec<&Value> = events
+        .iter()
+        .filter(|e| {
+            e.get("normalized")
+                .and_then(|n| n.get("floor").and_then(|v| v.as_i64()))
+                == Some(fatal_floor)
+        })
+        .collect();
+
+    if states.is_empty() {
+        return Vec::new();
+    }
+
+    let monsters: Vec<String> = states
+        .first()
+        .and_then(|e| e.get("normalized"))
+        .and_then(|s| s.get("monsters").and_then(|v| v.as_array()))
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| {
+                    m.get("name")
+                        .and_then(|n| n.as_str().map(|s| s.to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let monster_names = monsters.join("、");
+
+    let mut lines = Vec::new();
+    lines.push(format!("{} — {monster_names}", pm.section_final_combat));
+
+    let mut turn_states: Vec<Vec<NormalizedSlice>> = Vec::new();
+    let mut current_turn: Vec<NormalizedSlice> = Vec::new();
+    let mut last_turn: Option<i64> = None;
+
+    for event in &states {
+        let n = event.get("normalized");
+        let turn = n.and_then(|n| n.get("turn").and_then(|v| v.as_i64()));
+        let energy = n.and_then(|n| n.get("energy").and_then(|v| v.as_i64()));
+        let hash = event
+            .get("advice_hash")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let slice = NormalizedSlice { data: n, hash };
+
+        let is_new_turn = if turn.is_some() {
+            turn != last_turn && !current_turn.is_empty()
+        } else {
+            // Fallback: energy reset or hand significantly larger
+            let prev_energy = current_turn
+                .last()
+                .and_then(|s| s.data)
+                .and_then(|v| v.get("energy").and_then(|v| v.as_i64()))
+                .unwrap_or(0);
+            let prev_hand = current_turn
+                .last()
+                .and_then(|s| s.data)
+                .and_then(|v| v.get("hand").and_then(|v| v.as_array()))
+                .map(|a| a.len())
+                .unwrap_or(0);
+            let cur_hand = n
+                .and_then(|v| v.get("hand").and_then(|v| v.as_array()))
+                .map(|a| a.len())
+                .unwrap_or(0);
+            (energy.unwrap_or(0) > prev_energy + 1 || cur_hand > prev_hand + 2)
+                && !current_turn.is_empty()
+        };
+
+        if is_new_turn {
+            turn_states.push(std::mem::take(&mut current_turn));
+        }
+        current_turn.push(slice);
+        last_turn = turn;
+    }
+    if !current_turn.is_empty() {
+        turn_states.push(current_turn);
+    }
+
+    let mut prev_potions: Vec<String> = states
+        .first()
+        .and_then(|e| e.get("normalized"))
+        .and_then(|s| s.get("potions").and_then(|v| v.as_array()))
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|p| {
+                    p.get("name")
+                        .and_then(|n| n.as_str().map(|s| s.to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    for (ti, turn) in turn_states.iter().enumerate() {
+        let first = turn.first().and_then(|s| s.data).unwrap();
+        let last = turn.last().and_then(|s| s.data).unwrap();
+        let state_hash = turn.first().map(|s| s.hash).unwrap_or("");
+
+        let hp = first
+            .get("current_hp")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        let block = first.get("block").and_then(|v| v.as_i64()).unwrap_or(0);
+
+        let hand: Vec<String> = first
+            .get("hand")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|c| {
+                        c.get("name")
+                            .and_then(|n| n.as_str().map(|s| s.to_string()))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let incoming: i64 = first
+            .get("incoming_damage")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+
+        let monster_hp: Vec<String> = first
+            .get("monsters")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .map(|m| {
+                        let name = m.get("name").and_then(|n| n.as_str()).unwrap_or("?");
+                        let hp = m.get("current_hp").and_then(|v| v.as_i64()).unwrap_or(0);
+                        format!("{name}({hp})")
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let intent_str = if incoming > 0 {
+            "攻击".to_string()
+        } else {
+            "减益".to_string()
+        };
+
+        lines.push(String::new());
+        lines.push(
+            pm.label_final_turn
+                .replace("{n}", &(ti + 1).to_string())
+                .replace("{hp}", &hp.to_string())
+                .replace("{block}", &block.to_string())
+                .replace("{hand}", &hand.join(", ")),
+        );
+
+        if !monster_hp.is_empty() || incoming != 0 {
+            let mon_hp_str = monster_hp.join(", ");
+            lines.push(
+                pm.label_final_enemy
+                    .replace("{intent}", &intent_str)
+                    .replace("{dmg}", &incoming.to_string())
+                    .replace("{hp}", &mon_hp_str),
+            );
+        }
+
+        if !state_hash.is_empty() {
+            for adv in advice_lines {
+                if adv.contains(state_hash) {
+                    let short = adv
+                        .lines()
+                        .skip(1)
+                        .find(|l| !l.trim().is_empty())
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
+                    if !short.is_empty() {
+                        lines.push(pm.label_final_ai.replace("{advice}", &short));
+                    }
+                    break;
+                }
+            }
+        }
+
+        if turn.len() > 1 {
+            let mut played = Vec::new();
+            for w in turn.windows(2) {
+                let prev = w[0].data;
+                let curr = w[1].data;
+                let prev_energy = prev
+                    .and_then(|v| v.get("energy").and_then(|v| v.as_i64()))
+                    .unwrap_or(0);
+                let curr_energy = curr
+                    .and_then(|v| v.get("energy").and_then(|v| v.as_i64()))
+                    .unwrap_or(0);
+                let prev_hand: Vec<(String, String)> = prev
+                    .and_then(|v| v.get("hand"))
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|c| {
+                                let name = c
+                                    .get("name")
+                                    .and_then(|n| n.as_str())
+                                    .unwrap_or("?")
+                                    .to_string();
+                                let uuid = c
+                                    .get("uuid")
+                                    .and_then(|n| n.as_str())
+                                    .unwrap_or("?")
+                                    .to_string();
+                                (name, uuid)
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let curr_hand: Vec<(String, String)> = curr
+                    .and_then(|v| v.get("hand"))
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|c| {
+                                let name = c
+                                    .get("name")
+                                    .and_then(|n| n.as_str())
+                                    .unwrap_or("?")
+                                    .to_string();
+                                let uuid = c
+                                    .get("uuid")
+                                    .and_then(|n| n.as_str())
+                                    .unwrap_or("?")
+                                    .to_string();
+                                (name, uuid)
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                let curr_uuids: std::collections::HashSet<&str> =
+                    curr_hand.iter().map(|(_, u)| u.as_str()).collect();
+                for (name, uuid) in &prev_hand {
+                    if !curr_uuids.contains(uuid.as_str()) && curr_energy < prev_energy {
+                        played.push(name.clone());
+                    }
+                }
+            }
+            if !played.is_empty() {
+                lines.push(
+                    pm.label_final_played
+                        .replace("{cards}", &played.join(" → ")),
+                );
+            }
+        }
+
+        let end_hp = last.get("current_hp").and_then(|v| v.as_i64()).unwrap_or(0);
+        let end_block = last.get("block").and_then(|v| v.as_i64()).unwrap_or(0);
+
+        if end_hp == 0 {
+            lines.push("  💀 HP 0, 阵亡".to_string());
+        } else {
+            lines.push(
+                pm.label_final_result
+                    .replace("{hp}", &end_hp.to_string())
+                    .replace("{block}", &end_block.to_string()),
+            );
+        }
+
+        let current_potions: Vec<String> = last
+            .get("potions")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|p| {
+                        p.get("name")
+                            .and_then(|n| n.as_str().map(|s| s.to_string()))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        for p in &prev_potions {
+            if !current_potions.contains(p) {
+                lines.push(format!("  ⚠ 使用了药水: {p}"));
+            }
+        }
+        prev_potions = current_potions;
+    }
+
+    lines
 }
 
 pub fn build_ai_postmortem_prompt(
@@ -580,6 +1134,66 @@ fn display_i64(state: &Value, key: &str) -> String {
         .get(key)
         .and_then(|v| v.as_i64())
         .map_or("?".to_string(), |v| v.to_string())
+}
+
+fn extract_boss_relic_choices(state: &Value) -> Vec<(String, String)> {
+    state
+        .get("boss_relic_choices")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|r| {
+                    let name = r
+                        .get("name")
+                        .and_then(|n| n.as_str())
+                        .map(|s| s.to_string())?;
+                    Some((name.clone(), name))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn card_name_from_master_cards(state: &Value, id: &str) -> Option<String> {
+    state
+        .get("master_cards")
+        .and_then(|v| v.as_array())?
+        .iter()
+        .find_map(|card| {
+            if card.get("id").and_then(|v| v.as_str()) == Some(id) {
+                card.get("name")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+            } else {
+                None
+            }
+        })
+}
+
+fn card_name_from_deck_map(deck: &HashMap<String, usize>, id: &str) -> Option<String> {
+    deck.keys().find(|k| k == &id).cloned()
+}
+
+fn room_display(room_type: &str) -> &str {
+    match room_type {
+        "MonsterRoom" => "战斗",
+        "MonsterRoomElite" => "精英",
+        "MonsterRoomBoss" => "Boss",
+        "EventRoom" => "事件",
+        "ShopRoom" => "商店",
+        "RestRoom" => "休息",
+        "TreasureRoom" => "宝箱",
+        "NeowRoom" => "起始",
+        _ => room_type,
+    }
+}
+
+fn format_route_entry(symbol: &str, room_type: &str) -> String {
+    if symbol == "?" {
+        format!("?({})", room_display(room_type))
+    } else {
+        room_display(room_type).to_string()
+    }
 }
 
 #[cfg(test)]

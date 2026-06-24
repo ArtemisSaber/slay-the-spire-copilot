@@ -282,7 +282,7 @@ fn scan_for_existing_run(runs_root: &Path, seed: i64) -> Option<PathBuf> {
         let content = fs::read_to_string(&journal_path).ok()?;
 
         let mut found_seed = false;
-        let mut has_ended = false;
+        let mut is_terminal = false;
 
         for line in content.lines() {
             let Ok(event) = serde_json::from_str::<serde_json::Value>(line) else {
@@ -295,13 +295,13 @@ fn scan_for_existing_run(runs_root: &Path, seed: i64) -> Option<PathBuf> {
                     }
                 }
                 Some("run_ended") => {
-                    has_ended = true;
+                    is_terminal = event.get("reason").and_then(|v| v.as_str()) == Some("game_over");
                 }
                 _ => {}
             }
         }
 
-        if found_seed && !has_ended {
+        if found_seed && !is_terminal {
             return Some(dir);
         }
     }

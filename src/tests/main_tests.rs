@@ -33,7 +33,13 @@ fn gone_monster() -> serde_json::Value {
 }
 
 fn no_combat_state(screen_type: &str) -> serde_json::Value {
-    make_state(screen_type, None)
+    let mut state = make_state(screen_type, None);
+    if screen_type == "REST" {
+        state["game_state"]["screen_state"] = json!({
+            "rest_options": ["rest", "smith"]
+        });
+    }
+    state
 }
 
 fn event_state_with_choices(choices: Vec<&str>) -> serde_json::Value {

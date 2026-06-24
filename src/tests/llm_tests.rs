@@ -209,6 +209,7 @@ fn test_state() -> NormalizedState {
         map_first_node_chosen: None,
         map_current_x: None,
         map_current_y: None,
+        ..Default::default()
     }
 }
 

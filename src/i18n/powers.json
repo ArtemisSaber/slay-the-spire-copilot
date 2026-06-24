@@ -5,6 +5,12 @@
     "ja": "スキル使用時+{amount}筋力",
     "ko": "스킬 사용 시 +{amount} 힘"
   },
+  "Anger": {
+    "zh": "每打技能牌+{amount}力量",
+    "en": "+{amount} Str per Skill played",
+    "ja": "スキル使用時+{amount}筋力",
+    "ko": "스킬 사용 시 +{amount} 힘"
+  },
   "Thorns": {
     "zh": "受攻击反伤{amount}点",
     "en": "Deal {amount} damage when attacked",

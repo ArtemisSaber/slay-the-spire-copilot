@@ -56,6 +56,7 @@ fn test_state() -> NormalizedState {
         map_current_x: None,
         map_current_y: None,
         skip_available: false,
+        ..Default::default()
     }
 }
 

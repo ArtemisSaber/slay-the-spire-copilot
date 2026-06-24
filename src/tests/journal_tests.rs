@@ -346,6 +346,64 @@ fn confirm_skips_ended_run() {
 }
 
 #[test]
+fn confirm_continues_stdin_closed_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let locale = test_locale();
+    let seed = -3047511808784702860_i64;
+
+    let mut existing = Journal::new_at(dir.path(), "interrupted-run");
+    let raw = load_fixture("combat-state.json");
+    let state = crate::state::NormalizedState::from_raw(&raw, &locale);
+    existing.log_state_change(&state.stable_hash(), &state);
+    existing.log_run_ended("stdin_closed");
+
+    let config = crate::config::Config::from_env();
+    let mut journal = Journal::new(dir.path().to_path_buf());
+    journal.confirm(seed, "IRONCLAD", 20, &config, &locale);
+
+    assert!(journal.is_continued_run());
+    assert_eq!(
+        journal
+            .path()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .file_name()
+            .unwrap(),
+        "interrupted-run"
+    );
+}
+
+#[test]
+fn confirm_continues_left_game_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let locale = test_locale();
+    let seed = -3047511808784702860_i64;
+
+    let mut existing = Journal::new_at(dir.path(), "left-run");
+    let raw = load_fixture("combat-state.json");
+    let state = crate::state::NormalizedState::from_raw(&raw, &locale);
+    existing.log_state_change(&state.stable_hash(), &state);
+    existing.log_run_ended("left_game");
+
+    let config = crate::config::Config::from_env();
+    let mut journal = Journal::new(dir.path().to_path_buf());
+    journal.confirm(seed, "IRONCLAD", 20, &config, &locale);
+
+    assert!(journal.is_continued_run());
+    assert_eq!(
+        journal
+            .path()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .file_name()
+            .unwrap(),
+        "left-run"
+    );
+}
+
+#[test]
 fn confirm_is_idempotent() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = Journal::new(dir.path().to_path_buf());

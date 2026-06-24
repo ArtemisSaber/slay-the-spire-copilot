@@ -161,6 +161,9 @@ pub fn should_generate_advice(screen_type: &str, raw: &serde_json::Value) -> boo
     if screen_type == "EVENT" {
         return available_event_choice_count(raw) > 1;
     }
+    if screen_type == "REST" {
+        return available_rest_option_count(raw) > 0;
+    }
     if SCREEN_CONFIG.generate.contains(&screen_type) {
         return true;
     }
@@ -189,5 +192,12 @@ pub fn available_event_choice_count(raw: &serde_json::Value) -> usize {
                 })
                 .count()
         })
+        .unwrap_or(0)
+}
+
+pub fn available_rest_option_count(raw: &serde_json::Value) -> usize {
+    raw.pointer("/game_state/screen_state/rest_options")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.len())
         .unwrap_or(0)
 }

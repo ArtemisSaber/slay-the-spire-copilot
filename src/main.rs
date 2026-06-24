@@ -108,7 +108,7 @@ async fn main() {
     }
 
     if let Some(path) = options.postmortem_path.as_deref() {
-        let postmortem_locale = locales::Locale::load("en");
+        let postmortem_locale = locales::Locale::load("zh");
 
         let deterministic_report = match std::fs::read_to_string(path)
             .map_err(|e| e.to_string())
@@ -135,7 +135,12 @@ async fn main() {
                     &postmortem_locale,
                 );
                 match provider.query_postmortem(&prompt, &postmortem_locale).await {
-                    Ok(report) => println!("{report}"),
+                    Ok(report) => {
+                        println!(
+                            "{report}\n\n---\n\n{}\n\n{deterministic_report}",
+                            postmortem_locale.postmortem.section_machine
+                        );
+                    }
                     Err(e) => {
                         eprintln!("AI postmortem failed, falling back to plain report: {e}");
                         println!("{deterministic_report}");
@@ -198,6 +203,7 @@ async fn main() {
     let mut map_gate = MapGate::new();
     let mut saw_game_state = false;
     let mut run_finalized = false;
+    let mut just_reset_for_game_over = false;
     let stdin = io::stdin();
 
     for line in stdin.lock().lines() {
@@ -228,6 +234,12 @@ async fn main() {
             tracing::warn!("received error from CommunicationMod: {}", trimmed);
             continue;
         }
+
+        if just_reset_for_game_over && is_game_over_state(&raw) {
+            tracing::debug!("skipping duplicate game_over state");
+            continue;
+        }
+        just_reset_for_game_over = false;
 
         if !is_in_game(&raw) {
             if should_end_run(&raw, saw_game_state) {
@@ -358,6 +370,7 @@ async fn main() {
             map_gate = MapGate::new();
             saw_game_state = false;
             run_finalized = false;
+            just_reset_for_game_over = true;
             tracing::info!("run ended, waiting for next run...");
             continue;
         }
