@@ -28,6 +28,8 @@ pub struct AutoPlayControl {
     pub allow_combat: bool,
     pub allow_selection_screens: bool,
     pub min_hp_percent: Option<u8>,
+    #[serde(default)]
+    pub last_shop_room_floor: Option<i64>,
 }
 
 impl AutoPlayControl {
@@ -48,6 +50,7 @@ impl AutoPlayControl {
             allow_combat: true,
             allow_selection_screens: true,
             min_hp_percent: None,
+            last_shop_room_floor: None,
         }
     }
 }

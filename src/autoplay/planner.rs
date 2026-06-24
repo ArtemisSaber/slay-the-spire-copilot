@@ -37,7 +37,7 @@ struct ActionRequestSummary {
 
 pub async fn plan_action(
     provider: &LlmProvider,
-    control: &AutoPlayControl,
+    control: &mut AutoPlayControl,
     command_state: &CommandState,
     state: &NormalizedState,
     locale: &Locale,
@@ -48,10 +48,15 @@ pub async fn plan_action(
         return Ok(None);
     }
 
+    if let Some(action) = try_deterministic_action(control, command_state, state, &candidates) {
+        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+        return Ok(Some(action));
+    }
+
     let effort = state
         .screen_type
         .as_deref()
-        .map(Effort::from_screen_type)
+        .map(|st| Effort::from_screen_type(st, !state.monsters.is_empty()))
         .unwrap_or(Effort::Medium);
 
     let mut rejections = vec![];
@@ -88,6 +93,51 @@ pub async fn plan_action(
     }
 
     Ok(fallback_action(control, command_state, state))
+}
+
+fn try_deterministic_action(
+    control: &mut AutoPlayControl,
+    command_state: &CommandState,
+    state: &NormalizedState,
+    candidates: &[ActionCandidate],
+) -> Option<AutoPlayAction> {
+    if candidates.len() == 1 {
+        let sole = &candidates[0];
+        let request = ActionRequest {
+            kind: sole.kind.clone(),
+            action_id: sole.action_id.clone(),
+            target_index: sole.target_required.and(Some(0)),
+        };
+        let action = resolve_requested_action(control, command_state, state, &request)?;
+
+        if state.screen_type.as_deref() == Some("SHOP_ROOM") && action == AutoPlayAction::Choose(0)
+        {
+            control.last_shop_room_floor = state.floor;
+        }
+
+        return Some(action);
+    }
+
+    // COMBAT_REWARD: deterministic when potion + empty slots, otherwise use priority fallback.
+    if state.screen_type.as_deref() == Some("COMBAT_REWARD") {
+        // Potion with empty slots — always pick, no LLM needed.
+        if let Some(index) = command_state.choice_list.iter().position(|c| c == "potion")
+            && state.empty_potion_slots > 0
+            && command_state.has_command("choose")
+        {
+            return Some(AutoPlayAction::Choose(index));
+        }
+        // All other rewards — deterministic priority (gold → relic → potion → keys → card → proceed).
+        // If potion is in the list but slots are full, fall through to LLM.
+        if !command_state.choice_list.iter().any(|c| c == "potion") || state.empty_potion_slots > 0
+        {
+            return fallback_combat_reward_action(control, command_state);
+        }
+        // Potion with full slots — let LLM decide (discard/use or skip).
+        return None;
+    }
+
+    None
 }
 
 fn build_planner_prompt(
@@ -255,7 +305,7 @@ fn fallback_action(
         Some("EVENT") if control.allow_events => (!state.event_choices.is_empty()
             && command_state.has_command("choose"))
         .then_some(AutoPlayAction::Choose(0)),
-        Some("SHOP_SCREEN") if control.allow_shop => command_state
+        Some("SHOP_ROOM" | "SHOP_SCREEN") if control.allow_shop => command_state
             .has_command("leave")
             .then_some(AutoPlayAction::Leave),
         Some("MAP") if control.allow_map => (!command_state.choice_list.is_empty()
@@ -264,10 +314,20 @@ fn fallback_action(
         Some("NONE") if control.allow_combat => fallback_combat_action(command_state, state),
         Some("GRID") if control.allow_selection_screens => command_state
             .has_command("choose")
-            .then_some(AutoPlayAction::Choose(0)),
+            .then_some(AutoPlayAction::Choose(0))
+            .or_else(|| {
+                command_state
+                    .has_command("confirm")
+                    .then_some(AutoPlayAction::Proceed)
+            }),
         Some("HAND_SELECT") if control.allow_selection_screens => command_state
             .has_command("choose")
-            .then_some(AutoPlayAction::Choose(0)),
+            .then_some(AutoPlayAction::Choose(0))
+            .or_else(|| {
+                command_state
+                    .has_command("confirm")
+                    .then_some(AutoPlayAction::Proceed)
+            }),
         _ => None,
     }
 }
@@ -318,7 +378,9 @@ fn fallback_rest_action(
     state: &NormalizedState,
 ) -> Option<AutoPlayAction> {
     if !command_state.has_command("choose") {
-        return None;
+        return command_state
+            .has_command("proceed")
+            .then_some(AutoPlayAction::Proceed);
     }
 
     let rest_index = state
@@ -409,7 +471,7 @@ mod tests {
                 }
             }
         });
-        let control = AutoPlayControl::default_enabled();
+        let mut control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
         let candidates = available_action_candidates(&control, &command_state, &state);
@@ -458,7 +520,7 @@ mod tests {
                 "choice_list": ["Leave"]
             }
         });
-        let control = AutoPlayControl::default_enabled();
+        let mut control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
         let candidates = available_action_candidates(&control, &command_state, &state);
@@ -494,7 +556,7 @@ mod tests {
                 "choice_list": ["Leave"]
             }
         });
-        let control = AutoPlayControl::default_enabled();
+        let mut control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
         let candidates = available_action_candidates(&control, &command_state, &state);
@@ -521,7 +583,7 @@ mod tests {
                 "choice_list": ["Leave"]
             }
         });
-        let control = AutoPlayControl::default_enabled();
+        let mut control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
         let candidates = available_action_candidates(&control, &command_state, &state);
@@ -565,13 +627,13 @@ mod tests {
                 }
             }
         });
-        let control = AutoPlayControl::default_enabled();
+        let mut control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
 
         let action = plan_action(
             &LlmProvider::Mock,
-            &control,
+            &mut control,
             &command_state,
             &state,
             &Locale::load("en"),
@@ -592,7 +654,7 @@ mod tests {
                 "choice_list": ["Fight", "Leave"]
             }
         });
-        let control = AutoPlayControl::default_enabled();
+        let mut control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
 
@@ -609,7 +671,7 @@ mod tests {
                 "choice_list": ["M", "?"]
             }
         });
-        let control = AutoPlayControl::default_enabled();
+        let mut control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
 
@@ -626,7 +688,7 @@ mod tests {
                 "choice_list": ["unknown_reward"]
             }
         });
-        let control = AutoPlayControl::default_enabled();
+        let mut control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
 
@@ -643,7 +705,7 @@ mod tests {
                 "choice_list": ["Strike", "Defend"]
             }
         });
-        let control = AutoPlayControl::default_enabled();
+        let mut control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
 
@@ -670,7 +732,7 @@ mod tests {
                 }
             }
         });
-        let control = AutoPlayControl::default_enabled();
+        let mut control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
 
@@ -696,13 +758,13 @@ mod tests {
                 "choice_list": ["retry_test_marker"]
             }
         });
-        let control = AutoPlayControl::default_enabled();
+        let mut control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
 
         let action = plan_action(
             &LlmProvider::Mock,
-            &control,
+            &mut control,
             &command_state,
             &state,
             &Locale::load("en"),
@@ -721,16 +783,16 @@ mod tests {
             "ready_for_command": true,
             "game_state": {
                 "screen_type": "EVENT",
-                "choice_list": ["fallback_test_marker"]
+                "choice_list": ["a", "b"]
             }
         });
-        let control = AutoPlayControl::default_enabled();
+        let mut control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
 
         let action = plan_action(
             &LlmProvider::Mock,
-            &control,
+            &mut control,
             &command_state,
             &state,
             &Locale::load("en"),
@@ -740,5 +802,167 @@ mod tests {
         .unwrap();
 
         assert_eq!(action, Some(AutoPlayAction::Choose(0)));
+    }
+
+    #[test]
+    fn try_deterministic_single_candidate_returns_action() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "EVENT",
+                "screen_state": {
+                    "choices": ["Proceed"]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+        let candidates = available_action_candidates(&control, &command_state, &state);
+
+        assert_eq!(candidates.len(), 1);
+        let action = try_deterministic_action(&mut control, &command_state, &state, &candidates);
+        assert_eq!(action, Some(AutoPlayAction::Choose(0)));
+    }
+
+    #[test]
+    fn try_deterministic_multiple_candidates_returns_none() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "EVENT",
+                "screen_state": {
+                    "choices": ["Fight", "Leave"]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+        let candidates = available_action_candidates(&control, &command_state, &state);
+
+        assert_eq!(candidates.len(), 2);
+        let action = try_deterministic_action(&mut control, &command_state, &state, &candidates);
+        assert_eq!(action, None);
+    }
+
+    #[test]
+    fn try_deterministic_combat_reward_uses_fallback() {
+        let raw = json!({
+            "available_commands": ["choose", "proceed"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "COMBAT_REWARD",
+                "choice_list": ["gold", "relic"]
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+        let candidates = available_action_candidates(&control, &command_state, &state);
+
+        assert!(candidates.len() > 1);
+        let action = try_deterministic_action(&mut control, &command_state, &state, &candidates);
+        assert_eq!(action, Some(AutoPlayAction::Choose(0)));
+    }
+
+    #[test]
+    fn fallback_rest_proceeds_when_choose_unavailable() {
+        let raw = json!({
+            "available_commands": ["proceed"],
+            "game_state": {
+                "screen_type": "REST",
+                "screen_state": {
+                    "rest_options": []
+                }
+            }
+        });
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+
+        let action = fallback_rest_action(&command_state, &state);
+        assert_eq!(action, Some(AutoPlayAction::Proceed));
+    }
+
+    #[test]
+    fn fallback_grid_proceeds_when_choose_unavailable() {
+        let raw = json!({
+            "available_commands": ["confirm"],
+            "game_state": {
+                "screen_type": "GRID",
+                "choice_list": []
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+
+        let action = fallback_action(&control, &command_state, &state);
+        assert_eq!(action, Some(AutoPlayAction::Proceed));
+    }
+
+    #[test]
+    fn fallback_hand_select_proceeds_when_choose_unavailable() {
+        let raw = json!({
+            "available_commands": ["confirm"],
+            "game_state": {
+                "screen_type": "HAND_SELECT",
+                "choice_list": []
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+
+        let action = fallback_action(&control, &command_state, &state);
+        assert_eq!(action, Some(AutoPlayAction::Proceed));
+    }
+
+    #[test]
+    fn try_deterministic_combat_reward_picks_potion_with_empty_slot() {
+        let raw = json!({
+            "available_commands": ["choose", "proceed"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "COMBAT_REWARD",
+                "choice_list": ["gold", "potion"],
+                "potions": [
+                    {"id": "Potion Slot", "name": "Potion Slot", "can_use": false, "can_discard": false, "description": ""},
+                    {"id": "Potion Slot", "name": "Potion Slot", "can_use": false, "can_discard": false, "description": ""}
+                ]
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+        let candidates = available_action_candidates(&control, &command_state, &state);
+
+        let action = try_deterministic_action(&mut control, &command_state, &state, &candidates);
+        assert_eq!(action, Some(AutoPlayAction::Choose(1)));
+    }
+
+    #[test]
+    fn try_deterministic_combat_reward_with_full_slots_falls_through() {
+        let raw = json!({
+            "available_commands": ["choose", "proceed"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "COMBAT_REWARD",
+                "choice_list": ["potion", "card"],
+                "potions": [
+                    {"id": "Strength Potion", "name": "力量药水", "can_use": false, "can_discard": true, "description": ""}
+                ]
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        let command_state = CommandState::from_raw(&raw);
+        let state = state(raw);
+        let candidates = available_action_candidates(&control, &command_state, &state);
+
+        // Potion in list but no empty slots — should fall through to LLM (returns None)
+        let action = try_deterministic_action(&mut control, &command_state, &state, &candidates);
+        assert_eq!(action, None);
     }
 }

@@ -68,7 +68,9 @@ pub fn available_action_candidates(
         }
         Some("REST") if control.allow_rest => rest_candidates(command_state, state),
         Some("EVENT") if control.allow_events => event_candidates(command_state, state),
-        Some("SHOP_SCREEN") if control.allow_shop => shop_candidates(command_state),
+        Some("SHOP_ROOM" | "SHOP_SCREEN") if control.allow_shop => {
+            shop_candidates(control, command_state, state.floor)
+        }
         Some("MAP") if control.allow_map => map_candidates(command_state),
         Some("NONE") if control.allow_combat => combat_candidates(command_state, state),
         Some("GRID") if control.allow_selection_screens => grid_candidates(command_state),
@@ -98,16 +100,24 @@ pub fn resolve_requested_action(
         Some("BOSS_REWARD") => resolve_requested_boss_reward(state, request),
         Some("REST") => resolve_requested_rest(state, request),
         Some("EVENT") => resolve_requested_indexed("event:", state.event_choices.len(), request),
-        Some("SHOP_SCREEN") => resolve_requested_shop(command_state, request),
+        Some("SHOP_ROOM" | "SHOP_SCREEN") => resolve_requested_shop(command_state, request),
         Some("MAP") => {
             resolve_requested_indexed("map:choice:", command_state.choice_list.len(), request)
         }
         Some("NONE") => resolve_requested_combat(state, request),
         Some("GRID") => {
-            resolve_requested_indexed("grid:", command_state.choice_list.len(), request)
+            if request.action_id == "grid:confirm" && request.kind == "proceed" {
+                Some(AutoPlayAction::Proceed)
+            } else {
+                resolve_requested_indexed("grid:", command_state.choice_list.len(), request)
+            }
         }
         Some("HAND_SELECT") => {
-            resolve_requested_indexed("hand_select:", command_state.choice_list.len(), request)
+            if request.action_id == "hand_select:confirm" && request.kind == "proceed" {
+                Some(AutoPlayAction::Proceed)
+            } else {
+                resolve_requested_indexed("hand_select:", command_state.choice_list.len(), request)
+            }
         }
         _ => None,
     }
@@ -285,21 +295,36 @@ fn resolve_requested_boss_reward(
 }
 
 fn rest_candidates(command_state: &CommandState, state: &NormalizedState) -> Vec<ActionCandidate> {
-    if !command_state.has_command("choose") {
-        return vec![];
+    let mut candidates: Vec<ActionCandidate> = vec![];
+
+    if command_state.has_command("choose") {
+        candidates.extend(
+            state
+                .rest_options
+                .iter()
+                .map(|option| candidate("choose", format!("rest:{option}"), option.clone())),
+        );
     }
 
-    state
-        .rest_options
-        .iter()
-        .map(|option| candidate("choose", format!("rest:{option}"), option.clone()))
-        .collect()
+    if command_state.has_command("proceed") {
+        candidates.push(candidate(
+            "proceed",
+            "rest:proceed".to_string(),
+            "Proceed".to_string(),
+        ));
+    }
+
+    candidates
 }
 
 fn resolve_requested_rest(
     state: &NormalizedState,
     request: &ActionRequest,
 ) -> Option<AutoPlayAction> {
+    if request.action_id == "rest:proceed" && request.kind == "proceed" {
+        return Some(AutoPlayAction::Proceed);
+    }
+
     if request.kind != "choose" {
         return None;
     }
@@ -338,10 +363,27 @@ fn resolve_requested_indexed(
     (index < len).then_some(AutoPlayAction::Choose(index))
 }
 
-fn shop_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
+fn shop_candidates(
+    control: &AutoPlayControl,
+    command_state: &CommandState,
+    floor: Option<i64>,
+) -> Vec<ActionCandidate> {
     let mut candidates = vec![];
 
-    if command_state.has_command("choose") {
+    let already_entered = match (control.last_shop_room_floor, floor) {
+        (Some(last), Some(current)) => last == current,
+        _ => false,
+    };
+
+    if already_entered {
+        if command_state.has_command("proceed") {
+            candidates.push(candidate(
+                "proceed",
+                "shop:proceed".to_string(),
+                "Proceed".to_string(),
+            ));
+        }
+    } else if command_state.has_command("choose") {
         for (index, choice) in command_state.choice_list.iter().enumerate() {
             candidates.push(candidate(
                 "choose",
@@ -370,6 +412,10 @@ fn resolve_requested_shop(
         return Some(AutoPlayAction::Leave);
     }
 
+    if request.action_id == "shop:proceed" && request.kind == "proceed" {
+        return Some(AutoPlayAction::Proceed);
+    }
+
     resolve_requested_indexed("shop:choice:", command_state.choice_list.len(), request)
 }
 
@@ -387,29 +433,55 @@ fn map_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
 }
 
 fn grid_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
-    if !command_state.has_command("choose") {
-        return vec![];
+    let mut candidates: Vec<ActionCandidate> = vec![];
+
+    if command_state.has_command("choose") {
+        candidates.extend(
+            command_state
+                .choice_list
+                .iter()
+                .enumerate()
+                .map(|(index, choice)| {
+                    candidate("choose", format!("grid:{index}"), choice.clone())
+                }),
+        );
     }
 
-    command_state
-        .choice_list
-        .iter()
-        .enumerate()
-        .map(|(index, choice)| candidate("choose", format!("grid:{index}"), choice.clone()))
-        .collect()
+    if command_state.has_command("confirm") {
+        candidates.push(candidate(
+            "proceed",
+            "grid:confirm".to_string(),
+            "Confirm".to_string(),
+        ));
+    }
+
+    candidates
 }
 
 fn hand_select_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
-    if !command_state.has_command("choose") {
-        return vec![];
+    let mut candidates: Vec<ActionCandidate> = vec![];
+
+    if command_state.has_command("choose") {
+        candidates.extend(
+            command_state
+                .choice_list
+                .iter()
+                .enumerate()
+                .map(|(index, choice)| {
+                    candidate("choose", format!("hand_select:{index}"), choice.clone())
+                }),
+        );
     }
 
-    command_state
-        .choice_list
-        .iter()
-        .enumerate()
-        .map(|(index, choice)| candidate("choose", format!("hand_select:{index}"), choice.clone()))
-        .collect()
+    if command_state.has_command("confirm") {
+        candidates.push(candidate(
+            "proceed",
+            "hand_select:confirm".to_string(),
+            "Confirm".to_string(),
+        ));
+    }
+
+    candidates
 }
 
 fn combat_candidates(
@@ -1021,6 +1093,27 @@ mod tests {
         assert_eq!(candidates.len(), 2);
         assert_eq!(candidates[0].action_id, "hand_select:0");
         assert_eq!(candidates[1].action_id, "hand_select:1");
+
+        let raw_with_confirm = json!({
+            "available_commands": ["choose", "confirm"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "HAND_SELECT",
+                "choice_list": ["Strike"]
+            }
+        });
+        let candidates = available_action_candidates(
+            &control,
+            &command_state(&raw_with_confirm),
+            &state(raw_with_confirm),
+        );
+        assert_eq!(candidates.len(), 2);
+        assert!(candidates.iter().any(|c| c.action_id == "hand_select:0"));
+        assert!(
+            candidates
+                .iter()
+                .any(|c| c.action_id == "hand_select:confirm" && c.kind == "proceed")
+        );
     }
 
     #[test]
@@ -1039,5 +1132,123 @@ mod tests {
         assert_eq!(candidates.len(), 3);
         assert_eq!(candidates[0].action_id, "grid:0");
         assert_eq!(candidates[2].action_id, "grid:2");
+
+        let raw_with_confirm = json!({
+            "available_commands": ["choose", "confirm"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "GRID",
+                "choice_list": ["Strike"]
+            }
+        });
+        let candidates = available_action_candidates(
+            &control,
+            &command_state(&raw_with_confirm),
+            &state(raw_with_confirm),
+        );
+        assert_eq!(candidates.len(), 2);
+        assert!(candidates.iter().any(|c| c.action_id == "grid:0"));
+        assert!(
+            candidates
+                .iter()
+                .any(|c| c.action_id == "grid:confirm" && c.kind == "proceed")
+        );
+    }
+
+    #[test]
+    fn rest_candidates_includes_proceed_when_available() {
+        let raw = json!({
+            "available_commands": ["choose", "proceed"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "REST",
+                "screen_state": {
+                    "rest_options": ["rest", "smith"]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_rest = true;
+        let candidates = available_action_candidates(&control, &command_state(&raw), &state(raw));
+        assert_eq!(candidates.len(), 3);
+        assert!(candidates.iter().any(|c| c.action_id == "rest:rest"));
+        assert!(candidates.iter().any(|c| c.action_id == "rest:smith"));
+        assert!(
+            candidates
+                .iter()
+                .any(|c| c.action_id == "rest:proceed" && c.kind == "proceed")
+        );
+    }
+
+    #[test]
+    fn resolve_rest_proceed_returns_proceed() {
+        let raw = json!({
+            "game_state": {
+                "screen_type": "REST",
+                "screen_state": {
+                    "rest_options": []
+                }
+            }
+        });
+        let state = state(raw);
+        let request = ActionRequest {
+            kind: "proceed".to_string(),
+            action_id: "rest:proceed".to_string(),
+            target_index: None,
+        };
+        assert_eq!(
+            resolve_requested_rest(&state, &request),
+            Some(AutoPlayAction::Proceed)
+        );
+    }
+
+    #[test]
+    fn resolve_grid_confirm_returns_proceed() {
+        let raw = json!({
+            "available_commands": ["confirm"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "GRID",
+                "choice_list": []
+            }
+        });
+        let command_state = command_state(&raw);
+        let state = state(raw);
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        let request = ActionRequest {
+            kind: "proceed".to_string(),
+            action_id: "grid:confirm".to_string(),
+            target_index: None,
+        };
+        assert_eq!(
+            resolve_requested_action(&control, &command_state, &state, &request),
+            Some(AutoPlayAction::Proceed)
+        );
+    }
+
+    #[test]
+    fn resolve_hand_select_confirm_returns_proceed() {
+        let raw = json!({
+            "available_commands": ["confirm"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "HAND_SELECT",
+                "choice_list": []
+            }
+        });
+        let command_state = command_state(&raw);
+        let state = state(raw);
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        let request = ActionRequest {
+            kind: "proceed".to_string(),
+            action_id: "hand_select:confirm".to_string(),
+            target_index: None,
+        };
+        assert_eq!(
+            resolve_requested_action(&control, &command_state, &state, &request),
+            Some(AutoPlayAction::Proceed)
+        );
     }
 }

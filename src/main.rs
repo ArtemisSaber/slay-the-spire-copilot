@@ -275,7 +275,7 @@ async fn main() {
                     current_autoplay_control = None;
                     continue;
                 }
-                if let Some(control) = current_autoplay_control.as_ref() {
+                if let Some(control) = current_autoplay_control.as_mut() {
                     tracing::info!("autoplay retrying after error #{}", consecutive_errors);
                     match autoplay::planner::plan_action(
                         &provider,
@@ -382,7 +382,7 @@ async fn main() {
 
         journal.log_state_change(&hash, &normalized);
 
-        if let Some(control) = current_autoplay_control.as_ref() {
+        if let Some(control) = current_autoplay_control.as_mut() {
             match autoplay::planner::plan_action(
                 &provider,
                 control,
@@ -507,7 +507,7 @@ async fn main() {
             continue;
         }
 
-        if screen_type == "SHOP_SCREEN" {
+        if screen_type == "SHOP_ROOM" || screen_type == "SHOP_SCREEN" {
             map_gate.on_shop();
         }
         if screen_type == "MAP" && normalized.map_first_node_chosen == Some(false) {
@@ -541,7 +541,7 @@ async fn main() {
             normalized.danger.level,
         );
 
-        let effort = Effort::from_screen_type(screen_type);
+        let effort = Effort::from_screen_type(screen_type, has_monsters(&raw));
         let scenario = AdviceScenario::from_state(&normalized);
 
         let prompt = prompt::build_prompt(&normalized, &locale, map_gate.shop_visited);
