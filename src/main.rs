@@ -221,6 +221,8 @@ async fn main() {
     let mut journal = journal::Journal::new(project_root.join("runs"));
     let mut combat_turn_gate = CombatTurnGate::new();
     let mut map_gate = MapGate::new();
+    let mut autoplay_last_revision: Option<u64> = None;
+    let mut current_autoplay_control = Some(autoplay::control::AutoPlayControl::default_enabled());
     let mut saw_game_state = false;
     let mut run_finalized = false;
     let stdin = io::stdin();
@@ -281,17 +283,27 @@ async fn main() {
         let autoplay_control_path = logging::advice_output_dir()
             .join("output")
             .join("autoplay-control.json");
-        let autoplay_control = autoplay::control::load_control(&autoplay_control_path, None);
-        let autoplay_mode = match &autoplay_control {
-            autoplay::control::ControlLoad::Updated(control)
-            | autoplay::control::ControlLoad::MissingDefault(control) => {
-                format!("{:?}", control.mode)
-            }
+        let autoplay_control_load =
+            autoplay::control::load_control(&autoplay_control_path, autoplay_last_revision);
+        if let Some(control) = autoplay::action::active_control(&autoplay_control_load) {
+            autoplay_last_revision = Some(control.revision);
+            current_autoplay_control = Some(control.clone());
+        }
+        let autoplay_load_status = match &autoplay_control_load {
+            autoplay::control::ControlLoad::Updated(_) => "updated".to_string(),
+            autoplay::control::ControlLoad::MissingDefault(_) => "missing_default".to_string(),
             autoplay::control::ControlLoad::Stale => "stale".to_string(),
-            autoplay::control::ControlLoad::Malformed(error) => format!("malformed: {error}"),
+            autoplay::control::ControlLoad::Malformed(error) => {
+                current_autoplay_control = None;
+                format!("malformed: {error}")
+            }
         };
+        let autoplay_mode = current_autoplay_control
+            .as_ref()
+            .map(|control| format!("{:?}", control.mode))
+            .unwrap_or_else(|| "disabled".to_string());
         tracing::debug!(
-            "autoplay control={autoplay_mode} ready={} commands={} choose_available={}",
+            "autoplay control={autoplay_mode} load={autoplay_load_status} ready={} commands={} choose_available={}",
             command_state.ready_for_command,
             command_state.available_commands.len(),
             command_state.has_command("choose"),
@@ -313,6 +325,21 @@ async fn main() {
         }
 
         journal.log_state_change(&hash, &normalized);
+
+        if let Some(control) = current_autoplay_control.as_ref()
+            && let Some(action) =
+                autoplay::action::resolve_action(control, &command_state, &normalized)
+        {
+            tracing::info!(
+                "autoplay executing {:?} screen={} hash={}",
+                action,
+                screen_type,
+                &hash[..16],
+            );
+            let mut stdout = io::stdout().lock();
+            autoplay::action::execute_action_to(&mut stdout, &action);
+            continue;
+        }
 
         if screen_type == "MAP" {
             let rp = raw

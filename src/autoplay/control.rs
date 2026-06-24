@@ -186,6 +186,9 @@ mod tests {
         let path = dir.path().join("autoplay-control.json");
         fs::write(&path, "{not-json").unwrap();
 
-        assert!(matches!(load_control(&path, None), ControlLoad::Malformed(_)));
+        assert!(matches!(
+            load_control(&path, None),
+            ControlLoad::Malformed(_)
+        ));
     }
 }
