@@ -45,8 +45,8 @@ impl AutoPlayControl {
             allow_events: true,
             allow_map: true,
             allow_shop: true,
-            allow_combat: false,
-            allow_selection_screens: false,
+            allow_combat: true,
+            allow_selection_screens: true,
             min_hp_percent: None,
         }
     }
