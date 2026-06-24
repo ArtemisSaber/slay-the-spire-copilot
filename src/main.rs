@@ -109,7 +109,10 @@ async fn main() {
     }
 
     if let Some(path) = options.postmortem_path.as_deref() {
-        let postmortem_locale = locales::Locale::load("en");
+        let detected = startup::detect_game_language();
+        let lang = detected.as_ref().map(|d| d.value.as_str()).unwrap_or("en");
+        let locale_key = locales::lang_to_locale_key(lang);
+        let postmortem_locale = locales::Locale::load(locale_key);
 
         let deterministic_report = match std::fs::read_to_string(path)
             .map_err(|e| e.to_string())
