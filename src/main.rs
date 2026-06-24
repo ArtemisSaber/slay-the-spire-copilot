@@ -264,7 +264,7 @@ async fn main() {
         if is_error(&raw) {
             tracing::warn!("received error from CommunicationMod: {}", trimmed);
             if let Some((_saved_raw, saved_normalized, saved_command_state)) =
-                last_autoplay_state.take()
+                last_autoplay_state.as_ref()
             {
                 consecutive_errors += 1;
                 if consecutive_errors > 5 {
@@ -280,8 +280,8 @@ async fn main() {
                     match autoplay::planner::plan_action(
                         &provider,
                         control,
-                        &saved_command_state,
-                        &saved_normalized,
+                        saved_command_state,
+                        saved_normalized,
                         &locale,
                         map_gate.shop_visited,
                     )

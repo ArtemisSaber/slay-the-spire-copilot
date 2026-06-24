@@ -938,7 +938,7 @@ mod tests {
         let lines: Vec<&str> = output.lines().collect();
         assert_eq!(
             lines,
-            vec!["choose 2", "play 1 0", "end", "skip", "proceed", "leave"]
+            vec!["choose 2", "play 2 0", "end", "skip", "proceed", "leave"]
         );
     }
 

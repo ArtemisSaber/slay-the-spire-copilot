@@ -37,7 +37,7 @@ fn play_without_target_output_is_correct() {
     let mut buf = Vec::new();
     send_play_to(&mut buf, 1, None);
     let output = String::from_utf8(buf).unwrap();
-    assert_eq!(output, "play 1\n");
+    assert_eq!(output, "play 2\n");
 }
 
 #[test]
@@ -45,7 +45,7 @@ fn play_with_target_output_is_correct() {
     let mut buf = Vec::new();
     send_play_to(&mut buf, 0, Some(1));
     let output = String::from_utf8(buf).unwrap();
-    assert_eq!(output, "play 0 1\n");
+    assert_eq!(output, "play 1 1\n");
 }
 
 #[test]

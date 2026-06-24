@@ -22,12 +22,13 @@ pub fn send_choose_to(writer: &mut impl Write, index: usize) {
     reason = "Auto-play executor integration is staged after protocol writers."
 )]
 pub fn send_play_to(writer: &mut impl Write, hand_index: usize, target_index: Option<usize>) {
+    let one_based = hand_index + 1;
     match target_index {
         Some(target_index) => {
-            write_command_to(writer, &format!("play {hand_index} {target_index}"));
+            write_command_to(writer, &format!("play {one_based} {target_index}"));
         }
         None => {
-            write_command_to(writer, &format!("play {hand_index}"));
+            write_command_to(writer, &format!("play {one_based}"));
         }
     }
 }
