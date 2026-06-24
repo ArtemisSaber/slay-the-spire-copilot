@@ -841,6 +841,84 @@ pub(crate) fn build_boss_relic(state: &NormalizedState, locale: &Locale) -> Stri
     lines.join("\n")
 }
 
+pub(crate) fn build_shop(state: &NormalizedState, locale: &Locale) -> String {
+    let mut lines: Vec<String> = vec![
+        "[mode: shop]\n".to_string(),
+        locale.sections.current_state.clone(),
+        status_line(state, locale),
+        String::new(),
+        build_relics_potions_section(state, locale),
+    ];
+
+    if !state.master_cards.is_empty() {
+        lines.push(format_deck_section(&state.master_cards, locale));
+    }
+
+    if !state.shop_cards.is_empty()
+        || !state.shop_relics.is_empty()
+        || !state.shop_potions.is_empty()
+        || state.purge_available
+    {
+        lines.push(locale.sections.shop.clone());
+    }
+
+    if !state.shop_cards.is_empty() {
+        lines.push(locale.sections.shop_cards.clone());
+        for (i, c) in state.shop_cards.iter().enumerate() {
+            let label = (b'A' + i as u8) as char;
+            let price = c.price.map_or("?".to_string(), |p| p.to_string());
+            lines.push(format!(
+                "{label}. {}  ({} gold)",
+                format_card(c, locale),
+                price
+            ));
+        }
+        lines.push(String::new());
+    }
+
+    if !state.shop_relics.is_empty() {
+        lines.push(locale.sections.shop_relics.clone());
+        for (i, r) in state.shop_relics.iter().enumerate() {
+            let label = (b'A' + i as u8) as char;
+            let price = r.price.map_or("?".to_string(), |p| p.to_string());
+            lines.push(format!(
+                "{label}. {} — {}  ({} gold)",
+                r.name,
+                clean_description(&r.description, locale),
+                price
+            ));
+        }
+        lines.push(String::new());
+    }
+
+    if !state.shop_potions.is_empty() {
+        lines.push(locale.sections.shop_potions.clone());
+        for (i, p) in state.shop_potions.iter().enumerate() {
+            let label = (b'A' + i as u8) as char;
+            let price = p.price.map_or("?".to_string(), |p| p.to_string());
+            lines.push(format!(
+                "{label}. {} — {}  ({} gold)",
+                p.name,
+                clean_description(&p.description, locale),
+                price
+            ));
+        }
+        lines.push(String::new());
+    }
+
+    if state.purge_available {
+        lines.push(locale.sections.shop_purge.clone());
+        let cost = state
+            .purge_cost
+            .map_or("unknown".to_string(), |c| c.to_string());
+        lines.push(format!("Remove a card for {} gold", cost));
+        lines.push(format!("Deck: {}", state.deck_names.join(", ")));
+        lines.push(String::new());
+    }
+
+    lines.join("\n")
+}
+
 pub(crate) fn build_event_choice(state: &NormalizedState, locale: &Locale) -> String {
     let mut lines: Vec<String> = vec![
         "[mode: event_choice]\n".to_string(),
@@ -1229,6 +1307,7 @@ pub fn build_prompt(state: &NormalizedState, locale: &Locale, shop_visited: bool
         Some("BOSS_REWARD") => build_boss_relic(state, locale),
         Some("REST") => build_rest(state, locale),
         Some("EVENT") => build_event_choice(state, locale),
+        Some("SHOP_SCREEN") => build_shop(state, locale),
         Some("MAP") if state.map_first_node_chosen == Some(true) => {
             build_map_crossroad(state, locale, shop_visited)
         }

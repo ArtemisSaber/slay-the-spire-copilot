@@ -153,7 +153,7 @@ fn postmortem_uses_standalone_system_prompt() {
 fn unified_system_prompt_modes_separated() {
     let prompt = AdviceScenario::CombatEntry.system_prompt(&test_locale());
     let sections: Vec<_> = prompt.matches("[mode:").collect();
-    assert_eq!(sections.len(), 9);
+    assert_eq!(sections.len(), 10);
     assert!(prompt.contains("\n---\n\n[mode:"));
 }
 
@@ -200,6 +200,11 @@ fn test_state() -> NormalizedState {
             level: DangerLevel::Safe,
         },
         skip_available: false,
+        shop_cards: vec![],
+        shop_relics: vec![],
+        shop_potions: vec![],
+        purge_available: false,
+        purge_cost: None,
         hand_cards: vec![],
         draw_pile: vec![],
         discard_pile: vec![],
@@ -274,6 +279,7 @@ fn scenario_resolver_detects_boss_relic() {
             name: "符文圆顶".into(),
             description: String::new(),
             counter: None,
+            price: None,
         }],
         ..test_state()
     };

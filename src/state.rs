@@ -13,6 +13,7 @@ pub struct CardInfo {
     pub upgraded: bool,
     pub uuid: Option<String>,
     pub description: String,
+    pub price: Option<i64>,
 }
 
 impl CardInfo {
@@ -48,6 +49,7 @@ impl CardInfo {
                 .and_then(|n| n.as_str())
                 .unwrap_or("")
                 .to_string(),
+            price: c.get("price").and_then(|n| n.as_i64()),
         }
     }
 }
@@ -136,12 +138,14 @@ pub struct RelicInfo {
     pub name: String,
     pub description: String,
     pub counter: Option<i64>,
+    pub price: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PotionInfo {
     pub name: String,
     pub description: String,
+    pub price: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -181,6 +185,12 @@ pub struct NormalizedState {
     pub rest_options: Vec<String>,
     pub danger: DangerFlags,
     pub skip_available: bool,
+
+    pub shop_cards: Vec<CardInfo>,
+    pub shop_relics: Vec<RelicInfo>,
+    pub shop_potions: Vec<PotionInfo>,
+    pub purge_available: bool,
+    pub purge_cost: Option<i64>,
 
     pub hand_cards: Vec<CardInfo>,
     pub draw_pile: Vec<CardInfo>,
@@ -280,6 +290,7 @@ fn extract_relic_infos(arr: &[Value]) -> Vec<RelicInfo> {
                 name: name.clone(),
                 description: String::new(),
                 counter: None,
+                price: None,
             },
             Value::Object(_) => RelicInfo {
                 id: r
@@ -301,12 +312,14 @@ fn extract_relic_infos(arr: &[Value]) -> Vec<RelicInfo> {
                     .get("counter")
                     .and_then(|v| v.as_i64())
                     .filter(|&c| c >= 0),
+                price: r.get("price").and_then(|v| v.as_i64()),
             },
             _ => RelicInfo {
                 id: String::new(),
                 name: "?".to_string(),
                 description: String::new(),
                 counter: None,
+                price: None,
             },
         })
         .collect()
@@ -331,6 +344,7 @@ fn extract_potion_infos(arr: &[Value]) -> Vec<PotionInfo> {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),
+            price: p.get("price").and_then(|v| v.as_i64()),
         })
         .collect()
 }
@@ -573,6 +587,33 @@ impl NormalizedState {
             })
             .unwrap_or_default();
 
+        let shop_cards: Vec<CardInfo> = screen_state
+            .and_then(|s| s.get("cards"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_cards(arr))
+            .unwrap_or_default();
+
+        let shop_relics: Vec<RelicInfo> = screen_state
+            .and_then(|s| s.get("relics"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_relic_infos(arr))
+            .unwrap_or_default();
+
+        let shop_potions: Vec<PotionInfo> = screen_state
+            .and_then(|s| s.get("potions"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_potion_infos(arr))
+            .unwrap_or_default();
+
+        let purge_available = screen_state
+            .and_then(|s| s.get("purge_available"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        let purge_cost = screen_state
+            .and_then(|s| s.get("purge_cost"))
+            .and_then(|v| v.as_i64());
+
         let master_cards: Vec<CardInfo> = gs
             .and_then(|g| g.get("deck"))
             .and_then(|v| v.as_array())
@@ -659,6 +700,11 @@ impl NormalizedState {
             rest_options,
             danger,
             skip_available,
+            shop_cards,
+            shop_relics,
+            shop_potions,
+            purge_available,
+            purge_cost,
             hand_cards,
             draw_pile,
             discard_pile,
@@ -890,6 +936,54 @@ impl NormalizedState {
             "skip_available".to_string(),
             Value::Bool(self.skip_available),
         );
+
+        let mut sorted_shop_cards = self.shop_cards.clone();
+        sorted_shop_cards.sort_by(|a, b| a.id.cmp(&b.id));
+        map.insert(
+            "shop_cards".to_string(),
+            Value::Array(
+                sorted_shop_cards
+                    .into_iter()
+                    .map(|c| {
+                        let mut cm = serde_json::Map::new();
+                        cm.insert("id".to_string(), Value::String(c.id.clone()));
+                        cm.insert("cost".to_string(), Value::Number(c.cost.into()));
+                        cm.insert(
+                            "price".to_string(),
+                            Value::Number(c.price.unwrap_or(0).into()),
+                        );
+                        Value::Object(cm)
+                    })
+                    .collect(),
+            ),
+        );
+
+        let mut sorted_shop_relics = self.shop_relics.clone();
+        sorted_shop_relics.sort_by(|a, b| a.name.cmp(&b.name));
+        map.insert(
+            "shop_relics".to_string(),
+            Value::Array(
+                sorted_shop_relics
+                    .into_iter()
+                    .map(|r| {
+                        let mut rm = serde_json::Map::new();
+                        rm.insert("name".to_string(), Value::String(r.name.clone()));
+                        rm.insert(
+                            "price".to_string(),
+                            Value::Number(r.price.unwrap_or(0).into()),
+                        );
+                        Value::Object(rm)
+                    })
+                    .collect(),
+            ),
+        );
+
+        if self.purge_available {
+            map.insert("purge_available".to_string(), Value::Bool(true));
+            if let Some(c) = self.purge_cost {
+                map.insert("purge_cost".to_string(), Value::Number(c.into()));
+            }
+        }
 
         if let Some(v) = self.map_first_node_chosen {
             map.insert("map_first_node_chosen".to_string(), Value::Bool(v));

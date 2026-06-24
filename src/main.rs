@@ -362,7 +362,7 @@ async fn main() {
             continue;
         }
 
-        if screen_type == "SHOP" {
+        if screen_type == "SHOP_SCREEN" {
             map_gate.on_shop();
         }
         if screen_type == "MAP" && normalized.map_first_node_chosen == Some(false) {

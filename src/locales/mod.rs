@@ -76,6 +76,11 @@ pub struct SectionLocale {
     pub next_nodes: String,
     pub combat_profile: String,
     pub turn_status: String,
+    pub shop: String,
+    pub shop_cards: String,
+    pub shop_relics: String,
+    pub shop_potions: String,
+    pub shop_purge: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -154,6 +159,7 @@ pub struct SystemPromptLocale {
     pub combat_entry: String,
     pub boss_relic: String,
     pub event_choice: String,
+    pub shop: String,
     pub map_suggestion: String,
     pub map_crossroad: String,
     pub generic: String,
@@ -168,6 +174,7 @@ pub struct FewShotExampleLocale {
     pub combat_entry: String,
     pub boss_relic: String,
     pub event_choice: String,
+    pub shop: String,
     pub map_suggestion: String,
     pub map_crossroad: String,
     pub generic: String,

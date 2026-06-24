@@ -74,6 +74,7 @@ pub enum AdviceScenario {
     BossRelic,
     Rest,
     EventChoice,
+    Shop,
     CombatEntry,
     MapSuggestion,
     MapCrossroad,
@@ -89,6 +90,7 @@ impl AdviceScenario {
             Some("BOSS_REWARD") => AdviceScenario::BossRelic,
             Some("REST") => AdviceScenario::Rest,
             Some("EVENT") => AdviceScenario::EventChoice,
+            Some("SHOP_SCREEN") => AdviceScenario::Shop,
             Some("MAP") if state.map_first_node_chosen == Some(true) => {
                 AdviceScenario::MapCrossroad
             }
@@ -105,6 +107,7 @@ impl AdviceScenario {
             AdviceScenario::BossRelic => "boss_relic",
             AdviceScenario::Rest => "rest",
             AdviceScenario::EventChoice => "event_choice",
+            AdviceScenario::Shop => "shop",
             AdviceScenario::CombatEntry => "combat_entry",
             AdviceScenario::MapSuggestion => "map_suggestion",
             AdviceScenario::MapCrossroad => "map_crossroad",
@@ -131,6 +134,7 @@ impl AdviceScenario {
             AdviceScenario::BossRelic => &locale.few_shot_examples.boss_relic,
             AdviceScenario::Rest => &locale.few_shot_examples.rest,
             AdviceScenario::EventChoice => &locale.few_shot_examples.event_choice,
+            AdviceScenario::Shop => &locale.few_shot_examples.shop,
             AdviceScenario::CombatEntry => &locale.few_shot_examples.combat_entry,
             AdviceScenario::MapSuggestion => &locale.few_shot_examples.map_suggestion,
             AdviceScenario::MapCrossroad => &locale.few_shot_examples.map_crossroad,
@@ -172,6 +176,11 @@ fn unified_system_prompt(locale: &Locale) -> String {
             "event_choice",
             &locale.system_prompts.event_choice,
             &locale.few_shot_examples.event_choice,
+        ),
+        (
+            "shop",
+            &locale.system_prompts.shop,
+            &locale.few_shot_examples.shop,
         ),
         (
             "map_suggestion",

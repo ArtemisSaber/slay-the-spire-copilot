@@ -24,5 +24,6 @@ pub fn card(id: &str, name: &str, cost: i64, card_type: &str) -> crate::state::C
         upgraded: false,
         uuid: None,
         description: String::new(),
+        price: None,
     }
 }

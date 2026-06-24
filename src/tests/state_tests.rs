@@ -299,6 +299,7 @@ fn normalize_event_payload_from_communication_mod_log() {
             name: "????".into(),
             description: String::new(),
             counter: None,
+            price: None,
         }]
     );
 }
