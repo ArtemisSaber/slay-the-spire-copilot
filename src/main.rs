@@ -24,21 +24,6 @@ use runtime::{
 };
 use std::io::{self, BufRead, IsTerminal, Write};
 
-async fn postmortem_report_text(
-    deterministic_report: &str,
-    provider: &llm::LlmProvider,
-    locale: &locales::Locale,
-) -> String {
-    let prompt = postmortem::build_ai_postmortem_prompt(deterministic_report, locale);
-    match provider.query_postmortem(&prompt, locale).await {
-        Ok(report) => report,
-        Err(e) => {
-            tracing::warn!("AI postmortem failed, saving deterministic report: {e}");
-            deterministic_report.to_string()
-        }
-    }
-}
-
 async fn finalize_run_once(
     journal: &journal::Journal,
     provider: &llm::LlmProvider,
@@ -66,15 +51,31 @@ async fn finalize_run_once(
                 return;
             }
         };
-    let report = postmortem_report_text(&deterministic_report, provider, locale).await;
-    let report = format!(
-        "{report}\n\n---\n\n{}\n\n{deterministic_report}",
-        locale.postmortem.section_machine,
+
+    if let Err(e) = postmortem::write_report_for_journal(journal_path, &deterministic_report) {
+        tracing::error!("failed to write deterministic postmortem: {e}");
+        return;
+    }
+    tracing::info!(
+        "wrote deterministic postmortem to {}",
+        postmortem::postmortem_path_for_journal(journal_path).display(),
     );
 
-    match postmortem::write_report_for_journal(journal_path, &report) {
-        Ok(path) => tracing::info!("wrote postmortem report to {}", path.display()),
-        Err(e) => tracing::error!("failed to write postmortem report: {e}"),
+    let prompt = postmortem::build_ai_postmortem_prompt(&deterministic_report, locale);
+    match provider.query_postmortem(&prompt, locale).await {
+        Ok(ai_report) => {
+            let combined = format!(
+                "{ai_report}\n\n---\n\n{}\n\n{deterministic_report}",
+                locale.postmortem.section_machine,
+            );
+            match postmortem::write_report_for_journal(journal_path, &combined) {
+                Ok(path) => tracing::info!("wrote AI postmortem report to {}", path.display()),
+                Err(e) => tracing::error!("failed to write combined postmortem: {e}"),
+            }
+        }
+        Err(e) => {
+            tracing::warn!("AI postmortem failed, deterministic report saved: {e}");
+        }
     }
 }
 

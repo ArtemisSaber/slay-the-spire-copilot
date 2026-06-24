@@ -22,8 +22,27 @@ pub fn generate_report_from_journal_file(
 
 pub fn write_report_for_journal(journal_path: &Path, report: &str) -> Result<PathBuf, String> {
     let report_path = postmortem_path_for_journal(journal_path);
-    fs::write(&report_path, report).map_err(|e| e.to_string())?;
+    atomic_write(&report_path, report).map_err(|e| e.to_string())?;
     Ok(report_path)
+}
+
+fn atomic_write(path: &Path, content: &str) -> Result<(), std::io::Error> {
+    let tmp = tmp_path(path);
+    fs::write(&tmp, content)?;
+    fs::rename(&tmp, path)?;
+    Ok(())
+}
+
+fn tmp_path(path: &Path) -> std::path::PathBuf {
+    let mut tmp = path.to_path_buf();
+    let mut name = path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned();
+    name.push_str(".tmp");
+    tmp.set_file_name(name);
+    tmp
 }
 
 #[derive(Debug, Default)]
