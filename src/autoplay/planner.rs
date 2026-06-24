@@ -44,8 +44,12 @@ pub async fn plan_action(
     locale: &Locale,
     shop_visited: bool,
 ) -> anyhow::Result<Option<AutoPlayAction>> {
-    if state.screen_type.as_deref() != Some("COMBAT_REWARD") {
+    if state.screen_type.as_deref() == Some("COMBAT_REWARD")
+        && session.last_combat_reward_floor != state.floor
+    {
         session.skipped_combat_reward_potion = false;
+        session.skipped_combat_reward_card = false;
+        session.last_combat_reward_floor = state.floor;
     }
 
     let candidates = available_action_candidates(control, session, command_state, state);
@@ -94,6 +98,11 @@ pub async fn plan_action(
                             && chosen != potion_index
                         {
                             session.skipped_combat_reward_potion = true;
+                        }
+                        if state.screen_type.as_deref() == Some("CARD_REWARD")
+                            && matches!(&action, Some(AutoPlayAction::Skip))
+                        {
+                            session.skipped_combat_reward_card = true;
                         }
                         return Ok(action);
                     }
@@ -164,22 +173,49 @@ fn try_deterministic_action(
         return Some(action);
     }
 
-    // COMBAT_REWARD: deterministic when potion + empty slots, otherwise use priority fallback.
+    // COMBAT_REWARD: gold/relic/keys → deterministic; potion → empty=auto, full=LLM; card → always pick.
     if state.screen_type.as_deref() == Some("COMBAT_REWARD") {
-        // Potion with empty slots — always pick, no LLM needed.
-        if let Some(index) = command_state.choice_list.iter().position(|c| c == "potion")
-            && state.empty_potion_slots > 0
-            && command_state.has_command("choose")
+        let has_potion = command_state.choice_list.iter().any(|c| c == "potion");
+        let has_card = command_state.choice_list.iter().any(|c| c == "card");
+
+        // 1. Auto-pick gold / relic / stolen_gold / keys (never card or potion).
+        if let Some(index) = command_state.choice_list.iter().position(|choice| {
+            matches!(
+                choice.as_str(),
+                "gold" | "relic" | "stolen_gold" | "emerald_key" | "sapphire_key"
+            )
+        }) && command_state.has_command("choose")
         {
             return Some(AutoPlayAction::Choose(index));
         }
-        // All other rewards — deterministic priority (gold → relic → potion → keys → card → proceed).
-        // If potion is in the list but slots are full, fall through to LLM.
-        if !command_state.choice_list.iter().any(|c| c == "potion") || state.empty_potion_slots > 0
-        {
-            return fallback_combat_reward_action(control, command_state);
+
+        // 2. Potion: deterministic if empty slots, LLM if full and not skipped.
+        if has_potion && !session.skipped_combat_reward_potion {
+            if state.empty_potion_slots > 0
+                && let Some(index) = command_state.choice_list.iter().position(|c| c == "potion")
+            {
+                return Some(AutoPlayAction::Choose(index));
+            }
+            return None;
         }
-        // Potion with full slots — let LLM decide (discard/use or skip).
+
+        // 3. Card: always pick (enters CARD_REWARD where LLM decides pick/skip).
+        if has_card
+            && !session.skipped_combat_reward_card
+            && let Some(index) = command_state.choice_list.iter().position(|c| c == "card")
+        {
+            return Some(AutoPlayAction::Choose(index));
+        }
+
+        // 4. Safety net: any unknown leftover choice.
+        if !command_state.choice_list.is_empty() && command_state.has_command("choose") {
+            return Some(AutoPlayAction::Choose(0));
+        }
+
+        // 5. Nothing left — proceed.
+        if command_state.has_command("proceed") {
+            return Some(AutoPlayAction::Proceed);
+        }
         return None;
     }
 
@@ -394,15 +430,15 @@ fn fallback_action(
 }
 
 fn fallback_combat_reward_action(
-    control: &AutoPlayControl,
+    _control: &AutoPlayControl,
     command_state: &CommandState,
 ) -> Option<AutoPlayAction> {
     if command_state.has_command("choose") {
         let index = command_state.choice_list.iter().position(|choice| {
             matches!(
                 choice.as_str(),
-                "gold" | "relic" | "stolen_gold" | "potion" | "emerald_key" | "sapphire_key"
-            ) || (choice == "card" && control.allow_card_rewards)
+                "gold" | "relic" | "stolen_gold" | "emerald_key" | "sapphire_key"
+            )
         });
         if let Some(index) = index {
             return Some(AutoPlayAction::Choose(index));
@@ -1038,7 +1074,7 @@ mod tests {
     }
 
     #[test]
-    fn try_deterministic_combat_reward_picks_potion_with_empty_slot() {
+    fn try_deterministic_combat_reward_picks_gold_before_potion() {
         let raw = json!({
             "available_commands": ["choose", "proceed"],
             "ready_for_command": true,
@@ -1068,7 +1104,7 @@ mod tests {
             &state,
             &candidates,
         );
-        assert_eq!(action, Some(AutoPlayAction::Choose(1)));
+        assert_eq!(action, Some(AutoPlayAction::Choose(0)));
     }
 
     #[test]

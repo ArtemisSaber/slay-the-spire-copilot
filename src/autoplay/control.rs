@@ -33,7 +33,9 @@ pub struct AutoPlayControl {
 #[derive(Debug, Clone, Default)]
 pub struct AutoPlaySession {
     pub last_shop_room_floor: Option<i64>,
+    pub last_combat_reward_floor: Option<i64>,
     pub skipped_combat_reward_potion: bool,
+    pub skipped_combat_reward_card: bool,
 }
 
 impl AutoPlayControl {
