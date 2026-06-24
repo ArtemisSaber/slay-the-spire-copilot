@@ -262,6 +262,11 @@ fn fallback_action(
             && command_state.has_command("choose"))
         .then_some(AutoPlayAction::Choose(0)),
         Some("NONE") if control.allow_combat => fallback_combat_action(command_state, state),
+        Some("GRID") if control.allow_selection_screens => {
+            command_state
+                .has_command("choose")
+                .then_some(AutoPlayAction::Choose(0))
+        }
         _ => None,
     }
 }
@@ -344,10 +349,7 @@ fn fallback_combat_action(
                 .iter()
                 .enumerate()
                 .find_map(|(hand_index, card)| {
-                    if card.cost > state.energy.unwrap_or(0)
-                        || card.card_type == "STATUS"
-                        || card.card_type == "CURSE"
-                    {
+                    if !card.playable {
                         return None;
                     }
 

@@ -71,6 +71,9 @@ pub fn available_action_candidates(
         Some("SHOP_SCREEN") if control.allow_shop => shop_candidates(command_state),
         Some("MAP") if control.allow_map => map_candidates(command_state),
         Some("NONE") if control.allow_combat => combat_candidates(command_state, state),
+        Some("GRID") if control.allow_selection_screens => {
+            grid_candidates(command_state)
+        }
         _ => vec![],
     }
 }
@@ -99,6 +102,9 @@ pub fn resolve_requested_action(
             resolve_requested_indexed("map:choice:", command_state.choice_list.len(), request)
         }
         Some("NONE") => resolve_requested_combat(state, request),
+        Some("GRID") => {
+            resolve_requested_indexed("grid:", command_state.choice_list.len(), request)
+        }
         _ => None,
     }
 }
@@ -376,6 +382,19 @@ fn map_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
         .collect()
 }
 
+fn grid_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
+    if !command_state.has_command("choose") {
+        return vec![];
+    }
+
+    command_state
+        .choice_list
+        .iter()
+        .enumerate()
+        .map(|(index, choice)| candidate("choose", format!("grid:{index}"), choice.clone()))
+        .collect()
+}
+
 fn combat_candidates(
     command_state: &CommandState,
     state: &NormalizedState,
@@ -384,7 +403,7 @@ fn combat_candidates(
 
     if command_state.has_command("play") {
         for card in &state.hand {
-            if card.card_type == "STATUS" || card.card_type == "CURSE" {
+            if !card.playable {
                 continue;
             }
             let Some(uuid) = card.uuid.as_deref() else {
@@ -430,10 +449,7 @@ fn resolve_requested_combat(
         .enumerate()
         .find(|(_, card)| card.uuid.as_deref() == Some(uuid))?;
 
-    if card.cost > state.energy.unwrap_or(0)
-        || card.card_type == "STATUS"
-        || card.card_type == "CURSE"
-    {
+    if card.cost > state.energy.unwrap_or(0) {
         return None;
     }
 

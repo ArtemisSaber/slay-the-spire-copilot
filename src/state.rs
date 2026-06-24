@@ -14,6 +14,7 @@ pub struct CardInfo {
     pub uuid: Option<String>,
     pub description: String,
     pub price: Option<i64>,
+    pub playable: bool,
 }
 
 impl CardInfo {
@@ -50,6 +51,10 @@ impl CardInfo {
                 .unwrap_or("")
                 .to_string(),
             price: c.get("price").and_then(|n| n.as_i64()),
+            playable: c
+                .get("is_playable")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true),
         }
     }
 }

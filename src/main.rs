@@ -222,7 +222,11 @@ async fn main() {
     let mut combat_turn_gate = CombatTurnGate::new();
     let mut map_gate = MapGate::new();
     let mut autoplay_last_revision: Option<u64> = None;
-    let mut current_autoplay_control = Some(autoplay::control::AutoPlayControl::default_enabled());
+    let mut current_autoplay_control = if config.auto_play {
+        Some(autoplay::control::AutoPlayControl::default_enabled())
+    } else {
+        None
+    };
     let mut saw_game_state = false;
     let mut run_finalized = false;
     let stdin = io::stdin();
@@ -280,34 +284,37 @@ async fn main() {
         let normalized = state::NormalizedState::from_raw(&raw, &locale);
         let hash = normalized.stable_hash();
         let command_state = autoplay::command_state::CommandState::from_raw(&raw);
-        let autoplay_control_path = logging::advice_output_dir()
-            .join("output")
-            .join("autoplay-control.json");
-        let autoplay_control_load =
-            autoplay::control::load_control(&autoplay_control_path, autoplay_last_revision);
-        if let Some(control) = autoplay::action::active_control(&autoplay_control_load) {
-            autoplay_last_revision = Some(control.revision);
-            current_autoplay_control = Some(control.clone());
-        }
-        let autoplay_load_status = match &autoplay_control_load {
-            autoplay::control::ControlLoad::Updated(_) => "updated".to_string(),
-            autoplay::control::ControlLoad::MissingDefault(_) => "missing_default".to_string(),
-            autoplay::control::ControlLoad::Stale => "stale".to_string(),
-            autoplay::control::ControlLoad::Malformed(error) => {
-                current_autoplay_control = None;
-                format!("malformed: {error}")
+
+        if config.auto_play {
+            let autoplay_control_path = logging::advice_output_dir()
+                .join("output")
+                .join("autoplay-control.json");
+            let autoplay_control_load =
+                autoplay::control::load_control(&autoplay_control_path, autoplay_last_revision);
+            if let Some(control) = autoplay::action::active_control(&autoplay_control_load) {
+                autoplay_last_revision = Some(control.revision);
+                current_autoplay_control = Some(control.clone());
             }
-        };
-        let autoplay_mode = current_autoplay_control
-            .as_ref()
-            .map(|control| format!("{:?}", control.mode))
-            .unwrap_or_else(|| "disabled".to_string());
-        tracing::debug!(
-            "autoplay control={autoplay_mode} load={autoplay_load_status} ready={} commands={} choose_available={}",
-            command_state.ready_for_command,
-            command_state.available_commands.len(),
-            command_state.has_command("choose"),
-        );
+            let autoplay_load_status = match &autoplay_control_load {
+                autoplay::control::ControlLoad::Updated(_) => "updated".to_string(),
+                autoplay::control::ControlLoad::MissingDefault(_) => "missing_default".to_string(),
+                autoplay::control::ControlLoad::Stale => "stale".to_string(),
+                autoplay::control::ControlLoad::Malformed(error) => {
+                    current_autoplay_control = None;
+                    format!("malformed: {error}")
+                }
+            };
+            let autoplay_mode = current_autoplay_control
+                .as_ref()
+                .map(|control| format!("{:?}", control.mode))
+                .unwrap_or_else(|| "disabled".to_string());
+            tracing::debug!(
+                "autoplay control={autoplay_mode} load={autoplay_load_status} ready={} commands={} choose_available={}",
+                command_state.ready_for_command,
+                command_state.available_commands.len(),
+                command_state.has_command("choose"),
+            );
+        }
 
         if !journal.is_confirmed()
             && let (Some(seed), Some(character)) = (normalized.seed, normalized.character.as_ref())

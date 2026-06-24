@@ -25,5 +25,6 @@ pub fn card(id: &str, name: &str, cost: i64, card_type: &str) -> crate::state::C
         uuid: None,
         description: String::new(),
         price: None,
+        playable: true,
     }
 }

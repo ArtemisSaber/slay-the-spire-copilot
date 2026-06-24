@@ -171,6 +171,7 @@ fn run_started_includes_provider_and_models() {
         max_tokens_heavy: 300,
         temperature: 0.2,
         disable_fast_thinking: false,
+        auto_play: false,
     };
 
     journal.log_run_started_with_config(&config);

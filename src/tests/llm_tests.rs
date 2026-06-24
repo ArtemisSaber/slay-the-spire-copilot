@@ -510,6 +510,7 @@ fn from_config_unknown_provider() {
         max_tokens_heavy: 1000,
         temperature: 0.5,
         disable_fast_thinking: false,
+        auto_play: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(result.is_err());
@@ -530,6 +531,7 @@ fn from_config_missing_base_url() {
         max_tokens_heavy: 1000,
         temperature: 0.5,
         disable_fast_thinking: false,
+        auto_play: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(result.is_err());
@@ -549,6 +551,7 @@ fn from_config_pollinations_free_accepts_no_api_key() {
         max_tokens_heavy: 1000,
         temperature: 0.5,
         disable_fast_thinking: false,
+        auto_play: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(matches!(result, Ok(LlmProvider::PollinationsFree { .. })));
@@ -568,6 +571,7 @@ fn from_config_anthropic_requires_api_key() {
         max_tokens_heavy: 1000,
         temperature: 0.5,
         disable_fast_thinking: false,
+        auto_play: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(result.is_err());
@@ -588,6 +592,7 @@ fn from_config_anthropic_accepts_valid_config() {
         max_tokens_heavy: 1000,
         temperature: 0.5,
         disable_fast_thinking: false,
+        auto_play: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(matches!(result, Ok(LlmProvider::Anthropic { .. })));

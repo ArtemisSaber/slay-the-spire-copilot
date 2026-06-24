@@ -28,8 +28,6 @@ pub struct AutoPlayControl {
     pub allow_combat: bool,
     pub allow_selection_screens: bool,
     pub min_hp_percent: Option<u8>,
-    pub max_commands_per_turn: Option<u32>,
-    pub max_commands_per_floor: Option<u32>,
 }
 
 impl AutoPlayControl {
@@ -50,8 +48,6 @@ impl AutoPlayControl {
             allow_combat: false,
             allow_selection_screens: false,
             min_hp_percent: None,
-            max_commands_per_turn: Some(12),
-            max_commands_per_floor: None,
         }
     }
 }
@@ -129,9 +125,7 @@ mod tests {
                 "allow_shop": false,
                 "allow_combat": false,
                 "allow_selection_screens": false,
-                "min_hp_percent": 20,
-                "max_commands_per_turn": 4,
-                "max_commands_per_floor": 10
+                "min_hp_percent": 20
             }"#,
         )
         .unwrap();
@@ -146,7 +140,6 @@ mod tests {
         assert!(control.require_confirmation);
         assert!(!control.allow_events);
         assert_eq!(control.min_hp_percent, Some(20));
-        assert_eq!(control.max_commands_per_turn, Some(4));
     }
 
     #[test]
@@ -170,9 +163,7 @@ mod tests {
                 "allow_shop": false,
                 "allow_combat": false,
                 "allow_selection_screens": false,
-                "min_hp_percent": null,
-                "max_commands_per_turn": null,
-                "max_commands_per_floor": null
+                "min_hp_percent": null
             }"#,
         )
         .unwrap();
