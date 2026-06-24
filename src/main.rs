@@ -1,5 +1,6 @@
 #![deny(clippy::allow_attributes_without_reason)]
 mod advice;
+mod autoplay;
 mod config;
 mod gate;
 mod journal;
@@ -276,6 +277,25 @@ async fn main() {
 
         let normalized = state::NormalizedState::from_raw(&raw, &locale);
         let hash = normalized.stable_hash();
+        let command_state = autoplay::command_state::CommandState::from_raw(&raw);
+        let autoplay_control_path = logging::advice_output_dir()
+            .join("output")
+            .join("autoplay-control.json");
+        let autoplay_control = autoplay::control::load_control(&autoplay_control_path, None);
+        let autoplay_mode = match &autoplay_control {
+            autoplay::control::ControlLoad::Updated(control)
+            | autoplay::control::ControlLoad::MissingDefault(control) => {
+                format!("{:?}", control.mode)
+            }
+            autoplay::control::ControlLoad::Stale => "stale".to_string(),
+            autoplay::control::ControlLoad::Malformed(error) => format!("malformed: {error}"),
+        };
+        tracing::debug!(
+            "autoplay control={autoplay_mode} ready={} commands={} choose_available={}",
+            command_state.ready_for_command,
+            command_state.available_commands.len(),
+            command_state.has_command("choose"),
+        );
 
         if !journal.is_confirmed()
             && let (Some(seed), Some(character)) = (normalized.seed, normalized.character.as_ref())
