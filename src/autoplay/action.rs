@@ -182,6 +182,7 @@ fn combat_reward_candidates(
     let mut candidates = vec![];
 
     let skip_potion = session.skipped_combat_reward_potion && state.empty_potion_slots == 0;
+    let skip_card = session.skipped_combat_reward_card;
 
     if command_state.has_command("choose") {
         for (index, choice) in command_state.choice_list.iter().enumerate() {
@@ -190,7 +191,8 @@ fn combat_reward_candidates(
                 "gold" | "relic" | "stolen_gold" | "potion" | "emerald_key" | "sapphire_key"
             ) || (choice == "card" && control.allow_card_rewards);
             let skip_on_full = choice == "potion" && skip_potion;
-            if allowed && !skip_on_full {
+            let skip_on_skipped = choice == "card" && skip_card;
+            if allowed && !skip_on_full && !skip_on_skipped {
                 candidates.push(candidate(
                     "choose",
                     format!("combat_reward:{choice}:{index}"),
