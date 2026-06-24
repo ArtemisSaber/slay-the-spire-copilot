@@ -204,6 +204,14 @@ fn unified_system_prompt(locale: &Locale) -> String {
     out.concat()
 }
 
+const AUTOPLAY_ACTION_SYSTEM_PROMPT: &str = r#"AUTO_PLAY_ACTION_PLANNER
+You are the Slay the Spire auto-play action planner.
+Return strict JSON only, with this shape:
+{"schema_version":1,"actions":[{"kind":"choose|skip|proceed|play|end|leave","action_id":"...","target_index":0,"label":"...","reason":"...","risk":"..."}]}
+Choose exactly one action_id from the provided available_actions.
+Never invent an action_id. Never output prose or Markdown.
+For targeted combat cards, include target_index. If no available action is safe, choose an available non-destructive exit such as end/leave/proceed when present."#;
+
 #[derive(Debug)]
 pub(crate) struct OpenAiConfig {
     model: String,
@@ -271,6 +279,64 @@ fn chat_response_text(json: &serde_json::Value) -> anyhow::Result<String> {
         .as_str()
         .context("missing content in LLM response")
         .map(ToOwned::to_owned)
+}
+
+fn mock_autoplay_action_response(prompt: &str) -> String {
+    let prompt_json: serde_json::Value = serde_json::from_str(prompt).unwrap_or_default();
+    let actions = prompt_json
+        .get("available_actions")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let preferred = actions
+        .iter()
+        .find(|action| action.get("action_id").and_then(|v| v.as_str()) == Some("card_reward:skip"))
+        .or_else(|| {
+            actions
+                .iter()
+                .find(|action| action.get("kind").and_then(|v| v.as_str()) == Some("play"))
+        })
+        .or_else(|| actions.first());
+
+    let Some(action) = preferred else {
+        return r#"{"schema_version":1,"actions":[]}"#.to_string();
+    };
+
+    let kind = action
+        .get("kind")
+        .and_then(|v| v.as_str())
+        .unwrap_or("choose");
+    let action_id = action
+        .get("action_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let target_index = if action
+        .get("target_required")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
+        serde_json::json!(0)
+    } else {
+        serde_json::Value::Null
+    };
+    let label = action
+        .get("label")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Mock action");
+
+    serde_json::json!({
+        "schema_version": 1,
+        "actions": [{
+            "kind": kind,
+            "action_id": action_id,
+            "target_index": target_index,
+            "label": label,
+            "reason": "Mock auto-play planner selected the first preferred available action.",
+            "risk": ""
+        }]
+    })
+    .to_string()
 }
 
 #[derive(Debug)]
@@ -423,6 +489,15 @@ impl LlmProvider {
             .await
     }
 
+    pub async fn query_autoplay_action(
+        &self,
+        prompt: &str,
+        effort: Effort,
+    ) -> anyhow::Result<String> {
+        self.query_with_system_prompt(AUTOPLAY_ACTION_SYSTEM_PROMPT, prompt, effort)
+            .await
+    }
+
     async fn query_with_system_prompt(
         &self,
         system_prompt: &str,
@@ -431,6 +506,9 @@ impl LlmProvider {
     ) -> anyhow::Result<String> {
         let result: String = match self {
             LlmProvider::Mock if prompt == "TRIGGER_LLM_ERROR" => anyhow::bail!("mock error"),
+            LlmProvider::Mock if system_prompt.contains("AUTO_PLAY_ACTION_PLANNER") => {
+                mock_autoplay_action_response(prompt)
+            }
             LlmProvider::Mock if system_prompt.contains("## 总览") || system_prompt.contains("## Overview") => {
                 "# 本局复盘\n## 总览\n这是 mock 复盘。\n## 关键决策\n回看选牌、篝火和战斗入口建议。\n## 风险与转折\n关注血量变化和卡组膨胀。\n## 下次改进\n优先保证生存，再贪长期收益。"
                     .to_string()

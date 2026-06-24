@@ -1,5 +1,7 @@
 use std::io::Write;
 
+use serde::{Deserialize, Serialize};
+
 use crate::autoplay::command_state::CommandState;
 use crate::autoplay::control::{AutoPlayControl, AutoPlayMode, ControlLoad};
 use crate::protocol;
@@ -18,6 +20,23 @@ pub enum AutoPlayAction {
     Leave,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ActionRequest {
+    pub kind: String,
+    pub action_id: String,
+    #[serde(default)]
+    pub target_index: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ActionCandidate {
+    pub kind: String,
+    pub action_id: String,
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_required: Option<bool>,
+}
+
 pub fn active_control(load: &ControlLoad) -> Option<&AutoPlayControl> {
     match load {
         ControlLoad::Updated(control) | ControlLoad::MissingDefault(control) => Some(control),
@@ -25,33 +44,61 @@ pub fn active_control(load: &ControlLoad) -> Option<&AutoPlayControl> {
     }
 }
 
-pub fn resolve_action(
+pub fn available_action_candidates(
     control: &AutoPlayControl,
     command_state: &CommandState,
     state: &NormalizedState,
-) -> Option<AutoPlayAction> {
+) -> Vec<ActionCandidate> {
     if control.mode != AutoPlayMode::Auto
         || control.require_confirmation
         || !command_state.ready_for_command
+    {
+        return vec![];
+    }
+
+    match state.screen_type.as_deref() {
+        Some("COMBAT_REWARD") if control.allow_combat_rewards => {
+            combat_reward_candidates(control, command_state)
+        }
+        Some("CARD_REWARD") if control.allow_card_rewards => {
+            card_reward_candidates(command_state, state)
+        }
+        Some("BOSS_REWARD") if control.allow_boss_rewards => {
+            boss_reward_candidates(command_state, state)
+        }
+        Some("REST") if control.allow_rest => rest_candidates(command_state, state),
+        Some("EVENT") if control.allow_events => event_candidates(command_state, state),
+        Some("SHOP_SCREEN") if control.allow_shop => shop_candidates(command_state),
+        Some("MAP") if control.allow_map => map_candidates(command_state),
+        Some("NONE") if control.allow_combat => combat_candidates(command_state, state),
+        _ => vec![],
+    }
+}
+
+pub fn resolve_requested_action(
+    control: &AutoPlayControl,
+    command_state: &CommandState,
+    state: &NormalizedState,
+    request: &ActionRequest,
+) -> Option<AutoPlayAction> {
+    if !available_action_candidates(control, command_state, state)
+        .iter()
+        .any(|candidate| candidate.action_id == request.action_id && candidate.kind == request.kind)
     {
         return None;
     }
 
     match state.screen_type.as_deref() {
-        Some("COMBAT_REWARD") if control.allow_combat_rewards => {
-            resolve_combat_reward_action(control, command_state)
+        Some("COMBAT_REWARD") => resolve_requested_combat_reward(command_state, request),
+        Some("CARD_REWARD") => resolve_requested_card_reward(command_state, state, request),
+        Some("BOSS_REWARD") => resolve_requested_boss_reward(state, request),
+        Some("REST") => resolve_requested_rest(state, request),
+        Some("EVENT") => resolve_requested_indexed("event:", state.event_choices.len(), request),
+        Some("SHOP_SCREEN") => resolve_requested_shop(command_state, request),
+        Some("MAP") => {
+            resolve_requested_indexed("map:choice:", command_state.choice_list.len(), request)
         }
-        Some("CARD_REWARD") if control.allow_card_rewards => {
-            resolve_card_reward_action(command_state, state)
-        }
-        Some("BOSS_REWARD") if control.allow_boss_rewards => {
-            resolve_boss_reward_action(command_state, state)
-        }
-        Some("REST") if control.allow_rest => resolve_rest_action(command_state, state),
-        Some("EVENT") if control.allow_events => resolve_event_action(command_state, state),
-        Some("SHOP_SCREEN") if control.allow_shop => resolve_shop_action(command_state),
-        Some("MAP") if control.allow_map => resolve_map_action(command_state),
-        Some("NONE") if control.allow_combat => resolve_combat_action(command_state, state),
+        Some("NONE") => resolve_requested_combat(state, request),
         _ => None,
     }
 }
@@ -70,166 +117,350 @@ pub fn execute_action_to(writer: &mut impl Write, action: &AutoPlayAction) {
     }
 }
 
-fn resolve_combat_reward_action(
+fn candidate(kind: &str, action_id: String, label: String) -> ActionCandidate {
+    ActionCandidate {
+        kind: kind.to_string(),
+        action_id,
+        label,
+        target_required: None,
+    }
+}
+
+fn targeted_candidate(kind: &str, action_id: String, label: String) -> ActionCandidate {
+    ActionCandidate {
+        kind: kind.to_string(),
+        action_id,
+        label,
+        target_required: Some(true),
+    }
+}
+
+fn parse_index(action_id: &str, prefix: &str) -> Option<usize> {
+    action_id.strip_prefix(prefix)?.parse().ok()
+}
+
+fn combat_reward_candidates(
     control: &AutoPlayControl,
     command_state: &CommandState,
-) -> Option<AutoPlayAction> {
-    if let Some(index) = first_collectible_reward_index(control, &command_state.choice_list) {
-        if command_state.has_command("choose") {
-            return Some(AutoPlayAction::Choose(index));
+) -> Vec<ActionCandidate> {
+    let mut candidates = vec![];
+
+    if command_state.has_command("choose") {
+        for (index, choice) in command_state.choice_list.iter().enumerate() {
+            let allowed = matches!(
+                choice.as_str(),
+                "gold" | "relic" | "potion" | "emerald_key" | "sapphire_key"
+            ) || (choice == "card" && control.allow_card_rewards);
+            if allowed {
+                candidates.push(candidate(
+                    "choose",
+                    format!("combat_reward:{choice}:{index}"),
+                    format!("Collect {choice}"),
+                ));
+            }
         }
-        return None;
     }
 
-    if command_state.has_command("proceed") {
+    if command_state.has_command("proceed") && command_state.choice_list.is_empty() {
+        candidates.push(candidate(
+            "proceed",
+            "combat_reward:proceed".to_string(),
+            "Proceed".to_string(),
+        ));
+    }
+
+    candidates
+}
+
+fn resolve_requested_combat_reward(
+    command_state: &CommandState,
+    request: &ActionRequest,
+) -> Option<AutoPlayAction> {
+    if request.action_id == "combat_reward:proceed" && request.kind == "proceed" {
         return Some(AutoPlayAction::Proceed);
     }
 
-    None
-}
-
-fn first_collectible_reward_index(control: &AutoPlayControl, choices: &[String]) -> Option<usize> {
-    choices.iter().position(|choice| {
-        matches!(
-            choice.as_str(),
-            "gold" | "relic" | "potion" | "emerald_key" | "sapphire_key"
-        ) || (choice == "card" && control.allow_card_rewards)
-    })
-}
-
-fn resolve_card_reward_action(
-    command_state: &CommandState,
-    state: &NormalizedState,
-) -> Option<AutoPlayAction> {
-    if state.skip_available && command_state.has_command("skip") {
-        return Some(AutoPlayAction::Skip);
-    }
-
-    None
-}
-
-fn resolve_boss_reward_action(
-    command_state: &CommandState,
-    state: &NormalizedState,
-) -> Option<AutoPlayAction> {
-    if !state.boss_relic_choices.is_empty() && command_state.has_command("choose") {
-        return Some(AutoPlayAction::Choose(0));
-    }
-
-    None
-}
-
-fn resolve_rest_action(
-    command_state: &CommandState,
-    state: &NormalizedState,
-) -> Option<AutoPlayAction> {
-    if !command_state.has_command("choose") {
+    if request.kind != "choose" || !command_state.has_command("choose") {
         return None;
     }
 
-    let rest_index = state
-        .rest_options
-        .iter()
-        .position(|option| option == "rest");
-    let smith_index = state
-        .rest_options
-        .iter()
-        .position(|option| option == "smith");
-
-    let hp_is_low = match (state.current_hp, state.max_hp) {
-        (Some(current), Some(max)) if max > 0 => current * 2 < max,
-        _ => false,
-    };
-
-    if hp_is_low {
-        rest_index.or(smith_index).map(AutoPlayAction::Choose)
-    } else {
-        smith_index.or(rest_index).map(AutoPlayAction::Choose)
-    }
+    let index = request.action_id.rsplit(':').next()?.parse().ok()?;
+    Some(AutoPlayAction::Choose(index))
 }
 
-fn resolve_event_action(
+fn card_reward_candidates(
     command_state: &CommandState,
     state: &NormalizedState,
-) -> Option<AutoPlayAction> {
-    if command_state.has_command("choose") && state.event_choices.len() == 1 {
-        return Some(AutoPlayAction::Choose(0));
+) -> Vec<ActionCandidate> {
+    let mut candidates = vec![];
+
+    if command_state.has_command("choose") {
+        let prefix = if state.is_boss_card_reward() {
+            "boss_card_reward"
+        } else {
+            "card_reward"
+        };
+        for (index, card) in state.card_reward_choices.iter().enumerate() {
+            candidates.push(candidate(
+                "choose",
+                format!("{prefix}:{index}"),
+                card.name.clone(),
+            ));
+        }
     }
 
-    None
+    if state.skip_available && command_state.has_command("skip") {
+        let id = if state.is_boss_card_reward() {
+            "boss_card_reward:skip"
+        } else {
+            "card_reward:skip"
+        };
+        candidates.push(candidate("skip", id.to_string(), "Skip".to_string()));
+    }
+
+    candidates
 }
 
-fn resolve_shop_action(command_state: &CommandState) -> Option<AutoPlayAction> {
+fn resolve_requested_card_reward(
+    command_state: &CommandState,
+    state: &NormalizedState,
+    request: &ActionRequest,
+) -> Option<AutoPlayAction> {
+    let prefix = if state.is_boss_card_reward() {
+        "boss_card_reward:"
+    } else {
+        "card_reward:"
+    };
+
+    if request.action_id == format!("{prefix}skip") && request.kind == "skip" {
+        return Some(AutoPlayAction::Skip);
+    }
+
+    if request.kind != "choose" || !command_state.has_command("choose") {
+        return None;
+    }
+
+    let index = parse_index(&request.action_id, prefix)?;
+    (index < state.card_reward_choices.len()).then_some(AutoPlayAction::Choose(index))
+}
+
+fn boss_reward_candidates(
+    command_state: &CommandState,
+    state: &NormalizedState,
+) -> Vec<ActionCandidate> {
+    if !command_state.has_command("choose") {
+        return vec![];
+    }
+
+    state
+        .boss_relic_choices
+        .iter()
+        .enumerate()
+        .map(|(index, relic)| {
+            candidate("choose", format!("boss_relic:{index}"), relic.name.clone())
+        })
+        .collect()
+}
+
+fn resolve_requested_boss_reward(
+    state: &NormalizedState,
+    request: &ActionRequest,
+) -> Option<AutoPlayAction> {
+    if request.kind != "choose" {
+        return None;
+    }
+
+    let index = parse_index(&request.action_id, "boss_relic:")?;
+    (index < state.boss_relic_choices.len()).then_some(AutoPlayAction::Choose(index))
+}
+
+fn rest_candidates(command_state: &CommandState, state: &NormalizedState) -> Vec<ActionCandidate> {
+    if !command_state.has_command("choose") {
+        return vec![];
+    }
+
+    state
+        .rest_options
+        .iter()
+        .map(|option| candidate("choose", format!("rest:{option}"), option.clone()))
+        .collect()
+}
+
+fn resolve_requested_rest(
+    state: &NormalizedState,
+    request: &ActionRequest,
+) -> Option<AutoPlayAction> {
+    if request.kind != "choose" {
+        return None;
+    }
+
+    let option = request.action_id.strip_prefix("rest:")?;
+    state
+        .rest_options
+        .iter()
+        .position(|candidate| candidate == option)
+        .map(AutoPlayAction::Choose)
+}
+
+fn event_candidates(command_state: &CommandState, state: &NormalizedState) -> Vec<ActionCandidate> {
+    if !command_state.has_command("choose") {
+        return vec![];
+    }
+
+    state
+        .event_choices
+        .iter()
+        .enumerate()
+        .map(|(index, choice)| candidate("choose", format!("event:{index}"), choice.clone()))
+        .collect()
+}
+
+fn resolve_requested_indexed(
+    prefix: &str,
+    len: usize,
+    request: &ActionRequest,
+) -> Option<AutoPlayAction> {
+    if request.kind != "choose" {
+        return None;
+    }
+
+    let index = parse_index(&request.action_id, prefix)?;
+    (index < len).then_some(AutoPlayAction::Choose(index))
+}
+
+fn shop_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
+    let mut candidates = vec![];
+
+    if command_state.has_command("choose") {
+        for (index, choice) in command_state.choice_list.iter().enumerate() {
+            candidates.push(candidate(
+                "choose",
+                format!("shop:choice:{index}"),
+                choice.clone(),
+            ));
+        }
+    }
+
     if command_state.has_command("leave") {
+        candidates.push(candidate(
+            "leave",
+            "shop:leave".to_string(),
+            "Leave shop".to_string(),
+        ));
+    }
+
+    candidates
+}
+
+fn resolve_requested_shop(
+    command_state: &CommandState,
+    request: &ActionRequest,
+) -> Option<AutoPlayAction> {
+    if request.action_id == "shop:leave" && request.kind == "leave" {
         return Some(AutoPlayAction::Leave);
     }
 
-    None
+    resolve_requested_indexed("shop:choice:", command_state.choice_list.len(), request)
 }
 
-fn resolve_map_action(command_state: &CommandState) -> Option<AutoPlayAction> {
-    if command_state.has_command("choose") && command_state.choice_list.len() == 1 {
-        return Some(AutoPlayAction::Choose(0));
+fn map_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
+    if !command_state.has_command("choose") {
+        return vec![];
     }
 
-    None
+    command_state
+        .choice_list
+        .iter()
+        .enumerate()
+        .map(|(index, choice)| candidate("choose", format!("map:choice:{index}"), choice.clone()))
+        .collect()
 }
 
-fn resolve_combat_action(
+fn combat_candidates(
     command_state: &CommandState,
     state: &NormalizedState,
-) -> Option<AutoPlayAction> {
-    let energy = state.energy.unwrap_or(0);
+) -> Vec<ActionCandidate> {
+    let mut candidates = vec![];
 
-    if command_state.has_command("play")
-        && let Some((hand_index, target_index)) = first_playable_combat_card(state, energy)
-    {
-        return Some(AutoPlayAction::Play {
-            hand_index,
-            target_index,
-        });
+    if command_state.has_command("play") {
+        for card in &state.hand {
+            if card.card_type == "STATUS" || card.card_type == "CURSE" {
+                continue;
+            }
+            let Some(uuid) = card.uuid.as_deref() else {
+                continue;
+            };
+            let action_id = format!("combat:play:{uuid}");
+            let label = format!("Play {}", card.name);
+            if card.card_type == "ATTACK" {
+                candidates.push(targeted_candidate("play", action_id, label));
+            } else {
+                candidates.push(candidate("play", action_id, label));
+            }
+        }
     }
 
     if command_state.has_command("end") {
+        candidates.push(candidate(
+            "end",
+            "combat:end".to_string(),
+            "End turn".to_string(),
+        ));
+    }
+
+    candidates
+}
+
+fn resolve_requested_combat(
+    state: &NormalizedState,
+    request: &ActionRequest,
+) -> Option<AutoPlayAction> {
+    if request.action_id == "combat:end" && request.kind == "end" {
         return Some(AutoPlayAction::End);
     }
 
-    None
-}
+    if request.kind != "play" {
+        return None;
+    }
 
-fn first_playable_combat_card(
-    state: &NormalizedState,
-    energy: i64,
-) -> Option<(usize, Option<usize>)> {
-    let first_target = state.monsters.first().map(|monster| monster.index);
-
-    state
+    let uuid = request.action_id.strip_prefix("combat:play:")?;
+    let (hand_index, card) = state
         .hand
         .iter()
         .enumerate()
-        .find_map(|(hand_index, card)| {
-            if card.cost > energy || card.card_type == "STATUS" || card.card_type == "CURSE" {
-                return None;
-            }
+        .find(|(_, card)| card.uuid.as_deref() == Some(uuid))?;
 
-            let target_index = if card.card_type == "ATTACK" {
-                first_target
-            } else {
-                None
-            };
+    if card.cost > state.energy.unwrap_or(0)
+        || card.card_type == "STATUS"
+        || card.card_type == "CURSE"
+    {
+        return None;
+    }
 
-            if card.card_type == "ATTACK" && target_index.is_none() {
-                return None;
-            }
+    let target_index = if card.card_type == "ATTACK" {
+        let target_index = request.target_index?;
+        if !state
+            .monsters
+            .iter()
+            .any(|monster| monster.index == target_index)
+        {
+            return None;
+        }
+        Some(target_index)
+    } else {
+        None
+    };
 
-            Some((hand_index, target_index))
-        })
+    Some(AutoPlayAction::Play {
+        hand_index,
+        target_index,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::autoplay::control::{AutoPlayControl, AutoPlayMode, ControlLoad};
+    use crate::autoplay::control::{AutoPlayControl, ControlLoad};
     use crate::locales::Locale;
     use serde_json::{Value, json};
 
@@ -239,6 +470,30 @@ mod tests {
 
     fn command_state(raw: &Value) -> CommandState {
         CommandState::from_raw(raw)
+    }
+
+    fn request(kind: &str, action_id: &str) -> ActionRequest {
+        ActionRequest {
+            kind: kind.to_string(),
+            action_id: action_id.to_string(),
+            target_index: None,
+        }
+    }
+
+    fn targeted_request(kind: &str, action_id: &str, target_index: usize) -> ActionRequest {
+        ActionRequest {
+            kind: kind.to_string(),
+            action_id: action_id.to_string(),
+            target_index: Some(target_index),
+        }
+    }
+
+    fn resolve(
+        raw: &Value,
+        control: &AutoPlayControl,
+        request: &ActionRequest,
+    ) -> Option<AutoPlayAction> {
+        resolve_requested_action(control, &command_state(raw), &state(raw.clone()), request)
     }
 
     #[test]
@@ -259,7 +514,7 @@ mod tests {
     }
 
     #[test]
-    fn paused_control_does_not_resolve_action() {
+    fn paused_control_has_no_action_candidates() {
         let raw = json!({
             "available_commands": ["choose", "proceed"],
             "ready_for_command": true,
@@ -269,16 +524,15 @@ mod tests {
             }
         });
         let mut control = AutoPlayControl::default_enabled();
-        control.mode = AutoPlayMode::Paused;
+        control.mode = crate::autoplay::control::AutoPlayMode::Paused;
 
-        assert_eq!(
-            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
-            None
+        assert!(
+            available_action_candidates(&control, &command_state(&raw), &state(raw)).is_empty()
         );
     }
 
     #[test]
-    fn not_ready_does_not_resolve_action() {
+    fn not_ready_has_no_action_candidates() {
         let raw = json!({
             "available_commands": ["choose", "proceed"],
             "ready_for_command": false,
@@ -288,18 +542,18 @@ mod tests {
             }
         });
 
-        assert_eq!(
-            resolve_action(
+        assert!(
+            available_action_candidates(
                 &AutoPlayControl::default_enabled(),
                 &command_state(&raw),
-                &state(raw.clone())
-            ),
-            None
+                &state(raw)
+            )
+            .is_empty()
         );
     }
 
     #[test]
-    fn combat_reward_collects_first_known_reward() {
+    fn combat_reward_request_collects_requested_reward() {
         let raw = json!({
             "available_commands": ["choose", "proceed"],
             "ready_for_command": true,
@@ -310,38 +564,17 @@ mod tests {
         });
 
         assert_eq!(
-            resolve_action(
+            resolve(
+                &raw,
                 &AutoPlayControl::default_enabled(),
-                &command_state(&raw),
-                &state(raw.clone())
+                &request("choose", "combat_reward:card:1")
             ),
-            Some(AutoPlayAction::Choose(0))
+            Some(AutoPlayAction::Choose(1))
         );
     }
 
     #[test]
-    fn combat_reward_opens_card_reward_when_allowed() {
-        let raw = json!({
-            "available_commands": ["choose", "proceed"],
-            "ready_for_command": true,
-            "game_state": {
-                "screen_type": "COMBAT_REWARD",
-                "choice_list": ["card"]
-            }
-        });
-
-        assert_eq!(
-            resolve_action(
-                &AutoPlayControl::default_enabled(),
-                &command_state(&raw),
-                &state(raw.clone())
-            ),
-            Some(AutoPlayAction::Choose(0))
-        );
-    }
-
-    #[test]
-    fn combat_reward_proceeds_after_known_rewards_are_gone() {
+    fn combat_reward_request_can_proceed_when_empty() {
         let raw = json!({
             "available_commands": ["proceed"],
             "ready_for_command": true,
@@ -352,17 +585,17 @@ mod tests {
         });
 
         assert_eq!(
-            resolve_action(
+            resolve(
+                &raw,
                 &AutoPlayControl::default_enabled(),
-                &command_state(&raw),
-                &state(raw.clone())
+                &request("proceed", "combat_reward:proceed")
             ),
             Some(AutoPlayAction::Proceed)
         );
     }
 
     #[test]
-    fn card_reward_skips_when_skip_is_available() {
+    fn card_reward_request_can_choose_or_skip() {
         let raw = json!({
             "available_commands": ["choose", "skip"],
             "ready_for_command": true,
@@ -376,17 +609,25 @@ mod tests {
         });
 
         assert_eq!(
-            resolve_action(
+            resolve(
+                &raw,
                 &AutoPlayControl::default_enabled(),
-                &command_state(&raw),
-                &state(raw.clone())
+                &request("choose", "card_reward:0")
+            ),
+            Some(AutoPlayAction::Choose(0))
+        );
+        assert_eq!(
+            resolve(
+                &raw,
+                &AutoPlayControl::default_enabled(),
+                &request("skip", "card_reward:skip")
             ),
             Some(AutoPlayAction::Skip)
         );
     }
 
     #[test]
-    fn boss_reward_chooses_first_relic() {
+    fn boss_reward_request_chooses_requested_relic() {
         let raw = json!({
             "available_commands": ["choose"],
             "ready_for_command": true,
@@ -402,88 +643,40 @@ mod tests {
         });
 
         assert_eq!(
-            resolve_action(
+            resolve(
+                &raw,
                 &AutoPlayControl::default_enabled(),
-                &command_state(&raw),
-                &state(raw.clone())
-            ),
-            Some(AutoPlayAction::Choose(0))
-        );
-    }
-
-    #[test]
-    fn rest_chooses_rest_when_hp_is_low() {
-        let raw = json!({
-            "available_commands": ["choose", "return"],
-            "ready_for_command": true,
-            "game_state": {
-                "screen_type": "REST",
-                "current_hp": 25,
-                "max_hp": 75,
-                "screen_state": {
-                    "rest_options": ["rest", "smith", "toke"]
-                }
-            }
-        });
-
-        assert_eq!(
-            resolve_action(
-                &AutoPlayControl::default_enabled(),
-                &command_state(&raw),
-                &state(raw.clone())
-            ),
-            Some(AutoPlayAction::Choose(0))
-        );
-    }
-
-    #[test]
-    fn rest_chooses_smith_when_hp_is_not_low() {
-        let raw = json!({
-            "available_commands": ["choose", "return"],
-            "ready_for_command": true,
-            "game_state": {
-                "screen_type": "REST",
-                "current_hp": 60,
-                "max_hp": 75,
-                "screen_state": {
-                    "rest_options": ["rest", "smith", "toke"]
-                }
-            }
-        });
-
-        assert_eq!(
-            resolve_action(
-                &AutoPlayControl::default_enabled(),
-                &command_state(&raw),
-                &state(raw.clone())
+                &request("choose", "boss_relic:1")
             ),
             Some(AutoPlayAction::Choose(1))
         );
     }
 
     #[test]
-    fn single_choice_event_chooses_the_only_option() {
+    fn rest_request_maps_option_to_index() {
         let raw = json!({
-            "available_commands": ["choose"],
+            "available_commands": ["choose", "return"],
             "ready_for_command": true,
             "game_state": {
-                "screen_type": "EVENT",
-                "choice_list": ["Continue"]
+                "screen_type": "REST",
+                "screen_state": {
+                    "rest_options": ["rest", "smith", "toke"]
+                }
             }
         });
 
         assert_eq!(
-            resolve_action(
+            resolve(
+                &raw,
                 &AutoPlayControl::default_enabled(),
-                &command_state(&raw),
-                &state(raw.clone())
+                &request("choose", "rest:smith")
             ),
-            Some(AutoPlayAction::Choose(0))
+            Some(AutoPlayAction::Choose(1))
         );
     }
 
     #[test]
-    fn multiple_choice_event_blocks_for_advice() {
+    fn event_request_maps_requested_index() {
         let raw = json!({
             "available_commands": ["choose"],
             "ready_for_command": true,
@@ -494,17 +687,17 @@ mod tests {
         });
 
         assert_eq!(
-            resolve_action(
+            resolve(
+                &raw,
                 &AutoPlayControl::default_enabled(),
-                &command_state(&raw),
-                &state(raw.clone())
+                &request("choose", "event:1")
             ),
-            None
+            Some(AutoPlayAction::Choose(1))
         );
     }
 
     #[test]
-    fn shop_leaves_without_buying_by_default() {
+    fn shop_request_can_leave_or_choose_index() {
         let raw = json!({
             "available_commands": ["choose", "leave"],
             "ready_for_command": true,
@@ -513,36 +706,20 @@ mod tests {
                 "choice_list": ["purge", "Strike"]
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
-        control.allow_shop = true;
+        let control = AutoPlayControl::default_enabled();
 
         assert_eq!(
-            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
+            resolve(&raw, &control, &request("leave", "shop:leave")),
             Some(AutoPlayAction::Leave)
         );
-    }
-
-    #[test]
-    fn map_chooses_single_available_choice_when_allowed() {
-        let raw = json!({
-            "available_commands": ["choose"],
-            "ready_for_command": true,
-            "game_state": {
-                "screen_type": "MAP",
-                "choice_list": ["M"]
-            }
-        });
-        let mut control = AutoPlayControl::default_enabled();
-        control.allow_map = true;
-
         assert_eq!(
-            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
-            Some(AutoPlayAction::Choose(0))
+            resolve(&raw, &control, &request("choose", "shop:choice:1")),
+            Some(AutoPlayAction::Choose(1))
         );
     }
 
     #[test]
-    fn map_blocks_when_more_than_one_choice_is_available() {
+    fn map_request_maps_requested_index() {
         let raw = json!({
             "available_commands": ["choose"],
             "ready_for_command": true,
@@ -551,17 +728,16 @@ mod tests {
                 "choice_list": ["M", "?"]
             }
         });
-        let mut control = AutoPlayControl::default_enabled();
-        control.allow_map = true;
+        let control = AutoPlayControl::default_enabled();
 
         assert_eq!(
-            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
-            None
+            resolve(&raw, &control, &request("choose", "map:choice:1")),
+            Some(AutoPlayAction::Choose(1))
         );
     }
 
     #[test]
-    fn combat_plays_first_affordable_attack_at_first_monster_when_allowed() {
+    fn combat_request_plays_requested_card_and_target() {
         let raw = json!({
             "available_commands": ["play", "end"],
             "ready_for_command": true,
@@ -583,7 +759,11 @@ mod tests {
         control.allow_combat = true;
 
         assert_eq!(
-            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
+            resolve(
+                &raw,
+                &control,
+                &targeted_request("play", "combat:play:strike-1", 0)
+            ),
             Some(AutoPlayAction::Play {
                 hand_index: 0,
                 target_index: Some(0),
@@ -592,7 +772,84 @@ mod tests {
     }
 
     #[test]
-    fn combat_skips_unaffordable_cards() {
+    fn combat_rejects_unaffordable_requested_card() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 1, "block": 0, "powers": []},
+                    "hand": [
+                        {"id": "Bash", "name": "Bash", "cost": 2, "type": "ATTACK", "uuid": "bash-1"}
+                    ],
+                    "monsters": [
+                        {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
+                    ]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_combat = true;
+
+        assert_eq!(
+            resolve(
+                &raw,
+                &control,
+                &targeted_request("play", "combat:play:bash-1", 0)
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn invalid_requested_action_is_rejected() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "EVENT",
+                "choice_list": ["Leave"]
+            }
+        });
+
+        assert_eq!(
+            resolve(
+                &raw,
+                &AutoPlayControl::default_enabled(),
+                &request("choose", "event:9")
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn candidates_include_all_current_event_choices() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "EVENT",
+                "choice_list": ["Fight", "Leave"]
+            }
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &command_state(&raw),
+            &state(raw),
+        );
+
+        assert_eq!(
+            candidates
+                .iter()
+                .map(|candidate| candidate.action_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["event:0", "event:1"]
+        );
+    }
+
+    #[test]
+    fn combat_candidates_require_targets_for_attacks() {
         let raw = json!({
             "available_commands": ["play", "end"],
             "ready_for_command": true,
@@ -612,69 +869,18 @@ mod tests {
         });
         let mut control = AutoPlayControl::default_enabled();
         control.allow_combat = true;
+        let candidates = available_action_candidates(&control, &command_state(&raw), &state(raw));
 
-        assert_eq!(
-            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
-            Some(AutoPlayAction::Play {
-                hand_index: 1,
-                target_index: None,
-            })
-        );
-    }
-
-    #[test]
-    fn combat_ends_when_no_card_is_playable() {
-        let raw = json!({
-            "available_commands": ["play", "end"],
-            "ready_for_command": true,
-            "game_state": {
-                "screen_type": "NONE",
-                "combat_state": {
-                    "player": {"energy": 0, "block": 0, "powers": []},
-                    "hand": [
-                        {"id": "Strike_R", "name": "Strike", "cost": 1, "type": "ATTACK", "uuid": "strike-1"}
-                    ],
-                    "monsters": [
-                        {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
-                    ]
-                }
-            }
-        });
-        let mut control = AutoPlayControl::default_enabled();
-        control.allow_combat = true;
-
-        assert_eq!(
-            resolve_action(&control, &command_state(&raw), &state(raw.clone())),
-            Some(AutoPlayAction::End)
-        );
-    }
-
-    #[test]
-    fn combat_is_disabled_by_default_until_explicitly_allowed() {
-        let raw = json!({
-            "available_commands": ["play", "end"],
-            "ready_for_command": true,
-            "game_state": {
-                "screen_type": "NONE",
-                "combat_state": {
-                    "player": {"energy": 3, "block": 0, "powers": []},
-                    "hand": [
-                        {"id": "Strike_R", "name": "Strike", "cost": 1, "type": "ATTACK", "uuid": "strike-1"}
-                    ],
-                    "monsters": [
-                        {"name": "Jaw Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
-                    ]
-                }
-            }
-        });
-
-        assert_eq!(
-            resolve_action(
-                &AutoPlayControl::default_enabled(),
-                &command_state(&raw),
-                &state(raw.clone())
-            ),
-            None
+        assert!(candidates.iter().any(|candidate| {
+            candidate.action_id == "combat:play:bash-1" && candidate.target_required == Some(true)
+        }));
+        assert!(candidates.iter().any(|candidate| {
+            candidate.action_id == "combat:play:defend-1" && candidate.target_required.is_none()
+        }));
+        assert!(
+            candidates
+                .iter()
+                .any(|candidate| candidate.action_id == "combat:end")
         );
     }
 

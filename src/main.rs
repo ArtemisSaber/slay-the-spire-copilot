@@ -326,19 +326,26 @@ async fn main() {
 
         journal.log_state_change(&hash, &normalized);
 
-        if let Some(control) = current_autoplay_control.as_ref()
-            && let Some(action) =
-                autoplay::action::resolve_action(control, &command_state, &normalized)
-        {
-            tracing::info!(
-                "autoplay executing {:?} screen={} hash={}",
-                action,
-                screen_type,
-                &hash[..16],
-            );
-            let mut stdout = io::stdout().lock();
-            autoplay::action::execute_action_to(&mut stdout, &action);
-            continue;
+        if let Some(control) = current_autoplay_control.as_ref() {
+            match autoplay::planner::plan_action(&provider, control, &command_state, &normalized)
+                .await
+            {
+                Ok(Some(action)) => {
+                    tracing::info!(
+                        "autoplay executing LLM-planned {:?} screen={} hash={}",
+                        action,
+                        screen_type,
+                        &hash[..16],
+                    );
+                    let mut stdout = io::stdout().lock();
+                    autoplay::action::execute_action_to(&mut stdout, &action);
+                    continue;
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::warn!("autoplay planner did not produce an executable action: {e}");
+                }
+            }
         }
 
         if screen_type == "MAP" {
