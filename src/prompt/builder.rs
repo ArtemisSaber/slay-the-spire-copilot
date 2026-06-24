@@ -1301,6 +1301,101 @@ pub(crate) fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> 
     lines.join("\n")
 }
 
+pub(crate) fn build_hand_select(state: &NormalizedState, locale: &Locale) -> String {
+    let mut lines: Vec<String> = vec![
+        "[mode: hand_select]\n".to_string(),
+        locale.sections.hand_select.clone(),
+        status_line(state, locale),
+        String::new(),
+        build_relics_potions_section(state, locale),
+    ];
+
+    // Purpose: tell the LLM why cards are being selected
+    if let Some(ref action) = state.current_action {
+        let action_desc = match action.as_str() {
+            "ExhaustAction" => "Exhaust a card".to_string(),
+            "DiscardAction" => "Discard a card".to_string(),
+            _ => action.to_string(),
+        };
+        if let Some(ref card) = state.card_in_play {
+            lines.push(format!("Card playing: {}", format_card(card, locale)));
+        }
+        lines.push(format!("Purpose: {action_desc}"));
+    }
+    if let Some(max) = state.hand_select_max_cards {
+        lines.push(format!(
+            "Max: {max}  Can skip: {}",
+            if state.hand_select_can_pick_zero {
+                "yes"
+            } else {
+                "no"
+            }
+        ));
+    }
+
+    // Show already selected cards
+    if !state.hand_select_selected.is_empty() {
+        let selected: Vec<String> = state
+            .hand_select_selected
+            .iter()
+            .map(|c| c.name.clone())
+            .collect();
+        lines.push(format!(
+            "{} [{}]",
+            locale.sections.selected_cards,
+            selected.join(", ")
+        ));
+    }
+
+    // Available cards
+    lines.push(String::new());
+    lines.push(locale.sections.hand_select_available.clone());
+    for (i, card) in state.hand.iter().enumerate() {
+        lines.push(format!("  {i}. {}", format_card(card, locale)));
+    }
+
+    lines.join("\n")
+}
+
+pub(crate) fn build_grid_select(state: &NormalizedState, locale: &Locale) -> String {
+    let mut lines: Vec<String> = vec![
+        "[mode: grid_select]\n".to_string(),
+        locale.sections.grid_select.clone(),
+        status_line(state, locale),
+        String::new(),
+        build_relics_potions_section(state, locale),
+    ];
+
+    // Purpose
+    let purpose = if state.grid_for_upgrade {
+        locale.i18n.grid_upgrade.as_str()
+    } else if state.grid_for_transform {
+        locale.i18n.grid_transform.as_str()
+    } else if state.grid_for_purge {
+        locale.i18n.grid_purge.as_str()
+    } else {
+        locale.i18n.grid_other.as_str()
+    };
+    lines.push(purpose.to_string());
+    if let Some(num) = state.grid_num_cards {
+        lines.push(format!("Select {} card(s).", num));
+    }
+    lines.push(String::new());
+
+    // Available cards
+    lines.push(locale.sections.hand_select_available.clone());
+    let cards = if !state.grid_cards.is_empty() {
+        &state.grid_cards
+    } else {
+        &state.hand
+    };
+    for (i, card) in cards.iter().enumerate() {
+        lines.push(format!("  {i}. {}", format_card(card, locale)));
+    }
+
+    lines.join("\n")
+}
+
 pub fn build_prompt(state: &NormalizedState, locale: &Locale, shop_visited: bool) -> String {
     match state.screen_type.as_deref() {
         Some("CARD_REWARD") => build_card_reward(state, locale),
@@ -1312,6 +1407,8 @@ pub fn build_prompt(state: &NormalizedState, locale: &Locale, shop_visited: bool
             build_map_crossroad(state, locale, shop_visited)
         }
         Some("MAP") => build_map_suggestion(state, locale),
+        Some("HAND_SELECT") => build_hand_select(state, locale),
+        Some("GRID") => build_grid_select(state, locale),
         _ if !state.monsters.is_empty() => build_combat(state, locale),
         _ => build_generic(state, locale),
     }

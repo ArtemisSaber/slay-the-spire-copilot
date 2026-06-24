@@ -214,6 +214,17 @@ fn test_state() -> NormalizedState {
         map_first_node_chosen: None,
         map_current_x: None,
         map_current_y: None,
+        hand_select_max_cards: None,
+        hand_select_can_pick_zero: false,
+        hand_select_selected: vec![],
+        current_action: None,
+        card_in_play: None,
+        grid_cards: vec![],
+        grid_for_upgrade: false,
+        grid_for_transform: false,
+        grid_for_purge: false,
+        grid_num_cards: None,
+        empty_potion_slots: 0,
     }
 }
 
@@ -367,27 +378,76 @@ fn log_includes_prompt_and_response() {
 #[test]
 fn effort_from_screen_type_card_reward_is_heavy() {
     assert!(matches!(
-        Effort::from_screen_type("CARD_REWARD"),
+        Effort::from_screen_type("CARD_REWARD", false),
         Effort::Heavy
     ));
 }
 
 #[test]
 fn effort_from_screen_type_map_is_heavy() {
-    assert!(matches!(Effort::from_screen_type("MAP"), Effort::Heavy));
+    assert!(matches!(
+        Effort::from_screen_type("MAP", false),
+        Effort::Heavy
+    ));
 }
 
 #[test]
 fn effort_from_screen_type_none_is_fast() {
-    assert!(matches!(Effort::from_screen_type("NONE"), Effort::Fast));
+    assert!(matches!(
+        Effort::from_screen_type("NONE", false),
+        Effort::Fast
+    ));
+}
+
+#[test]
+fn effort_from_screen_type_hand_select_is_fast() {
+    assert!(matches!(
+        Effort::from_screen_type("HAND_SELECT", false),
+        Effort::Fast
+    ));
+}
+
+#[test]
+fn effort_from_screen_type_grid_is_medium() {
+    assert!(matches!(
+        Effort::from_screen_type("GRID", false),
+        Effort::Medium
+    ));
 }
 
 #[test]
 fn effort_from_screen_type_other_is_medium() {
-    assert!(matches!(Effort::from_screen_type("REST"), Effort::Medium));
     assert!(matches!(
-        Effort::from_screen_type("UNKNOWN"),
+        Effort::from_screen_type("REST", false),
         Effort::Medium
+    ));
+    assert!(matches!(
+        Effort::from_screen_type("UNKNOWN", false),
+        Effort::Medium
+    ));
+}
+
+#[test]
+fn effort_card_reward_fast_when_in_combat() {
+    assert!(matches!(
+        Effort::from_screen_type("CARD_REWARD", true),
+        Effort::Fast
+    ));
+}
+
+#[test]
+fn effort_grid_fast_when_in_combat() {
+    assert!(matches!(
+        Effort::from_screen_type("GRID", true),
+        Effort::Fast
+    ));
+}
+
+#[test]
+fn effort_unknown_fast_when_in_combat() {
+    assert!(matches!(
+        Effort::from_screen_type("SHOP_SCREEN", true),
+        Effort::Fast
     ));
 }
 

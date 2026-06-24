@@ -48,12 +48,17 @@ pub enum Effort {
 }
 
 impl Effort {
-    pub fn from_screen_type(st: &str) -> Self {
+    pub fn from_screen_type(st: &str, in_combat: bool) -> Self {
         match st {
+            "CARD_REWARD" if in_combat => Effort::Fast,
             "CARD_REWARD" => Effort::Heavy,
             "BOSS_REWARD" => Effort::Heavy,
             "MAP" => Effort::Heavy,
             "NONE" => Effort::Fast,
+            "HAND_SELECT" => Effort::Fast,
+            "GRID" if in_combat => Effort::Fast,
+            "GRID" => Effort::Medium,
+            _ if in_combat => Effort::Fast,
             _ => Effort::Medium,
         }
     }

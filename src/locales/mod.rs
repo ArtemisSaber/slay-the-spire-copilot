@@ -81,6 +81,10 @@ pub struct SectionLocale {
     pub shop_relics: String,
     pub shop_potions: String,
     pub shop_purge: String,
+    pub hand_select: String,
+    pub grid_select: String,
+    pub hand_select_available: String,
+    pub selected_cards: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -256,6 +260,10 @@ pub struct I18nLocale {
     pub rest_lift: String,
     pub rest_recall: String,
     pub rest_girya: String,
+    pub grid_upgrade: String,
+    pub grid_transform: String,
+    pub grid_purge: String,
+    pub grid_other: String,
 }
 
 impl I18nLocale {

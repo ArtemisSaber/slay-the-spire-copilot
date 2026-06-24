@@ -70,7 +70,11 @@
     "shop_cards": "=== Cards for Sale ===",
     "shop_relics": "=== Relics for Sale ===",
     "shop_potions": "=== Potions for Sale ===",
-    "shop_purge": "=== Card Removal ==="
+    "shop_purge": "=== Card Removal ===",
+    "hand_select": "=== Card Selection ===",
+    "grid_select": "=== Card Selection ===",
+    "hand_select_available": "Available:",
+    "selected_cards": "Selected:"
   },
   "map_position": {
     "only": "only",
@@ -228,7 +232,11 @@
     "rest_dig": "Dig (relic)",
     "rest_lift": "Lift (permanent +1 STR)",
     "rest_recall": "Recall (key)",
-    "rest_girya": "Girya (strength)"
+    "rest_girya": "Girya (strength)",
+    "grid_upgrade": "Select a card to UPGRADE (Smith at rest site).",
+    "grid_transform": "Select a card to TRANSFORM.",
+    "grid_purge": "Select a card to REMOVE.",
+    "grid_other": "Select a card."
   },
   "relic_counter_cycles": {
     "Happy Flower":    "in {count} turns: gain [E]",

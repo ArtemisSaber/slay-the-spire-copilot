@@ -70,7 +70,11 @@
     "shop_cards": "=== 구매 가능 카드 ===",
     "shop_relics": "=== 구매 가능 유물 ===",
     "shop_potions": "=== 구매 가능 포션 ===",
-    "shop_purge": "=== 카드 제거 ==="
+    "shop_purge": "=== 카드 제거 ===",
+    "hand_select": "=== 카드 선택 ===",
+    "grid_select": "=== 카드 선택 ===",
+    "hand_select_available": "선택 가능：",
+    "selected_cards": "선택됨："
   },
   "map_position": {
     "only": "유일",
@@ -228,7 +232,11 @@
     "rest_dig": "발굴 (유물)",
     "rest_lift": "역도 (영구 힘 +1)",
     "rest_recall": "회상 (열쇠)",
-    "rest_girya": "기르야 (힘)"
+    "rest_girya": "기르야 (힘)",
+    "grid_upgrade": "강화할 카드를 선택하세요 (대장간).",
+    "grid_transform": "변화할 카드를 선택하세요.",
+    "grid_purge": "제거할 카드를 선택하세요.",
+    "grid_other": "카드를 선택하세요."
   },
   "relic_counter_cycles": {
     "Happy Flower":    "{count} 턴 후 [E] 획득",

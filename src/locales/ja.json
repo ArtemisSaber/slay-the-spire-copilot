@@ -70,7 +70,11 @@
     "shop_cards": "=== 購入可能カード ===",
     "shop_relics": "=== 購入可能レリック ===",
     "shop_potions": "=== 購入可能ポーション ===",
-    "shop_purge": "=== カード削除 ==="
+    "shop_purge": "=== カード削除 ===",
+    "hand_select": "=== カード選択 ===",
+    "grid_select": "=== カード選択 ===",
+    "hand_select_available": "選択可能：",
+    "selected_cards": "選択済み："
   },
   "map_position": {
     "only": "唯一",
@@ -228,7 +232,11 @@
     "rest_dig": "発掘（レリック）",
     "rest_lift": "挙重（永続筋力+1）",
     "rest_recall": "回想（鍵）",
-    "rest_girya": "ギリヤ（筋力）"
+    "rest_girya": "ギリヤ（筋力）",
+    "grid_upgrade": "強化するカードを選択してください（鍛造）。",
+    "grid_transform": "変化させるカードを選択してください。",
+    "grid_purge": "削除するカードを選択してください。",
+    "grid_other": "カードを選択してください。"
   },
   "relic_counter_cycles": {
     "Happy Flower":    "{count} ターン後に [E] を得る",

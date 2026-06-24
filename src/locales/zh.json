@@ -70,7 +70,11 @@
     "shop_cards": "=== 待购卡牌 ===",
     "shop_relics": "=== 待购遗物 ===",
     "shop_potions": "=== 待购药水 ===",
-    "shop_purge": "=== 删牌服务 ==="
+    "shop_purge": "=== 删牌服务 ===",
+    "hand_select": "=== 卡牌选择 ===",
+    "grid_select": "=== 卡牌选择 ===",
+    "hand_select_available": "可选卡牌：",
+    "selected_cards": "已选择："
   },
   "map_position": {
     "only": "唯一",
@@ -228,7 +232,11 @@
     "rest_dig": "挖遗物",
     "rest_lift": "举重(永久+1力量)",
     "rest_recall": "回忆钥匙",
-    "rest_girya": "深蹲(力量)"
+    "rest_girya": "深蹲(力量)",
+    "grid_upgrade": "选择一张要升级的卡牌（锻造）。",
+    "grid_transform": "选择一张要变化的卡牌。",
+    "grid_purge": "选择一张要移除的卡牌。",
+    "grid_other": "选择一张卡牌。"
   },
   "relic_counter_cycles": {
     "Happy Flower":    "{count} 回合后获得 [E]",

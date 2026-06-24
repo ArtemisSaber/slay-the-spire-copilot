@@ -61,6 +61,17 @@ fn test_state() -> NormalizedState {
         shop_potions: vec![],
         purge_available: false,
         purge_cost: None,
+        hand_select_max_cards: None,
+        hand_select_can_pick_zero: false,
+        hand_select_selected: vec![],
+        current_action: None,
+        card_in_play: None,
+        grid_cards: vec![],
+        grid_for_upgrade: false,
+        grid_for_transform: false,
+        grid_for_purge: false,
+        grid_num_cards: None,
+        empty_potion_slots: 0,
     }
 }
 
@@ -1800,4 +1811,72 @@ fn shop_prompt_without_purge_omits_removal_section() {
     assert!(!prompt.contains("=== 待购卡牌 ==="));
     assert!(!prompt.contains("=== 删牌服务 ==="));
     assert!(!prompt.contains("Remove a card"));
+}
+
+#[test]
+fn build_hand_select_shows_purpose_with_card_in_play() {
+    let locale = test_locale();
+    let state = NormalizedState {
+        screen_type: Some("HAND_SELECT".into()),
+        hand: vec![card("Strike_R", "打击", 1, "ATTACK")],
+        current_action: Some("ExhaustAction".into()),
+        card_in_play: Some(card("Burning Pact", "燃烧契约", 1, "SKILL")),
+        hand_select_max_cards: Some(1),
+        ..test_state()
+    };
+    let prompt = build_prompt(&state, &locale, false);
+    assert!(prompt.contains("[mode: hand_select]"));
+    assert!(prompt.contains("Exhaust a card"));
+    assert!(prompt.contains("燃烧契约"));
+}
+
+#[test]
+fn build_hand_select_shows_selected_cards() {
+    let locale = test_locale();
+    let state = NormalizedState {
+        screen_type: Some("HAND_SELECT".into()),
+        hand: vec![card("Strike_R", "打击", 1, "ATTACK")],
+        hand_select_selected: vec![card("Defend_R", "防御", 1, "SKILL")],
+        hand_select_max_cards: Some(2),
+        hand_select_can_pick_zero: true,
+        ..test_state()
+    };
+    let prompt = build_prompt(&state, &locale, false);
+    assert!(prompt.contains("已选择"));
+    assert!(prompt.contains("防御"));
+    assert!(prompt.contains("Can skip: yes"));
+}
+
+#[test]
+fn build_grid_select_upgrade_shows_purpose() {
+    let locale = test_locale();
+    let state = NormalizedState {
+        screen_type: Some("GRID".into()),
+        grid_cards: vec![
+            card("Strike_R", "打击", 1, "ATTACK"),
+            card("Defend_R", "防御", 1, "SKILL"),
+        ],
+        grid_for_upgrade: true,
+        grid_num_cards: Some(1),
+        ..test_state()
+    };
+    let prompt = build_prompt(&state, &locale, false);
+    assert!(prompt.contains("[mode: grid_select]"));
+    assert!(prompt.contains("升级"));
+    assert!(prompt.contains("打击"));
+}
+
+#[test]
+fn build_grid_select_purge_shows_purpose() {
+    let locale = test_locale();
+    let state = NormalizedState {
+        screen_type: Some("GRID".into()),
+        grid_cards: vec![card("Strike_R", "打击", 1, "ATTACK")],
+        grid_for_purge: true,
+        grid_num_cards: Some(1),
+        ..test_state()
+    };
+    let prompt = build_prompt(&state, &locale, false);
+    assert!(prompt.contains("[mode: grid_select]"));
+    assert!(prompt.contains("移除"));
 }
