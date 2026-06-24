@@ -28,9 +28,11 @@ pub struct AutoPlayControl {
     pub allow_combat: bool,
     pub allow_selection_screens: bool,
     pub min_hp_percent: Option<u8>,
-    #[serde(default)]
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AutoPlaySession {
     pub last_shop_room_floor: Option<i64>,
-    #[serde(default)]
     pub skipped_combat_reward_potion: bool,
 }
 
@@ -52,8 +54,6 @@ impl AutoPlayControl {
             allow_combat: true,
             allow_selection_screens: true,
             min_hp_percent: None,
-            last_shop_room_floor: None,
-            skipped_combat_reward_potion: false,
         }
     }
 }

@@ -3,7 +3,7 @@ use std::io::Write;
 use serde::{Deserialize, Serialize};
 
 use crate::autoplay::command_state::CommandState;
-use crate::autoplay::control::{AutoPlayControl, AutoPlayMode, ControlLoad};
+use crate::autoplay::control::{AutoPlayControl, AutoPlayMode, AutoPlaySession, ControlLoad};
 use crate::protocol;
 use crate::state::NormalizedState;
 
@@ -46,6 +46,7 @@ pub fn active_control(load: &ControlLoad) -> Option<&AutoPlayControl> {
 
 pub fn available_action_candidates(
     control: &AutoPlayControl,
+    session: &AutoPlaySession,
     command_state: &CommandState,
     state: &NormalizedState,
 ) -> Vec<ActionCandidate> {
@@ -58,7 +59,7 @@ pub fn available_action_candidates(
 
     match state.screen_type.as_deref() {
         Some("COMBAT_REWARD") if control.allow_combat_rewards => {
-            combat_reward_candidates(control, command_state, state)
+            combat_reward_candidates(control, session, command_state, state)
         }
         Some("CARD_REWARD") if control.allow_card_rewards => {
             card_reward_candidates(command_state, state)
@@ -69,7 +70,7 @@ pub fn available_action_candidates(
         Some("REST") if control.allow_rest => rest_candidates(command_state, state),
         Some("EVENT") if control.allow_events => event_candidates(command_state, state),
         Some("SHOP_ROOM" | "SHOP_SCREEN") if control.allow_shop => {
-            shop_candidates(control, command_state, state.floor)
+            shop_candidates(session, command_state, state.floor)
         }
         Some("MAP") if control.allow_map => map_candidates(command_state),
         Some("NONE") if control.allow_combat => combat_candidates(command_state, state),
@@ -84,11 +85,12 @@ pub fn available_action_candidates(
 
 pub fn resolve_requested_action(
     control: &AutoPlayControl,
+    session: &AutoPlaySession,
     command_state: &CommandState,
     state: &NormalizedState,
     request: &ActionRequest,
 ) -> Option<AutoPlayAction> {
-    if !available_action_candidates(control, command_state, state)
+    if !available_action_candidates(control, session, command_state, state)
         .iter()
         .any(|candidate| candidate.action_id == request.action_id && candidate.kind == request.kind)
     {
@@ -165,12 +167,13 @@ fn parse_index(action_id: &str, prefix: &str) -> Option<usize> {
 
 fn combat_reward_candidates(
     control: &AutoPlayControl,
+    session: &AutoPlaySession,
     command_state: &CommandState,
     state: &NormalizedState,
 ) -> Vec<ActionCandidate> {
     let mut candidates = vec![];
 
-    let skip_potion = control.skipped_combat_reward_potion && state.empty_potion_slots == 0;
+    let skip_potion = session.skipped_combat_reward_potion && state.empty_potion_slots == 0;
 
     if command_state.has_command("choose") {
         for (index, choice) in command_state.choice_list.iter().enumerate() {
@@ -373,13 +376,13 @@ fn resolve_requested_indexed(
 }
 
 fn shop_candidates(
-    control: &AutoPlayControl,
+    session: &AutoPlaySession,
     command_state: &CommandState,
     floor: Option<i64>,
 ) -> Vec<ActionCandidate> {
     let mut candidates = vec![];
 
-    let already_entered = match (control.last_shop_room_floor, floor) {
+    let already_entered = match (session.last_shop_room_floor, floor) {
         (Some(last), Some(current)) => last == current,
         _ => false,
     };
@@ -620,7 +623,13 @@ mod tests {
         control: &AutoPlayControl,
         request: &ActionRequest,
     ) -> Option<AutoPlayAction> {
-        resolve_requested_action(control, &command_state(raw), &state(raw.clone()), request)
+        resolve_requested_action(
+            control,
+            &AutoPlaySession::default(),
+            &command_state(raw),
+            &state(raw.clone()),
+            request,
+        )
     }
 
     #[test]
@@ -654,7 +663,13 @@ mod tests {
         control.mode = crate::autoplay::control::AutoPlayMode::Paused;
 
         assert!(
-            available_action_candidates(&control, &command_state(&raw), &state(raw)).is_empty()
+            available_action_candidates(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state(&raw),
+                &state(raw)
+            )
+            .is_empty()
         );
     }
 
@@ -672,6 +687,7 @@ mod tests {
         assert!(
             available_action_candidates(
                 &AutoPlayControl::default_enabled(),
+                &AutoPlaySession::default(),
                 &command_state(&raw),
                 &state(raw)
             )
@@ -962,6 +978,7 @@ mod tests {
         });
         let candidates = available_action_candidates(
             &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
             &command_state(&raw),
             &state(raw),
         );
@@ -996,7 +1013,12 @@ mod tests {
         });
         let mut control = AutoPlayControl::default_enabled();
         control.allow_combat = true;
-        let candidates = available_action_candidates(&control, &command_state(&raw), &state(raw));
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
 
         assert!(candidates.iter().any(|candidate| {
             candidate.action_id == "combat:play:bash-1" && candidate.target_required == Some(true)
@@ -1056,7 +1078,12 @@ mod tests {
         });
         let mut control = AutoPlayControl::default_enabled();
         control.allow_combat = true;
-        let candidates = available_action_candidates(&control, &command_state(&raw), &state(raw));
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
         let neut = candidates
             .iter()
             .find(|c| c.action_id == "combat:play:neut-1")
@@ -1088,7 +1115,12 @@ mod tests {
         });
         let mut control = AutoPlayControl::default_enabled();
         control.allow_combat = true;
-        let candidates = available_action_candidates(&control, &command_state(&raw), &state(raw));
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
         let defend = candidates
             .iter()
             .find(|c| c.action_id == "combat:play:def-1")
@@ -1111,7 +1143,12 @@ mod tests {
         });
         let mut control = AutoPlayControl::default_enabled();
         control.allow_selection_screens = true;
-        let candidates = available_action_candidates(&control, &command_state(&raw), &state(raw));
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
         assert_eq!(candidates.len(), 2);
         assert_eq!(candidates[0].action_id, "hand_select:0");
         assert_eq!(candidates[1].action_id, "hand_select:1");
@@ -1126,6 +1163,7 @@ mod tests {
         });
         let candidates = available_action_candidates(
             &control,
+            &AutoPlaySession::default(),
             &command_state(&raw_with_confirm),
             &state(raw_with_confirm),
         );
@@ -1150,7 +1188,12 @@ mod tests {
         });
         let mut control = AutoPlayControl::default_enabled();
         control.allow_selection_screens = true;
-        let candidates = available_action_candidates(&control, &command_state(&raw), &state(raw));
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
         assert_eq!(candidates.len(), 3);
         assert_eq!(candidates[0].action_id, "grid:0");
         assert_eq!(candidates[2].action_id, "grid:2");
@@ -1165,6 +1208,7 @@ mod tests {
         });
         let candidates = available_action_candidates(
             &control,
+            &AutoPlaySession::default(),
             &command_state(&raw_with_confirm),
             &state(raw_with_confirm),
         );
@@ -1191,7 +1235,12 @@ mod tests {
         });
         let mut control = AutoPlayControl::default_enabled();
         control.allow_rest = true;
-        let candidates = available_action_candidates(&control, &command_state(&raw), &state(raw));
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
         assert_eq!(candidates.len(), 3);
         assert!(candidates.iter().any(|c| c.action_id == "rest:rest"));
         assert!(candidates.iter().any(|c| c.action_id == "rest:smith"));
@@ -1244,7 +1293,13 @@ mod tests {
             target_index: None,
         };
         assert_eq!(
-            resolve_requested_action(&control, &command_state, &state, &request),
+            resolve_requested_action(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state,
+                &state,
+                &request
+            ),
             Some(AutoPlayAction::Proceed)
         );
     }
@@ -1269,7 +1324,13 @@ mod tests {
             target_index: None,
         };
         assert_eq!(
-            resolve_requested_action(&control, &command_state, &state, &request),
+            resolve_requested_action(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state,
+                &state,
+                &request
+            ),
             Some(AutoPlayAction::Proceed)
         );
     }

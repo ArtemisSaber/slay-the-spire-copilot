@@ -227,6 +227,7 @@ async fn main() {
     } else {
         None
     };
+    let mut autoplay_session = autoplay::control::AutoPlaySession::default();
     let mut last_autoplay_state: Option<(
         serde_json::Value,
         state::NormalizedState,
@@ -280,6 +281,7 @@ async fn main() {
                     match autoplay::planner::plan_action(
                         &provider,
                         control,
+                        &mut autoplay_session,
                         saved_command_state,
                         saved_normalized,
                         &locale,
@@ -386,6 +388,7 @@ async fn main() {
             match autoplay::planner::plan_action(
                 &provider,
                 control,
+                &mut autoplay_session,
                 &command_state,
                 &normalized,
                 &locale,

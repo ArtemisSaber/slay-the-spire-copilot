@@ -7,7 +7,7 @@ use crate::autoplay::action::{
     resolve_requested_action,
 };
 use crate::autoplay::command_state::CommandState;
-use crate::autoplay::control::AutoPlayControl;
+use crate::autoplay::control::{AutoPlayControl, AutoPlaySession};
 use crate::llm::{Effort, LlmProvider};
 use crate::locales::Locale;
 use crate::prompt;
@@ -38,21 +38,24 @@ struct ActionRequestSummary {
 pub async fn plan_action(
     provider: &LlmProvider,
     control: &mut AutoPlayControl,
+    session: &mut AutoPlaySession,
     command_state: &CommandState,
     state: &NormalizedState,
     locale: &Locale,
     shop_visited: bool,
 ) -> anyhow::Result<Option<AutoPlayAction>> {
     if state.screen_type.as_deref() != Some("COMBAT_REWARD") {
-        control.skipped_combat_reward_potion = false;
+        session.skipped_combat_reward_potion = false;
     }
 
-    let candidates = available_action_candidates(control, command_state, state);
+    let candidates = available_action_candidates(control, session, command_state, state);
     if candidates.is_empty() {
         return Ok(None);
     }
 
-    if let Some(action) = try_deterministic_action(control, command_state, state, &candidates) {
+    if let Some(action) =
+        try_deterministic_action(control, session, command_state, state, &candidates)
+    {
         tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
         return Ok(Some(action));
     }
@@ -90,7 +93,7 @@ pub async fn plan_action(
                             )
                             && chosen != potion_index
                         {
-                            control.skipped_combat_reward_potion = true;
+                            session.skipped_combat_reward_potion = true;
                         }
                         return Ok(action);
                     }
@@ -139,6 +142,7 @@ fn potion_in_full_slots_was_rejected(
 
 fn try_deterministic_action(
     control: &mut AutoPlayControl,
+    session: &mut AutoPlaySession,
     command_state: &CommandState,
     state: &NormalizedState,
     candidates: &[ActionCandidate],
@@ -150,11 +154,11 @@ fn try_deterministic_action(
             action_id: sole.action_id.clone(),
             target_index: sole.target_required.and(Some(0)),
         };
-        let action = resolve_requested_action(control, command_state, state, &request)?;
+        let action = resolve_requested_action(control, session, command_state, state, &request)?;
 
         if state.screen_type.as_deref() == Some("SHOP_ROOM") && action == AutoPlayAction::Choose(0)
         {
-            control.last_shop_room_floor = state.floor;
+            session.last_shop_room_floor = state.floor;
         }
 
         return Some(action);
@@ -307,13 +311,19 @@ fn parse_planner_response(
         );
     }
 
-    let action =
-        resolve_requested_action(control, command_state, state, request).with_context(|| {
-            format!(
-                "autoplay planner action {} is not executable",
-                request.action_id
-            )
-        })?;
+    let action = resolve_requested_action(
+        control,
+        &AutoPlaySession::default(),
+        command_state,
+        state,
+        request,
+    )
+    .with_context(|| {
+        format!(
+            "autoplay planner action {} is not executable",
+            request.action_id
+        )
+    })?;
 
     Ok(Some(action))
 }
@@ -485,7 +495,7 @@ fn fallback_combat_action(
 mod tests {
     use super::*;
     use crate::autoplay::command_state::CommandState;
-    use crate::autoplay::control::AutoPlayControl;
+    use crate::autoplay::control::{AutoPlayControl, AutoPlaySession};
     use crate::locales::Locale;
     use serde_json::{Value, json};
 
@@ -516,7 +526,12 @@ mod tests {
         let mut control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
-        let candidates = available_action_candidates(&control, &command_state, &state);
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+        );
 
         let prompt = build_planner_prompt(
             &command_state,
@@ -565,7 +580,12 @@ mod tests {
         let mut control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
-        let candidates = available_action_candidates(&control, &command_state, &state);
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+        );
 
         let error = parse_planner_response(
             r#"{
@@ -601,7 +621,12 @@ mod tests {
         let mut control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
-        let candidates = available_action_candidates(&control, &command_state, &state);
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+        );
 
         let error = parse_planner_response(
             "推荐：do something",
@@ -628,7 +653,12 @@ mod tests {
         let mut control = AutoPlayControl::default_enabled();
         let command_state = command_state(&raw);
         let state = state(raw);
-        let candidates = available_action_candidates(&control, &command_state, &state);
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+        );
         let rejections = vec![RejectedAttempt {
             attempt: 1,
             rejected_action: Some(ActionRequestSummary {
@@ -676,6 +706,7 @@ mod tests {
         let action = plan_action(
             &LlmProvider::Mock,
             &mut control,
+            &mut AutoPlaySession::default(),
             &command_state,
             &state,
             &Locale::load("en"),
@@ -807,6 +838,7 @@ mod tests {
         let action = plan_action(
             &LlmProvider::Mock,
             &mut control,
+            &mut AutoPlaySession::default(),
             &command_state,
             &state,
             &Locale::load("en"),
@@ -835,6 +867,7 @@ mod tests {
         let action = plan_action(
             &LlmProvider::Mock,
             &mut control,
+            &mut AutoPlaySession::default(),
             &command_state,
             &state,
             &Locale::load("en"),
@@ -861,10 +894,21 @@ mod tests {
         let mut control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
-        let candidates = available_action_candidates(&control, &command_state, &state);
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+        );
 
         assert_eq!(candidates.len(), 1);
-        let action = try_deterministic_action(&mut control, &command_state, &state, &candidates);
+        let action = try_deterministic_action(
+            &mut control,
+            &mut AutoPlaySession::default(),
+            &command_state,
+            &state,
+            &candidates,
+        );
         assert_eq!(action, Some(AutoPlayAction::Choose(0)));
     }
 
@@ -883,10 +927,21 @@ mod tests {
         let mut control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
-        let candidates = available_action_candidates(&control, &command_state, &state);
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+        );
 
         assert_eq!(candidates.len(), 2);
-        let action = try_deterministic_action(&mut control, &command_state, &state, &candidates);
+        let action = try_deterministic_action(
+            &mut control,
+            &mut AutoPlaySession::default(),
+            &command_state,
+            &state,
+            &candidates,
+        );
         assert_eq!(action, None);
     }
 
@@ -903,10 +958,21 @@ mod tests {
         let mut control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
-        let candidates = available_action_candidates(&control, &command_state, &state);
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+        );
 
         assert!(candidates.len() > 1);
-        let action = try_deterministic_action(&mut control, &command_state, &state, &candidates);
+        let action = try_deterministic_action(
+            &mut control,
+            &mut AutoPlaySession::default(),
+            &command_state,
+            &state,
+            &candidates,
+        );
         assert_eq!(action, Some(AutoPlayAction::Choose(0)));
     }
 
@@ -979,9 +1045,20 @@ mod tests {
         let mut control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
-        let candidates = available_action_candidates(&control, &command_state, &state);
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+        );
 
-        let action = try_deterministic_action(&mut control, &command_state, &state, &candidates);
+        let action = try_deterministic_action(
+            &mut control,
+            &mut AutoPlaySession::default(),
+            &command_state,
+            &state,
+            &candidates,
+        );
         assert_eq!(action, Some(AutoPlayAction::Choose(1)));
     }
 
@@ -1001,10 +1078,21 @@ mod tests {
         let mut control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
-        let candidates = available_action_candidates(&control, &command_state, &state);
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+        );
 
         // Potion in list but no empty slots — should fall through to LLM (returns None)
-        let action = try_deterministic_action(&mut control, &command_state, &state, &candidates);
+        let action = try_deterministic_action(
+            &mut control,
+            &mut AutoPlaySession::default(),
+            &command_state,
+            &state,
+            &candidates,
+        );
         assert_eq!(action, None);
     }
 }
