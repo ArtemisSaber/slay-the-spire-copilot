@@ -43,6 +43,10 @@ pub async fn plan_action(
     locale: &Locale,
     shop_visited: bool,
 ) -> anyhow::Result<Option<AutoPlayAction>> {
+    if state.screen_type.as_deref() != Some("COMBAT_REWARD") {
+        control.skipped_combat_reward_potion = false;
+    }
+
     let candidates = available_action_candidates(control, command_state, state);
     if candidates.is_empty() {
         return Ok(None);
@@ -76,7 +80,20 @@ pub async fn plan_action(
             Ok(response) => {
                 match parse_planner_response(&response, control, command_state, state, &candidates)
                 {
-                    Ok(action) => return Ok(action),
+                    Ok(action) => {
+                        if let Some((potion_index, AutoPlayAction::Choose(chosen))) =
+                            potion_in_full_slots_was_rejected(
+                                &candidates,
+                                command_state,
+                                state,
+                                &action,
+                            )
+                            && chosen != potion_index
+                        {
+                            control.skipped_combat_reward_potion = true;
+                        }
+                        return Ok(action);
+                    }
                     Err(e) => rejections.push(RejectedAttempt {
                         attempt,
                         rejected_action: rejected_action_from_response(&response),
@@ -93,6 +110,31 @@ pub async fn plan_action(
     }
 
     Ok(fallback_action(control, command_state, state))
+}
+
+fn potion_in_full_slots_was_rejected(
+    candidates: &[ActionCandidate],
+    command_state: &CommandState,
+    state: &NormalizedState,
+    action: &Option<AutoPlayAction>,
+) -> Option<(usize, AutoPlayAction)> {
+    if state.screen_type.as_deref() != Some("COMBAT_REWARD") {
+        return None;
+    }
+    if state.empty_potion_slots > 0 {
+        return None;
+    }
+    let potion_index = command_state
+        .choice_list
+        .iter()
+        .position(|c| c == "potion")?;
+    let potion_candidate_selected = candidates.iter().any(|c| {
+        c.action_id == format!("combat_reward:potion:{potion_index}") && c.kind == "choose"
+    });
+    if !potion_candidate_selected {
+        return None;
+    }
+    action.as_ref().map(|a| (potion_index, a.clone()))
 }
 
 fn try_deterministic_action(
@@ -340,7 +382,7 @@ fn fallback_combat_reward_action(
         let index = command_state.choice_list.iter().position(|choice| {
             matches!(
                 choice.as_str(),
-                "gold" | "relic" | "potion" | "emerald_key" | "sapphire_key"
+                "gold" | "relic" | "stolen_gold" | "potion" | "emerald_key" | "sapphire_key"
             ) || (choice == "card" && control.allow_card_rewards)
         });
         if let Some(index) = index {

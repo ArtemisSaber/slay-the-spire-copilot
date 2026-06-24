@@ -58,7 +58,7 @@ pub fn available_action_candidates(
 
     match state.screen_type.as_deref() {
         Some("COMBAT_REWARD") if control.allow_combat_rewards => {
-            combat_reward_candidates(control, command_state)
+            combat_reward_candidates(control, command_state, state)
         }
         Some("CARD_REWARD") if control.allow_card_rewards => {
             card_reward_candidates(command_state, state)
@@ -77,6 +77,7 @@ pub fn available_action_candidates(
         Some("HAND_SELECT") if control.allow_selection_screens => {
             hand_select_candidates(command_state)
         }
+        Some("CHEST") if control.allow_selection_screens => chest_candidates(command_state),
         _ => vec![],
     }
 }
@@ -118,6 +119,9 @@ pub fn resolve_requested_action(
             } else {
                 resolve_requested_indexed("hand_select:", command_state.choice_list.len(), request)
             }
+        }
+        Some("CHEST") => {
+            resolve_requested_indexed("chest:", command_state.choice_list.len(), request)
         }
         _ => None,
     }
@@ -162,16 +166,20 @@ fn parse_index(action_id: &str, prefix: &str) -> Option<usize> {
 fn combat_reward_candidates(
     control: &AutoPlayControl,
     command_state: &CommandState,
+    state: &NormalizedState,
 ) -> Vec<ActionCandidate> {
     let mut candidates = vec![];
+
+    let skip_potion = control.skipped_combat_reward_potion && state.empty_potion_slots == 0;
 
     if command_state.has_command("choose") {
         for (index, choice) in command_state.choice_list.iter().enumerate() {
             let allowed = matches!(
                 choice.as_str(),
-                "gold" | "relic" | "potion" | "emerald_key" | "sapphire_key"
+                "gold" | "relic" | "stolen_gold" | "potion" | "emerald_key" | "sapphire_key"
             ) || (choice == "card" && control.allow_card_rewards);
-            if allowed {
+            let skip_on_full = choice == "potion" && skip_potion;
+            if allowed && !skip_on_full {
                 candidates.push(candidate(
                     "choose",
                     format!("combat_reward:{choice}:{index}"),
@@ -181,7 +189,8 @@ fn combat_reward_candidates(
         }
     }
 
-    if command_state.has_command("proceed") && command_state.choice_list.is_empty() {
+    let visible = !candidates.is_empty();
+    if command_state.has_command("proceed") && !visible {
         candidates.push(candidate(
             "proceed",
             "combat_reward:proceed".to_string(),
@@ -429,6 +438,19 @@ fn map_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
         .iter()
         .enumerate()
         .map(|(index, choice)| candidate("choose", format!("map:choice:{index}"), choice.clone()))
+        .collect()
+}
+
+fn chest_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
+    if !command_state.has_command("choose") {
+        return vec![];
+    }
+
+    command_state
+        .choice_list
+        .iter()
+        .enumerate()
+        .map(|(index, choice)| candidate("choose", format!("chest:{index}"), choice.clone()))
         .collect()
 }
 
