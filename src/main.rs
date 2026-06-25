@@ -252,6 +252,7 @@ async fn main() {
             continue;
         }
 
+        logging::log_raw_input(trimmed);
         tracing::debug!("received {} bytes", trimmed.len());
 
         let raw: serde_json::Value = match serde_json::from_str(trimmed) {
