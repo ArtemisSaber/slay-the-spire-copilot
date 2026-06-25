@@ -60,9 +60,7 @@ pub async fn plan_action(
         }
     }
     session.last_seen_relic_ids = current_relic_ids;
-    if session.pending_boss_relic_grid.is_some()
-        && state.screen_type.as_deref() != Some("GRID")
-    {
+    if session.pending_boss_relic_grid.is_some() && state.screen_type.as_deref() != Some("GRID") {
         session.pending_boss_relic_grid = None;
     }
 

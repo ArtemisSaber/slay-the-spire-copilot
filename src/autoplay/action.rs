@@ -1457,8 +1457,12 @@ mod tests {
         let command_state = command_state(&raw);
         let mut control = AutoPlayControl::default_enabled();
         control.allow_selection_screens = true;
-        let candidates =
-            available_action_candidates(&control, &AutoPlaySession::default(), &command_state, &state(raw));
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state,
+            &state(raw),
+        );
         assert_eq!(candidates.len(), 1);
         assert_eq!(candidates[0].kind, "proceed");
         assert_eq!(candidates[0].action_id, "complete:proceed");

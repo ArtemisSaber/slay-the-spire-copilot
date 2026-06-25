@@ -1,6 +1,7 @@
 #![deny(clippy::allow_attributes_without_reason)]
 mod advice;
 mod autoplay;
+mod combat;
 mod config;
 mod gate;
 mod journal;
