@@ -517,6 +517,123 @@ fn targeted_overkill_does_not_spill() {
     );
 }
 
+#[test]
+fn block_counts_as_durability() {
+    assert_no_kill(
+        &[atk("a", "Strike", 1, 10, 1, T)],
+        1,
+        &[ms(0, 6, 5, false, vec![])],
+    );
+}
+
+#[test]
+fn block_exact_damage_kills() {
+    assert_kill(
+        &[atk("a", "Strike", 1, 10, 1, T)],
+        1,
+        &[ms(0, 6, 4, false, vec![])],
+    );
+}
+
+#[test]
+fn aoe_kills_multiple_non_minions() {
+    assert_kill(
+        &[atk("a", "Cleave", 1, 6, 1, A)],
+        1,
+        &[ms(0, 6, 0, false, vec![]), ms(1, 5, 0, false, vec![])],
+    );
+}
+
+#[test]
+fn aoe_leaves_non_minion_alive() {
+    assert_no_kill(
+        &[atk("a", "Cleave", 1, 5, 1, A)],
+        1,
+        &[ms(0, 5, 0, false, vec![]), ms(1, 6, 0, false, vec![])],
+    );
+}
+
+#[test]
+fn random_target_hits_less_than_alive_count() {
+    assert_no_kill(
+        &[atk("a", "Boomerang", 1, 10, 2, R)],
+        1,
+        &[
+            ms(0, 1, 0, false, vec![]),
+            ms(1, 1, 0, false, vec![]),
+            ms(2, 1, 0, false, vec![]),
+        ],
+    );
+}
+
+#[test]
+fn random_target_with_mutable_power_rejected() {
+    assert_no_kill(
+        &[atk("a", "Boomerang", 1, 4, 3, R)],
+        1,
+        &[
+            ms(0, 4, 0, false, vec![("Curl Up", 6)]),
+            ms(1, 4, 0, false, vec![]),
+        ],
+    );
+}
+
+#[test]
+fn artifact_allows_second_vulnerable() {
+    assert_kill(
+        &[
+            with_vuln(skill("a", "Trip A", 0), 2),
+            with_vuln(skill("b", "Trip B", 0), 2),
+            atk("c", "Strike", 1, 10, 1, T),
+        ],
+        1,
+        &[ms(0, 15, 0, false, vec![("Artifact", 1)])],
+    );
+}
+
+#[test]
+fn x_cost_zero_energy_rejected() {
+    assert_no_kill(
+        &[with_xcost(
+            TestCard {
+                uuid: "x",
+                name: "Whirlwind",
+                cost: 0,
+                card_type: "ATTACK",
+                damage: None,
+                vulnerable: None,
+                strength_gain: 0,
+                energy_gain: 0,
+                stance: StanceEffect::None,
+                mantra_gain: 0,
+                execute_threshold: None,
+                x_cost: false,
+            },
+            4,
+        )],
+        0,
+        &[ms(0, 1, 0, false, vec![])],
+    );
+}
+
+#[test]
+fn dangerous_power_fails_closed() {
+    let result = test_scan(
+        &[atk("a", "Strike", 1, 20, 1, T)],
+        1,
+        &[ms(0, 5, 0, false, vec![("Mode Shift", 30)])],
+        Stance::Neutral,
+        0,
+        1,
+        10_000_000,
+    );
+    assert!(
+        result.is_none(),
+        "unknown dangerous powers should fail closed, got {:?}",
+        result
+    );
+}
+
 fn dm(hp: i16, block: i16) -> MonsterSnapshot {
     MonsterSnapshot {
         command_index: 0,
@@ -724,6 +841,196 @@ mod fixture_tests {
             has_target: false,
         }];
 
+        assert!(!can_end_fight(&state));
+        assert!(find_kill_sequence(&state).is_none());
+    }
+
+    #[test]
+    fn command_target_index_gap_preserved() {
+        use crate::combat::MonsterSnapshot;
+        use crate::combat::Stance;
+        use crate::combat::effects::TargetType;
+        use crate::combat::kill_scan::TestCard;
+        use crate::combat::kill_scan::test_scan;
+
+        let tc = TestCard {
+            uuid: "kill-cmd-idx-two",
+            name: "Strike",
+            cost: 1,
+            card_type: "ATTACK",
+            damage: Some((5, 1, TargetType::Targeted)),
+            vulnerable: None,
+            strength_gain: 0,
+            energy_gain: 0,
+            stance: crate::combat::effects::StanceEffect::None,
+            mantra_gain: 0,
+            execute_threshold: None,
+            x_cost: false,
+        };
+
+        let monsters = vec![
+            MonsterSnapshot {
+                command_index: 0,
+                hp: 50,
+                block: 0,
+                is_minion: true,
+                powers: vec![],
+            },
+            MonsterSnapshot {
+                command_index: 2,
+                hp: 5,
+                block: 0,
+                is_minion: false,
+                powers: vec![],
+            },
+        ];
+
+        let seq = test_scan(&[tc], 1, &monsters, Stance::Neutral, 0, 1, 10_000_000).unwrap();
+
+        assert_eq!(seq.len(), 1);
+        assert_eq!(seq[0].card, "kill-cmd-idx-two");
+        assert_eq!(
+            seq[0].target,
+            Some(2),
+            "target should be command index 2, not living vector position 1"
+        );
+    }
+
+    #[test]
+    fn context_builder_time_warp_fails_closed() {
+        use crate::state::{
+            CardInfo as Sc, DangerFlags, DangerLevel, MonsterInfo, NormalizedState, PowerInfo,
+        };
+
+        let mut state = NormalizedState {
+            screen_type: Some("NONE".to_string()),
+            room_type: None,
+            character: None,
+            seed: None,
+            ascension_level: None,
+            floor: None,
+            current_hp: Some(50),
+            max_hp: Some(50),
+            gold: None,
+            energy: Some(0),
+            block: None,
+            powers: vec![],
+            hand: vec![
+                Sc {
+                    id: "Strike_R".into(),
+                    name: "打击".into(),
+                    cost: 0,
+                    card_type: "ATTACK".into(),
+                    upgraded: false,
+                    uuid: Some("tw-s1".into()),
+                    description: "造成 3 点伤害。".into(),
+                    price: None,
+                    playable: true,
+                    has_target: true,
+                },
+                Sc {
+                    id: "Strike_R".into(),
+                    name: "打击".into(),
+                    cost: 0,
+                    card_type: "ATTACK".into(),
+                    upgraded: false,
+                    uuid: Some("tw-s2".into()),
+                    description: "造成 3 点伤害。".into(),
+                    price: None,
+                    playable: true,
+                    has_target: true,
+                },
+                Sc {
+                    id: "Strike_R".into(),
+                    name: "打击".into(),
+                    cost: 0,
+                    card_type: "ATTACK".into(),
+                    upgraded: false,
+                    uuid: Some("tw-s3".into()),
+                    description: "造成 3 点伤害。".into(),
+                    price: None,
+                    playable: true,
+                    has_target: true,
+                },
+                Sc {
+                    id: "Strike_R".into(),
+                    name: "打击".into(),
+                    cost: 0,
+                    card_type: "ATTACK".into(),
+                    upgraded: false,
+                    uuid: Some("tw-s4".into()),
+                    description: "造成 3 点伤害。".into(),
+                    price: None,
+                    playable: true,
+                    has_target: true,
+                },
+            ],
+            monsters: vec![MonsterInfo {
+                name: "Time Eater".into(),
+                index: 0,
+                current_hp: Some(10),
+                max_hp: Some(10),
+                block: Some(0),
+                intent: None,
+                damage: None,
+                hits: None,
+                monster_powers: vec![PowerInfo {
+                    id: "Time Warp".into(),
+                    name: "Time Warp".into(),
+                    amount: 0,
+                }],
+                can_be_killed: false,
+                is_scaling: false,
+            }],
+            card_reward_choices: vec![],
+            boss_relic_choices: vec![],
+            event_id: None,
+            event_name: None,
+            event_body: None,
+            event_choices: vec![],
+            relics: vec![],
+            potions: vec![],
+            deck_names: vec![],
+            incoming_damage: 0,
+            rest_options: vec![],
+            danger: DangerFlags {
+                hp_critical: false,
+                incoming_lethal: false,
+                no_block_against_hit: false,
+                any_monster_attacking: false,
+                wrath_stance: false,
+                level: DangerLevel::Safe,
+            },
+            skip_available: false,
+            hand_cards: vec![],
+            draw_pile: vec![],
+            discard_pile: vec![],
+            exhaust_cards: vec![],
+            master_cards: vec![],
+            map_nodes: vec![],
+            map_first_node_chosen: None,
+            map_current_x: None,
+            map_current_y: None,
+            shop_cards: vec![],
+            shop_relics: vec![],
+            shop_potions: vec![],
+            purge_available: false,
+            purge_cost: None,
+            hand_select_max_cards: None,
+            hand_select_can_pick_zero: false,
+            hand_select_selected: vec![],
+            current_action: None,
+            card_in_play: None,
+            grid_cards: vec![],
+            grid_selected_cards: vec![],
+            grid_for_upgrade: false,
+            grid_for_transform: false,
+            grid_for_purge: false,
+            grid_num_cards: None,
+            empty_potion_slots: 0,
+        };
+
+        // 4 Strike cards (3 dmg each) vs 10hp, but Time Warp present → fail closed
         assert!(!can_end_fight(&state));
         assert!(find_kill_sequence(&state).is_none());
     }

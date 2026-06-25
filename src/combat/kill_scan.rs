@@ -305,11 +305,73 @@ fn dfs(
     None
 }
 
+const KNOWN_MONSTER_POWERS: &[&str] = &[
+    "Artifact",
+    "人工制品",
+    "Curl Up",
+    "Flight",
+    "Intangible",
+    "Invincible",
+    "Malleable",
+    "Minion",
+    "爪牙",
+    "Slow",
+    "缓慢",
+    "Vulnerable",
+    "易伤",
+    "Time Warp",
+    "Strength",
+    "力量",
+    "Fading",
+    "消逝",
+    "Life Link",
+    "生命链接",
+    "Shackled",
+    "镣铐",
+    "Weakened",
+    "虚弱",
+    "Generic Strength Up Power",
+    "强化",
+    "Shifting",
+    "变化",
+    "Plated Armor",
+    "多层护甲",
+    "Barricade",
+    "壁垒",
+];
+
+pub(crate) fn has_dangerous_unknown_powers(monsters: &[MonsterSnapshot]) -> bool {
+    for m in monsters {
+        for p in &m.powers {
+            if !KNOWN_MONSTER_POWERS.contains(&p.id.as_str()) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 pub(crate) fn random_target_guaranteed(
     damage_per_hit: i16,
     hits: i16,
     monsters: &[MonsterSnapshot],
 ) -> bool {
+    for m in monsters {
+        if m.hp <= 0 {
+            continue;
+        }
+        for p in &m.powers {
+            match p.id.as_str() {
+                "Curl Up" | "Flight" | "Malleable" | "Intangible" | "Invincible"
+                    if p.amount > 0 =>
+                {
+                    return false;
+                }
+                _ => {}
+            }
+        }
+    }
+
     let total_damage = damage_per_hit as i64 * hits as i64;
     let total_durability: i64 = monsters
         .iter()
@@ -368,6 +430,10 @@ pub(crate) fn test_scan(
     remaining_plays: usize,
     max_states: usize,
 ) -> Option<Vec<KillPlay>> {
+    if has_dangerous_unknown_powers(monsters) {
+        return None;
+    }
+
     let effects: Vec<Option<crate::combat::effects::CardEffect>> =
         hand_cards.iter().map(|tc| Some(tc.to_effect())).collect();
 

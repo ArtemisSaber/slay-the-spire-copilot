@@ -72,9 +72,9 @@ pub(crate) fn resolve_play(
     let mut stance = ctx.current_stance;
 
     let x_value = if effect.x_cost {
-        energy + ctx.x_cost_bonus
+        Some(energy + ctx.x_cost_bonus)
     } else {
-        0
+        None
     };
     energy = if effect.x_cost { 0 } else { energy - cost };
 
@@ -129,19 +129,19 @@ pub(crate) fn resolve_play(
 pub(crate) fn apply_damage(
     dmg: &DamageEffect,
     target_idx: Option<usize>,
-    x_value: i16,
+    x_value: Option<i16>,
     monsters: &mut [MonsterSnapshot],
     stance: Stance,
     strength_delta: i16,
 ) {
-    let base_per_hit = if x_value > 0 {
-        dmg.amount * x_value
+    let base_per_hit = if let Some(xv) = x_value {
+        dmg.amount * xv
     } else {
         dmg.amount
     };
 
-    let hits = if x_value > 0 && dmg.hits == 1 {
-        x_value
+    let hits = if x_value.is_some() && dmg.hits == 1 {
+        x_value.unwrap_or(0)
     } else {
         dmg.hits
     };
