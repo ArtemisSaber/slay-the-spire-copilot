@@ -64,6 +64,10 @@ pub async fn plan_action(
         return Ok(Some(action));
     }
 
+    if state.screen_type.as_deref() == Some("SHOP_SCREEN") {
+        session.last_shop_room_floor = state.floor;
+    }
+
     let effort = state
         .screen_type
         .as_deref()
@@ -164,11 +168,6 @@ fn try_deterministic_action(
             target_index: sole.target_required.and(Some(0)),
         };
         let action = resolve_requested_action(control, session, command_state, state, &request)?;
-
-        if state.screen_type.as_deref() == Some("SHOP_ROOM") && action == AutoPlayAction::Choose(0)
-        {
-            session.last_shop_room_floor = state.floor;
-        }
 
         return Some(action);
     }
