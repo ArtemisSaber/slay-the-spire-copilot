@@ -36,6 +36,10 @@ const SAFE_IGNORE_MONSTER_POWERS: &[&str] = &[
     "虚弱",
     "Generic Strength Up Power",
     "强化",
+    "Anger",
+    "Ritual",
+    "Regeneration",
+    "Metallicize",
 ];
 
 const ONE_SHOT_PLAYER_POWERS: &[&str] = &["Vigor", "活力", "Wreath of Flame", "火焰纹"];

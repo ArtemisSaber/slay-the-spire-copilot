@@ -1,0 +1,42 @@
+[
+  {
+    "label": "pos-hp16-5hand",
+    "filename": "kill-scan-run-pos-hp16-5hand.json",
+    "expected_kill": true
+  },
+  {
+    "label": "pos-hp1-4hand",
+    "filename": "kill-scan-run-pos-hp1-4hand.json",
+    "expected_kill": true
+  },
+  {
+    "label": "pos-hp12-8hand",
+    "filename": "kill-scan-run-pos-hp12-8hand.json",
+    "expected_kill": true
+  },
+  {
+    "label": "neg-hp19-energy0",
+    "filename": "kill-scan-run-neg-hp19-energy0.json",
+    "expected_kill": false
+  },
+  {
+    "label": "neg-hp172-2atk",
+    "filename": "kill-scan-run-neg-hp172-2atk.json",
+    "expected_kill": false
+  },
+  {
+    "label": "neg-hp109-3mons",
+    "filename": "kill-scan-run-neg-hp109-3mons.json",
+    "expected_kill": false
+  },
+  {
+    "label": "neg-hp113-10hand",
+    "filename": "kill-scan-run-neg-hp113-10hand.json",
+    "expected_kill": false
+  },
+  {
+    "label": "neg-hp75-3mons-energy0",
+    "filename": "kill-scan-run-neg-hp75-3mons-energy0.json",
+    "expected_kill": false
+  }
+]

@@ -1,21 +1,28 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::locales::Locale;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CardInfo {
     pub id: String,
     pub name: String,
     pub cost: i64,
     pub card_type: String,
+    #[serde(default)]
     pub upgraded: bool,
     pub uuid: Option<String>,
     pub description: String,
     pub price: Option<i64>,
+    #[serde(default = "default_true")]
     pub playable: bool,
+    #[serde(default)]
     pub has_target: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl CardInfo {
@@ -64,7 +71,7 @@ impl CardInfo {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonsterInfo {
     pub name: String,
     pub index: usize,
@@ -79,21 +86,22 @@ pub struct MonsterInfo {
     pub is_scaling: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PowerInfo {
     pub id: String,
     pub name: String,
     pub amount: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum DangerLevel {
+    #[default]
     Safe,
     Caution,
     Danger,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DangerFlags {
     pub hp_critical: bool,
     pub incoming_lethal: bool,
@@ -142,7 +150,7 @@ impl DangerFlags {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RelicInfo {
     pub id: String,
     pub name: String,
@@ -151,17 +159,20 @@ pub struct RelicInfo {
     pub price: Option<i64>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PotionInfo {
     pub name: String,
     pub description: String,
     pub price: Option<i64>,
+    #[serde(default)]
     pub can_use: bool,
+    #[serde(default)]
     pub can_discard: bool,
+    #[serde(default)]
     pub requires_target: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MapCoord {
     pub symbol: String,
     pub x: i64,
@@ -169,7 +180,8 @@ pub struct MapCoord {
     pub children: Vec<(i64, i64)>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct NormalizedState {
     pub screen_type: Option<String>,
     pub room_type: Option<String>,
@@ -226,6 +238,7 @@ pub struct NormalizedState {
 
     // GRID
     pub grid_cards: Vec<CardInfo>,
+    #[serde(default)]
     pub grid_selected_cards: Vec<CardInfo>,
     pub grid_for_upgrade: bool,
     pub grid_for_transform: bool,

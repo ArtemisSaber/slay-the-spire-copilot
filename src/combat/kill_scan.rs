@@ -347,6 +347,10 @@ const KNOWN_MONSTER_POWERS: &[&str] = &[
     "多层护甲",
     "Barricade",
     "壁垒",
+    "Anger",
+    "Ritual",
+    "Regeneration",
+    "Metallicize",
 ];
 
 pub(crate) fn has_dangerous_unknown_powers(monsters: &[MonsterSnapshot]) -> bool {
