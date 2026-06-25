@@ -1327,6 +1327,7 @@ pub(crate) fn build_hand_select(state: &NormalizedState, locale: &Locale) -> Str
         let action_desc = match action.as_str() {
             "ExhaustAction" => "Exhaust a card".to_string(),
             "DiscardAction" => "Discard a card".to_string(),
+            "PutOnDeckAction" => "Put a card on top of your draw pile".to_string(),
             _ => action.to_string(),
         };
         if let Some(ref card) = state.card_in_play {

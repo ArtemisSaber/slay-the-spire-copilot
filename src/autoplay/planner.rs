@@ -52,6 +52,20 @@ pub async fn plan_action(
         session.last_combat_reward_floor = state.floor;
     }
 
+    let current_relic_ids: Vec<String> = state.relics.iter().map(|r| r.id.clone()).collect();
+    for relic_id in &current_relic_ids {
+        if !session.last_seen_relic_ids.contains(relic_id) {
+            session.pending_boss_relic_grid = Some(relic_id.clone());
+            break;
+        }
+    }
+    session.last_seen_relic_ids = current_relic_ids;
+    if session.pending_boss_relic_grid.is_some()
+        && state.screen_type.as_deref() != Some("GRID")
+    {
+        session.pending_boss_relic_grid = None;
+    }
+
     let candidates = available_action_candidates(control, session, command_state, state);
     if candidates.is_empty() {
         return Ok(None);
@@ -77,6 +91,7 @@ pub async fn plan_action(
     let mut rejections = vec![];
     for attempt in 1..=MAX_LLM_ATTEMPTS {
         let prompt = build_planner_prompt(
+            session,
             command_state,
             state,
             locale,
@@ -222,6 +237,7 @@ fn try_deterministic_action(
 }
 
 fn build_planner_prompt(
+    session: &AutoPlaySession,
     command_state: &CommandState,
     state: &NormalizedState,
     locale: &Locale,
@@ -245,7 +261,7 @@ fn build_planner_prompt(
             }]
         },
         "localized_status_context": localized_status_context,
-        "state": state_summary(state),
+        "state": state_summary(session, state),
         "available_commands": command_state.available_commands,
         "choice_list": command_state.choice_list,
         "available_actions": candidates,
@@ -255,7 +271,19 @@ fn build_planner_prompt(
     serde_json::to_string_pretty(&payload).context("failed to build autoplay planner prompt")
 }
 
-fn state_summary(state: &NormalizedState) -> serde_json::Value {
+fn state_summary(session: &AutoPlaySession, state: &NormalizedState) -> serde_json::Value {
+    let grid_purpose = if state.grid_for_upgrade {
+        Some("upgrade")
+    } else if state.grid_for_transform {
+        Some("transform")
+    } else if state.grid_for_purge {
+        Some("purge")
+    } else if session.pending_boss_relic_grid.is_some() {
+        Some("relic")
+    } else {
+        None
+    };
+
     json!({
         "screen_type": state.screen_type,
         "floor": state.floor,
@@ -317,6 +345,18 @@ fn state_summary(state: &NormalizedState) -> serde_json::Value {
         "shop": {
             "purge_available": state.purge_available,
             "purge_cost": state.purge_cost,
+        },
+        "grid": if state.screen_type.as_deref() == Some("GRID") {
+            json!({
+                "purpose": grid_purpose,
+                "num_cards": state.grid_num_cards,
+                "triggered_by_relic": session.pending_boss_relic_grid,
+                "selected_cards": state.grid_selected_cards.iter().enumerate().map(|(i, c)| {
+                    json!({ "index": i, "id": c.id, "name": c.name })
+                }).collect::<Vec<_>>(),
+            })
+        } else {
+            json!(null)
         },
     })
 }
@@ -408,6 +448,17 @@ fn fallback_action(
             && command_state.has_command("choose"))
         .then_some(AutoPlayAction::Choose(0)),
         Some("NONE") if control.allow_combat => fallback_combat_action(command_state, state),
+        Some("CHEST") if control.allow_selection_screens => command_state
+            .has_command("choose")
+            .then_some(AutoPlayAction::Choose(0))
+            .or_else(|| {
+                command_state
+                    .has_command("proceed")
+                    .then_some(AutoPlayAction::Proceed)
+            }),
+        Some("COMPLETE") if control.allow_selection_screens => command_state
+            .has_command("proceed")
+            .then_some(AutoPlayAction::Proceed),
         Some("GRID") if control.allow_selection_screens => command_state
             .has_command("choose")
             .then_some(AutoPlayAction::Choose(0))
@@ -578,6 +629,7 @@ mod tests {
         );
 
         let prompt = build_planner_prompt(
+            &AutoPlaySession::default(),
             &command_state,
             &state,
             &Locale::load("en"),
@@ -714,6 +766,7 @@ mod tests {
         }];
 
         let prompt = build_planner_prompt(
+            &AutoPlaySession::default(),
             &command_state,
             &state,
             &Locale::load("en"),

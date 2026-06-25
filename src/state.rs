@@ -226,6 +226,7 @@ pub struct NormalizedState {
 
     // GRID
     pub grid_cards: Vec<CardInfo>,
+    pub grid_selected_cards: Vec<CardInfo>,
     pub grid_for_upgrade: bool,
     pub grid_for_transform: bool,
     pub grid_for_purge: bool,
@@ -748,6 +749,12 @@ impl NormalizedState {
             .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
+        let grid_selected_cards: Vec<CardInfo> = screen_state
+            .and_then(|s| s.get("selected_cards"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_cards(arr))
+            .unwrap_or_default();
+
         let grid_for_upgrade = screen_state
             .and_then(|s| s.get("for_upgrade"))
             .and_then(|v| v.as_bool())
@@ -825,6 +832,7 @@ impl NormalizedState {
             current_action,
             card_in_play,
             grid_cards,
+            grid_selected_cards,
             grid_for_upgrade,
             grid_for_transform,
             grid_for_purge,
@@ -1152,6 +1160,23 @@ impl NormalizedState {
                 "grid_cards".to_string(),
                 Value::Array(
                     sorted_grid_cards
+                        .into_iter()
+                        .map(|c| {
+                            let mut cm = serde_json::Map::new();
+                            cm.insert("id".to_string(), Value::String(c.id.clone()));
+                            Value::Object(cm)
+                        })
+                        .collect(),
+                ),
+            );
+        }
+        let mut sorted_grid_selected = self.grid_selected_cards.clone();
+        sorted_grid_selected.sort_by(|a, b| a.id.cmp(&b.id));
+        if !sorted_grid_selected.is_empty() {
+            map.insert(
+                "grid_selected_cards".to_string(),
+                Value::Array(
+                    sorted_grid_selected
                         .into_iter()
                         .map(|c| {
                             let mut cm = serde_json::Map::new();

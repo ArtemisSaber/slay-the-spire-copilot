@@ -83,6 +83,14 @@ pub fn available_action_candidates(
             hand_select_candidates(command_state)
         }
         Some("CHEST") if control.allow_selection_screens => chest_candidates(command_state),
+        Some("COMPLETE") if control.allow_selection_screens => {
+            vec![ActionCandidate {
+                kind: "proceed".to_string(),
+                action_id: "complete:proceed".to_string(),
+                label: "Proceed".to_string(),
+                target_required: None,
+            }]
+        }
         _ => vec![],
     }
 }
@@ -127,7 +135,18 @@ pub fn resolve_requested_action(
             }
         }
         Some("CHEST") => {
-            resolve_requested_indexed("chest:", command_state.choice_list.len(), request)
+            if request.action_id == "chest:proceed" && request.kind == "proceed" {
+                Some(AutoPlayAction::Proceed)
+            } else {
+                resolve_requested_indexed("chest:", command_state.choice_list.len(), request)
+            }
+        }
+        Some("COMPLETE") => {
+            if request.action_id == "complete:proceed" && request.kind == "proceed" {
+                Some(AutoPlayAction::Proceed)
+            } else {
+                None
+            }
         }
         _ => None,
     }
@@ -455,16 +474,25 @@ fn map_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
 }
 
 fn chest_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
-    if !command_state.has_command("choose") {
-        return vec![];
+    if command_state.has_command("choose") {
+        return command_state
+            .choice_list
+            .iter()
+            .enumerate()
+            .map(|(index, choice)| candidate("choose", format!("chest:{index}"), choice.clone()))
+            .collect();
     }
 
-    command_state
-        .choice_list
-        .iter()
-        .enumerate()
-        .map(|(index, choice)| candidate("choose", format!("chest:{index}"), choice.clone()))
-        .collect()
+    if command_state.has_command("proceed") {
+        return vec![ActionCandidate {
+            kind: "proceed".to_string(),
+            action_id: "chest:proceed".to_string(),
+            label: "Proceed".to_string(),
+            target_required: None,
+        }];
+    }
+
+    vec![]
 }
 
 fn grid_candidates(command_state: &CommandState) -> Vec<ActionCandidate> {
@@ -1396,6 +1424,69 @@ mod tests {
         let request = ActionRequest {
             kind: "proceed".to_string(),
             action_id: "hand_select:confirm".to_string(),
+            target_index: None,
+        };
+        assert_eq!(
+            resolve_requested_action(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state,
+                &state,
+                &request
+            ),
+            Some(AutoPlayAction::Proceed)
+        );
+    }
+
+    #[test]
+    fn complete_candidates_returns_proceed() {
+        let raw = json!({
+            "game_state": {
+                "screen_type": "COMPLETE",
+                "screen_state": {},
+                "seed": -582230291998696632_i64,
+                "relics": [],
+                "deck": [],
+                "map": [],
+                "floor": 50,
+            },
+            "available_commands": ["proceed", "wait", "state"],
+            "ready_for_command": true,
+            "in_game": true,
+        });
+        let command_state = command_state(&raw);
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        let candidates =
+            available_action_candidates(&control, &AutoPlaySession::default(), &command_state, &state(raw));
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].kind, "proceed");
+        assert_eq!(candidates[0].action_id, "complete:proceed");
+    }
+
+    #[test]
+    fn resolve_complete_proceed_returns_proceed() {
+        let raw = json!({
+            "game_state": {
+                "screen_type": "COMPLETE",
+                "screen_state": {},
+                "seed": -582230291998696632_i64,
+                "relics": [],
+                "deck": [],
+                "map": [],
+                "floor": 50,
+            },
+            "available_commands": ["proceed", "wait", "state"],
+            "ready_for_command": true,
+            "in_game": true,
+        });
+        let command_state = command_state(&raw);
+        let state = state(raw);
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        let request = ActionRequest {
+            kind: "proceed".to_string(),
+            action_id: "complete:proceed".to_string(),
             target_index: None,
         };
         assert_eq!(

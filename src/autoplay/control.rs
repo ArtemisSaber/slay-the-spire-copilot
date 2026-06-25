@@ -36,6 +36,8 @@ pub struct AutoPlaySession {
     pub last_combat_reward_floor: Option<i64>,
     pub skipped_combat_reward_potion: bool,
     pub skipped_combat_reward_card: bool,
+    pub last_seen_relic_ids: Vec<String>,
+    pub pending_boss_relic_grid: Option<String>,
 }
 
 impl AutoPlayControl {

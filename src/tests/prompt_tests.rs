@@ -67,6 +67,7 @@ fn test_state() -> NormalizedState {
         current_action: None,
         card_in_play: None,
         grid_cards: vec![],
+        grid_selected_cards: vec![],
         grid_for_upgrade: false,
         grid_for_transform: false,
         grid_for_purge: false,
