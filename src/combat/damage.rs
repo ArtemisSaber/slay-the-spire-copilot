@@ -161,6 +161,7 @@ pub(crate) fn apply_damage(
                     post_hit_effects(&mut monsters[mi], unblocked > 0);
                 }
             }
+            apply_pending_curl_up_blocks(monsters);
         }
         TargetType::Targeted => {
             let ti = target_idx.expect("targeted damage requires target");
@@ -175,6 +176,7 @@ pub(crate) fn apply_damage(
                 apply_hp_loss_with_invincible(monsters, ti, unblocked);
                 post_hit_effects(&mut monsters[ti], unblocked > 0);
             }
+            apply_pending_curl_up_blocks(monsters);
         }
         TargetType::RandomTarget => {
             for _ in 0..hits {
@@ -192,6 +194,7 @@ pub(crate) fn apply_damage(
                 apply_hp_loss_with_invincible(monsters, ti, unblocked);
                 post_hit_effects(&mut monsters[ti], unblocked > 0);
             }
+            apply_pending_curl_up_blocks(monsters);
         }
     }
 }
@@ -271,7 +274,7 @@ fn apply_hp_loss_with_invincible(monsters: &mut [MonsterSnapshot], idx: usize, u
     let cap = monsters[idx]
         .powers
         .iter()
-        .find(|p| p.id == "Invincible" && p.amount > 0)
+        .find(|p| p.id == "Invincible")
         .map(|p| p.amount)
         .unwrap_or(i16::MAX);
 
@@ -282,7 +285,7 @@ fn apply_hp_loss_with_invincible(monsters: &mut [MonsterSnapshot], idx: usize, u
     if let Some(p) = monsters[idx]
         .powers
         .iter_mut()
-        .find(|p| p.id == "Invincible" && p.amount > 0)
+        .find(|p| p.id == "Invincible")
     {
         p.amount = (p.amount as i32 - actual_loss as i32).max(0) as i16;
     }
@@ -294,8 +297,19 @@ fn pre_hit_curl_up(monster: &mut MonsterSnapshot) {
         .iter_mut()
         .find(|p| (p.id == "Curl Up") && !p.triggered && p.amount > 0)
     {
-        monster.block += p.amount;
         p.triggered = true;
+    }
+}
+
+fn apply_pending_curl_up_blocks(monsters: &mut [MonsterSnapshot]) {
+    for m in monsters.iter_mut() {
+        if let Some(p) = m.powers.iter().find(|p| p.id == "Curl Up" && p.triggered) {
+            let amount = p.amount;
+            m.block += amount;
+        }
+        if let Some(p) = m.powers.iter_mut().find(|p| p.id == "Curl Up") {
+            p.amount = 0;
+        }
     }
 }
 

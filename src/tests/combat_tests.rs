@@ -1,6 +1,5 @@
-use super::*;
+use crate::combat::Stance;
 use crate::combat::context::build_context;
-use crate::combat::{CombatScanContext, KillPlay, MonsterSnapshot, PowerState, Stance};
 use crate::state::{
     CardInfo, DangerFlags, DangerLevel, MonsterInfo, NormalizedState, PowerInfo, RelicInfo,
 };
@@ -476,4 +475,38 @@ fn context_builder_remaining_card_plays_equals_hand_len() {
 
     let ctx = build_context(&s).unwrap();
     assert_eq!(ctx.remaining_card_plays, 5);
+}
+
+#[test]
+fn integration_can_end_fight_with_strike() {
+    let mut s = state();
+    s.hand = vec![strike("打击", "s1")];
+    s.monsters = vec![monster("Jaw Worm", 6, 0, vec![], 0)];
+    s.energy = Some(3);
+    s.danger = DangerFlags {
+        hp_critical: false,
+        incoming_lethal: false,
+        no_block_against_hit: false,
+        any_monster_attacking: false,
+        wrath_stance: false,
+        level: DangerLevel::Safe,
+    };
+    assert!(crate::combat::can_end_fight(&s));
+}
+
+#[test]
+fn integration_cannot_kill_with_insufficient_damage() {
+    let mut s = state();
+    s.hand = vec![strike("打击", "s1")];
+    s.monsters = vec![monster("Jaw Worm", 7, 0, vec![], 0)];
+    s.energy = Some(3);
+    s.danger = DangerFlags {
+        hp_critical: false,
+        incoming_lethal: false,
+        no_block_against_hit: false,
+        any_monster_attacking: false,
+        wrath_stance: false,
+        level: DangerLevel::Safe,
+    };
+    assert!(!crate::combat::can_end_fight(&s));
 }

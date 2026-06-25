@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::Instant;
 
 use crate::combat::context::build_context;
 use crate::combat::damage::{combat_ended, resolve_play};
@@ -41,6 +42,7 @@ pub(crate) fn find_kill_sequence_inner(
         max_states: options.max_expanded_states,
         memo: HashMap::new(),
         expanded: 0,
+        deadline: Instant::now() + options.deadline,
     };
 
     let result = dfs(
@@ -49,6 +51,7 @@ pub(crate) fn find_kill_sequence_inner(
         0,
         ctx.current_stance,
         ctx.strength_delta,
+        0, // initial mantra
         &ctx.monsters,
         &mut dfs_ctx,
     );
@@ -82,6 +85,7 @@ struct MemoKey {
     energy: i16,
     stance: u8,
     strength_delta: i16,
+    mantra: i16,
     monsters_hash: u64,
 }
 
@@ -114,14 +118,17 @@ struct DfsContext<'a> {
     max_states: usize,
     memo: HashMap<MemoKey, Option<Vec<PlayStep>>>,
     expanded: usize,
+    deadline: Instant,
 }
 
+#[allow(clippy::too_many_arguments, reason = "DFS state params form a natural group")]
 fn dfs(
     remaining_mask: u16,
     energy: i16,
     depth: usize,
     stance: Stance,
     strength_delta: i16,
+    mantra: i16,
     monsters: &[MonsterSnapshot],
     ctx: &mut DfsContext<'_>,
 ) -> Option<Vec<PlayStep>> {
@@ -135,11 +142,16 @@ fn dfs(
         return None;
     }
 
+    if ctx.expanded.is_multiple_of(1000) && Instant::now() > ctx.deadline {
+        return None;
+    }
+
     let key = MemoKey {
         remaining_mask,
         energy,
         stance: stance_to_u8(stance),
         strength_delta,
+        mantra,
         monsters_hash: monsters_hash(monsters),
     };
     if let Some(result) = ctx.memo.get(&key) {
@@ -235,11 +247,18 @@ fn dfs(
         for target_idx in &targets {
             let resolved = resolve_play(card_idx, *target_idx, effect, &play_ctx);
 
-            let new_energy = if effect.x_cost {
-                resolved.energy
-            } else {
-                energy - cost + effect.energy_gain
-            };
+            let mut new_energy = resolved.energy;
+            let mut new_stance = resolved.current_stance;
+            let mut new_mantra = mantra + effect.mantra_gain;
+
+            if new_mantra >= 10 {
+                new_mantra = 0;
+                if new_stance == Stance::Calm {
+                    new_energy += 2;
+                }
+                new_stance = Stance::Divinity;
+                new_energy += 3;
+            }
 
             let new_mask = remaining_mask & !(1u16 << card_idx);
 
@@ -257,8 +276,9 @@ fn dfs(
                 new_mask,
                 new_energy,
                 depth + 1,
-                resolved.current_stance,
+                new_stance,
                 resolved.strength_delta,
+                new_mantra,
                 &resolved.monsters,
                 ctx,
             ) {
@@ -282,7 +302,11 @@ fn dfs(
     None
 }
 
-fn random_target_guaranteed(damage_per_hit: i16, hits: i16, monsters: &[MonsterSnapshot]) -> bool {
+pub(crate) fn random_target_guaranteed(
+    damage_per_hit: i16,
+    hits: i16,
+    monsters: &[MonsterSnapshot],
+) -> bool {
     let total_damage = damage_per_hit as i64 * hits as i64;
     let total_durability: i64 = monsters
         .iter()
@@ -296,131 +320,111 @@ fn random_target_guaranteed(damage_per_hit: i16, hits: i16, monsters: &[MonsterS
     total_damage >= total_durability + (damage_per_hit as i64 - 1) * (alive_count - 1)
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::combat::MonsterSnapshot;
-    use crate::combat::damage::combat_ended;
+pub(crate) struct TestCard {
+    pub uuid: &'static str,
+    pub name: &'static str,
+    pub cost: i16,
+    pub card_type: &'static str,
+    pub damage: Option<(i16, i16, crate::combat::effects::TargetType)>,
+    pub vulnerable: Option<i16>,
+    pub strength_gain: i16,
+    pub energy_gain: i16,
+    pub stance: crate::combat::effects::StanceEffect,
+    pub mantra_gain: i16,
+    pub execute_threshold: Option<i16>,
+    pub x_cost: bool,
+}
 
-    use super::random_target_guaranteed;
-
-    #[test]
-    fn combat_ended_all_dead() {
-        let monsters = vec![MonsterSnapshot {
-            command_index: 0,
-            hp: 0,
-            block: 0,
-            powers: vec![],
-            is_minion: false,
-        }];
-        assert!(combat_ended(&monsters));
-    }
-
-    #[test]
-    fn combat_ended_all_minions() {
-        let monsters = vec![MonsterSnapshot {
-            command_index: 0,
-            hp: 10,
-            block: 0,
-            powers: vec![],
-            is_minion: true,
-        }];
-        assert!(combat_ended(&monsters));
-    }
-
-    #[test]
-    fn combat_ended_one_alive_non_minion() {
-        let monsters = vec![
-            MonsterSnapshot {
-                command_index: 0,
-                hp: 0,
-                block: 0,
-                powers: vec![],
-                is_minion: false,
-            },
-            MonsterSnapshot {
-                command_index: 1,
-                hp: 10,
-                block: 0,
-                powers: vec![],
-                is_minion: false,
-            },
-        ];
-        assert!(!combat_ended(&monsters));
-    }
-
-    #[test]
-    fn combat_ended_dead_and_minion() {
-        let monsters = vec![
-            MonsterSnapshot {
-                command_index: 0,
-                hp: 0,
-                block: 0,
-                powers: vec![],
-                is_minion: false,
-            },
-            MonsterSnapshot {
-                command_index: 1,
-                hp: 10,
-                block: 0,
-                powers: vec![],
-                is_minion: true,
-            },
-        ];
-        assert!(combat_ended(&monsters));
-    }
-
-    fn dummy_monster(hp: i16, block: i16) -> MonsterSnapshot {
-        MonsterSnapshot {
-            command_index: 0,
-            hp,
-            block,
-            powers: vec![],
-            is_minion: false,
+impl TestCard {
+    fn to_effect(&self) -> crate::combat::effects::CardEffect {
+        use crate::combat::effects::{CardEffect, DamageEffect, ExhaustKind};
+        CardEffect {
+            damage: self.damage.as_ref().map(|(amount, hits, tt)| DamageEffect {
+                amount: *amount,
+                hits: *hits,
+                target_type: tt.clone(),
+            }),
+            energy_gain: self.energy_gain,
+            strength_gain: self.strength_gain,
+            vulnerable: self.vulnerable,
+            stance: self.stance.clone(),
+            mantra_gain: self.mantra_gain,
+            execute: self.execute_threshold,
+            exhaust: ExhaustKind::None,
+            x_cost: self.x_cost,
         }
     }
-
-    #[test]
-    fn combat_ended_empty_monsters() {
-        assert!(!combat_ended(&[]));
-    }
-
-    #[test]
-    fn random_target_4x3_vs_two_4hp() {
-        let monsters = vec![dummy_monster(4, 0), dummy_monster(4, 0)];
-        assert!(random_target_guaranteed(3, 4, &monsters));
-    }
-
-    #[test]
-    fn random_target_4x3_vs_two_5hp_rejected() {
-        let monsters = vec![dummy_monster(6, 0), dummy_monster(5, 0)];
-        assert!(!random_target_guaranteed(3, 4, &monsters));
-    }
-
-    #[test]
-    fn random_target_3x5_vs_three_3hp() {
-        let monsters = vec![
-            dummy_monster(3, 0),
-            dummy_monster(3, 0),
-            dummy_monster(3, 0),
-        ];
-        assert!(random_target_guaranteed(3, 5, &monsters));
-    }
-
-    #[test]
-    fn random_target_single_monster_guaranteed() {
-        let monsters = vec![dummy_monster(3, 0)];
-        assert!(random_target_guaranteed(3, 4, &monsters));
-    }
-
-    #[test]
-    fn random_target_single_monster_rejected() {
-        let monsters = vec![dummy_monster(100, 0)];
-        assert!(!random_target_guaranteed(3, 4, &monsters));
-    }
-
-    #[test]
-    fn random_target_empty_monsters() {
-        let monsters = vec![dummy_monster(0, 0)];
-        assert!(random_target_guaranteed(3, 4, &monsters));
-    }
 }
+
+pub(crate) fn test_scan(
+    hand_cards: &[TestCard],
+    energy: i16,
+    monsters: &[MonsterSnapshot],
+    stance: Stance,
+    strength_delta: i16,
+    remaining_plays: usize,
+    max_states: usize,
+) -> Option<Vec<KillPlay>> {
+    let effects: Vec<Option<crate::combat::effects::CardEffect>> =
+        hand_cards.iter().map(|tc| Some(tc.to_effect())).collect();
+
+    let cards: Vec<CardInfo> = hand_cards
+        .iter()
+        .map(|tc| CardInfo {
+            id: String::new(),
+            name: tc.name.into(),
+            cost: tc.cost as i64,
+            card_type: tc.card_type.into(),
+            upgraded: false,
+            uuid: Some(tc.uuid.into()),
+            description: String::new(),
+            price: None,
+            playable: true,
+            has_target: tc
+                .damage
+                .as_ref()
+                .map(|(_, _, tt)| matches!(tt, crate::combat::effects::TargetType::Targeted))
+                .unwrap_or(false)
+                || tc.vulnerable.is_some()
+                || tc.execute_threshold.is_some(),
+        })
+        .collect();
+
+    let initial_mask: u16 = (0..hand_cards.len()).fold(0, |m, i| m | (1u16 << i));
+    let max_depth = hand_cards.len().min(remaining_plays);
+
+    let mut dfs_ctx = DfsContext {
+        effects: &effects,
+        cards: &cards,
+        max_depth,
+        max_states,
+        memo: HashMap::new(),
+        expanded: 0,
+        deadline: Instant::now() + std::time::Duration::from_secs(30),
+    };
+
+    let result = dfs(
+        initial_mask,
+        energy,
+        0,
+        stance,
+        strength_delta,
+        0, // initial mantra
+        monsters,
+        &mut dfs_ctx,
+    );
+
+    result.map(|steps| {
+        steps
+            .into_iter()
+            .map(|s| KillPlay {
+                card: cards[s.card_index].uuid.clone().unwrap_or_default(),
+                target: s.target,
+            })
+            .collect()
+    })
+}
+
+#[cfg(test)]
+#[path = "../tests/kill_scan_spec_tests.rs"]
+mod tests;
