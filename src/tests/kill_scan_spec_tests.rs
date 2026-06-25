@@ -1,5 +1,5 @@
 use crate::combat::damage::combat_ended;
-use crate::combat::effects::{StanceEffect, TargetType};
+use crate::combat::effects::{HitCount, StanceEffect, TargetType};
 use crate::combat::kill_scan::{TestCard, random_target_guaranteed, test_scan};
 use crate::combat::{MonsterSnapshot, PowerState, Stance};
 
@@ -39,7 +39,7 @@ fn atk(
         name,
         cost,
         card_type: "ATTACK",
-        damage: Some((dmg, hits, tt)),
+        damage: Some((dmg, HitCount::Fixed(hits), tt)),
         vulnerable: None,
         strength_gain: 0,
         energy_gain: 0,
@@ -99,7 +99,13 @@ fn with_execute(mut tc: TestCard, threshold: i16) -> TestCard {
 
 fn with_xcost(mut tc: TestCard, dmg_per_x: i16) -> TestCard {
     tc.x_cost = true;
-    tc.damage = Some((dmg_per_x, 1, TargetType::AoE));
+    tc.damage = Some((dmg_per_x, HitCount::XTimes, TargetType::AoE));
+    tc
+}
+
+fn with_xplus(mut tc: TestCard, dmg: i16, offset: i16, tt: TargetType) -> TestCard {
+    tc.x_cost = true;
+    tc.damage = Some((dmg, HitCount::XPlus(offset), tt));
     tc
 }
 
@@ -114,6 +120,7 @@ fn assert_kill(hand: &[TestCard], energy: i16, monsters: &[MonsterSnapshot]) {
             energy,
             monsters,
             Stance::Neutral,
+            0,
             0,
             hand.len(),
             10_000_000
@@ -131,6 +138,7 @@ fn assert_no_kill(hand: &[TestCard], energy: i16, monsters: &[MonsterSnapshot]) 
             monsters,
             Stance::Neutral,
             0,
+            0,
             hand.len(),
             10_000_000
         )
@@ -146,7 +154,7 @@ fn assert_kill_with_stance(
     stance: Stance,
 ) {
     assert!(
-        test_scan(hand, energy, monsters, stance, 0, hand.len(), 10_000_000).is_some(),
+        test_scan(hand, energy, monsters, stance, 0, 0, hand.len(), 10_000_000).is_some(),
         "expected kill but got None"
     );
 }
@@ -163,6 +171,7 @@ fn assert_no_kill_plays(
             energy,
             monsters,
             Stance::Neutral,
+            0,
             0,
             remaining_plays,
             10_000_000
@@ -280,6 +289,7 @@ fn invincible_caps_turn_damage() {
         3,
         &[ms(0, 100, 0, false, vec![("Invincible", 30)])],
         Stance::Neutral,
+        0,
         0,
         3,
         10_000_000,
@@ -459,7 +469,8 @@ fn calm_to_divinity_still_not_enough_damage() {
 
 #[test]
 fn x_cost_chemical_x_enables_zero_energy_kill() {
-    assert_no_kill(
+    // Chemical X adds 2 to X. With 0 energy, X=2, damage=4*2=8 per hit, 2 hits = 16 total > 8hp
+    let result = test_scan(
         &[with_xcost(
             TestCard {
                 uuid: "x",
@@ -479,6 +490,89 @@ fn x_cost_chemical_x_enables_zero_energy_kill() {
         )],
         0,
         &[ms(0, 8, 0, false, vec![])],
+        Stance::Neutral,
+        0,
+        2, // Chemical X bonus
+        1,
+        10_000_000,
+    );
+    assert!(
+        result.is_some(),
+        "Chemical X should enable zero-energy X-cost kill"
+    );
+}
+
+#[test]
+fn x_cost_skewer_x_plus_one_zero_energy() {
+    // Skewer: 7 damage X+1 times, 0 energy, X=0, 1 hit, 7 damage vs 5hp → kill
+    let result = test_scan(
+        &[with_xplus(
+            TestCard {
+                uuid: "skewer",
+                name: "Skewer",
+                cost: 1,
+                card_type: "ATTACK",
+                damage: None,
+                vulnerable: None,
+                strength_gain: 0,
+                energy_gain: 0,
+                stance: StanceEffect::None,
+                mantra_gain: 0,
+                execute_threshold: None,
+                x_cost: false,
+            },
+            7,
+            1,
+            T,
+        )],
+        0,
+        &[ms(0, 5, 0, false, vec![])],
+        Stance::Neutral,
+        0,
+        0,
+        1,
+        10_000_000,
+    );
+    assert!(
+        result.is_some(),
+        "Skewer with X+1 should deal 1 hit of 7 at 0 energy, killing 5hp"
+    );
+}
+
+#[test]
+fn x_cost_skewer_x_plus_one_with_energy() {
+    // Skewer: 7 damage X+1 times, 2 energy, X=2, 3 hits, 21 damage vs 20hp → kill
+    let result = test_scan(
+        &[with_xplus(
+            TestCard {
+                uuid: "skewer",
+                name: "Skewer",
+                cost: 1,
+                card_type: "ATTACK",
+                damage: None,
+                vulnerable: None,
+                strength_gain: 0,
+                energy_gain: 0,
+                stance: StanceEffect::None,
+                mantra_gain: 0,
+                execute_threshold: None,
+                x_cost: false,
+            },
+            7,
+            1,
+            T,
+        )],
+        2,
+        &[ms(0, 20, 0, false, vec![])],
+        Stance::Neutral,
+        0,
+        0,
+        1,
+        10_000_000,
+    );
+    assert!(
+        result.is_some(),
+        "Skewer at 2 energy should deal 3 hits of 7 = 21, killing 20hp"
     );
 }
 
@@ -624,6 +718,7 @@ fn dangerous_power_fails_closed() {
         &[ms(0, 5, 0, false, vec![("Mode Shift", 30)])],
         Stance::Neutral,
         0,
+        0,
         1,
         10_000_000,
     );
@@ -724,6 +819,7 @@ fn random_target_empty_monsters() {
 }
 
 mod fixture_tests {
+
     use crate::combat::{can_end_fight, find_kill_sequence};
     use crate::locales::Locale;
     use crate::state::NormalizedState;
@@ -849,7 +945,7 @@ mod fixture_tests {
     fn command_target_index_gap_preserved() {
         use crate::combat::MonsterSnapshot;
         use crate::combat::Stance;
-        use crate::combat::effects::TargetType;
+        use crate::combat::effects::{HitCount, TargetType};
         use crate::combat::kill_scan::TestCard;
         use crate::combat::kill_scan::test_scan;
 
@@ -858,7 +954,7 @@ mod fixture_tests {
             name: "Strike",
             cost: 1,
             card_type: "ATTACK",
-            damage: Some((5, 1, TargetType::Targeted)),
+            damage: Some((5, HitCount::Fixed(1), TargetType::Targeted)),
             vulnerable: None,
             strength_gain: 0,
             energy_gain: 0,
@@ -885,7 +981,7 @@ mod fixture_tests {
             },
         ];
 
-        let seq = test_scan(&[tc], 1, &monsters, Stance::Neutral, 0, 1, 10_000_000).unwrap();
+        let seq = test_scan(&[tc], 1, &monsters, Stance::Neutral, 0, 0, 1, 10_000_000).unwrap();
 
         assert_eq!(seq.len(), 1);
         assert_eq!(seq[0].card, "kill-cmd-idx-two");
@@ -902,7 +998,7 @@ mod fixture_tests {
             CardInfo as Sc, DangerFlags, DangerLevel, MonsterInfo, NormalizedState, PowerInfo,
         };
 
-        let mut state = NormalizedState {
+        let state = NormalizedState {
             screen_type: Some("NONE".to_string()),
             room_type: None,
             character: None,

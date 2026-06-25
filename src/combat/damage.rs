@@ -1,4 +1,4 @@
-use crate::combat::effects::{CardEffect, DamageEffect, StanceEffect, TargetType};
+use crate::combat::effects::{CardEffect, DamageEffect, HitCount, StanceEffect, TargetType};
 use crate::combat::{CombatScanContext, MonsterSnapshot, PowerState, Stance};
 
 pub struct PlayBranch {
@@ -134,16 +134,24 @@ pub(crate) fn apply_damage(
     stance: Stance,
     strength_delta: i16,
 ) {
-    let base_per_hit = if let Some(xv) = x_value {
-        dmg.amount * xv
-    } else {
-        dmg.amount
-    };
-
-    let hits = if x_value.is_some() && dmg.hits == 1 {
-        x_value.unwrap_or(0)
-    } else {
-        dmg.hits
+    let (base_per_hit, hits) = match &dmg.hits {
+        HitCount::Fixed(n) => {
+            let per_hit = if let Some(xv) = x_value {
+                dmg.amount * xv
+            } else {
+                dmg.amount
+            };
+            (per_hit, *n)
+        }
+        HitCount::XTimes => {
+            let xv = x_value.unwrap_or(0);
+            (dmg.amount * xv, xv)
+        }
+        HitCount::XPlus(offset) => {
+            let xv = x_value.unwrap_or(0);
+            let total_hits = xv + *offset;
+            (dmg.amount, total_hits)
+        }
     };
 
     match dmg.target_type {

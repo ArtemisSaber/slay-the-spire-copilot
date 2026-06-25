@@ -43,6 +43,7 @@ pub(crate) fn find_kill_sequence_inner(
         memo: HashMap::new(),
         expanded: 0,
         deadline: Instant::now() + options.deadline,
+        x_cost_bonus: ctx.x_cost_bonus,
     };
 
     let result = dfs(
@@ -119,6 +120,7 @@ struct DfsContext<'a> {
     memo: HashMap<MemoKey, Option<Vec<PlayStep>>>,
     expanded: usize,
     deadline: Instant,
+    x_cost_bonus: i16,
 }
 
 #[allow(
@@ -201,7 +203,7 @@ fn dfs(
             initial_stance: stance,
             current_stance: stance,
             strength_delta,
-            x_cost_bonus: 0,
+            x_cost_bonus: ctx.x_cost_bonus,
             monsters: monsters.to_vec(),
             remaining_card_plays: 1,
         };
@@ -225,13 +227,20 @@ fn dfs(
             })
             .unwrap_or(false);
 
-        if is_random
-            && let Some(dmg) = &effect.damage
-            && !random_target_guaranteed(dmg.amount, dmg.hits, monsters)
-        {
-            card_idx += 1;
-            mask >>= 1;
-            continue;
+        if is_random && let Some(dmg) = &effect.damage {
+            let hits = match &dmg.hits {
+                crate::combat::effects::HitCount::Fixed(n) => *n,
+                _ => {
+                    card_idx += 1;
+                    mask >>= 1;
+                    continue;
+                }
+            };
+            if !random_target_guaranteed(dmg.amount, hits, monsters) {
+                card_idx += 1;
+                mask >>= 1;
+                continue;
+            }
         }
 
         let living: Vec<usize> = monsters
@@ -390,7 +399,11 @@ pub(crate) struct TestCard {
     pub name: &'static str,
     pub cost: i16,
     pub card_type: &'static str,
-    pub damage: Option<(i16, i16, crate::combat::effects::TargetType)>,
+    pub damage: Option<(
+        i16,
+        crate::combat::effects::HitCount,
+        crate::combat::effects::TargetType,
+    )>,
     pub vulnerable: Option<i16>,
     pub strength_gain: i16,
     pub energy_gain: i16,
@@ -406,7 +419,7 @@ impl TestCard {
         CardEffect {
             damage: self.damage.as_ref().map(|(amount, hits, tt)| DamageEffect {
                 amount: *amount,
-                hits: *hits,
+                hits: hits.clone(),
                 target_type: tt.clone(),
             }),
             energy_gain: self.energy_gain,
@@ -421,12 +434,17 @@ impl TestCard {
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "test_scan takes all scan parameters explicitly"
+)]
 pub(crate) fn test_scan(
     hand_cards: &[TestCard],
     energy: i16,
     monsters: &[MonsterSnapshot],
     stance: Stance,
     strength_delta: i16,
+    x_cost_bonus: i16,
     remaining_plays: usize,
     max_states: usize,
 ) -> Option<Vec<KillPlay>> {
@@ -470,6 +488,7 @@ pub(crate) fn test_scan(
         memo: HashMap::new(),
         expanded: 0,
         deadline: Instant::now() + std::time::Duration::from_secs(30),
+        x_cost_bonus,
     };
 
     let result = dfs(

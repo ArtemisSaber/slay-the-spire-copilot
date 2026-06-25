@@ -9,9 +9,16 @@ pub enum TargetType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HitCount {
+    Fixed(i16),
+    XTimes,
+    XPlus(i16),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DamageEffect {
     pub amount: i16,
-    pub hits: i16,
+    pub hits: HitCount,
     pub target_type: TargetType,
 }
 
@@ -58,16 +65,45 @@ fn extract_first_integer(s: &str) -> Option<i16> {
     digits.parse().ok()
 }
 
-fn parse_hits_suffix(segment: &str) -> Option<i16> {
+fn parse_hits_suffix(segment: &str) -> Option<HitCount> {
     if segment.contains("两次") || segment.contains("2 times") || segment.contains("twice") {
-        return Some(2);
+        return Some(HitCount::Fixed(2));
     }
 
-    if segment.contains("X次") || segment.contains("x次") || segment.contains("X times") {
-        return Some(0);
+    let lower = segment.to_lowercase();
+
+    if lower.contains("x+") || lower.contains("x +") {
+        let after_x = lower.split('x').next_back().unwrap_or("");
+        let plus_digits: String = after_x
+            .chars()
+            .skip_while(|c| !c.is_ascii_digit())
+            .take_while(|c| c.is_ascii_digit())
+            .collect();
+        if let Ok(offset) = plus_digits.parse::<i16>() {
+            return Some(HitCount::XPlus(offset));
+        }
     }
 
-    if !segment.contains('次') && !segment.to_lowercase().contains("times") {
+    let cn_xplus = segment.contains("X+") || segment.contains("x+");
+    if cn_xplus
+        && let Some(s) = segment
+            .split(|c: char| !c.is_ascii_digit())
+            .find(|s| !s.is_empty())
+        && let Ok(offset) = s.parse::<i16>()
+    {
+        return Some(HitCount::XPlus(offset));
+    }
+
+    if segment.contains("X次")
+        || segment.contains("x次")
+        || lower.contains("x 次")
+        || lower.contains("X times")
+        || lower.contains("x times")
+    {
+        return Some(HitCount::XTimes);
+    }
+
+    if !segment.contains('次') && !lower.contains("times") {
         return None;
     }
 
@@ -85,7 +121,7 @@ fn parse_hits_suffix(segment: &str) -> Option<i16> {
             if let Ok(n) = digits.parse::<i16>()
                 && n > 0
             {
-                return Some(n);
+                return Some(HitCount::Fixed(n));
             }
         }
     }
@@ -93,7 +129,7 @@ fn parse_hits_suffix(segment: &str) -> Option<i16> {
     None
 }
 
-fn parse_damage_multiplier_hits(desc: &str) -> Option<(i16, i16)> {
+fn parse_damage_multiplier_hits(desc: &str) -> Option<(i16, HitCount)> {
     for segment in desc.split('。') {
         let segment = segment.trim();
         if segment.is_empty() {
@@ -110,7 +146,7 @@ fn parse_damage_multiplier_hits(desc: &str) -> Option<(i16, i16)> {
             return Some((dmg, hits));
         }
 
-        return Some((dmg, 1));
+        return Some((dmg, HitCount::Fixed(1)));
     }
     for segment in desc.split('.') {
         let segment = segment.trim();
@@ -126,7 +162,7 @@ fn parse_damage_multiplier_hits(desc: &str) -> Option<(i16, i16)> {
         if let Some(hits) = parse_hits_suffix(segment) {
             return Some((dmg, hits));
         }
-        return Some((dmg, 1));
+        return Some((dmg, HitCount::Fixed(1)));
     }
     None
 }
@@ -156,10 +192,9 @@ fn parse_damage(desc: &str, card_type: &str, locale: &EffectParserLocale) -> Opt
     }
     let (amount, hits) = parse_damage_multiplier_hits(desc)?;
     let target_type = parse_target_type(desc, locale);
-    let effective_hits = if hits == 0 { 1 } else { hits };
     Some(DamageEffect {
         amount,
-        hits: effective_hits,
+        hits,
         target_type,
     })
 }
@@ -404,7 +439,7 @@ mod tests {
             e.damage,
             Some(DamageEffect {
                 amount: 6,
-                hits: 1,
+                hits: HitCount::Fixed(1),
                 target_type: TargetType::Targeted,
             })
         );
@@ -418,7 +453,7 @@ mod tests {
             e.damage,
             Some(DamageEffect {
                 amount: 2,
-                hits: 5,
+                hits: HitCount::Fixed(5),
                 target_type: TargetType::Targeted,
             })
         );
@@ -428,7 +463,7 @@ mod tests {
     fn parse_two_hit_damage() {
         let c = card("造成 7 点伤害两次。");
         let e = parse_card_effect(&c, &zh_locale()).unwrap();
-        assert_eq!(e.damage.unwrap().hits, 2);
+        assert_eq!(e.damage.unwrap().hits, HitCount::Fixed(2));
     }
 
     #[test]
@@ -547,5 +582,28 @@ mod tests {
         let c = skill("将你的 力量 翻倍。");
         let e = parse_card_effect(&c, &zh_locale());
         assert!(e.is_none() || e.unwrap().strength_gain == 0);
+    }
+
+    #[test]
+    fn parse_x_plus_one() {
+        let c = card("造成 7 点伤害 X+1 次。");
+        let e = parse_card_effect(&c, &zh_locale()).unwrap();
+        assert!(e.x_cost);
+        assert_eq!(
+            e.damage,
+            Some(DamageEffect {
+                amount: 7,
+                hits: HitCount::XPlus(1),
+                target_type: TargetType::Targeted,
+            })
+        );
+    }
+
+    #[test]
+    fn parse_x_cost_hits() {
+        let c = card("造成 8 点伤害 X 次。");
+        let e = parse_card_effect(&c, &zh_locale()).unwrap();
+        assert!(e.x_cost);
+        assert_eq!(e.damage.unwrap().hits, HitCount::XTimes);
     }
 }
