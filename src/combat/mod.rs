@@ -76,15 +76,15 @@ impl Default for KillScanOptions {
     }
 }
 
-pub fn find_kill_sequence(_state: &NormalizedState) -> Option<KillSequence> {
-    None
+pub fn find_kill_sequence(state: &NormalizedState) -> Option<KillSequence> {
+    kill_scan::find_kill_sequence_inner(state, &KillScanOptions::default())
 }
 
 pub fn find_kill_sequence_with_options(
-    _state: &NormalizedState,
-    _options: KillScanOptions,
+    state: &NormalizedState,
+    options: KillScanOptions,
 ) -> Option<KillSequence> {
-    None
+    kill_scan::find_kill_sequence_inner(state, &options)
 }
 
 pub fn can_end_fight(state: &NormalizedState) -> bool {

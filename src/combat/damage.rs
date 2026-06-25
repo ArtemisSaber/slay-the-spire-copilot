@@ -59,7 +59,7 @@ pub fn generate_plays(
     }
 }
 
-fn resolve_play(
+pub(crate) fn resolve_play(
     card_index: usize,
     target_monster_idx: Option<usize>,
     effect: &CardEffect,
@@ -126,7 +126,7 @@ fn resolve_play(
     }
 }
 
-fn apply_damage(
+pub(crate) fn apply_damage(
     dmg: &DamageEffect,
     target_idx: Option<usize>,
     x_value: i16,
@@ -212,9 +212,7 @@ fn calc_effective_damage(
     let damage = damage + strength_delta * stance_mult;
     let damage = damage.max(0);
 
-    if has_power(monster, "Intangible")
-        && damage > 0
-    {
+    if has_power(monster, "Intangible") && damage > 0 {
         return 1;
     }
 
@@ -325,7 +323,7 @@ fn post_hit_effects(monster: &mut MonsterSnapshot, did_unblocked_damage: bool) {
     }
 }
 
-fn apply_vulnerable_through_artifact(monster: &mut MonsterSnapshot, amount: i16) {
+pub(crate) fn apply_vulnerable_through_artifact(monster: &mut MonsterSnapshot, amount: i16) {
     let artifact_idx = monster
         .powers
         .iter()
@@ -353,7 +351,7 @@ fn apply_vulnerable_through_artifact(monster: &mut MonsterSnapshot, amount: i16)
     }
 }
 
-fn apply_after_card_powers(monsters: &mut [MonsterSnapshot]) {
+pub(crate) fn apply_after_card_powers(monsters: &mut [MonsterSnapshot]) {
     for m in monsters.iter_mut() {
         if let Some(p) = m
             .powers
