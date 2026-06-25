@@ -199,6 +199,26 @@ fn dfs(
             || effect.vulnerable.is_some()
             || effect.execute.is_some();
 
+        let is_random = effect
+            .damage
+            .as_ref()
+            .map(|d| {
+                matches!(
+                    d.target_type,
+                    crate::combat::effects::TargetType::RandomTarget
+                )
+            })
+            .unwrap_or(false);
+
+        if is_random
+            && let Some(dmg) = &effect.damage
+            && !random_target_guaranteed(dmg.amount, dmg.hits, monsters)
+        {
+            card_idx += 1;
+            mask >>= 1;
+            continue;
+        }
+
         let living: Vec<usize> = monsters
             .iter()
             .enumerate()
@@ -262,10 +282,26 @@ fn dfs(
     None
 }
 
+fn random_target_guaranteed(damage_per_hit: i16, hits: i16, monsters: &[MonsterSnapshot]) -> bool {
+    let total_damage = damage_per_hit as i64 * hits as i64;
+    let total_durability: i64 = monsters
+        .iter()
+        .filter(|m| m.hp > 0)
+        .map(|m| m.hp as i64 + m.block as i64)
+        .sum();
+    let alive_count = monsters.iter().filter(|m| m.hp > 0).count() as i64;
+    if alive_count == 0 {
+        return true;
+    }
+    total_damage >= total_durability + (damage_per_hit as i64 - 1) * (alive_count - 1)
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::combat::MonsterSnapshot;
     use crate::combat::damage::combat_ended;
-    use crate::combat::{MonsterSnapshot, PowerState, Stance};
+
+    use super::random_target_guaranteed;
 
     #[test]
     fn combat_ended_all_dead() {
@@ -346,5 +382,45 @@ mod tests {
     #[test]
     fn combat_ended_empty_monsters() {
         assert!(!combat_ended(&[]));
+    }
+
+    #[test]
+    fn random_target_4x3_vs_two_4hp() {
+        let monsters = vec![dummy_monster(4, 0), dummy_monster(4, 0)];
+        assert!(random_target_guaranteed(3, 4, &monsters));
+    }
+
+    #[test]
+    fn random_target_4x3_vs_two_5hp_rejected() {
+        let monsters = vec![dummy_monster(6, 0), dummy_monster(5, 0)];
+        assert!(!random_target_guaranteed(3, 4, &monsters));
+    }
+
+    #[test]
+    fn random_target_3x5_vs_three_3hp() {
+        let monsters = vec![
+            dummy_monster(3, 0),
+            dummy_monster(3, 0),
+            dummy_monster(3, 0),
+        ];
+        assert!(random_target_guaranteed(3, 5, &monsters));
+    }
+
+    #[test]
+    fn random_target_single_monster_guaranteed() {
+        let monsters = vec![dummy_monster(3, 0)];
+        assert!(random_target_guaranteed(3, 4, &monsters));
+    }
+
+    #[test]
+    fn random_target_single_monster_rejected() {
+        let monsters = vec![dummy_monster(100, 0)];
+        assert!(!random_target_guaranteed(3, 4, &monsters));
+    }
+
+    #[test]
+    fn random_target_empty_monsters() {
+        let monsters = vec![dummy_monster(0, 0)];
+        assert!(random_target_guaranteed(3, 4, &monsters));
     }
 }
