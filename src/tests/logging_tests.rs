@@ -105,3 +105,42 @@ fn log_raw_input_to_appends_lines() {
 
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn init_rotates_all_expected_log_files() {
+    let dir = std::env::temp_dir().join("sts_copilot_init_rotate_test");
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+
+    let log_names = ["sts-ai.log", "comm-mod-raw.log", "prompts.log"];
+    for name in &log_names {
+        fs::write(dir.join(name), "current").unwrap();
+        fs::write(dir.join(format!("{name}.1")), "prev").unwrap();
+    }
+
+    for name in &log_names {
+        rotate_log(&dir, name);
+    }
+
+    for name in &log_names {
+        assert!(
+            !dir.join(name).exists(),
+            "{} should not exist after rotation",
+            name
+        );
+        assert_eq!(
+            fs::read_to_string(dir.join(format!("{name}.1"))).unwrap(),
+            "current",
+            "{}.1 should contain previous session",
+            name
+        );
+        assert_eq!(
+            fs::read_to_string(dir.join(format!("{name}.2"))).unwrap(),
+            "prev",
+            "{}.2 should contain older session",
+            name
+        );
+    }
+
+    let _ = fs::remove_dir_all(&dir);
+}

@@ -37,6 +37,7 @@ pub fn init() -> WorkerGuard {
 
     rotate_log(&log_dir, "sts-ai.log");
     rotate_log(&log_dir, "comm-mod-raw.log");
+    rotate_log(&log_dir, "prompts.log");
 
     let file_appender = tracing_appender::rolling::never(&log_dir, "sts-ai.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
