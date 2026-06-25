@@ -1048,4 +1048,595 @@ export const killScanCases: KillScanCase[] = [
       cardsPlayedThisTurn: 0,
     },
   },
+  {
+    caseName: "block_counts_as_durability",
+    caseReason:
+      "Living monster block must count as durability, so 10 damage does not kill 6 hp plus 5 block. Expected false.",
+    expectedDeterministicKill: false,
+    handDeck: [
+      {
+        uuid: "block-ignored-risk",
+        name: "Heavy Strike",
+        cost: 1,
+        type: "ATTACK",
+        damage: 10,
+        hits: 1,
+        targetType: "enemy",
+      },
+    ],
+    energy: 1,
+    monsters: [
+      { index: 0, hp: 6, block: 5, isMinion: false, powers: [] },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+  },
+  {
+    caseName: "block_exact_damage_kills",
+    caseReason:
+      "Damage exactly equal to hp plus block should kill. Expected true.",
+    expectedDeterministicKill: true,
+    handDeck: [
+      {
+        uuid: "block-exact-kill",
+        name: "Heavy Strike",
+        cost: 1,
+        type: "ATTACK",
+        damage: 10,
+        hits: 1,
+        targetType: "enemy",
+      },
+    ],
+    energy: 1,
+    monsters: [
+      { index: 0, hp: 6, block: 4, isMinion: false, powers: [] },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+  },
+  {
+    caseName: "targeted_overkill_does_not_spill",
+    caseReason:
+      "Overkill on one targeted enemy does not damage another enemy. Expected false.",
+    expectedDeterministicKill: false,
+    handDeck: [
+      {
+        uuid: "overkill-single-target",
+        name: "Big Strike",
+        cost: 1,
+        type: "ATTACK",
+        damage: 10,
+        hits: 1,
+        targetType: "enemy",
+      },
+    ],
+    energy: 1,
+    monsters: [
+      { index: 0, hp: 5, block: 0, isMinion: false, powers: [] },
+      { index: 1, hp: 5, block: 0, isMinion: false, powers: [] },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+  },
+  {
+    caseName: "aoe_kills_multiple_non_minions",
+    caseReason:
+      "AoE damage should apply to every living enemy. Expected true.",
+    expectedDeterministicKill: true,
+    handDeck: [
+      {
+        uuid: "aoe-kill-all",
+        name: "Cleave",
+        cost: 1,
+        type: "ATTACK",
+        damage: 6,
+        hits: 1,
+        targetType: "allEnemies",
+      },
+    ],
+    energy: 1,
+    monsters: [
+      { index: 0, hp: 6, block: 0, isMinion: false, powers: [] },
+      { index: 1, hp: 5, block: 0, isMinion: false, powers: [] },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+  },
+  {
+    caseName: "aoe_leaves_non_minion_alive",
+    caseReason:
+      "AoE that leaves any non-minion alive is not a kill. Expected false.",
+    expectedDeterministicKill: false,
+    handDeck: [
+      {
+        uuid: "aoe-not-enough",
+        name: "Cleave",
+        cost: 1,
+        type: "ATTACK",
+        damage: 5,
+        hits: 1,
+        targetType: "allEnemies",
+      },
+    ],
+    energy: 1,
+    monsters: [
+      { index: 0, hp: 5, block: 0, isMinion: false, powers: [] },
+      { index: 1, hp: 6, block: 0, isMinion: false, powers: [] },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+  },
+  {
+    caseName: "random_target_hits_less_than_alive_count",
+    caseReason:
+      "A random attack cannot guarantee killing every living enemy when hit count is lower than living enemy count. Expected false.",
+    expectedDeterministicKill: false,
+    handDeck: [
+      {
+        uuid: "random-too-few-hits",
+        name: "Small Boomerang",
+        cost: 1,
+        type: "ATTACK",
+        damage: 10,
+        hits: 2,
+        targetType: "randomEnemy",
+      },
+    ],
+    energy: 1,
+    monsters: [
+      { index: 0, hp: 1, block: 0, isMinion: false, powers: [] },
+      { index: 1, hp: 1, block: 0, isMinion: false, powers: [] },
+      { index: 2, hp: 1, block: 0, isMinion: false, powers: [] },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+  },
+  {
+    caseName: "random_target_with_mutable_power_is_not_simplified",
+    caseReason:
+      "The simple random-target formula should not be used when a mutable power like Curl Up can change durability. Expected false.",
+    expectedDeterministicKill: false,
+    handDeck: [
+      {
+        uuid: "random-curl-up",
+        name: "Sword Boomerang",
+        cost: 1,
+        type: "ATTACK",
+        damage: 4,
+        hits: 3,
+        targetType: "randomEnemy",
+      },
+    ],
+    energy: 1,
+    monsters: [
+      {
+        index: 0,
+        hp: 4,
+        block: 0,
+        isMinion: false,
+        powers: [{ id: "Curl Up", amount: 6 }],
+      },
+      { index: 1, hp: 4, block: 0, isMinion: false, powers: [] },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+  },
+  {
+    caseName: "artifact_allows_second_vulnerable_application",
+    caseReason:
+      "Artifact should decrement after the first Vulnerable application, allowing a second Vulnerable card to affect later damage. Expected true.",
+    expectedDeterministicKill: true,
+    handDeck: [
+      {
+        uuid: "artifact-trip-a",
+        name: "Trip A",
+        cost: 0,
+        type: "SKILL",
+        targetType: "enemy",
+        effects: [{ kind: "vulnerable", amount: 2 }],
+      },
+      {
+        uuid: "artifact-trip-b",
+        name: "Trip B",
+        cost: 0,
+        type: "SKILL",
+        targetType: "enemy",
+        effects: [{ kind: "vulnerable", amount: 2 }],
+      },
+      {
+        uuid: "artifact-final-strike",
+        name: "Heavy Strike",
+        cost: 1,
+        type: "ATTACK",
+        damage: 10,
+        hits: 1,
+        targetType: "enemy",
+      },
+    ],
+    energy: 1,
+    monsters: [
+      {
+        index: 0,
+        hp: 15,
+        block: 0,
+        isMinion: false,
+        powers: [{ id: "Artifact", amount: 1 }],
+      },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+  },
+  {
+    caseName: "x_cost_zero_energy_without_chemical_x",
+    caseReason:
+      "A zero-energy X attack without Chemical X has X=0 and should not kill. Expected false.",
+    expectedDeterministicKill: false,
+    handDeck: [
+      {
+        uuid: "zero-x-no-chemical-x",
+        name: "Whirlwind",
+        cost: "X",
+        type: "ATTACK",
+        targetType: "allEnemies",
+        effects: [{ kind: "xCostAttack", damagePerX: 4 }],
+      },
+    ],
+    energy: 0,
+    monsters: [
+      { index: 0, hp: 1, block: 0, isMinion: false, powers: [] },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+      xCostBonus: 0,
+    },
+  },
+  {
+    caseName: "unsupported_dangerous_monster_power_fails_closed",
+    caseReason:
+      "A dangerous unmodeled monster power should fail closed instead of accepting apparent lethal damage. Expected false.",
+    expectedDeterministicKill: false,
+    handDeck: [
+      {
+        uuid: "unsupported-power-lethal-looking-hit",
+        name: "Big Strike",
+        cost: 1,
+        type: "ATTACK",
+        damage: 20,
+        hits: 1,
+        targetType: "enemy",
+      },
+    ],
+    energy: 1,
+    monsters: [
+      {
+        index: 0,
+        hp: 5,
+        block: 0,
+        isMinion: false,
+        powers: [{ id: "Mode Shift", amount: 30 }],
+      },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+  },
+];
+
+export type ExpectedKillPlay = {
+  card: string;
+  target: number | null;
+};
+
+export type KillScanIntegrationEntryPoint =
+  | "find_kill_sequence_from_normalized_state"
+  | "autoplay_execute_sequence"
+  | "ranker_candidate_suffix"
+  | "context_builder_fail_closed";
+
+export type KillScanIntegrationCase = {
+  caseName: string;
+  caseReason: string;
+  entryPoint: KillScanIntegrationEntryPoint;
+  expectedDeterministicKill: boolean;
+  handDeck: Cards[];
+  energy: number;
+  monsters: Monster[];
+  currentPlayerStatus: PlayerStatus;
+  candidatePlay?: ExpectedKillPlay;
+  expectedSequence?: ExpectedKillPlay[];
+  expectedSuffix?: ExpectedKillPlay[];
+  expectedContextFailure?: boolean;
+  executorAssertions?: string[];
+};
+
+export const killScanIntegrationCases: KillScanIntegrationCase[] = [
+  {
+    caseName: "integration_command_target_index_gap_is_preserved",
+    caseReason:
+      "NormalizedState can contain living monsters whose command indexes are not dense. Scanner output must use MonsterInfo.index, not living-vector position.",
+    entryPoint: "find_kill_sequence_from_normalized_state",
+    expectedDeterministicKill: true,
+    handDeck: [
+      {
+        uuid: "kill-command-index-two",
+        name: "Strike",
+        cost: 1,
+        type: "ATTACK",
+        damage: 5,
+        hits: 1,
+        targetType: "enemy",
+      },
+    ],
+    energy: 1,
+    monsters: [
+      { index: 0, hp: 50, block: 0, isMinion: true, powers: [] },
+      { index: 2, hp: 5, block: 0, isMinion: false, powers: [] },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+    expectedSequence: [{ card: "kill-command-index-two", target: 2 }],
+    executorAssertions: [
+      "Returned target is command index 2, not living-monster vector position 1.",
+      "Autoplay validates target against current state.monsters[].index and sends target 2 unchanged.",
+    ],
+  },
+  {
+    caseName: "integration_executor_recomputes_hand_index_from_uuid",
+    caseReason:
+      "The scanner returns UUIDs, while autoplay must resolve each UUID to the current hand index after prior plays shift the hand.",
+    entryPoint: "autoplay_execute_sequence",
+    expectedDeterministicKill: true,
+    handDeck: [
+      {
+        uuid: "uuid-energy-setup",
+        name: "Seeing Red",
+        cost: 0,
+        type: "SKILL",
+        targetType: "none",
+        effects: [{ kind: "energy", amount: 1 }],
+      },
+      {
+        uuid: "uuid-shifted-lethal-attack",
+        name: "Strike",
+        cost: 1,
+        type: "ATTACK",
+        damage: 5,
+        hits: 1,
+        targetType: "enemy",
+      },
+    ],
+    energy: 0,
+    monsters: [
+      { index: 0, hp: 5, block: 0, isMinion: false, powers: [] },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+    expectedSequence: [
+      { card: "uuid-energy-setup", target: null },
+      { card: "uuid-shifted-lethal-attack", target: 0 },
+    ],
+    executorAssertions: [
+      "Resolve uuid-energy-setup to its current hand index before the first play.",
+      "After the first play, resolve uuid-shifted-lethal-attack again; do not reuse its original hand index.",
+    ],
+  },
+  {
+    caseName: "integration_ranker_candidate_play_returns_suffix",
+    caseReason:
+      "Ranker scoring can apply a candidate play first, then ask the scanner for a deterministic suffix from the updated context.",
+    entryPoint: "ranker_candidate_suffix",
+    expectedDeterministicKill: true,
+    handDeck: [
+      {
+        uuid: "candidate-bash",
+        name: "Bash",
+        cost: 2,
+        type: "ATTACK",
+        damage: 8,
+        hits: 1,
+        targetType: "enemy",
+        effects: [{ kind: "vulnerable", amount: 2 }],
+      },
+      {
+        uuid: "candidate-suffix-strike",
+        name: "Strike",
+        cost: 1,
+        type: "ATTACK",
+        damage: 6,
+        hits: 1,
+        targetType: "enemy",
+      },
+    ],
+    energy: 3,
+    monsters: [
+      { index: 0, hp: 17, block: 0, isMinion: false, powers: [] },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+    candidatePlay: { card: "candidate-bash", target: 0 },
+    expectedSuffix: [{ card: "candidate-suffix-strike", target: 0 }],
+    executorAssertions: [
+      "Candidate Bash damage resolves before Vulnerable applies to later attacks.",
+      "The suffix scanner sees 9 damage from Strike because Vulnerable is active after the candidate play.",
+    ],
+  },
+  {
+    caseName: "integration_time_warp_missing_amount_fails_closed",
+    caseReason:
+      "If Time Warp is present but the remaining play count cannot be computed exactly, context building must fail closed.",
+    entryPoint: "context_builder_fail_closed",
+    expectedDeterministicKill: false,
+    handDeck: [
+      {
+        uuid: "time-warp-strike-a",
+        name: "Strike A",
+        cost: 0,
+        type: "ATTACK",
+        damage: 3,
+        hits: 1,
+        targetType: "enemy",
+      },
+      {
+        uuid: "time-warp-strike-b",
+        name: "Strike B",
+        cost: 0,
+        type: "ATTACK",
+        damage: 3,
+        hits: 1,
+        targetType: "enemy",
+      },
+      {
+        uuid: "time-warp-strike-c",
+        name: "Strike C",
+        cost: 0,
+        type: "ATTACK",
+        damage: 3,
+        hits: 1,
+        targetType: "enemy",
+      },
+      {
+        uuid: "time-warp-strike-d",
+        name: "Strike D",
+        cost: 0,
+        type: "ATTACK",
+        damage: 3,
+        hits: 1,
+        targetType: "enemy",
+      },
+    ],
+    energy: 0,
+    monsters: [
+      {
+        index: 0,
+        hp: 10,
+        block: 0,
+        isMinion: false,
+        powers: [{ id: "Time Warp" }],
+      },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+    expectedContextFailure: true,
+    executorAssertions: [
+      "The source state has Time Warp active but no exact counter in the normalized test input.",
+      "The scanner must return None/false rather than assume enough plays remain.",
+    ],
+  },
+  {
+    caseName: "integration_sequence_revalidation_aborts_on_illegal_target",
+    caseReason:
+      "Autoplay must revalidate scanner output immediately before sending commands, because monster indexes can disappear after state changes.",
+    entryPoint: "autoplay_execute_sequence",
+    expectedDeterministicKill: true,
+    handDeck: [
+      {
+        uuid: "target-revalidation-strike",
+        name: "Strike",
+        cost: 1,
+        type: "ATTACK",
+        damage: 5,
+        hits: 1,
+        targetType: "enemy",
+      },
+    ],
+    energy: 1,
+    monsters: [
+      { index: 2, hp: 5, block: 0, isMinion: false, powers: [] },
+    ],
+    currentPlayerStatus: {
+      stance: "Neutral",
+      strength: 0,
+      mantra: 0,
+      powers: [],
+      relics: [],
+      cardsPlayedThisTurn: 0,
+    },
+    expectedSequence: [{ card: "target-revalidation-strike", target: 2 }],
+    executorAssertions: [
+      "Before execution, validate target 2 against the latest state.monsters[].index list.",
+      "If target 2 is no longer legal, abort the scanner sequence and fall back to normal planning.",
+    ],
+  },
 ];

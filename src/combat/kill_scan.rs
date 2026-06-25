@@ -121,7 +121,10 @@ struct DfsContext<'a> {
     deadline: Instant,
 }
 
-#[allow(clippy::too_many_arguments, reason = "DFS state params form a natural group")]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "DFS state params form a natural group"
+)]
 fn dfs(
     remaining_mask: u16,
     energy: i16,
