@@ -238,6 +238,21 @@
     "grid_purge": "제거할 카드를 선택하세요.",
     "grid_other": "카드를 선택하세요."
   },
+  "effect_parser": {
+    "damage_keyword": "줍니다",
+    "aoe_keywords": ["모든 적", "모든 적에게"],
+    "random_keywords": ["무작위"],
+    "vulnerable_keyword": "취약",
+    "strength_gain_keyword": "힘",
+    "strength_lose_keyword": "잃습니다",
+    "enter_wrath_keywords": ["분노", "들어갑니다"],
+    "enter_calm_keywords": ["평온", "들어갑니다"],
+    "exit_stance_keywords": ["자세", "해제"],
+    "enter_divinity_keywords": ["신격", "들어갑니다"],
+    "mantra_keyword": "만트라",
+    "execute_keywords": ["HP가"],
+    "exhaust_keyword": "소멸"
+  },
   "relic_counter_cycles": {
     "Happy Flower":    "{count} 턴 후 [E] 획득",
     "Incense Burner":  "{count} 턴 후 불가침 1 획득",

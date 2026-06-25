@@ -8,8 +8,8 @@ pub(crate) mod damage;
 pub(crate) mod effects;
 pub(crate) mod kill_scan;
 
-use std::time::Duration;
 use crate::state::NormalizedState;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stance {

@@ -1,3 +1,8 @@
+#![allow(
+    dead_code,
+    reason = "WIP: effect_parser locale fields will be used by kill_scan in subsequent phases"
+)]
+
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -226,6 +231,27 @@ pub struct PostmortemLocale {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(
+    dead_code,
+    reason = "WIP: effect parser locale fields will be used by effects.rs in subsequent phases"
+)]
+pub struct EffectParserLocale {
+    pub damage_keyword: String,
+    pub aoe_keywords: Vec<String>,
+    pub random_keywords: Vec<String>,
+    pub vulnerable_keyword: String,
+    pub strength_gain_keyword: String,
+    pub strength_lose_keyword: String,
+    pub enter_wrath_keywords: Vec<String>,
+    pub enter_calm_keywords: Vec<String>,
+    pub exit_stance_keywords: Vec<String>,
+    pub enter_divinity_keywords: Vec<String>,
+    pub mantra_keyword: String,
+    pub execute_keywords: Vec<String>,
+    pub exhaust_keyword: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct I18nLocale {
     pub class_ironclad: String,
     pub class_silent: String,
@@ -294,6 +320,7 @@ pub struct Locale {
     pub few_shot_examples: FewShotExampleLocale,
     pub postmortem: PostmortemLocale,
     pub i18n: I18nLocale,
+    pub effect_parser: EffectParserLocale,
     pub language_name: String,
     #[serde(default)]
     pub lang_code: String,

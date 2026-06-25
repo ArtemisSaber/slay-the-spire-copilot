@@ -238,6 +238,21 @@
     "grid_purge": "削除するカードを選択してください。",
     "grid_other": "カードを選択してください。"
   },
+  "effect_parser": {
+    "damage_keyword": "与える",
+    "aoe_keywords": ["すべての敵", "全ての敵"],
+    "random_keywords": ["ランダム"],
+    "vulnerable_keyword": "脆弱",
+    "strength_gain_keyword": "筋力",
+    "strength_lose_keyword": "失う",
+    "enter_wrath_keywords": ["憤怒", "入る"],
+    "enter_calm_keywords": ["平静", "入る"],
+    "exit_stance_keywords": ["構え", "解除"],
+    "enter_divinity_keywords": ["神格", "入る"],
+    "mantra_keyword": "マントラ",
+    "execute_keywords": ["HPが"],
+    "exhaust_keyword": "廃棄"
+  },
   "relic_counter_cycles": {
     "Happy Flower":    "{count} ターン後に [E] を得る",
     "Incense Burner":  "{count} ターン後に 無形 1 を得る",

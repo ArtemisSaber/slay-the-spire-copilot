@@ -238,6 +238,21 @@
     "grid_purge": "Select a card to REMOVE.",
     "grid_other": "Select a card."
   },
+  "effect_parser": {
+    "damage_keyword": "deal",
+    "aoe_keywords": ["all enemies", "ALL enemies"],
+    "random_keywords": ["random"],
+    "vulnerable_keyword": "Vulnerable",
+    "strength_gain_keyword": "Strength",
+    "strength_lose_keyword": "lose",
+    "enter_wrath_keywords": ["Enter", "Wrath"],
+    "enter_calm_keywords": ["Enter", "Calm"],
+    "exit_stance_keywords": ["Exit", "stance"],
+    "enter_divinity_keywords": ["Enter", "Divinity"],
+    "mantra_keyword": "Mantra",
+    "execute_keywords": ["HP is", "set its HP to 0", "HP or less"],
+    "exhaust_keyword": "Exhaust"
+  },
   "relic_counter_cycles": {
     "Happy Flower":    "in {count} turns: gain [E]",
     "Incense Burner":  "in {count} turns: gain 1 Intangible",

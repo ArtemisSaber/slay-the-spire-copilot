@@ -238,6 +238,21 @@
     "grid_purge": "选择一张要移除的卡牌。",
     "grid_other": "选择一张卡牌。"
   },
+  "effect_parser": {
+    "damage_keyword": "造成",
+    "aoe_keywords": ["所有敌人", "全部敌人", "全体敌人"],
+    "random_keywords": ["随机"],
+    "vulnerable_keyword": "易伤",
+    "strength_gain_keyword": "力量",
+    "strength_lose_keyword": "失去",
+    "enter_wrath_keywords": ["进入", "愤怒"],
+    "enter_calm_keywords": ["进入", "宁静"],
+    "exit_stance_keywords": ["退出", "姿态"],
+    "enter_divinity_keywords": ["进入", "神格"],
+    "mantra_keyword": "真言",
+    "execute_keywords": ["生命值", "小于等于"],
+    "exhaust_keyword": "消耗"
+  },
   "relic_counter_cycles": {
     "Happy Flower":    "{count} 回合后获得 [E]",
     "Incense Burner":  "{count} 回合后获得 1 层 无实体",
