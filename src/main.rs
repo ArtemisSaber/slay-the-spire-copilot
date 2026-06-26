@@ -11,6 +11,7 @@ mod logging;
 mod postmortem;
 mod prompt;
 mod protocol;
+mod ranker;
 mod relic_counters;
 mod runtime;
 mod setup_wizard;

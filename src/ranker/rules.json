@@ -1,0 +1,85 @@
+{
+  "version": "1.0",
+  "available_score_fns": ["hp_cost_penalty"],
+  "rules": [
+    {
+      "rule_id": "base_status_curse",
+      "priority": 1011,
+      "weight": -100,
+      "applies_to": ["play_card"],
+      "conditions": [{"card": {"type_in": ["STATUS", "CURSE"]}}]
+    },
+    {
+      "rule_id": "core_damage",
+      "priority": 1052,
+      "weight": 10,
+      "applies_to": ["play_card"],
+      "formula": "@damage * @hits * @weight",
+      "per_target": true,
+      "conditions": [
+        {"parsed": {"damage_gt": 0}},
+        {"target": {"power_not": "Intangible"}}
+      ]
+    },
+    {
+      "rule_id": "core_block_non_excessive",
+      "priority": 1063,
+      "weight": 10,
+      "applies_to": ["play_card"],
+      "formula": "@block * @weight",
+      "conditions": [
+        {"parsed": {"block_gt": 0}},
+        {"compute": {"formula": "@incoming_damage > @current_block"}}
+      ]
+    },
+    {
+      "rule_id": "core_block_retain",
+      "priority": 1060,
+      "weight": 10,
+      "applies_to": ["play_card"],
+      "formula": "@block * @weight",
+      "override": "core_block_non_excessive",
+      "conditions": [
+        {"parsed": {"block_gt": 0}},
+        {"player": {"power": "Barricade"}}
+      ]
+    },
+    {
+      "rule_id": "core_block_retain_relic",
+      "priority": 1061,
+      "weight": 10,
+      "applies_to": ["play_card"],
+      "formula": "@block * @weight",
+      "override": "core_block_non_excessive",
+      "conditions": [
+        {"parsed": {"block_gt": 0}},
+        {"player": {"relic": "Calipers"}}
+      ]
+    },
+    {
+      "rule_id": "punishment_skill_vs_nob",
+      "priority": 1160,
+      "weight": -100,
+      "applies_to": ["play_card"],
+      "conditions": [
+        {"monsters": {"any": {"monster_id": "GremlinNob"}}},
+        {"card": {"type": "SKILL"}}
+      ]
+    },
+    {
+      "rule_id": "danger_hp_cost",
+      "priority": 1174,
+      "weight": 0,
+      "score_fn": "hp_cost_penalty",
+      "applies_to": ["play_card"],
+      "conditions": [{"parsed": {"self_damage_gt": 0}}]
+    },
+    {
+      "rule_id": "end_turn_hand_exhausted",
+      "priority": 2001,
+      "weight": 80,
+      "applies_to": ["end_turn"],
+      "conditions": [{"compute": {"formula": "@useful_cards_in_hand == 0"}}]
+    }
+  ]
+}
