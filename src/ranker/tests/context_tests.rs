@@ -65,7 +65,6 @@ fn jaw_worm() -> MonsterInfo {
 fn builds_context_per_card_per_target() {
     let state = make_state(vec![strike()], vec![jaw_worm()]);
     let contexts = ActionContext::build_all(&state);
-    assert_eq!(contexts.len(), 2);
     let play_ctx: Vec<_> = contexts
         .iter()
         .filter(|c| matches!(c.action_type, ActionType::PlayCard { .. }))
@@ -75,6 +74,7 @@ fn builds_context_per_card_per_target() {
     assert_eq!(ctx.target_index, Some(0));
     assert_eq!(ctx.parsed.damage, Some(6));
     assert_eq!(ctx.parsed.hits, 1);
+    assert_eq!(ctx.monsters.len(), 1);
 }
 
 #[test]

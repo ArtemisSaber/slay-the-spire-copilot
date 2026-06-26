@@ -17,6 +17,7 @@ pub struct ActionContext {
     pub card: Option<CardInfo>,
     pub target_index: Option<usize>,
     pub target: Option<MonsterInfo>,
+    pub monsters: Vec<MonsterInfo>,
     pub parsed: ParsedEffects,
     pub vars: HashMap<String, f64>,
 }
@@ -65,6 +66,7 @@ impl ActionContext {
                         monster_count,
                         monsters_total,
                         useful_count,
+                        state,
                     );
                     vars.insert("cost".to_string(), card.cost as f64);
                     vars.insert("current_energy".to_string(), energy as f64);
@@ -81,6 +83,7 @@ impl ActionContext {
                         card: Some(card.clone()),
                         target_index: Some(monster.index),
                         target: Some(monster.clone()),
+                        monsters: state.monsters.clone(),
                         parsed: parsed.clone(),
                         vars,
                     });
@@ -94,6 +97,7 @@ impl ActionContext {
                     monster_count,
                     monsters_total,
                     useful_count,
+                    state,
                 );
                 vars.insert("cost".to_string(), card.cost as f64);
                 vars.insert("current_energy".to_string(), energy as f64);
@@ -109,6 +113,7 @@ impl ActionContext {
                     card: Some(card.clone()),
                     target_index: None,
                     target: None,
+                    monsters: state.monsters.clone(),
                     parsed: parsed.clone(),
                     vars,
                 });
@@ -123,6 +128,7 @@ impl ActionContext {
             monster_count,
             monsters_total,
             useful_count,
+            state,
         );
         end_vars.insert("cost".to_string(), 0.0);
         end_vars.insert("current_energy".to_string(), energy as f64);
@@ -135,6 +141,7 @@ impl ActionContext {
             card: None,
             target_index: None,
             target: None,
+            monsters: state.monsters.clone(),
             parsed: ParsedEffects::default(),
             vars: end_vars,
         });
@@ -143,6 +150,10 @@ impl ActionContext {
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "vars builder needs all combat state fields"
+)]
 fn base_vars(
     remaining: i64,
     block: i64,
@@ -151,6 +162,7 @@ fn base_vars(
     monster_count: f64,
     monsters_total: f64,
     useful_count: f64,
+    state: &NormalizedState,
 ) -> HashMap<String, f64> {
     let mut vars = HashMap::new();
     vars.insert("current_block".to_string(), block as f64);
@@ -164,6 +176,14 @@ fn base_vars(
     vars.insert("monsters_total_hp_plus_block".to_string(), monsters_total);
     vars.insert("useful_cards_in_hand".to_string(), useful_count);
     vars.insert("remaining_energy".to_string(), remaining as f64);
+
+    for power in &state.powers {
+        vars.insert(format!("player_power_{}", power.id), 1.0);
+    }
+    for relic in &state.relics {
+        vars.insert(format!("player_relic_{}", relic.id), 1.0);
+    }
+
     vars
 }
 
@@ -188,17 +208,11 @@ fn fill_target_vars(vars: &mut HashMap<String, f64>, monster: &MonsterInfo) {
     }
 }
 
-fn fill_monster_vars(vars: &mut HashMap<String, f64>, monsters: &[MonsterInfo], target_idx: usize) {
-    let mut has_nob = false;
-    for m in monsters {
-        if m.name.contains("GremlinNob") || m.name.contains("Nob") {
-            has_nob = true;
-        }
-    }
-    if has_nob {
-        vars.insert("has_gremlin_nob".to_string(), 1.0);
-    }
-    let _ = target_idx;
+fn fill_monster_vars(
+    _vars: &mut HashMap<String, f64>,
+    _monsters: &[MonsterInfo],
+    _target_idx: usize,
+) {
 }
 
 #[cfg(test)]
