@@ -2,4 +2,5 @@
 
 pub mod formula;
 pub mod parser;
+pub mod predicates;
 pub mod rules;
