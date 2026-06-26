@@ -607,3 +607,7 @@ mod test_utils;
 #[cfg(test)]
 #[path = "tests/main_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests/ranker_tests.rs"]
+mod ranker_integration_tests;
