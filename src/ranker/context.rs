@@ -58,6 +58,13 @@ impl ActionContext {
         for card in hand_cards {
             let mut parsed = parser::parse_description(&card.description);
 
+            let is_aoe = card.description.contains("所有")
+                || card.description.to_lowercase().contains("all enemies")
+                || card
+                    .description
+                    .to_lowercase()
+                    .contains("all other enemies");
+
             let (effective_cost, effective_hits, effective_amount) =
                 resolve_x_cost(card, energy, chemical_x);
 
@@ -74,6 +81,38 @@ impl ActionContext {
             }
 
             if card.has_target && card.card_type == "ATTACK" {
+                for monster in &state.monsters {
+                    let mut vars = base_vars(
+                        remaining_energy,
+                        block,
+                        hp,
+                        incoming,
+                        monster_count,
+                        monsters_total,
+                        useful_count,
+                        state,
+                    );
+                    vars.insert("cost".to_string(), effective_cost as f64);
+                    vars.insert("current_energy".to_string(), energy as f64);
+                    vars.insert("remaining_energy".to_string(), remaining_energy as f64);
+                    fill_parsed_vars(&mut vars, &parsed);
+                    fill_target_vars(&mut vars, monster);
+                    fill_card_meta_vars(&mut vars, card, state);
+
+                    contexts.push(ActionContext {
+                        action_type: ActionType::PlayCard {
+                            card_id: card.uuid.clone().unwrap_or_else(|| card.id.clone()),
+                            card_name: card.name.clone(),
+                        },
+                        card: Some(card.clone()),
+                        target_index: Some(monster.index),
+                        target: Some(monster.clone()),
+                        monsters: state.monsters.clone(),
+                        parsed: parsed.clone(),
+                        vars,
+                    });
+                }
+            } else if is_aoe {
                 for monster in &state.monsters {
                     let mut vars = base_vars(
                         remaining_energy,

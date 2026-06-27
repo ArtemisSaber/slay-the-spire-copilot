@@ -5,6 +5,14 @@
 
 use serde::{Deserialize, Deserializer};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum RuleCategory {
+    #[default]
+    PerTarget,
+    PerCard,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct RuleSet {
     pub version: String,
@@ -28,7 +36,7 @@ pub struct Rule {
     #[serde(default)]
     pub applies_to: Vec<String>,
     #[serde(default)]
-    pub per_target: bool,
+    pub category: RuleCategory,
     #[serde(default)]
     pub conditions: Vec<Condition>,
 }

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::ranker::context::{ActionContext, ActionType};
 use crate::ranker::engine::{evaluate, rank_contexts};
 use crate::ranker::parser::ParsedEffects;
-use crate::ranker::rules::{Condition, Rule, RuleSet, Weight};
+use crate::ranker::rules::{Condition, Rule, RuleCategory, RuleSet, Weight};
 use crate::state::MonsterInfo;
 
 fn make_rules(rules: Vec<Rule>) -> RuleSet {
@@ -61,6 +61,7 @@ fn make_parsed_ctx(parsed: ParsedEffects) -> ActionContext {
 #[test]
 fn flat_weight_rule_scores_correctly() {
     let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
         rule_id: "test_flat".into(),
         priority: 1000,
         weight: Weight::Value(-100),
@@ -68,7 +69,6 @@ fn flat_weight_rule_scores_correctly() {
         score_fn: None,
         override_rule: None,
         applies_to: vec!["play_card".into()],
-        per_target: false,
         conditions: vec![],
     }]);
     let ctx = make_ctx(HashMap::new());
@@ -86,6 +86,7 @@ fn formula_rule_uses_weight_and_vars() {
     vars.insert("hits".to_string(), 2.0);
 
     let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
         rule_id: "test_formula".into(),
         priority: 1000,
         weight: Weight::Value(10),
@@ -93,7 +94,6 @@ fn formula_rule_uses_weight_and_vars() {
         score_fn: None,
         override_rule: None,
         applies_to: vec!["play_card".into()],
-        per_target: false,
         conditions: vec![],
     }]);
     let ctx = make_ctx(vars);
@@ -107,6 +107,7 @@ fn formula_rule_uses_weight_and_vars() {
 fn override_suppresses_target_rule() {
     let rules = make_rules(vec![
         Rule {
+            category: RuleCategory::PerTarget,
             rule_id: "override_me".into(),
             priority: 2000,
             weight: Weight::Value(10),
@@ -114,10 +115,10 @@ fn override_suppresses_target_rule() {
             score_fn: None,
             override_rule: None,
             applies_to: vec!["play_card".into()],
-            per_target: false,
             conditions: vec![],
         },
         Rule {
+            category: RuleCategory::PerTarget,
             rule_id: "the_override".into(),
             priority: 1000,
             weight: Weight::Value(5),
@@ -125,7 +126,6 @@ fn override_suppresses_target_rule() {
             score_fn: None,
             override_rule: Some("override_me".into()),
             applies_to: vec!["play_card".into()],
-            per_target: false,
             conditions: vec![],
         },
     ]);
@@ -146,6 +146,7 @@ fn override_suppresses_target_rule() {
 #[test]
 fn avoid_actions_separated() {
     let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
         rule_id: "min".into(),
         priority: 1000,
         weight: Weight::MinI64,
@@ -153,7 +154,6 @@ fn avoid_actions_separated() {
         score_fn: None,
         override_rule: None,
         applies_to: vec!["play_card".into()],
-        per_target: false,
         conditions: vec![],
     }]);
     let ctx = make_ctx(HashMap::new());
@@ -188,6 +188,7 @@ fn sort_by_score_descending() {
 
 fn rule_with_condition(cond: Condition) -> Rule {
     Rule {
+        category: RuleCategory::PerTarget,
         rule_id: "test".into(),
         priority: 1000,
         weight: Weight::Value(10),
@@ -195,7 +196,6 @@ fn rule_with_condition(cond: Condition) -> Rule {
         score_fn: None,
         override_rule: None,
         applies_to: vec!["play_card".into()],
-        per_target: false,
         conditions: vec![cond],
     }
 }
@@ -782,8 +782,9 @@ fn monster_id_exact_no_false_match() {
 // --- per_target ---
 
 #[test]
-fn per_target_sums_across_targets() {
+fn single_context_scores_once_per_context() {
     let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
         rule_id: "test".into(),
         priority: 1000,
         weight: Weight::Value(10),
@@ -791,7 +792,6 @@ fn per_target_sums_across_targets() {
         score_fn: None,
         override_rule: None,
         applies_to: vec!["play_card".into()],
-        per_target: true,
         conditions: vec![],
     }]);
     let ctx = ActionContext {
@@ -820,13 +820,14 @@ fn per_target_sums_across_targets() {
         vars: HashMap::new(),
     };
     let results = evaluate(&ctx, &rules);
-    assert_eq!(results[0].score, 20);
+    assert_eq!(results[0].score, 10, "single context scores once");
     assert!(results[0].matched);
 }
 
 #[test]
-fn per_target_no_targets_returns_zero() {
+fn context_with_no_monsters_still_scores_once() {
     let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
         rule_id: "test".into(),
         priority: 1000,
         weight: Weight::Value(10),
@@ -834,7 +835,6 @@ fn per_target_no_targets_returns_zero() {
         score_fn: None,
         override_rule: None,
         applies_to: vec!["play_card".into()],
-        per_target: true,
         conditions: vec![],
     }]);
     let ctx = ActionContext {
@@ -850,7 +850,10 @@ fn per_target_no_targets_returns_zero() {
         vars: HashMap::new(),
     };
     let results = evaluate(&ctx, &rules);
-    assert_eq!(results[0].score, 0);
+    assert_eq!(
+        results[0].score, 10,
+        "score applies regardless of monster count"
+    );
     assert!(results[0].matched);
 }
 
@@ -1053,4 +1056,290 @@ fn scored_action_propagates_target_index_from_context() {
 
     assert_eq!(scored.len(), 1);
     assert_eq!(scored[0].target_index, Some(3));
+}
+
+// --- AoE merge: per-target rules sum, per-card rules applied once ---
+
+fn aoe_contexts(
+    card_id: &str,
+    card_name: &str,
+    damage: i64,
+    cost: i64,
+    monsters: Vec<MonsterInfo>,
+) -> Vec<ActionContext> {
+    let mut contexts = Vec::new();
+    let mut vars_base = HashMap::new();
+    vars_base.insert("current_energy".to_string(), 3.0);
+    vars_base.insert("remaining_energy".to_string(), (3 - cost) as f64);
+    vars_base.insert("cost".to_string(), cost as f64);
+    vars_base.insert("current_hp".to_string(), 60.0);
+    vars_base.insert("incoming_damage".to_string(), 5.0);
+    vars_base.insert("monster_count".to_string(), monsters.len() as f64);
+    vars_base.insert("card_base_score".to_string(), (-10 * cost) as f64);
+    vars_base.insert("weight".to_string(), 1.0);
+
+    for monster in &monsters {
+        let mut vars = vars_base.clone();
+        vars.insert("damage".to_string(), damage as f64);
+        vars.insert("hits".to_string(), 1.0);
+        vars.insert("total_damage".to_string(), damage as f64);
+        vars.insert("aoe".to_string(), 1.0);
+        vars.insert(
+            "monsters_total_hp_plus_block".to_string(),
+            monsters
+                .iter()
+                .map(|m| m.current_hp.unwrap_or(0) as f64)
+                .sum(),
+        );
+
+        contexts.push(ActionContext {
+            action_type: ActionType::PlayCard {
+                card_id: card_id.into(),
+                card_name: card_name.into(),
+            },
+            card: None,
+            target_index: Some(monster.index),
+            target: Some(monster.clone()),
+            monsters: monsters.clone(),
+            parsed: crate::ranker::parser::ParsedEffects {
+                damage: Some(damage),
+                hits: 1,
+                ..Default::default()
+            },
+            vars,
+        });
+    }
+    contexts
+}
+
+fn per_target_damage_rule(rule_id: &str, priority: i64, weight: i64) -> Rule {
+    Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: rule_id.into(),
+        priority,
+        weight: Weight::Value(weight),
+        formula: Some("@damage * @hits * @weight".into()),
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![],
+    }
+}
+
+fn per_card_power_rule(rule_id: &str, priority: i64, weight: i64) -> Rule {
+    Rule {
+        category: RuleCategory::PerCard,
+        rule_id: rule_id.into(),
+        priority,
+        weight: Weight::Value(weight),
+        formula: Some("@weight".into()),
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![],
+    }
+}
+
+fn per_card_cost_rule(rule_id: &str, priority: i64, weight: i64) -> Rule {
+    Rule {
+        category: RuleCategory::PerCard,
+        rule_id: rule_id.into(),
+        priority,
+        weight: Weight::Value(weight),
+        formula: Some("@cost * @weight".into()),
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![],
+    }
+}
+
+#[test]
+fn aoe_merge_sums_per_target_rules() {
+    let monsters = vec![
+        MonsterInfo {
+            name: "Slime A".into(),
+            monster_id: None,
+            index: 0,
+            current_hp: Some(10),
+            max_hp: Some(10),
+            block: Some(0),
+            ..Default::default()
+        },
+        MonsterInfo {
+            name: "Slime B".into(),
+            monster_id: None,
+            index: 1,
+            current_hp: Some(10),
+            max_hp: Some(10),
+            block: Some(0),
+            ..Default::default()
+        },
+    ];
+    let contexts = aoe_contexts("tc-1", "Thunderclap", 4, 1, monsters);
+
+    let rules = make_rules(vec![per_target_damage_rule("core_damage", 1050, 10)]);
+
+    let scored = rank_contexts(&contexts, &rules);
+    assert_eq!(scored.len(), 1, "AoE contexts should merge into one entry");
+    // 2 monsters × (4 dmg × 10 weight) = 80
+    assert_eq!(scored[0].score, 80);
+    assert!(
+        scored[0].target_index.is_none(),
+        "merged AoE should have null target"
+    );
+}
+
+#[test]
+fn aoe_merge_applies_per_card_rules_once() {
+    let monsters = vec![
+        MonsterInfo {
+            name: "Slime A".into(),
+            monster_id: None,
+            index: 0,
+            current_hp: Some(10),
+            max_hp: Some(10),
+            block: Some(0),
+            ..Default::default()
+        },
+        MonsterInfo {
+            name: "Slime B".into(),
+            monster_id: None,
+            index: 1,
+            current_hp: Some(10),
+            max_hp: Some(10),
+            block: Some(0),
+            ..Default::default()
+        },
+    ];
+    let contexts = aoe_contexts("tc-1", "Thunderclap", 4, 1, monsters);
+
+    let rules = make_rules(vec![
+        per_target_damage_rule("core_damage", 1050, 10), // 40 per monster
+        per_card_cost_rule("base_cost_penalty", 1000, -10), // -10 once
+    ]);
+
+    let scored = rank_contexts(&contexts, &rules);
+    assert_eq!(scored.len(), 1);
+    // 2 × 40 damage + (-10 cost once) = 70
+    assert_eq!(
+        scored[0].score, 70,
+        "cost should be applied once, not twice"
+    );
+}
+
+#[test]
+fn aoe_merge_combines_matched_rules() {
+    let monsters = vec![
+        MonsterInfo {
+            name: "Slime A".into(),
+            monster_id: None,
+            index: 0,
+            current_hp: Some(10),
+            max_hp: Some(10),
+            block: Some(0),
+            ..Default::default()
+        },
+        MonsterInfo {
+            name: "Slime B".into(),
+            monster_id: None,
+            index: 1,
+            current_hp: Some(10),
+            max_hp: Some(10),
+            block: Some(0),
+            ..Default::default()
+        },
+    ];
+    let contexts = aoe_contexts("tc-1", "Thunderclap", 4, 1, monsters);
+
+    let rules = make_rules(vec![
+        per_target_damage_rule("core_damage", 1050, 10),
+        per_card_cost_rule("base_cost_penalty", 1000, -10),
+        per_card_power_rule("setup_power", 1070, 30),
+    ]);
+
+    let scored = rank_contexts(&contexts, &rules);
+    assert_eq!(scored.len(), 1);
+    // 2 × 40 (damage) + (-10) (cost) + 30 (power) = 100
+    assert_eq!(scored[0].score, 100);
+    let breakdown = &scored[0].breakdown;
+    assert!(
+        breakdown
+            .iter()
+            .any(|b| b.rule_id == "core_damage" && b.matched)
+    );
+    assert!(
+        breakdown
+            .iter()
+            .any(|b| b.rule_id == "base_cost_penalty" && b.matched)
+    );
+    assert!(
+        breakdown
+            .iter()
+            .any(|b| b.rule_id == "setup_power" && b.matched)
+    );
+}
+
+#[test]
+fn targeted_does_not_merge() {
+    let monsters = vec![
+        MonsterInfo {
+            name: "Slime A".into(),
+            monster_id: None,
+            index: 0,
+            current_hp: Some(10),
+            max_hp: Some(10),
+            block: Some(0),
+            ..Default::default()
+        },
+        MonsterInfo {
+            name: "Slime B".into(),
+            monster_id: None,
+            index: 1,
+            current_hp: Some(10),
+            max_hp: Some(10),
+            block: Some(0),
+            ..Default::default()
+        },
+    ];
+    // Build targeted contexts manually (no aoe var, different card IDs or has_target implied)
+    let mut contexts = Vec::new();
+    for monster in &monsters {
+        let mut vars = HashMap::new();
+        vars.insert("damage".to_string(), 6.0);
+        vars.insert("hits".to_string(), 1.0);
+        vars.insert("cost".to_string(), 1.0);
+        vars.insert("current_energy".to_string(), 3.0);
+        vars.insert("remaining_energy".to_string(), 2.0);
+        vars.insert("monster_count".to_string(), monsters.len() as f64);
+        vars.insert("card_base_score".to_string(), -10.0);
+        vars.insert("weight".to_string(), 1.0);
+
+        contexts.push(ActionContext {
+            action_type: ActionType::PlayCard {
+                card_id: "s1".into(),
+                card_name: "Strike".into(),
+            },
+            card: None,
+            target_index: Some(monster.index),
+            target: Some(monster.clone()),
+            monsters: monsters.clone(),
+            parsed: crate::ranker::parser::ParsedEffects {
+                damage: Some(6),
+                hits: 1,
+                ..Default::default()
+            },
+            vars,
+        });
+    }
+
+    let rules = make_rules(vec![
+        per_target_damage_rule("core_damage", 1050, 10),
+        per_card_cost_rule("base_cost_penalty", 1000, -10),
+    ]);
+
+    let scored = rank_contexts(&contexts, &rules);
+    assert_eq!(scored.len(), 2, "targeted Strike should NOT merge");
+    assert_eq!(scored[0].target_index.unwrap(), 0);
+    assert_eq!(scored[1].target_index.unwrap(), 1);
 }

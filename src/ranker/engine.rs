@@ -75,7 +75,7 @@ pub fn evaluate(ctx: &ActionContext, rule_set: &RuleSet) -> Vec<RuleResult> {
 }
 
 pub fn rank_contexts(contexts: &[ActionContext], rule_set: &RuleSet) -> Vec<ScoredAction> {
-    let mut scored: Vec<ScoredAction> = contexts
+    let scored: Vec<ScoredAction> = contexts
         .iter()
         .map(|ctx| {
             let breakdown = evaluate(ctx, rule_set);
@@ -95,8 +95,83 @@ pub fn rank_contexts(contexts: &[ActionContext], rule_set: &RuleSet) -> Vec<Scor
         })
         .collect();
 
+    let mut scored = merge_aoe_groups(scored, contexts, rule_set);
     scored.sort_by(|a, b| b.score.cmp(&a.score));
     scored
+}
+
+fn is_aoe_context(ctx: &ActionContext) -> bool {
+    ctx.vars.get("aoe").copied() == Some(1.0)
+}
+
+fn merge_aoe_groups(
+    scored: Vec<ScoredAction>,
+    contexts: &[ActionContext],
+    rule_set: &super::rules::RuleSet,
+) -> Vec<ScoredAction> {
+    use std::collections::HashMap;
+
+    let per_card_ids: HashSet<String> = rule_set
+        .rules
+        .iter()
+        .filter(|r| r.category == super::rules::RuleCategory::PerCard)
+        .map(|r| r.rule_id.clone())
+        .collect();
+
+    let mut groups: HashMap<String, Vec<usize>> = HashMap::new();
+    let mut standalone: Vec<usize> = Vec::new();
+
+    for (i, ctx) in contexts.iter().enumerate() {
+        if i >= scored.len() {
+            break;
+        }
+        if is_aoe_context(ctx) {
+            if let ActionType::PlayCard { card_id, .. } = &ctx.action_type {
+                groups.entry(card_id.clone()).or_default().push(i);
+            } else {
+                standalone.push(i);
+            }
+        } else {
+            standalone.push(i);
+        }
+    }
+
+    let mut result: Vec<ScoredAction> = Vec::new();
+
+    for group in groups.values() {
+        if group.is_empty() {
+            continue;
+        }
+        let first = &scored[group[0]];
+        let mut merged = first.clone();
+        merged.target_index = None;
+
+        for &i in &group[1..] {
+            let other = &scored[i];
+            for (j, r) in merged.breakdown.iter_mut().enumerate() {
+                if !per_card_ids.contains(&r.rule_id) {
+                    r.score = r.score.saturating_add(other.breakdown[j].score);
+                }
+                r.matched = r.matched || other.breakdown[j].matched;
+            }
+        }
+
+        let is_avoid = merged.breakdown.iter().any(|r| r.score == i64::MIN);
+        merged.is_avoid = is_avoid;
+        merged.score = if is_avoid {
+            i64::MIN
+        } else {
+            merged.breakdown.iter().map(|r| r.score).sum()
+        };
+
+        result.push(merged);
+    }
+
+    for &i in &standalone {
+        result.push(scored[i].clone());
+    }
+
+    result
 }
 
 fn rule_applies(rule: &Rule, action_type: &ActionType) -> bool {
@@ -505,18 +580,6 @@ fn eval_compute(
 }
 
 fn compute_score(rule: &Rule, ctx: &ActionContext) -> i64 {
-    if rule.per_target {
-        let monster_count = ctx.monsters.len();
-        if monster_count == 0 {
-            return 0;
-        }
-        let mut total: i64 = 0;
-        for _i in 0..monster_count {
-            total = total.saturating_add(compute_single_score(rule, ctx));
-        }
-        return total;
-    }
-
     compute_single_score(rule, ctx)
 }
 

@@ -34,7 +34,6 @@ fn deserialize_flat_weight_rule() {
     assert!(rule.score_fn.is_none());
     assert!(rule.override_rule.is_none());
     assert_eq!(rule.applies_to, vec!["play_card"]);
-    assert!(!rule.per_target);
     assert_eq!(rule.conditions.len(), 1);
 }
 
@@ -48,7 +47,6 @@ fn deserialize_formula_rule() {
             "weight": 10,
             "applies_to": ["play_card"],
             "formula": "@damage * @hits * @weight",
-            "per_target": true,
             "conditions": [
                 {"parsed": {"damage_gt": 0}},
                 {"target": {"power_not": "Intangible"}}
@@ -58,7 +56,6 @@ fn deserialize_formula_rule() {
     let set: RuleSet = serde_json::from_str(json).unwrap();
     let rule = &set.rules[0];
     assert_eq!(rule.formula.as_deref(), Some("@damage * @hits * @weight"));
-    assert!(rule.per_target);
     assert_eq!(rule.conditions.len(), 2);
 }
 

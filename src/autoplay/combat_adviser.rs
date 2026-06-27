@@ -17,6 +17,38 @@ pub fn try_kill_scan_action(state: &NormalizedState) -> Option<AutoPlayAction> {
     })
 }
 
+fn resolve_target(
+    state: &NormalizedState,
+    target_index: Option<usize>,
+) -> Option<serde_json::Value> {
+    let idx = target_index?;
+    let monster = state.monsters.iter().find(|m| m.index == idx)?;
+    Some(serde_json::json!({
+        "index": monster.index,
+        "name": monster.name,
+        "hp": monster.current_hp,
+        "block": monster.block,
+    }))
+}
+
+fn action_entry(
+    s: &crate::ranker::engine::ScoredAction,
+    state: &NormalizedState,
+) -> serde_json::Value {
+    let target = resolve_target(state, s.target_index);
+    serde_json::json!({
+        "action": s.action_type,
+        "target": target,
+        "matched_rules": s.breakdown.iter()
+            .filter(|b| b.matched)
+            .map(|b| serde_json::json!({
+                "rule_id": b.rule_id,
+                "score": b.score,
+            }))
+            .collect::<Vec<_>>(),
+    })
+}
+
 pub fn top_ranked_context(state: &NormalizedState) -> Option<serde_json::Value> {
     if state.screen_type.as_deref() != Some("NONE") {
         return None;
@@ -25,27 +57,35 @@ pub fn top_ranked_context(state: &NormalizedState) -> Option<serde_json::Value> 
     if scored.is_empty() {
         return None;
     }
-    let top5: Vec<serde_json::Value> = scored
+
+    let (non_avoided, avoided): (Vec<_>, Vec<_>) = scored.iter().partition(|s| !s.is_avoid);
+
+    let suggested: Vec<serde_json::Value> = non_avoided
         .iter()
         .take(5)
+        .map(|s| action_entry(s, state))
+        .collect();
+    let other: Vec<serde_json::Value> = non_avoided
+        .iter()
+        .skip(5)
+        .map(|s| action_entry(s, state))
+        .collect();
+    let avoided_actions: Vec<serde_json::Value> = avoided
+        .iter()
         .map(|s| {
-            serde_json::json!({
-                "action": s.action_type,
-                "score": s.score,
-                "is_avoid": s.is_avoid,
-                "target_index": s.target_index,
-                "matched_rules": s.breakdown.iter()
-                    .filter(|b| b.matched)
-                    .map(|b| serde_json::json!({
-                        "rule_id": b.rule_id,
-                        "score": b.score,
-                    }))
-                    .collect::<Vec<_>>(),
-            })
+            let mut entry = action_entry(s, state);
+            entry["score"] = serde_json::json!("AVOID");
+            entry
         })
         .collect();
 
-    Some(serde_json::json!({ "ranked_actions": top5 }))
+    Some(serde_json::json!({
+        "ranked_suggestions": {
+            "suggested_actions": suggested,
+            "other_actions": other,
+            "avoided_actions": avoided_actions,
+        }
+    }))
 }
 
 #[cfg(test)]
@@ -101,6 +141,64 @@ mod tests {
         })
     }
 
+    fn thunderclap_card() -> serde_json::Value {
+        serde_json::json!({
+            "id": "Thunderclap",
+            "name": "Thunderclap",
+            "cost": 1,
+            "card_type": "ATTACK",
+            "uuid": "tc-1",
+            "description": "Deal 4 damage and apply 1 Vulnerable to ALL enemies.",
+            "has_target": false,
+            "playable": true
+        })
+    }
+
+    fn two_monster_state(energy: i64, cards: Vec<serde_json::Value>) -> NormalizedState {
+        let monsters = serde_json::json!([
+            {
+                "name": "Slime A",
+                "index": 0,
+                "current_hp": 15,
+                "max_hp": 20,
+                "block": 0,
+                "intent": "ATTACK",
+                "damage": 5,
+                "hits": 1,
+                "monster_powers": [],
+                "can_be_killed": false,
+                "is_scaling": false
+            },
+            {
+                "name": "Slime B",
+                "index": 1,
+                "current_hp": 15,
+                "max_hp": 20,
+                "block": 0,
+                "intent": "ATTACK",
+                "damage": 5,
+                "hits": 1,
+                "monster_powers": [],
+                "can_be_killed": false,
+                "is_scaling": false
+            }
+        ]);
+        let payload = serde_json::json!({
+            "screen_type": "NONE",
+            "energy": energy,
+            "hand": cards,
+            "monsters": monsters,
+            "incoming_damage": 5,
+            "powers": [],
+            "relics": [],
+            "potions": [],
+            "draw_pile": [],
+            "discard_pile": [],
+            "deck_names": []
+        });
+        serde_json::from_value(payload).expect("should deserialize as NormalizedState")
+    }
+
     #[test]
     fn kill_scan_finds_lethal_and_returns_first_play() {
         let state = load_normalized_state("kill-scan-run-pos-hp1-4hand.json");
@@ -125,44 +223,38 @@ mod tests {
     }
 
     #[test]
-    fn top_ranked_returns_top5_with_scores() {
+    fn top_ranked_splits_into_three_arrays() {
         let state = combat_state_with_cards(3, vec![strike_card("s1", 1)]);
         let context = top_ranked_context(&state).expect("should produce ranked context");
-        let ranked = context["ranked_actions"]
+        let rs = &context["ranked_suggestions"];
+        assert!(rs["suggested_actions"].is_array());
+        assert!(rs["other_actions"].is_array());
+        assert!(rs["avoided_actions"].is_array());
+        assert!(!rs["suggested_actions"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn top_ranked_includes_target_resolution() {
+        let state = combat_state_with_cards(3, vec![strike_card("s1", 1)]);
+        let context = top_ranked_context(&state).expect("should produce ranked context");
+        let sa = &context["ranked_suggestions"]["suggested_actions"];
+        let first = &sa[0];
+        let target = &first["target"];
+        assert_eq!(target["name"], "Jaw Worm");
+        assert_eq!(target["hp"], 20);
+
+        let strike_entries: Vec<_> = sa
             .as_array()
-            .expect("ranked_actions should be array");
-        assert!(!ranked.is_empty(), "should have at least one ranked action");
-        assert!(ranked.len() <= 5, "should return at most 5 actions");
-        for entry in ranked {
-            assert!(
-                entry.get("action").is_some(),
-                "each entry should have action"
-            );
-            assert!(entry.get("score").is_some(), "each entry should have score");
-            assert!(
-                entry.get("is_avoid").is_some(),
-                "each entry should have is_avoid"
-            );
-        }
-    }
-
-    #[test]
-    fn top_ranked_includes_target_index() {
-        let state = combat_state_with_cards(3, vec![strike_card("s1", 1)]);
-        let context = top_ranked_context(&state).expect("should produce ranked context");
-        let ranked = context["ranked_actions"].as_array().unwrap();
-        let play_entry = ranked
+            .unwrap()
             .iter()
-            .find(|e| e["action"]["PlayCard"].is_object())
-            .expect("should have a PlayCard entry");
-        assert_eq!(
-            play_entry["target_index"],
-            serde_json::Value::Number(serde_json::Number::from(0))
-        );
+            .filter(|e| e["action"]["PlayCard"]["card_name"].as_str() == Some("Strike"))
+            .collect();
+        assert_eq!(strike_entries.len(), 1);
+        assert_eq!(strike_entries[0]["target"]["index"], 0);
     }
 
     #[test]
-    fn top_ranked_marks_avoid_actions() {
+    fn top_ranked_avoided_uses_avoid_string() {
         let state = combat_state_with_cards(
             3,
             vec![serde_json::json!({
@@ -177,14 +269,11 @@ mod tests {
             })],
         );
         let context = top_ranked_context(&state).expect("should produce ranked context");
-        let ranked = context["ranked_actions"].as_array().unwrap();
-        let avoid_entry = ranked
-            .iter()
-            .find(|e| e["is_avoid"] == serde_json::Value::Bool(true));
-        assert!(
-            avoid_entry.is_some() || ranked.iter().any(|e| !e["is_avoid"].as_bool().unwrap()),
-            "should have at least one non-avoid action (e.g., EndTurn)"
-        );
+        let aa = context["ranked_suggestions"]["avoided_actions"]
+            .as_array()
+            .unwrap();
+        assert!(!aa.is_empty(), "should have avoided actions");
+        assert_eq!(aa[0]["score"], "AVOID");
     }
 
     #[test]
@@ -194,5 +283,47 @@ mod tests {
             ..NormalizedState::default()
         };
         assert_eq!(top_ranked_context(&state), None);
+    }
+
+    #[test]
+    fn aoe_merged_into_single_entry_with_null_target() {
+        let state = two_monster_state(3, vec![thunderclap_card()]);
+        let context = top_ranked_context(&state).expect("should produce ranked context");
+        let sa = context["ranked_suggestions"]["suggested_actions"]
+            .as_array()
+            .unwrap();
+        let aoe_entries: Vec<_> = sa
+            .iter()
+            .filter(|e| e["action"]["PlayCard"]["card_name"].as_str() == Some("Thunderclap"))
+            .collect();
+        assert_eq!(
+            aoe_entries.len(),
+            1,
+            "AoE card should produce one merged entry"
+        );
+        assert!(
+            aoe_entries[0]["target"].is_null(),
+            "merged AoE entry should have null target"
+        );
+    }
+
+    #[test]
+    fn targeted_keeps_separate_entries_per_monster() {
+        let state = two_monster_state(3, vec![strike_card("s1", 1)]);
+        let context = top_ranked_context(&state).expect("should produce ranked context");
+        let sa = context["ranked_suggestions"]["suggested_actions"]
+            .as_array()
+            .unwrap();
+        let strike_entries: Vec<_> = sa
+            .iter()
+            .filter(|e| e["action"]["PlayCard"]["card_name"].as_str() == Some("Strike"))
+            .collect();
+        assert_eq!(
+            strike_entries.len(),
+            2,
+            "targeted Strike vs 2 monsters should produce 2 entries"
+        );
+        assert_eq!(strike_entries[0]["target"]["index"], 0);
+        assert_eq!(strike_entries[1]["target"]["index"], 1);
     }
 }
