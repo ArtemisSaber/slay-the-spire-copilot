@@ -9,7 +9,7 @@
 - **Version**: current release is `0.2.0`
 
 ## Build & Test
-- `cargo test` — runs 528 tests (526 unit + 2 integration)
+- `cargo test` — runs 789 tests (787 unit + 2 integration)
 - `cargo build --release` — Linux binary at `target/release/slay-the-spire-copilot`
 - Cross-compile Windows: `cargo build --release --target x86_64-pc-windows-gnu` (needs `mingw-w64-gcc` on Arch)
 - Project uses `rustls-tls` (not OpenSSL) — no C dependencies beyond mingw on cross-compile
@@ -20,12 +20,13 @@
 - **Module map**:
   - `advice`, `config`, `gate`, `journal`, `llm`, `logging`, `postmortem`, `protocol`, `relic_counters`, `runtime`, `setup_wizard`, `startup`, `state` — top-level modules
   - `autoplay/` — action, command_state, control, planner (auto-play feature)
-  - `combat/` — context, damage, effects, kill_scan (combat analysis and lethal-finding)
+  - `combat/` — adviser, context, damage, effects, kill_scan (combat analysis and lethal-finding)
+  - `ranker/` — mod, rules, engine, context, formula, parser, predicates, rules.json (pool-relative combat action scoring)
   - `locales/` — en, zh, ja, ko JSON locale files + `mod.rs`
   - `prompt.rs` — facade re-exporting from `prompt/builder.rs` and `prompt/routing.rs`
 - **Output paths** all resolve relative to the binary's parent directory (`project_root()` in `logging.rs`):
   - `logs/sts-ai.log`, `logs/comm-mod-raw.log`, `logs/prompts.log` (with rotation: `.1`, `.2` backups)
-  - `output/advice.txt`, `output/overlay.json`, `runs/<run_id>/events.jsonl`, `.env`
+  - `output/advice.txt`, `output/overlay.json`, `runs/<run_id>/events.jsonl`, `.env`, `rules.json`
 - **Log level** default is `info`. Set `RUST_LOG=debug` for verbose. Logs are file-only (no stdout).
 - **Advice gating** (`SCREEN_CONFIG`): `CARD_REWARD`, `BOSS_REWARD`, `EVENT` (>1 choice), `REST`, `SHOP_SCREEN`.
   - **Combat turns**: `CombatTurnGate` — triggers once per turn when `screen_type == "NONE"`, `action_phase == "WAITING_ON_USER"`, and monsters are present.
@@ -76,6 +77,15 @@
 - DFS-based search with memoization, deadlines, and worker thread support
 - Locale-aware effect keyword patterns from `src/combat/effects.rs`
 - 62 spec-driven tests + 24 combat unit tests
+
+## Ranker
+- `src/ranker/` — JSON-rule-driven combat action scoring engine
+- **Pool-relative scoring**: damage scored as fraction of enemy HP pool (`damage / monsters_total_hp_pool`), block scored as fraction of self HP saved (`min(block, incoming) / current_hp`)
+- Loads `rules.json` from binary directory at runtime, falls back to embedded copy
+- `build.rs` copies `src/ranker/rules.json` to `target/release/rules.json`
+- `top_ranked_context()` in `src/autoplay/combat_adviser.rs` returns flat array of all non-avoided actions with `score` and `tags` (no rule breakdown in prompt)
+- `include_str!("rules.json")` embeds the file at compile time as fallback
+- See `docs/ranker-architecture.md` and `docs/ranker-rules.md`
 
 ## Java `.properties` Gotcha
 - CommunicationMod's `config.properties` uses Java `.properties` format where `\` is an escape char

@@ -44,10 +44,10 @@ src/ranker/
 ├── rules.rs         # serde: Rule, Condition, RuleSet, ConditionScope
 ├── engine.rs        # evaluate loop, override suppression, sort, Avoid list
 ├── context.rs       # ActionContext, @var resolver, context builder
-├── formula.rs       # parse/eval "@damage * @hits * @weight * 1.5"
+├── formula.rs       # parse/eval "@damage * @hits * @weight / max(@pool, 1)"
 ├── parser.rs        # zh/en regex → ParsedEffects
 ├── predicates.rs    # score_fn registry (hp_cost_penalty, weak_new, etc.)
-└── rules.json       # embedded at compile time: all 18 sections → ~60-70 rules
+└── rules.json       # canonical rule source; build.rs copies to target/, embedded fallback
 ```
 
 Tests live under `src/tests/ranker_tests.rs`, matching the existing inline
@@ -61,15 +61,16 @@ Keep this module independent from prompts, LLM calls, and autoplay session state
 
 ```rust
 pub struct ScoredAction {
-    pub action: CandidateAction,
-    pub score: i64,
+    pub action_type: ActionType,     // PlayCard, UsePotion, EndTurn
+    pub target_index: Option<usize>, // Command target index (if targeted)
+    pub score: i64,                  // Total score (sum of matching rules)
     pub breakdown: Vec<RuleResult>,  // which rules contributed — debug/explain
     pub is_avoid: bool,              // score == i64::MIN
 }
 
-pub enum CandidateAction {
-    PlayCard { card_id: String, target_index: Option<usize> },
-    UsePotion { potion: PotionInfo, target_index: Option<usize> },
+pub enum ActionType {
+    PlayCard { card_id: String, card_name: String },
+    UsePotion { potion_name: String },
     EndTurn,
 }
 
@@ -242,9 +243,9 @@ Numbers below 1000 are reserved for future rules.
     {
       "rule_id": "core_damage_vulnerable",
       "priority": 1050,
-      "weight": 10,
+      "weight": 1000,
       "applies_to": ["play_card"],
-      "formula": "@damage * @hits * @weight * 1.5",
+      "formula": "@damage * @hits * @weight * 1.5 / max(@monsters_total_hp_plus_block, 1)",
       "override": "core_damage",
       "per_target": true,
       "conditions": [
@@ -256,9 +257,9 @@ Numbers below 1000 are reserved for future rules.
     {
       "rule_id": "core_damage_intangible",
       "priority": 1051,
-      "weight": 10,
+      "weight": 1000,
       "applies_to": ["play_card"],
-      "formula": "1 * @hits * @weight",
+      "formula": "1 * @hits * @weight / max(@monsters_total_hp_plus_block, 1)",
       "override": "core_damage",
       "per_target": true,
       "conditions": [
@@ -269,9 +270,9 @@ Numbers below 1000 are reserved for future rules.
     {
       "rule_id": "core_damage",
       "priority": 1052,
-      "weight": 10,
+      "weight": 1000,
       "applies_to": ["play_card"],
-      "formula": "@damage * @hits * @weight",
+      "formula": "@damage * @hits * @weight / max(@monsters_total_hp_plus_block, 1)",
       "per_target": true,
       "conditions": [
         {"parsed": {"damage_gt": 0}},
@@ -282,9 +283,9 @@ Numbers below 1000 are reserved for future rules.
     {
       "rule_id": "core_block_retain",
       "priority": 1060,
-      "weight": 10,
+      "weight": 1000,
       "applies_to": ["play_card", "use_potion"],
-      "formula": "@block * @weight",
+      "formula": "@block * @weight / max(@current_hp, 1)",
       "override": "core_block_non_excessive",
       "conditions": [
         {"parsed": {"block_gt": 0}},
@@ -294,9 +295,9 @@ Numbers below 1000 are reserved for future rules.
     {
       "rule_id": "core_block_retain_relic",
       "priority": 1061,
-      "weight": 10,
+      "weight": 1000,
       "applies_to": ["play_card", "use_potion"],
-      "formula": "@block * @weight",
+      "formula": "@block * @weight / max(@current_hp, 1)",
       "override": "core_block_non_excessive",
       "conditions": [
         {"parsed": {"block_gt": 0}},
@@ -306,9 +307,9 @@ Numbers below 1000 are reserved for future rules.
     {
       "rule_id": "core_block_excessive",
       "priority": 1062,
-      "weight": -20,
+      "weight": -2000,
       "applies_to": ["play_card", "use_potion"],
-      "formula": "@block * @weight",
+      "formula": "@block * @weight / max(@current_hp, 1)",
       "override": "core_block_non_excessive",
       "conditions": [
         {"parsed": {"block_gt": 0}},
@@ -320,9 +321,9 @@ Numbers below 1000 are reserved for future rules.
     {
       "rule_id": "core_block_non_excessive",
       "priority": 1063,
-      "weight": 10,
+      "weight": 1000,
       "applies_to": ["play_card", "use_potion"],
-      "formula": "@block * @weight",
+      "formula": "min(@block, @incoming_damage) * @weight / max(@current_hp, 1)",
       "conditions": [
         {"parsed": {"block_gt": 0}},
         {"compute": {"formula": "@incoming_damage > @current_block"}}
@@ -655,7 +656,7 @@ Numbers below 1000 are reserved for future rules.
     {
       "rule_id": "potion_base",
       "priority": 1000,
-      "weight": -50,
+      "weight": -20,
       "applies_to": ["use_potion"]
     },
 
@@ -882,7 +883,7 @@ All fields available in formulas (`formula` and `compute→formula`).
 | `@remaining_energy` | i64 | Energy after playing the card |
 | `@current_block` | i64 | Player block before the action |
 | `@current_hp` | i64 | Player current HP |
-| `@incoming_damage` | i64 | Total incoming monster damage this turn |
+| `@incoming_damage` | i64 | Total incoming monster damage this turn (only positive values; debuff-only monsters with `damage <= 0` are excluded) |
 | `@incoming_lethal` | bool | Would incoming damage kill the player? |
 | `@total_damage` | i64 | Sum of this action's damage across all targets |
 | `@monsters_total_hp_plus_block` | i64 | Sum of all alive monster HP + block |
@@ -1070,9 +1071,9 @@ struct ParsedEffects {
 `formula.rs` parses and evaluates expressions of the form:
 
 ```
-"@block * @weight"
-"@damage * @hits * @weight * 1.5"
-"1 * @hits * @weight"
+"@block * @weight / max(@current_hp, 1)"
+"@damage * @hits * @weight / max(@monsters_total_hp_plus_block, 1)"
+"min(@block, @incoming_damage) * @weight / max(@current_hp, 1)"
 ```
 
 ### Grammar (informal)
@@ -1121,14 +1122,11 @@ scanner is ready, replace that rule with one that calls
 
 ### Autoplay
 
-Calls `rank()` to get scored action candidates. "Avoid" actions
-(score == `i64::MIN`) are excluded. The consumer decides how to use the
-ranked list — the ranker does not choose actions.
+`top_ranked_context()` in `src/autoplay/combat_adviser.rs` calls `rank()` and returns a flat array of all non-avoided actions with `score` and `tags` (derived from matched rule_ids: `damage`, `block`, `excessive`, `killable`, `lethal`, `priority_kill`, `heal`, `power`, `draw`, `potion`). Avoided actions (`is_avoid == true`) are excluded. The consumer (planner) injects this as `ranked_suggestions` into the LLM prompt.
 
 ### Prompt Builder
 
-May report ranker facts (top 3 actions, Avoid list entries) but should not
-implement rank logic.
+The LLM prompt receives `ranked_suggestions` as a flat array of `{action, target, score, tags}` objects — no rule breakdown, no suggested/other/avoided split.
 
 ---
 

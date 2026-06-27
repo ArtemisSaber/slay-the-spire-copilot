@@ -51,9 +51,13 @@ all current energy and Malaise correctly uses the X value for STR loss/Weak.
 
 | Rule | Condition | Score |
 |------|-----------|-------|
-| Damage | Parsed damage > 0 AND target does NOT have `"Intangible"` | `+10 × damage × hits` |
-| Damage (Vulnerable target) | Parsed damage > 0 AND target has `"Vulnerable"` AND target does NOT have `"Intangible"` | `+10 × damage × 1.5 × hits` |
-| Damage (Intangible target) | Target has `"Intangible"` (amount > 0) | `+10 × 1 × hits` (always 1 per hit) |
+| Damage | Parsed damage > 0 AND target does NOT have `"Intangible"` | `+1000 × damage × hits / total_monster_hp_pool` |
+| Damage (Vulnerable target) | Parsed damage > 0 AND target has `"Vulnerable"` AND target does NOT have `"Intangible"` | `+1000 × damage × 1.5 × hits / total_monster_hp_pool` |
+| Damage (Intangible target) | Target has `"Intangible"` (amount > 0) | `+1000 × 1 × hits / total_monster_hp_pool` |
+
+Damage is scored as a fraction of the total enemy HP+block pool. This naturally
+deprioritizes chip damage against large pools and values damage more as enemies
+near death.
 
 When both `"Intangible"` and `"Vulnerable"` are present, Intangible takes
 precedence — damage is capped to 1 per hit, and the Vulnerable multiplier is
@@ -70,7 +74,7 @@ Detection: description contains `"所有"` / `"all"` for "all enemies".
 | Rule | Condition | Score |
 |------|-----------|-------|
 | AoE (1 monster) | Only 1 alive monster | Same as targeted — full modifiers + kill check |
-| AoE (multiple monsters) | Multiple monsters alive | `+10 × damage × hits × monster_count` + summed target priority modifiers (scaling +15/enemy, punish +10/enemy, killable +5/enemy) |
+| AoE (multiple monsters) | Multiple monsters alive | `+1000 × damage × hits × monster_count / total_monster_hp_pool` + summed target priority modifiers (scaling +15/enemy, punish +10/enemy, killable +5/enemy) |
 
 ### 3c. Random-target Damage
 
@@ -94,8 +98,17 @@ guaranteed finisher later.
 
 | Rule | Condition | Score |
 |------|-----------|-------|
-| Block (non-excessive) | Parsed block > 0 AND (`current_block < incoming_damage` OR has retain) | `+10 × card_block` |
-| Block (excessive) | Parsed block > 0 AND `current_block >= incoming_damage` AND no retain | `-20 × card_block` |
+| Block (non-excessive) | Parsed block > 0 AND (`current_block < incoming_damage` OR has retain) | `+1000 × min(block, incoming_damage) / current_hp` |
+| Block (excessive) | Parsed block > 0 AND `current_block >= incoming_damage` AND no retain | `-2000 × block / current_hp` |
+
+Block is scored as the fraction of current HP saved, capped at incoming damage to
+prevent valuing over-blocking. This naturally makes blocks higher priority at low
+HP and lower priority at high HP.
+
+The `min(block, incoming_damage)` cap ensures only the block actually needed to
+absorb incoming damage is valued. Excess block beyond incoming damage gets zero
+from the non-excessive rule (and is penalized by the excessive rule if you were
+already over-blocked).
 
 The penalty triggers only when already overblocked *before* playing the card
 (`current_block >= incoming_damage`). Partial overblock created by the card
@@ -104,8 +117,8 @@ itself (where `current_block < incoming_damage` but
 the excess is silently discarded.
 
 Block retain detection: player has `"Barricade"` power or `"Calipers"` relic.
-When retain is present, all block scores at `+10 × card_block` regardless of
-pre-existing block.
+When retain is present, all block scores at `+1000 × block / current_hp` regardless of
+pre-existing block (no `min()` cap since block carries over).
 
 ### 3e. Heal
 
@@ -252,11 +265,11 @@ score. Potions with `can_use == false` are skipped entirely. Potions with
 
 | Rule | Condition | Score |
 |------|-----------|-------|
-| Potion base | Every usable potion | `-50` |
-| Damage | Parsed damage > 0 | `+10 × damage × hits` (same as cards) |
-| Damage (Vulnerable target) | Parsed damage > 0 AND target has `"Vulnerable"` | `+10 × damage × 1.5 × hits` |
-| Damage (Intangible target) | Target has `"Intangible"` | `+10 × 1 × hits` |
-| Block | Parsed block > 0 | `+10 × card_block` (non-excessive) or `-20 × card_block` (excessive), same rules as §3d |
+| Potion base | Every usable potion | `-20` |
+| Damage | Parsed damage > 0 | `+1000 × damage × hits / total_monster_hp_pool` (same pool-relative formula as cards) |
+| Damage (Vulnerable target) | Parsed damage > 0 AND target has `"Vulnerable"` | `+1000 × damage × 1.5 × hits / total_monster_hp_pool` |
+| Damage (Intangible target) | Target has `"Intangible"` | `+1000 × 1 × hits / total_monster_hp_pool` |
+| Block | Parsed block > 0 | `+1000 × min(block, incoming_damage) / current_hp` (non-excessive) or `-2000 × block / current_hp` (excessive), same rules as §3d |
 | Heal | Parsed heal > 0 | `+50` |
 | Debuffs (Poison/Vuln/Weak/STR loss) | Same formulas as Section 5 | Same scores |
 | Ends fight | `total_damage >= sum_of_all_monster_hp_and_block` | `+1000` |

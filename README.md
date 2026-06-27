@@ -274,6 +274,7 @@ output/overlay.json  (structured JSON, for overlay mod)
 - map route advice is generated at act entry (full route analysis) and at mid-act crossroads (immediate next-node decisions).
 - advice uses tiered model routing: Heavy for card/boss rewards, Medium for rest/events/map routes, Fast for combat entry.
 - combat advice is intentionally entry-only to avoid high latency every turn.
+- **Auto-play** (`AUTO_PLAY=true`): the LLM plans and executes combat actions turn-by-turn using pool-relative ranked suggestions.
 
 运行行为：
 
@@ -287,6 +288,7 @@ output/overlay.json  (structured JSON, for overlay mod)
 - 地图路线建议会在每幕入口（完整路线分析）和路口分叉（即时下一节点决策）时触发。
 - 建议按场景分层使用不同模型：Heavy（选牌/Boss 选牌）、Medium（篝火/事件/地图路线）、Fast（进入战斗）。
 - 战斗建议只在进入战斗时生成一次，避免每回合 LLM 延迟影响游戏节奏。
+- **自动出牌** (`AUTO_PLAY=true`)：LLM 使用池相对评分引擎逐回合规划并执行战斗出牌。
 
 ## Copilot Overlay Mod / 游戏内悬浮窗
 
@@ -414,6 +416,17 @@ src/
   protocol.rs      Communication Mod CJK protocol messages
   state.rs         normalized game state, MapCoord, advice hash, observation hash, danger assessment
   prompt.rs        LLM prompt builder — card, relic, rest, event, combat, map_suggestion, map_crossroad; describe_path risk analysis; path enumeration
+  ranker/          pool-relative combat action scoring engine (rules.json)
+    mod.rs         pub fn rank() → Vec<ScoredAction>
+    rules.rs       serde types for rules, conditions, predicates
+    rules.json     rule definitions (damage, block, heal, draw, etc.)
+    engine.rs      evaluate loop, override suppression, sorting
+    context.rs     ActionContext builder with @var resolution
+    formula.rs     expression parser/evaluator (@damage * @hits * @weight / ...)
+    parser.rs      zh/en description parsing → ParsedEffects
+    predicates.rs  Rust score_fn registry (hp_cost, weak_new, etc.)
+  autoplay/
+    combat_adviser.rs  kill-scan shortcut + ranked suggestions for LLM prompt
   llm.rs           LLM provider abstraction, effort routing, AdviceScenario (MapSuggestion, MapCrossroad, etc.)
   advice.rs        latest advice file output and cache, overlay JSON
   journal.rs       JSONL run journal with schema versioning
