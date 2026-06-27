@@ -50,7 +50,7 @@ fn avoids_are_sorted_to_bottom() {
 }
 
 #[test]
-fn ranks_with_missing_rules_file() {
+fn ranks_without_external_rules_file() {
     let template = serde_json::json!({
         "available_commands": ["state"],
         "ready_for_command": true,
@@ -98,7 +98,15 @@ fn ranks_with_missing_rules_file() {
         serde_json::from_value(template["game_state"].clone()).expect("should parse");
     let scored = ranker::rank(&state);
     assert!(!scored.is_empty());
-    for s in &scored {
-        assert_eq!(s.score, 0, "all scores should be 0 when rules file missing");
-    }
+    assert!(
+        scored.iter().any(|s| s.score != 0),
+        "should have non-zero scores from embedded rules"
+    );
+}
+
+#[test]
+fn embedded_rules_json_is_valid() {
+    let json = include_str!("../ranker/rules.json");
+    let _: crate::ranker::rules::RuleSet =
+        serde_json::from_str(json).expect("embedded rules.json should be valid");
 }

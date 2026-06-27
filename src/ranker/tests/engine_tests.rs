@@ -1019,3 +1019,38 @@ fn state_incoming_damage_gt_matches() {
     let ctx = make_ctx(vars);
     assert!(evaluate(&ctx, &rules)[0].matched);
 }
+
+#[test]
+fn scored_action_propagates_target_index_from_context() {
+    let target = MonsterInfo {
+        name: "Enemy".into(),
+        monster_id: None,
+        index: 3,
+        current_hp: Some(20),
+        max_hp: Some(20),
+        block: Some(0),
+        intent: None,
+        damage: None,
+        hits: None,
+        monster_powers: vec![],
+        can_be_killed: false,
+        is_scaling: false,
+    };
+    let ctx = ActionContext {
+        action_type: ActionType::PlayCard {
+            card_id: "uuid-1".into(),
+            card_name: "Strike".into(),
+        },
+        card: None,
+        target_index: Some(3),
+        target: Some(target),
+        monsters: vec![],
+        parsed: ParsedEffects::default(),
+        vars: HashMap::new(),
+    };
+    let rule_set = make_rules(vec![]);
+    let scored = rank_contexts(&[ctx], &rule_set);
+
+    assert_eq!(scored.len(), 1);
+    assert_eq!(scored[0].target_index, Some(3));
+}

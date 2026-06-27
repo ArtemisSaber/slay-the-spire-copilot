@@ -6,6 +6,7 @@ use crate::autoplay::action::{
     ActionCandidate, ActionRequest, AutoPlayAction, available_action_candidates,
     resolve_requested_action,
 };
+use crate::autoplay::combat_adviser;
 use crate::autoplay::command_state::CommandState;
 use crate::autoplay::control::{AutoPlayControl, AutoPlaySession};
 use crate::llm::{Effort, LlmProvider};
@@ -73,6 +74,12 @@ pub async fn plan_action(
         try_deterministic_action(control, session, command_state, state, &candidates)
     {
         tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+        return Ok(Some(action));
+    }
+
+    if state.screen_type.as_deref() == Some("NONE")
+        && let Some(action) = combat_adviser::try_kill_scan_action(state)
+    {
         return Ok(Some(action));
     }
 
@@ -244,7 +251,7 @@ fn build_planner_prompt(
     rejections: &[RejectedAttempt],
 ) -> anyhow::Result<String> {
     let localized_status_context = prompt::build_prompt(state, locale, shop_visited);
-    let payload = json!({
+    let mut payload = json!({
         "task": "Choose exactly one action_id from available_actions. Return strict JSON only. Use localized_status_context as the strategy context.",
         "language": locale.language_name,
         "schema": {
@@ -265,6 +272,10 @@ fn build_planner_prompt(
         "available_actions": candidates,
         "rejected_attempts": rejections,
     });
+
+    if let Some(ranked) = combat_adviser::top_ranked_context(state) {
+        payload["ranked_suggestions"] = ranked;
+    }
 
     serde_json::to_string_pretty(&payload).context("failed to build autoplay planner prompt")
 }
@@ -1354,6 +1365,143 @@ mod tests {
         assert!(
             candidates.iter().any(|c| c.label.contains("gold")),
             "gold should still be a candidate"
+        );
+    }
+
+    #[test]
+    fn prompt_includes_ranked_suggestions_for_combat() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 1, "block": 0, "powers": []},
+                    "hand": [{
+                        "name": "Strike", "id": "Strike_R", "cost": 1, "type": "ATTACK",
+                        "uuid": "s1", "has_target": true, "is_playable": true,
+                        "exhausts": false, "ethereal": false, "upgrades": 0, "rarity": "BASIC"
+                    }],
+                    "monsters": [{
+                        "name": "Jaw Worm", "id": "JawWorm", "current_hp": 1, "max_hp": 46,
+                        "block": 0, "intent": "ATTACK", "move_hits": 1, "move_base_damage": 12,
+                        "move_adjusted_damage": 12, "is_gone": false, "half_dead": false,
+                        "powers": [], "move_id": 1
+                    }],
+                    "turn": 1
+                }
+            }
+        });
+        let control = AutoPlayControl::default_enabled();
+        let command_state = command_state(&raw);
+        let state = state(raw);
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+        );
+
+        let prompt = build_planner_prompt(
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+            &Locale::load("en"),
+            false,
+            &candidates,
+            &[],
+        )
+        .unwrap();
+
+        assert!(
+            prompt.contains("ranked_suggestions"),
+            "combat prompt should include ranked_suggestions"
+        );
+    }
+
+    #[test]
+    fn prompt_excludes_ranked_suggestions_for_non_combat() {
+        let raw = json!({
+            "available_commands": ["choose", "skip"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "CARD_REWARD",
+                "screen_state": {
+                    "skip_available": true,
+                    "cards": [{"id": "Anger", "name": "Anger"}]
+                }
+            }
+        });
+        let control = AutoPlayControl::default_enabled();
+        let command_state = command_state(&raw);
+        let state = state(raw);
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+        );
+
+        let prompt = build_planner_prompt(
+            &AutoPlaySession::default(),
+            &command_state,
+            &state,
+            &Locale::load("en"),
+            false,
+            &candidates,
+            &[],
+        )
+        .unwrap();
+
+        assert!(
+            !prompt.contains("ranked_suggestions"),
+            "non-combat prompt should not include ranked_suggestions"
+        );
+    }
+
+    #[tokio::test]
+    async fn kill_scan_shortcut_bypasses_mock_provider() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 1, "block": 0, "powers": []},
+                    "hand": [{
+                        "name": "Strike", "id": "Strike_R", "cost": 1, "type": "ATTACK",
+                        "uuid": "s1", "has_target": true, "is_playable": true,
+                        "exhausts": false, "ethereal": false, "upgrades": 0, "rarity": "BASIC"
+                    }],
+                    "monsters": [{
+                        "name": "Jaw Worm", "id": "JawWorm", "current_hp": 1, "max_hp": 46,
+                        "block": 0, "intent": "ATTACK", "move_hits": 1, "move_base_damage": 12,
+                        "move_adjusted_damage": 12, "is_gone": false, "half_dead": false,
+                        "powers": [], "move_id": 1
+                    }],
+                    "turn": 1
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        let command_state = command_state(&raw);
+        let state = state(raw);
+
+        let action = plan_action(
+            &LlmProvider::Mock,
+            &mut control,
+            &mut AutoPlaySession::default(),
+            &command_state,
+            &state,
+            &Locale::load("en"),
+            false,
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            matches!(action, Some(AutoPlayAction::Play { .. })),
+            "should take kill-scan shortcut and return Play action"
         );
     }
 }

@@ -1,5 +1,3 @@
-#![allow(dead_code, reason = "awaiting autoplay integration")]
-
 pub mod context;
 pub mod engine;
 pub mod formula;
@@ -23,6 +21,7 @@ pub fn rank(state: &NormalizedState) -> Vec<ScoredAction> {
                 .into_iter()
                 .map(|ctx| ScoredAction {
                     action_type: ctx.action_type,
+                    target_index: ctx.target_index,
                     score: 0,
                     breakdown: vec![],
                     is_avoid: false,
@@ -39,8 +38,17 @@ pub fn rank(state: &NormalizedState) -> Vec<ScoredAction> {
 
 fn load_rules() -> Result<RuleSet, String> {
     let path = crate::logging::project_root().join("rules.json");
-    let content = std::fs::read_to_string(&path)
-        .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+    let content = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!(
+                "cannot read {}: {e}, falling back to embedded rules.json",
+                path.display()
+            );
+            return serde_json::from_str(include_str!("rules.json"))
+                .map_err(|e| format!("embedded rules.json error: {e}"));
+        }
+    };
     let rule_set: RuleSet =
         serde_json::from_str(&content).map_err(|e| format!("invalid rules.json: {e}"))?;
     Ok(rule_set)

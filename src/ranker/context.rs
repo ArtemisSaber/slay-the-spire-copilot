@@ -4,7 +4,7 @@ use crate::state::{CardInfo, MonsterInfo, NormalizedState};
 
 use super::parser::{self, ParsedEffects};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ActionType {
     PlayCard { card_id: String, card_name: String },
     UsePotion { potion_name: String },

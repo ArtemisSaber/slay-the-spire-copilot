@@ -303,6 +303,7 @@
     {
       "rule_id": "setup_weak_new",
       "priority": 1085,
+      "weight": 1,
       "score_fn": "weak_new_formula",
       "applies_to": ["play_card"],
       "per_target": true,
@@ -314,6 +315,7 @@
     {
       "rule_id": "setup_weak_refresh",
       "priority": 1086,
+      "weight": 1,
       "score_fn": "weak_refresh_formula",
       "applies_to": ["play_card"],
       "per_target": true,
@@ -547,6 +549,7 @@
     {
       "rule_id": "danger_hp_cost",
       "priority": 1174,
+      "weight": 1,
       "score_fn": "hp_cost_penalty",
       "applies_to": ["play_card"],
       "conditions": [

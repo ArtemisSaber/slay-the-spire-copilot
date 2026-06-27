@@ -8,6 +8,7 @@ use super::rules::{Condition, Rule, RuleSet};
 #[derive(Debug, Clone)]
 pub struct ScoredAction {
     pub action_type: ActionType,
+    pub target_index: Option<usize>,
     pub score: i64,
     pub breakdown: Vec<RuleResult>,
     pub is_avoid: bool,
@@ -78,10 +79,15 @@ pub fn rank_contexts(contexts: &[ActionContext], rule_set: &RuleSet) -> Vec<Scor
         .iter()
         .map(|ctx| {
             let breakdown = evaluate(ctx, rule_set);
-            let total: i64 = breakdown.iter().map(|r| r.score).sum();
-            let is_avoid = total == i64::MIN;
+            let is_avoid = breakdown.iter().any(|r| r.score == i64::MIN);
+            let total = if is_avoid {
+                i64::MIN
+            } else {
+                breakdown.iter().map(|r| r.score).sum()
+            };
             ScoredAction {
                 action_type: ctx.action_type.clone(),
+                target_index: ctx.target_index,
                 score: total,
                 breakdown,
                 is_avoid,
