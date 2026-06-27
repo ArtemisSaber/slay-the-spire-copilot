@@ -75,6 +75,13 @@ impl AutoPlayControl {
             min_hp_percent: None,
         }
     }
+
+    pub fn default_paused() -> Self {
+        AutoPlayControl {
+            mode: AutoPlayMode::Paused,
+            ..Self::default_enabled()
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -89,7 +96,7 @@ pub fn load_control(path: &Path, last_seen_revision: Option<u64>) -> ControlLoad
     let content = match fs::read_to_string(path) {
         Ok(content) => content,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            return ControlLoad::MissingDefault(AutoPlayControl::default_enabled());
+            return ControlLoad::MissingDefault(AutoPlayControl::default_paused());
         }
         Err(e) => return ControlLoad::Malformed(e.to_string()),
     };
@@ -106,7 +113,7 @@ pub fn load_control(path: &Path, last_seen_revision: Option<u64>) -> ControlLoad
         ));
     }
 
-    if last_seen_revision.is_some_and(|seen| control.revision <= seen) {
+    if last_seen_revision.is_some_and(|seen| control.revision == seen) {
         return ControlLoad::Stale;
     }
 
@@ -119,13 +126,13 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn missing_control_defaults_to_auto_for_testing() {
+    fn missing_control_defaults_to_paused() {
         let dir = tempfile::tempdir().unwrap();
         let loaded = load_control(&dir.path().join("autoplay-control.json"), None);
 
         assert_eq!(
             loaded,
-            ControlLoad::MissingDefault(AutoPlayControl::default_enabled())
+            ControlLoad::MissingDefault(AutoPlayControl::default_paused())
         );
     }
 
@@ -168,7 +175,7 @@ mod tests {
     }
 
     #[test]
-    fn stale_control_is_ignored() {
+    fn unchanged_control_is_ignored() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("autoplay-control.json");
         fs::write(
@@ -194,6 +201,41 @@ mod tests {
         .unwrap();
 
         assert_eq!(load_control(&path, Some(3)), ControlLoad::Stale);
+    }
+
+    #[test]
+    fn lower_revision_still_counts_as_changed() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("autoplay-control.json");
+        fs::write(
+            &path,
+            r#"{
+                "schema_version": 1,
+                "revision": 1,
+                "mode": "paused",
+                "updated_at_ms": 1000,
+                "require_confirmation": false,
+                "allow_card_rewards": true,
+                "allow_combat_rewards": true,
+                "allow_boss_rewards": true,
+                "allow_rest": true,
+                "allow_events": true,
+                "allow_map": false,
+                "allow_shop": false,
+                "allow_combat": false,
+                "allow_selection_screens": false,
+                "min_hp_percent": null
+            }"#,
+        )
+        .unwrap();
+
+        let loaded = load_control(&path, Some(10));
+        let ControlLoad::Updated(control) = loaded else {
+            panic!("expected lower but changed revision to load");
+        };
+
+        assert_eq!(control.revision, 1);
+        assert_eq!(control.mode, AutoPlayMode::Paused);
     }
 
     #[test]

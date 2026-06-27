@@ -775,8 +775,8 @@
           }
         },
         {
-          "parsed": {
-            "exits_stance": true
+          "compute": {
+            "formula": "@exits_stance == 1 || @enters_calm == 1"
           }
         },
         {
@@ -977,7 +977,7 @@
     {
       "rule_id": "punishment_skill_vs_anger",
       "priority": 1160,
-      "weight": -100,
+      "weight": -50,
       "applies_to": [
         "play_card"
       ],

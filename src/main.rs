@@ -26,6 +26,7 @@ use runtime::{
     should_end_run,
 };
 use std::io::{self, BufRead, IsTerminal, Write};
+use std::path::Path;
 
 async fn finalize_run_once(
     journal: &journal::Journal,
@@ -86,6 +87,40 @@ async fn finalize_run_once(
             tracing::warn!("AI postmortem failed, deterministic report saved: {e}");
         }
     }
+}
+
+fn refresh_autoplay_control(
+    control_path: &Path,
+    last_revision: &mut Option<u64>,
+    current_control: &mut Option<autoplay::control::AutoPlayControl>,
+) -> autoplay::control::ControlLoad {
+    let load = autoplay::control::load_control(control_path, *last_revision);
+    if let Some(control) = autoplay::action::active_control(&load) {
+        *last_revision = Some(control.revision);
+        *current_control = Some(control.clone());
+    } else if matches!(load, autoplay::control::ControlLoad::Malformed(_)) {
+        *current_control = None;
+    }
+    load
+}
+
+fn autoplay_load_status(load: &autoplay::control::ControlLoad) -> String {
+    match load {
+        autoplay::control::ControlLoad::Updated(_) => "updated".to_string(),
+        autoplay::control::ControlLoad::MissingDefault(_) => "missing_default".to_string(),
+        autoplay::control::ControlLoad::Stale => "stale".to_string(),
+        autoplay::control::ControlLoad::Malformed(error) => format!("malformed: {error}"),
+    }
+}
+
+fn autoplay_mode_name(control: Option<&autoplay::control::AutoPlayControl>) -> String {
+    control
+        .map(|control| format!("{:?}", control.mode))
+        .unwrap_or_else(|| "disabled".to_string())
+}
+
+fn autoplay_allows_execution(control: Option<&autoplay::control::AutoPlayControl>) -> bool {
+    control.is_some_and(|control| control.mode == autoplay::control::AutoPlayMode::Auto)
 }
 
 #[tokio::main]
@@ -225,10 +260,30 @@ async fn main() {
     let mut map_gate = MapGate::new();
     let mut autoplay_last_revision: Option<u64> = None;
     let mut current_autoplay_control = if config.auto_play {
-        Some(autoplay::control::AutoPlayControl::default_enabled())
+        Some(autoplay::control::AutoPlayControl::default_paused())
     } else {
         None
     };
+    if config.auto_play {
+        let initial_overlay_path = logging::advice_output_dir()
+            .join("output")
+            .join("overlay.json");
+        autoplay::status::write_overlay_autoplay(
+            &initial_overlay_path,
+            &advice::OverlayMetadata {
+                screen_type: None,
+                scenario: String::new(),
+                in_combat: false,
+                state_hash: String::new(),
+                floor: None,
+                character: None,
+            },
+            &autoplay::status::AutoPlayState {
+                mode: "paused".into(),
+                status: "startup".into(),
+            },
+        );
+    }
     let mut autoplay_session = autoplay::control::AutoPlaySession::default();
     let mut autoplay_overlay_state = autoplay::status::AutoPlayState::default();
     let mut last_autoplay_state: Option<(
@@ -266,9 +321,16 @@ async fn main() {
             }
         };
 
+        let overlay_path = logging::advice_output_dir()
+            .join("output")
+            .join("overlay.json");
+        let autoplay_control_path = logging::advice_output_dir()
+            .join("output")
+            .join("autoplay-control.json");
+
         if is_error(&raw) {
             tracing::warn!("received error from CommunicationMod: {}", trimmed);
-            if let Some((_saved_raw, saved_normalized, saved_command_state)) =
+            if let Some((saved_raw, saved_normalized, saved_command_state)) =
                 last_autoplay_state.as_ref()
             {
                 consecutive_errors += 1;
@@ -294,13 +356,49 @@ async fn main() {
                     .await
                     {
                         Ok(Some(action)) => {
-                            tracing::info!(
-                                "autoplay retry executing {:?} screen={}",
-                                action,
-                                saved_normalized.screen_type.as_deref().unwrap_or("?"),
+                            let control_load = refresh_autoplay_control(
+                                &autoplay_control_path,
+                                &mut autoplay_last_revision,
+                                &mut current_autoplay_control,
                             );
-                            let mut stdout = io::stdout().lock();
-                            autoplay::action::execute_action_to(&mut stdout, &action);
+                            if autoplay_allows_execution(current_autoplay_control.as_ref()) {
+                                tracing::info!(
+                                    "autoplay retry executing {:?} screen={}",
+                                    action,
+                                    saved_normalized.screen_type.as_deref().unwrap_or("?"),
+                                );
+                                let mut stdout = io::stdout().lock();
+                                autoplay::action::execute_action_to(&mut stdout, &action);
+                            } else {
+                                let retry_scenario = AdviceScenario::from_state(saved_normalized);
+                                autoplay::status::write_overlay_autoplay(
+                                    &overlay_path,
+                                    &advice::OverlayMetadata {
+                                        screen_type: saved_normalized.screen_type.clone(),
+                                        scenario: retry_scenario.as_str().to_string(),
+                                        in_combat: has_monsters(saved_raw),
+                                        state_hash: saved_normalized.stable_hash(),
+                                        floor: saved_normalized.floor,
+                                        character: saved_normalized.character.clone(),
+                                    },
+                                    &autoplay::status::AutoPlayState {
+                                        mode: format!(
+                                            "{:?}",
+                                            current_autoplay_control
+                                                .as_ref()
+                                                .map(|control| control.mode)
+                                                .unwrap_or(autoplay::control::AutoPlayMode::Off)
+                                        )
+                                        .to_lowercase(),
+                                        status: "idle".into(),
+                                    },
+                                );
+                                tracing::info!(
+                                    "autoplay retry blocked before execution: control={} load={}",
+                                    autoplay_mode_name(current_autoplay_control.as_ref()),
+                                    autoplay_load_status(&control_load),
+                                );
+                            }
                         }
                         Ok(None) => {
                             tracing::warn!("autoplay retry produced no action");
@@ -318,6 +416,23 @@ async fn main() {
             if should_end_run(&raw, saw_game_state) {
                 let reason = run_end_reason(&raw, saw_game_state).unwrap_or("left_game");
                 finalize_run_once(&journal, &provider, reason, &mut run_finalized, &locale).await;
+                if config.auto_play {
+                    autoplay::status::write_overlay_autoplay(
+                        &overlay_path,
+                        &advice::OverlayMetadata {
+                            screen_type: None,
+                            scenario: String::new(),
+                            in_combat: false,
+                            state_hash: String::new(),
+                            floor: None,
+                            character: None,
+                        },
+                        &autoplay::status::AutoPlayState {
+                            mode: "off".into(),
+                            status: "stopped".into(),
+                        },
+                    );
+                }
                 break;
             }
             tracing::debug!("skipping non-game state");
@@ -340,9 +455,6 @@ async fn main() {
         let hash = normalized.stable_hash();
         let command_state = autoplay::command_state::CommandState::from_raw(&raw);
         let scenario = AdviceScenario::from_state(&normalized);
-        let overlay_path = logging::advice_output_dir()
-            .join("output")
-            .join("overlay.json");
         let metadata = OverlayMetadata {
             screen_type: Some(screen_type.to_string()),
             scenario: scenario.as_str().to_string(),
@@ -353,28 +465,13 @@ async fn main() {
         };
 
         if config.auto_play {
-            let autoplay_control_path = logging::advice_output_dir()
-                .join("output")
-                .join("autoplay-control.json");
-            let autoplay_control_load =
-                autoplay::control::load_control(&autoplay_control_path, autoplay_last_revision);
-            if let Some(control) = autoplay::action::active_control(&autoplay_control_load) {
-                autoplay_last_revision = Some(control.revision);
-                current_autoplay_control = Some(control.clone());
-            }
-            let autoplay_load_status = match &autoplay_control_load {
-                autoplay::control::ControlLoad::Updated(_) => "updated".to_string(),
-                autoplay::control::ControlLoad::MissingDefault(_) => "missing_default".to_string(),
-                autoplay::control::ControlLoad::Stale => "stale".to_string(),
-                autoplay::control::ControlLoad::Malformed(error) => {
-                    current_autoplay_control = None;
-                    format!("malformed: {error}")
-                }
-            };
-            let autoplay_mode = current_autoplay_control
-                .as_ref()
-                .map(|control| format!("{:?}", control.mode))
-                .unwrap_or_else(|| "disabled".to_string());
+            let autoplay_control_load = refresh_autoplay_control(
+                &autoplay_control_path,
+                &mut autoplay_last_revision,
+                &mut current_autoplay_control,
+            );
+            let autoplay_load_status = autoplay_load_status(&autoplay_control_load);
+            let autoplay_mode = autoplay_mode_name(current_autoplay_control.as_ref());
             tracing::debug!(
                 "autoplay control={autoplay_mode} load={autoplay_load_status} ready={} commands={} choose_available={}",
                 command_state.ready_for_command,
@@ -401,7 +498,7 @@ async fn main() {
         journal.log_state_change(&hash, &normalized);
 
         if let Some(control) = current_autoplay_control.as_mut() {
-            autoplay_overlay_state.mode = "auto".into();
+            autoplay_overlay_state.mode = format!("{:?}", control.mode).to_lowercase();
             autoplay_overlay_state.status = "planning".into();
             autoplay::status::write_overlay_autoplay(
                 &overlay_path,
@@ -421,23 +518,50 @@ async fn main() {
             .await
             {
                 Ok(Some(action)) => {
-                    autoplay_overlay_state.status = "executing".into();
+                    let control_load = refresh_autoplay_control(
+                        &autoplay_control_path,
+                        &mut autoplay_last_revision,
+                        &mut current_autoplay_control,
+                    );
+                    if autoplay_allows_execution(current_autoplay_control.as_ref()) {
+                        autoplay_overlay_state.status = "executing".into();
+                        autoplay::status::write_overlay_autoplay(
+                            &overlay_path,
+                            &metadata,
+                            &autoplay_overlay_state,
+                        );
+                        tracing::info!(
+                            "autoplay executing {:?} screen={} hash={}",
+                            action,
+                            screen_type,
+                            &hash[..16],
+                        );
+                        last_autoplay_state =
+                            Some((raw.clone(), normalized.clone(), command_state.clone()));
+                        let mut stdout = io::stdout().lock();
+                        autoplay::action::execute_action_to(&mut stdout, &action);
+                        continue;
+                    }
+
+                    autoplay_overlay_state.mode = format!(
+                        "{:?}",
+                        current_autoplay_control
+                            .as_ref()
+                            .map(|control| control.mode)
+                            .unwrap_or(autoplay::control::AutoPlayMode::Off)
+                    )
+                    .to_lowercase();
+                    autoplay_overlay_state.status = "idle".into();
                     autoplay::status::write_overlay_autoplay(
                         &overlay_path,
                         &metadata,
                         &autoplay_overlay_state,
                     );
                     tracing::info!(
-                        "autoplay executing {:?} screen={} hash={}",
-                        action,
-                        screen_type,
-                        &hash[..16],
+                        "autoplay blocked before execution: control={} load={}",
+                        autoplay_mode_name(current_autoplay_control.as_ref()),
+                        autoplay_load_status(&control_load),
                     );
-                    last_autoplay_state =
-                        Some((raw.clone(), normalized.clone(), command_state.clone()));
-                    let mut stdout = io::stdout().lock();
-                    autoplay::action::execute_action_to(&mut stdout, &action);
-                    continue;
                 }
                 Ok(None) => {
                     autoplay_overlay_state.status = "idle".into();

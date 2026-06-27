@@ -96,7 +96,7 @@ pub fn rank_contexts(contexts: &[ActionContext], rule_set: &RuleSet) -> Vec<Scor
         .collect();
 
     let mut scored = merge_aoe_groups(scored, contexts, rule_set);
-    scored.sort_by(|a, b| b.score.cmp(&a.score));
+    scored.sort_by_key(|b| std::cmp::Reverse(b.score));
 
     let avoided = scored.iter().filter(|s| s.is_avoid).count();
     let best = scored.first().map(|s| s.score).unwrap_or(0);
