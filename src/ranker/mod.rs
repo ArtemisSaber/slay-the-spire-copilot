@@ -6,6 +6,7 @@ pub mod predicates;
 pub mod rules;
 
 use std::sync::LazyLock;
+use std::time::Instant;
 
 use crate::state::NormalizedState;
 
@@ -34,8 +35,37 @@ static RULES: LazyLock<RuleSet> = LazyLock::new(|| {
 });
 
 pub fn rank(state: &NormalizedState) -> Vec<ScoredAction> {
+    let energy = state.energy.unwrap_or(0);
+    let hand_count = state.hand.len();
+    let potion_count = state.potions.len();
+    let monster_count = state.monsters.len();
+    tracing::info!(
+        "ranker started hand={} energy={} mons={} potions={}",
+        hand_count,
+        energy,
+        monster_count,
+        potion_count
+    );
+
+    let started = Instant::now();
     let contexts = ActionContext::build_all(state);
-    engine::rank_contexts(&contexts, &RULES)
+    let scored = engine::rank_contexts(&contexts, &RULES);
+
+    let avoided = scored.iter().filter(|s| s.is_avoid).count();
+    let top = scored.first();
+    let top_score = top.map(|s| s.score).unwrap_or(0);
+    let top_action = top.map(|s| &s.action_type);
+    tracing::info!(
+        "ranker finished contexts={} scored={} avoided={} top_score={} top={:?} duration_ms={}",
+        contexts.len(),
+        scored.len(),
+        avoided,
+        top_score,
+        top_action,
+        started.elapsed().as_millis(),
+    );
+
+    scored
 }
 
 fn validate_score_fns(rule_set: &mut RuleSet) {

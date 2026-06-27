@@ -97,6 +97,16 @@ pub fn rank_contexts(contexts: &[ActionContext], rule_set: &RuleSet) -> Vec<Scor
 
     let mut scored = merge_aoe_groups(scored, contexts, rule_set);
     scored.sort_by(|a, b| b.score.cmp(&a.score));
+
+    let avoided = scored.iter().filter(|s| s.is_avoid).count();
+    let best = scored.first().map(|s| s.score).unwrap_or(0);
+    tracing::debug!(
+        "ranker scored {} actions, {} avoided, best_score={}",
+        scored.len(),
+        avoided,
+        best,
+    );
+
     scored
 }
 
@@ -169,6 +179,15 @@ fn merge_aoe_groups(
 
     for &i in &standalone {
         result.push(scored[i].clone());
+    }
+
+    if !groups.is_empty() {
+        let total_entries: usize = groups.values().map(|v| v.len()).sum();
+        tracing::debug!(
+            "ranker merged {} AoE groups from {} entries",
+            groups.len(),
+            total_entries,
+        );
     }
 
     result

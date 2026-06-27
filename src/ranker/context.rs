@@ -24,6 +24,19 @@ pub struct ActionContext {
 
 impl ActionContext {
     pub fn build_all(state: &NormalizedState) -> Vec<ActionContext> {
+        let hand_count = state
+            .hand
+            .iter()
+            .filter(|c| c.playable && c.uuid.is_some())
+            .count();
+        let potion_count = state.potions.iter().filter(|p| p.can_use).count();
+        tracing::debug!(
+            "ranker building contexts hand={} potions={} mons={}",
+            hand_count,
+            potion_count,
+            state.monsters.len()
+        );
+
         let mut contexts = Vec::new();
 
         let energy = state.energy.unwrap_or(0);
@@ -267,6 +280,7 @@ impl ActionContext {
             vars: end_vars,
         });
 
+        tracing::debug!("ranker built {} contexts", contexts.len());
         contexts
     }
 }
