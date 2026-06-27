@@ -174,14 +174,28 @@ fn unscored_end_turn_gets_total_zero() {
 
 #[test]
 fn sort_by_score_descending() {
-    let rules = make_rules(vec![]);
-    let ctx1 = make_ctx(HashMap::new());
-    let ctx2 = end_turn_ctx(HashMap::new());
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "score_by_value".into(),
+        priority: 1000,
+        weight: Weight::Value(1),
+        formula: Some("@value * @weight".into()),
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![],
+    }]);
+    let mut low_vars = HashMap::new();
+    low_vars.insert("value".to_string(), 2.0);
+    let mut high_vars = HashMap::new();
+    high_vars.insert("value".to_string(), 5.0);
+    let low = make_ctx(low_vars);
+    let high = make_ctx(high_vars);
 
-    let scored = rank_contexts(&[ctx1, ctx2], &rules);
+    let scored = rank_contexts(&[low, high], &rules);
     assert_eq!(scored.len(), 2);
-    assert_eq!(scored[0].score, 0);
-    assert_eq!(scored[1].score, 0);
+    assert_eq!(scored[0].score, 5);
+    assert_eq!(scored[1].score, 2);
 }
 
 // --- parsed condition predicates ---

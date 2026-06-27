@@ -144,6 +144,32 @@ mod tests {
         })
     }
 
+    fn defend_card() -> serde_json::Value {
+        serde_json::json!({
+            "id": "Defend_R",
+            "name": "Defend",
+            "cost": 1,
+            "card_type": "SKILL",
+            "uuid": "def-1",
+            "description": "Gain 5 Block.",
+            "has_target": false,
+            "playable": true
+        })
+    }
+
+    fn limit_break_card() -> serde_json::Value {
+        serde_json::json!({
+            "id": "Limit Break",
+            "name": "Limit Break",
+            "cost": 1,
+            "card_type": "SKILL",
+            "uuid": "lb-1",
+            "description": "Double your Strength.",
+            "has_target": false,
+            "playable": true
+        })
+    }
+
     fn thunderclap_card() -> serde_json::Value {
         serde_json::json!({
             "id": "Thunderclap",
@@ -226,7 +252,40 @@ mod tests {
     }
 
     #[test]
-    fn top_ranked_returns_flat_array_with_score_and_tags() {
+    fn top_ranked_returns_all_legal_non_avoided_actions() {
+        let state = combat_state_with_cards(
+            3,
+            vec![strike_card("s1", 1), defend_card(), limit_break_card()],
+        );
+        let context = top_ranked_context(&state).expect("should produce ranked context");
+        let rs = context["ranked_suggestions"]
+            .as_array()
+            .expect("should be array");
+
+        assert!(
+            rs.iter()
+                .any(|e| e["action"]["PlayCard"]["card_name"].as_str() == Some("Strike")),
+            "legal targeted cards should be included"
+        );
+        assert!(
+            rs.iter()
+                .any(|e| e["action"]["PlayCard"]["card_name"].as_str() == Some("Defend")),
+            "legal lower-ranked cards should still be included"
+        );
+        assert!(
+            rs.iter()
+                .any(|e| e["action"] == serde_json::json!("EndTurn")),
+            "legal EndTurn action should still be included"
+        );
+        assert!(
+            rs.iter()
+                .all(|e| e["action"]["PlayCard"]["card_name"].as_str() != Some("Limit Break")),
+            "avoided actions should be filtered out of ranked suggestions"
+        );
+    }
+
+    #[test]
+    fn top_ranked_returns_flat_entries_with_score_and_tags() {
         let state = combat_state_with_cards(3, vec![strike_card("s1", 1)]);
         let context = top_ranked_context(&state).expect("should produce ranked context");
         let rs = context["ranked_suggestions"]

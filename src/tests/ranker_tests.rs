@@ -42,18 +42,72 @@ fn ranks_combat_state_fixture() {
 }
 
 #[test]
-fn avoids_are_sorted_to_bottom() {
-    let raw = test_utils::load_fixture("combat-state.json");
-    let state: NormalizedState = serde_json::from_value(raw).expect("fixture should parse");
+fn rank_keeps_avoids_but_sorts_them_to_bottom() {
+    let state: NormalizedState = serde_json::from_value(serde_json::json!({
+        "screen_type": "NONE",
+        "current_hp": 60,
+        "max_hp": 75,
+        "energy": 3,
+        "block": 5,
+        "hand": [
+            {
+                "id": "Strike_R",
+                "name": "Strike",
+                "cost": 1,
+                "card_type": "ATTACK",
+                "uuid": "uuid-strike",
+                "description": "Deal 6 damage.",
+                "has_target": true,
+                "playable": true
+            },
+            {
+                "id": "Limit Break",
+                "name": "Limit Break",
+                "cost": 1,
+                "card_type": "SKILL",
+                "uuid": "uuid-limit-break",
+                "description": "Double your Strength.",
+                "has_target": false,
+                "playable": true
+            }
+        ],
+        "monsters": [{
+            "name": "Jaw Worm",
+            "index": 0,
+            "current_hp": 44,
+            "max_hp": 46,
+            "block": 0,
+            "intent": "ATTACK",
+            "damage": 12,
+            "hits": 1,
+            "monster_powers": [],
+            "is_scaling": false,
+            "can_be_killed": false
+        }],
+        "incoming_damage": 12,
+        "powers": [],
+        "relics": [],
+        "draw_pile": [],
+        "discard_pile": [],
+        "potions": [],
+        "deck_names": []
+    }))
+    .expect("should parse");
 
-    let mut scored = ranker::rank(&state);
-    scored.sort_by_key(|s| s.is_avoid);
+    let scored = ranker::rank(&state);
+    let first_avoid = scored
+        .iter()
+        .position(|s| s.is_avoid)
+        .expect("Limit Break with no Strength should be marked avoid");
 
-    if let Some(first_avoid) = scored.iter().position(|s| s.is_avoid) {
-        for s in &scored[..first_avoid] {
-            assert!(!s.is_avoid, "avoid actions should be after non-avoid");
-        }
-    }
+    assert!(
+        scored[..first_avoid].iter().all(|s| !s.is_avoid),
+        "non-avoided legal actions should be before avoided actions"
+    );
+    assert!(
+        scored[first_avoid..].iter().all(|s| s.is_avoid),
+        "avoided actions should stay in ranker output, at the bottom"
+    );
 }
 
 #[test]
