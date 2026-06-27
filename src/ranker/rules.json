@@ -264,11 +264,11 @@
     {
       "rule_id": "core_damage_vulnerable",
       "priority": 1050,
-      "weight": 10,
+      "weight": 1000,
       "applies_to": [
         "play_card"
       ],
-      "formula": "@damage * @hits * @weight * 1.5",
+      "formula": "@damage * @hits * @weight * 1.5 / max(@monsters_total_hp_plus_block, 1)",
       "override": "core_damage",
       "conditions": [
         {
@@ -292,11 +292,11 @@
     {
       "rule_id": "core_damage_intangible",
       "priority": 1051,
-      "weight": 10,
+      "weight": 1000,
       "applies_to": [
         "play_card"
       ],
-      "formula": "1 * @hits * @weight",
+      "formula": "1 * @hits * @weight / max(@monsters_total_hp_plus_block, 1)",
       "override": "core_damage",
       "conditions": [
         {
@@ -315,12 +315,12 @@
     {
       "rule_id": "core_damage",
       "priority": 1052,
-      "weight": 10,
+      "weight": 1000,
       "applies_to": [
         "play_card",
         "use_potion"
       ],
-      "formula": "@damage * @hits * @weight",
+      "formula": "@damage * @hits * @weight / max(@monsters_total_hp_plus_block, 1)",
       "conditions": [
         {
           "parsed": {
@@ -338,12 +338,12 @@
     {
       "rule_id": "core_block_retain",
       "priority": 1060,
-      "weight": 10,
+      "weight": 1000,
       "applies_to": [
         "play_card",
         "use_potion"
       ],
-      "formula": "@block * @weight",
+      "formula": "@block * @weight / max(@current_hp, 1)",
       "override": "core_block_non_excessive",
       "conditions": [
         {
@@ -362,12 +362,12 @@
     {
       "rule_id": "core_block_retain_relic",
       "priority": 1061,
-      "weight": 10,
+      "weight": 1000,
       "applies_to": [
         "play_card",
         "use_potion"
       ],
-      "formula": "@block * @weight",
+      "formula": "@block * @weight / max(@current_hp, 1)",
       "override": "core_block_non_excessive",
       "conditions": [
         {
@@ -386,12 +386,12 @@
     {
       "rule_id": "core_block_excessive",
       "priority": 1062,
-      "weight": -20,
+      "weight": -2000,
       "applies_to": [
         "play_card",
         "use_potion"
       ],
-      "formula": "@block * @weight",
+      "formula": "@block * @weight / max(@current_hp, 1)",
       "override": "core_block_non_excessive",
       "conditions": [
         {
@@ -420,12 +420,12 @@
     {
       "rule_id": "core_block_non_excessive",
       "priority": 1063,
-      "weight": 10,
+      "weight": 1000,
       "applies_to": [
         "play_card",
         "use_potion"
       ],
-      "formula": "@block * @weight",
+      "formula": "min(@block, @incoming_damage) * @weight / max(@current_hp, 1)",
       "conditions": [
         {
           "parsed": {

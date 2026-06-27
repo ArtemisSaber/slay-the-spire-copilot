@@ -611,6 +611,7 @@ impl NormalizedState {
             .iter()
             .filter(|m| m.intent.as_deref() != Some("NONE"))
             .filter_map(|m| m.damage)
+            .filter(|&d| d > 0)
             .sum();
 
         let danger = DangerFlags::compute(

@@ -212,7 +212,10 @@ fn strike_scores_damage() {
     let strike = find_scored(&scored, "打击");
     let rule = find_breakdown(&strike.breakdown, "core_damage");
     assert!(rule.matched, "Strike should deal damage");
-    assert_eq!(rule.score, 60, "6 dmg × 1 hit × 10 weight = 60");
+    assert_eq!(
+        rule.score, 109,
+        "6 dmg × 1 hit × 1000 weight / 55 monster hp = 109"
+    );
 }
 
 #[test]
