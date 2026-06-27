@@ -108,12 +108,12 @@ fn deserialize_monsters_condition() {
     let json = r#"{
         "version": "1.0",
         "rules": [{
-            "rule_id": "punishment_skill_vs_nob",
+            "rule_id": "punishment_skill_vs_anger",
             "priority": 1160,
             "weight": -100,
             "applies_to": ["play_card"],
             "conditions": [
-                {"monsters": {"any": {"monster_id": "GremlinNob"}}},
+                {"monsters": {"any": {"power": "Anger"}}},
                 {"card": {"type": "SKILL"}}
             ]
         }]

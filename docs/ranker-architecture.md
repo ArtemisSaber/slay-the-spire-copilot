@@ -520,22 +520,22 @@ Numbers below 1000 are reserved for future rules.
     },
 
     {
-      "rule_id": "punishment_skill_vs_nob",
+      "rule_id": "punishment_skill_vs_anger",
       "priority": 1160,
       "weight": -100,
       "applies_to": ["play_card"],
       "conditions": [
-        {"monsters": {"any": {"monster_id": "GremlinNob"}}},
+        {"monsters": {"any": {"power": "Anger"}}},
         {"card": {"type": "SKILL"}}
       ]
     },
     {
-      "rule_id": "punishment_power_vs_awakened",
+      "rule_id": "punishment_power_vs_curiosity",
       "priority": 1161,
       "weight": -100,
       "applies_to": ["play_card"],
       "conditions": [
-        {"monsters": {"any": {"monster_id": "AwakenedOne"}}},
+        {"monsters": {"any": {"power": "Curiosity"}}},
         {"card": {"type": "POWER"}}
       ]
     },

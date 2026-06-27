@@ -788,6 +788,28 @@
       "category": "per_card"
     },
     {
+      "rule_id": "danger_enters_wrath_under_attack",
+      "priority": 1102,
+      "weight": -1000,
+      "applies_to": [
+        "play_card"
+      ],
+      "formula": "@incoming_damage * @weight / max(@current_hp, 1)",
+      "conditions": [
+        {
+          "compute": {
+            "formula": "@enters_wrath == 1"
+          }
+        },
+        {
+          "state": {
+            "incoming_damage_gt": 0
+          }
+        }
+      ],
+      "category": "per_card"
+    },
+    {
       "rule_id": "orb_channel_lightning",
       "priority": 1120,
       "weight": 10,
@@ -953,7 +975,7 @@
       "category": "per_card"
     },
     {
-      "rule_id": "punishment_skill_vs_nob",
+      "rule_id": "punishment_skill_vs_anger",
       "priority": 1160,
       "weight": -100,
       "applies_to": [
@@ -963,7 +985,7 @@
         {
           "monsters": {
             "any": {
-              "monster_id": "GremlinNob"
+              "power": "Anger"
             }
           }
         },
@@ -976,7 +998,7 @@
       "category": "per_card"
     },
     {
-      "rule_id": "punishment_power_vs_awakened",
+      "rule_id": "punishment_power_vs_curiosity",
       "priority": 1161,
       "weight": -100,
       "applies_to": [
@@ -986,7 +1008,7 @@
         {
           "monsters": {
             "any": {
-              "monster_id": "AwakenedOne"
+              "power": "Curiosity"
             }
           }
         },

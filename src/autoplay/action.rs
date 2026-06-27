@@ -58,6 +58,12 @@ pub fn available_action_candidates(
         || control.require_confirmation
         || !command_state.ready_for_command
     {
+        tracing::info!(
+            "autoplay no candidates: mode={:?} require_confirmation={} ready={}",
+            control.mode,
+            control.require_confirmation,
+            command_state.ready_for_command,
+        );
         return vec![];
     }
 
@@ -91,7 +97,13 @@ pub fn available_action_candidates(
                 target_required: None,
             }]
         }
-        _ => vec![],
+        _ => {
+            tracing::info!(
+                "autoplay no candidates: screen_type={:?}",
+                state.screen_type,
+            );
+            vec![]
+        }
     }
 }
 
@@ -380,15 +392,23 @@ fn resolve_requested_rest(
 
 fn event_candidates(command_state: &CommandState, state: &NormalizedState) -> Vec<ActionCandidate> {
     if !command_state.has_command("choose") {
+        tracing::info!(
+            "event_candidates empty: no 'choose' command commands={:?}",
+            command_state.available_commands,
+        );
         return vec![];
     }
 
-    state
+    let candidates: Vec<_> = state
         .event_choices
         .iter()
         .enumerate()
         .map(|(index, choice)| candidate("choose", format!("event:{index}"), choice.clone()))
-        .collect()
+        .collect();
+    if candidates.is_empty() {
+        tracing::info!("event_candidates empty: event_choices is empty");
+    }
+    candidates
 }
 
 fn resolve_requested_indexed(

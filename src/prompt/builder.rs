@@ -645,7 +645,7 @@ pub(crate) fn build_combat(state: &NormalizedState, locale: &Locale) -> String {
             } else if m
                 .monster_powers
                 .iter()
-                .any(|p| matches!(p.id.as_str(), "Enrage" | "Thorns" | "Curiosity"))
+                .any(|p| matches!(p.id.as_str(), "Enrage" | "Thorns" | "Curiosity" | "Anger"))
             {
                 locale.combat_types.prio_punish.replace("{name}", &m.name)
             } else if m.can_be_killed {
