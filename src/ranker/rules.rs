@@ -75,18 +75,17 @@ impl<'de> Deserialize<'de> for Weight {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum Condition {
-    Card(CardCondition),
     Parsed(ParsedCondition),
     Target(TargetCondition),
     Monsters(MonstersCondition),
     Player(PlayerCondition),
     State(StateCondition),
     Compute(ComputeCondition),
+    Card(CardCondition),
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CardCondition {
-    #[serde(default)]
     pub card: CardPredicates,
 }
 
@@ -111,7 +110,6 @@ pub struct CardPredicates {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ParsedCondition {
-    #[serde(default)]
     pub parsed: ParsedPredicates,
 }
 
@@ -165,7 +163,6 @@ pub struct ParsedPredicates {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TargetCondition {
-    #[serde(default)]
     pub target: TargetPredicates,
 }
 
@@ -193,7 +190,6 @@ pub struct TargetPredicates {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct MonstersCondition {
-    #[serde(default)]
     pub monsters: MonstersPredicates,
 }
 
@@ -223,7 +219,6 @@ pub struct MonsterSubPredicates {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct PlayerCondition {
-    #[serde(default)]
     pub player: PlayerPredicates,
 }
 
@@ -245,7 +240,6 @@ pub struct PlayerPredicates {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct StateCondition {
-    #[serde(default)]
     pub state: StatePredicates,
 }
 
@@ -261,7 +255,6 @@ pub struct StatePredicates {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ComputeCondition {
-    #[serde(default)]
     pub compute: ComputePredicates,
 }
 

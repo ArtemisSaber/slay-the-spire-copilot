@@ -46,6 +46,7 @@ pub fn init() -> WorkerGuard {
         .with(
             tracing_subscriber::fmt::layer()
                 .with_writer(non_blocking)
+                .with_timer(tracing_subscriber::fmt::time::LocalTime::rfc_3339())
                 .with_ansi(false)
                 .with_target(false),
         )

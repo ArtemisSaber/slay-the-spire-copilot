@@ -5,56 +5,40 @@ pub mod parser;
 pub mod predicates;
 pub mod rules;
 
+use std::sync::LazyLock;
+
 use crate::state::NormalizedState;
 
 use context::ActionContext;
 use engine::ScoredAction;
 use rules::RuleSet;
 
-pub fn rank(state: &NormalizedState) -> Vec<ScoredAction> {
-    let rule_set = match load_rules() {
-        Ok(rs) => rs,
-        Err(e) => {
-            tracing::error!("failed to load rules.json: {e}, ranking everything at 0");
-            let contexts = ActionContext::build_all(state);
-            return contexts
-                .into_iter()
-                .map(|ctx| ScoredAction {
-                    action_type: ctx.action_type,
-                    target_index: ctx.target_index,
-                    score: 0,
-                    breakdown: vec![],
-                    is_avoid: false,
-                })
-                .collect();
-        }
-    };
-
-    let rule_set = validate_score_fns(rule_set);
-
-    let contexts = ActionContext::build_all(state);
-    engine::rank_contexts(&contexts, &rule_set)
-}
-
-fn load_rules() -> Result<RuleSet, String> {
+static RULES: LazyLock<RuleSet> = LazyLock::new(|| {
     let path = crate::logging::project_root().join("rules.json");
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(e) => {
             tracing::warn!(
-                "cannot read {}: {e}, falling back to embedded rules.json",
+                "cannot read {}: {e}, using embedded rules.json",
                 path.display()
             );
             return serde_json::from_str(include_str!("rules.json"))
-                .map_err(|e| format!("embedded rules.json error: {e}"));
+                .expect("embedded rules.json is corrupt");
         }
     };
-    let rule_set: RuleSet =
-        serde_json::from_str(&content).map_err(|e| format!("invalid rules.json: {e}"))?;
-    Ok(rule_set)
+    let mut rule_set: RuleSet = serde_json::from_str(&content)
+        .unwrap_or_else(|e| panic!("invalid {}: {e}", path.display()));
+
+    validate_score_fns(&mut rule_set);
+    rule_set
+});
+
+pub fn rank(state: &NormalizedState) -> Vec<ScoredAction> {
+    let contexts = ActionContext::build_all(state);
+    engine::rank_contexts(&contexts, &RULES)
 }
 
-fn validate_score_fns(mut rule_set: RuleSet) -> RuleSet {
+fn validate_score_fns(rule_set: &mut RuleSet) {
     let valid: std::collections::HashSet<&str> = rule_set
         .available_score_fns
         .iter()
@@ -88,5 +72,4 @@ fn validate_score_fns(mut rule_set: RuleSet) -> RuleSet {
             before - after
         );
     }
-    rule_set
 }

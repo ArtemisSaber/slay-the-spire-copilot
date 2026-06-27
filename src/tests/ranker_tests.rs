@@ -1,6 +1,13 @@
 use crate::ranker;
+use crate::ranker::context::ActionType;
 use crate::state::NormalizedState;
 use crate::test_utils;
+
+fn comm_mod_state(filename: &str) -> NormalizedState {
+    let raw = test_utils::load_fixture(filename);
+    let locale = crate::locales::Locale::load("zh");
+    NormalizedState::from_raw(&raw, &locale)
+}
 
 #[test]
 fn ranks_combat_state_fixture() {
@@ -109,4 +116,117 @@ fn embedded_rules_json_is_valid() {
     let json = include_str!("../ranker/rules.json");
     let _: crate::ranker::rules::RuleSet =
         serde_json::from_str(json).expect("embedded rules.json should be valid");
+}
+
+// --- Integration tests from CommunicationMod raw log fixtures ---
+
+fn find_breakdown<'a>(
+    breakdown: &'a [crate::ranker::engine::RuleResult],
+    rule_id: &str,
+) -> &'a crate::ranker::engine::RuleResult {
+    breakdown
+        .iter()
+        .find(|b| b.rule_id == rule_id)
+        .unwrap_or_else(|| panic!("rule {rule_id} not in breakdown"))
+}
+
+fn find_scored<'a>(
+    scored: &'a [crate::ranker::engine::ScoredAction],
+    card_name: &str,
+) -> &'a crate::ranker::engine::ScoredAction {
+    scored
+        .iter()
+        .find(|s| match &s.action_type {
+            ActionType::PlayCard { card_name: cn, .. } => cn == card_name,
+            _ => false,
+        })
+        .unwrap_or_else(|| panic!("card {card_name} not in scored actions"))
+}
+
+#[test]
+fn defend_does_not_end_fight() {
+    let state = comm_mod_state("comm-f16t15-defend-strike-hexaghost.json");
+    let scored = ranker::rank(&state);
+    let defend = find_scored(&scored, "防御");
+    let rule = find_breakdown(&defend.breakdown, "combat_ends_fight");
+    assert!(!rule.matched, "Defend should NOT end the fight");
+    assert_eq!(rule.score, 0);
+}
+
+#[test]
+fn strike_can_end_fight() {
+    let state = comm_mod_state("comm-f1t1-strikes-vs-slimes.json");
+    let scored = ranker::rank(&state);
+    let strike = find_scored(&scored, "打击");
+    let rule = find_breakdown(&strike.breakdown, "combat_ends_fight");
+    assert!(!rule.matched, "Strike 6dmg vs 10HP should NOT end fight");
+}
+
+#[test]
+fn defend_no_str_gain_false_positive() {
+    let state = comm_mod_state("comm-f16t16-hexaghost-turn.json");
+    let scored = ranker::rank(&state);
+    let defend = find_scored(&scored, "防御");
+    let rule = find_breakdown(&defend.breakdown, "setup_self_str_gain");
+    assert!(!rule.matched, "Defend should NOT give Strength gain");
+    assert_eq!(rule.score, 0);
+}
+
+#[test]
+fn defend_no_dex_gain_false_positive() {
+    let state = comm_mod_state("comm-f16t16-hexaghost-turn.json");
+    let scored = ranker::rank(&state);
+    let defend = find_scored(&scored, "防御");
+    let rule = find_breakdown(&defend.breakdown, "setup_self_dex_gain");
+    assert!(!rule.matched, "Defend should NOT give Dexterity gain");
+    assert_eq!(rule.score, 0);
+}
+
+#[test]
+fn bash_scores_vulnerable_apply() {
+    let state = comm_mod_state("comm-f16t16-hexaghost-turn.json");
+    let scored = ranker::rank(&state);
+    let bash = find_scored(&scored, "痛击");
+    let rule = find_breakdown(&bash.breakdown, "setup_vulnerable_apply");
+    assert!(rule.matched, "Bash should apply Vulnerable");
+    assert_eq!(rule.score, 20, "2 stacks × 10 weight = 20");
+}
+
+#[test]
+fn body_slam_with_zero_block_does_not_end_fight() {
+    let state = comm_mod_state("comm-f16t16-bodyslam-vs-hexaghost.json");
+    let scored = ranker::rank(&state);
+    let slam = find_scored(&scored, "全身撞击");
+    let rule = find_breakdown(&slam.breakdown, "combat_ends_fight");
+    assert!(
+        !rule.matched,
+        "Body Slam with 0 block vs 41 HP should NOT end fight"
+    );
+    assert_eq!(rule.score, 0);
+}
+
+#[test]
+fn strike_scores_damage() {
+    let state = comm_mod_state("comm-f16t15-defend-strike-hexaghost.json");
+    let scored = ranker::rank(&state);
+    let strike = find_scored(&scored, "打击");
+    let rule = find_breakdown(&strike.breakdown, "core_damage");
+    assert!(rule.matched, "Strike should deal damage");
+    assert_eq!(rule.score, 60, "6 dmg × 1 hit × 10 weight = 60");
+}
+
+#[test]
+fn defend_scores_block() {
+    let state = comm_mod_state("comm-f16t16-hexaghost-turn.json");
+    let scored = ranker::rank(&state);
+    let defend = find_scored(&scored, "防御");
+    let rule = find_breakdown(&defend.breakdown, "core_block_non_excessive");
+    assert!(rule.matched, "Defend should give block");
+    let b = defend
+        .breakdown
+        .iter()
+        .find(|b| b.rule_id == "core_block_non_excessive")
+        .unwrap();
+    assert!(b.matched);
+    assert!(b.score > 0, "Block should have positive score");
 }

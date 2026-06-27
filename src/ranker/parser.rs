@@ -80,6 +80,10 @@ fn contains_any(text: &str, patterns: &[&str]) -> bool {
     patterns.iter().any(|p| text.contains(p))
 }
 
+fn contains_all(text: &str, patterns: &[&str]) -> bool {
+    patterns.iter().all(|p| text.contains(p))
+}
+
 static ORB_TYPES: &[(&str, &str)] = &[
     ("闪电", "Lightning"),
     ("Lightning", "Lightning"),
@@ -188,7 +192,7 @@ fn parse_hits(desc: &str) -> i64 {
 
 fn parse_block(desc: &str) -> Option<i64> {
     for segment in desc.split('。') {
-        if contains_any(segment, &["获得", "格挡"]) {
+        if contains_all(segment, &["获得", "格挡"]) {
             return extract_first_integer(segment);
         }
     }
@@ -232,7 +236,7 @@ fn parse_draw(desc: &str) -> Option<i64> {
 
 fn parse_self_damage(desc: &str) -> Option<i64> {
     for segment in desc.split('。') {
-        if contains_any(segment, &["失去", "生命"]) {
+        if contains_all(segment, &["失去", "生命"]) {
             return extract_first_integer(segment);
         }
     }
@@ -246,7 +250,7 @@ fn parse_self_damage(desc: &str) -> Option<i64> {
 
 fn parse_str_gain(desc: &str) -> Option<i64> {
     for segment in desc.split('。') {
-        if !segment.contains("敌人") && contains_any(segment, &["获得", "力量"]) {
+        if !segment.contains("敌人") && contains_all(segment, &["获得", "力量"]) {
             return extract_first_integer(segment);
         }
     }
@@ -260,7 +264,7 @@ fn parse_str_gain(desc: &str) -> Option<i64> {
 
 fn parse_dex_gain(desc: &str) -> Option<i64> {
     for segment in desc.split('。') {
-        if contains_any(segment, &["获得", "敏捷"]) {
+        if contains_all(segment, &["获得", "敏捷"]) {
             return extract_first_integer(segment);
         }
     }

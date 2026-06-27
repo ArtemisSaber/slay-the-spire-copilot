@@ -144,3 +144,30 @@ fn init_rotates_all_expected_log_files() {
 
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn log_timestamps_use_local_time_not_utc() {
+    use tracing_subscriber::fmt::time::LocalTime;
+
+    let dir = tempfile::tempdir().unwrap();
+    let log_path = dir.path().join("test.log");
+    let file = std::fs::File::create(&log_path).unwrap();
+    let (writer, guard) = tracing_appender::non_blocking(file);
+    let subscriber = tracing_subscriber::registry().with(
+        tracing_subscriber::fmt::layer()
+            .with_writer(writer)
+            .with_timer(LocalTime::rfc_3339())
+            .with_ansi(false)
+            .with_target(false),
+    );
+    let dispatch = tracing::Dispatch::new(subscriber);
+    tracing::dispatcher::with_default(&dispatch, || {
+        tracing::info!("test");
+    });
+    drop(guard);
+    let content = std::fs::read_to_string(&log_path).unwrap();
+    assert!(
+        !content.contains('Z'),
+        "log should use local time (offset), got Z for UTC: {content}"
+    );
+}
