@@ -1,8 +1,10 @@
 # Combat Action Ranker — Score Rules Reference
 
 Each available combat action (play card, use potion, end turn) is scored by
-summing all applicable rules. Actions matching a **Manual Filter** receive
-`i64::MIN` and go to the "Avoid" list.
+summing all applicable rules. Unless a rule explicitly overrides another
+(e.g., Manual Filters set `i64::MIN`, Intangible dominates Vulnerable), every
+matching rule contributes additively to the final score. Actions matching a
+**Manual Filter** receive `i64::MIN` and go to the "Avoid" list.
 
 ---
 
@@ -49,9 +51,13 @@ all current energy and Malaise correctly uses the X value for STR loss/Weak.
 
 | Rule | Condition | Score |
 |------|-----------|-------|
-| Damage | Parsed damage > 0 | `+10 × damage × hits` |
-| Damage (Vulnerable target) | Parsed damage > 0 AND target has `"Vulnerable"` (amount > 0) | `+10 × damage × 1.5 × hits` |
+| Damage | Parsed damage > 0 AND target does NOT have `"Intangible"` | `+10 × damage × hits` |
+| Damage (Vulnerable target) | Parsed damage > 0 AND target has `"Vulnerable"` AND target does NOT have `"Intangible"` | `+10 × damage × 1.5 × hits` |
 | Damage (Intangible target) | Target has `"Intangible"` (amount > 0) | `+10 × 1 × hits` (always 1 per hit) |
+
+When both `"Intangible"` and `"Vulnerable"` are present, Intangible takes
+precedence — damage is capped to 1 per hit, and the Vulnerable multiplier is
+not applied.
 
 Player-side damage modifiers (STR, Wrath, Divinity, etc.) are already baked
 into the card description by the game engine. Only enemy Vulnerable and
@@ -88,12 +94,18 @@ guaranteed finisher later.
 
 | Rule | Condition | Score |
 |------|-----------|-------|
-| Block | Parsed block > 0 AND `incoming_damage > 0` | `+50` |
-| Block (no incoming) | Parsed block > 0 AND `incoming_damage == 0` | `0` |
-| Overblock w/ retain | `block > incoming_damage` AND (`Barricade` or `Calipers`) AND `incoming_damage > 0` | `+10` |
-| Overblock w/o retain | `block > incoming_damage` AND no retain AND `incoming_damage > 0` | `-100` |
+| Block (non-excessive) | Parsed block > 0 AND (`current_block < incoming_damage` OR has retain) | `+10 × card_block` |
+| Block (excessive) | Parsed block > 0 AND `current_block >= incoming_damage` AND no retain | `-20 × card_block` |
+
+The penalty triggers only when already overblocked *before* playing the card
+(`current_block >= incoming_damage`). Partial overblock created by the card
+itself (where `current_block < incoming_damage` but
+`current_block + card_block > incoming_damage`) does NOT trigger the penalty;
+the excess is silently discarded.
 
 Block retain detection: player has `"Barricade"` power or `"Calipers"` relic.
+When retain is present, all block scores at `+10 × card_block` regardless of
+pre-existing block.
 
 ### 3e. Heal
 
@@ -168,13 +180,12 @@ is present without a count.
 | Rule | Condition | Score |
 |------|-----------|-------|
 | Exhaust w/ Dark Embrace | Card exhausts AND player has `"Dark Embrace"` power | `+10 × exhaust_count` |
-| Exhaust w/ Feel No Pain | Card exhausts AND player has `"Feel No Pain"` power AND `incoming_damage > 0` | `+50` (effective block = `Feel No Pain.amount × exhaust_count`, scored via Section 3d) |
-| Exhaust w/ Feel No Pain (no incoming) | Same but `incoming_damage == 0` | `0` |
+| Exhaust w/ Feel No Pain | Card exhausts AND player has `"Feel No Pain"` power | Effective block = `Feel No Pain.amount × exhaust_count`, scored via Section 3d |
 | Exhaust w/ Charon's Ashes | Card exhausts AND player has `"Charon's Ashes"` relic | `+30 × monster_count × exhaust_count` |
 
-Feel No Pain block stacks with any other block the card provides — the total
-`effective_block` feeds into overblock (`-100`/`+10`), lethal-save (`+200`),
-and Beat of Death (block present → `-10` penalty instead of `-20`).
+Feel No Pain block stacks additively with any other block the card provides —
+the total `card_block` feeds into the non-excessive/excessive formulas of
+Section 3d, lethal-save (`+200`, §8), and Beat of Death (§13).
 Dark Embrace draw may trigger Section 3f free-card-reachable checks.
 
 These bonuses are additive to the base exhaust Status/Curse scoring.
@@ -187,7 +198,7 @@ These bonuses are additive to the base exhaust Status/Curse scoring.
 |------|-----------|-------|
 | SKILL vs Nob | `card_type == "SKILL"` AND any `monster_id == "GremlinNob"` | `-100` |
 | POWER vs Awakened One | `card_type == "POWER"` AND any `monster_id == "AwakenedOne"` | `-100` |
-| ATTACK vs Thorns | `card_type == "ATTACK"` AND target has `"Thorns"` (amount > 0) | `-5 × Thorns.amount` |
+| ATTACK vs Thorns | `card_type == "ATTACK"` AND target has `"Thorns"` (amount > 0) | `-5 × Thorns.amount × hits` |
 
 ---
 
@@ -199,7 +210,12 @@ These bonuses are additive to the base exhaust Status/Curse scoring.
 | Lethal + block | `incoming_lethal` AND parsed block > 0 | `+50` |
 | Lethal + damage | `incoming_lethal` AND parsed damage > 0 | `+20` |
 | Lethal + zero impact | `incoming_lethal` AND damage == 0 AND block == 0 | `-50` |
-| Low HP + self-damage | Parsed self-damage > 0 AND `HP < maxHP × 0.3` | `-20 × self_damage` |
+| HP-cost | Parsed self-damage > 0 | `-1_050_000 × self_damage / max(1, cur_hp)³` |
+
+**HP-cost formula**: uses absolute `cur_hp` (not ratio), scaling as `1 / cur_hp³`.
+At high HP the penalty is negligible; at ~45 HP Offering's +70 in energy/draw is
+exactly cancelled. Around 5 HP the penalty approaches `i64::MIN`. The floor of
+`max(1, cur_hp)` prevents division by zero.
 
 ---
 
@@ -216,6 +232,10 @@ These bonuses are additive to the base exhaust Status/Curse scoring.
 ---
 
 ## 10. End Turn
+
+**Useful card**: a card is "useful" if `playable == true`. CommunicationMod
+already accounts for all hard blocks (Entangled, status, etc.) in the
+`playable` flag.
 
 | Rule | Condition | Score |
 |------|-----------|-------|
@@ -236,7 +256,7 @@ score. Potions with `can_use == false` are skipped entirely. Potions with
 | Damage | Parsed damage > 0 | `+10 × damage × hits` (same as cards) |
 | Damage (Vulnerable target) | Parsed damage > 0 AND target has `"Vulnerable"` | `+10 × damage × 1.5 × hits` |
 | Damage (Intangible target) | Target has `"Intangible"` | `+10 × 1 × hits` |
-| Block | Parsed block > 0 AND `incoming_damage > 0` | `+50` |
+| Block | Parsed block > 0 | `+10 × card_block` (non-excessive) or `-20 × card_block` (excessive), same rules as §3d |
 | Heal | Parsed heal > 0 | `+50` |
 | Debuffs (Poison/Vuln/Weak/STR loss) | Same formulas as Section 5 | Same scores |
 | Ends fight | `total_damage >= sum_of_all_monster_hp_and_block` | `+1000` |
@@ -248,16 +268,19 @@ apply to potions.
 
 ## 12. Artifact (Debuff Mitigation)
 
-When a target has `"Artifact"` power (amount > 0), debuff effects are blocked.
+When a target has `"Artifact"` power (amount > 0), debuff effects of each type
+are blocked one stack per type — the first debuff type consumes one Artifact
+stack, the second debuff type consumes another, and so on. Blocked types score
+0; any remaining types after Artifact stacks are exhausted score normally.
 
 | Rule | Condition | Score |
 |------|-----------|-------|
-| Debuff blocked | Card/potion applies debuff AND target has `"Artifact"` (>0) | Set debuff score to `0` |
-| Artifact consumed | Above — Artifact stack is consumed | `+10` |
+| Debuff type blocked | Card/potion applies debuff type AND target has `"Artifact"` (amount > number of prior debuff types applied) | Set that debuff type's score to `0` |
+| Artifact consumed | Above — one Artifact stack is consumed per debuff type blocked | `+10` per stack consumed |
 
-Net effect: a Vulnerable card hitting an Artifact target scores `0 + 10 = +10`
-instead of `+10 × amount`. Low value, but not fully wasted — it clears the way
-for future debuffs.
+Net effect: a card applying both Vulnerable and Weak to a target with 1 Artifact
+block Vulnerable (0), but Weak scores normally. Total: `+10` for the consumed
+stack + full Weak score.
 
 ---
 
@@ -272,8 +295,11 @@ penalty to every card action. Does NOT apply to potions or End Turn.
 | Beat of Death (no block) | Any monster has `"BeatOfDeath"` AND `current_block == 0` AND `card_block == 0` | `-20` (direct HP loss — treated as self-damage) |
 
 **Block reduction**: if the card provides block, the first point of that block
-is consumed by Beat of Death. Reduce `effective_card_block` by 1 before
-computing block/overblock scores.
+is consumed by Beat of Death. Reduce `card_block` by 1 before computing the
+non-excessive/excessive block score via Section 3d. If
+`card_block` drops from 1 to 0, treat as no block (the `-20` BoD penalty and
+excessive/non-excessive checks still apply based on pre-reduction `card_block >
+0` for the BoD-with-block `-10` tier).
 
 ---
 
@@ -399,7 +425,7 @@ Casting a card that exits Wrath while monsters are attacking.
 
 | Rule | Condition | Score |
 |------|-----------|-------|
-| Retreat block | Has `"Wrath"` AND card exits Wrath AND `incoming_damage > 0` | `+50` (effective block = `incoming_damage × 0.5`. State is already ×2 — exiting halves incoming. Scored via Section 3d: feeds overblock/lethal-save) |
+| Retreat block | Has `"Wrath"` AND card exits Wrath AND `incoming_damage > 0` | Effective block = `incoming_damage × 0.5` (state is already ×2, exiting halves incoming). Scored via Section 3d: feeds non-excessive/excessive block scoring and lethal-save. |
 | Retreat penalty | `can_end_fight(ctx_without_retreat_card)` succeeds while staying in Wrath | `-100` (staying in Wrath kills all — should kill, not retreat) |
 | Retreat (no incoming) | `incoming_damage == 0` | `0` |
 

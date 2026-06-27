@@ -73,6 +73,7 @@ fn test_state() -> NormalizedState {
         grid_for_purge: false,
         grid_num_cards: None,
         empty_potion_slots: 0,
+        ..Default::default()
     }
 }
 
@@ -82,6 +83,7 @@ fn combat_prompt_shows_all_three_piles() {
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
+            monster_id: None,
             index: 0,
             current_hp: Some(44),
             max_hp: Some(46),
@@ -114,6 +116,7 @@ fn combat_prompt_marks_entry_plan_task() {
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
+            monster_id: None,
             index: 0,
             current_hp: Some(44),
             max_hp: Some(46),
@@ -140,6 +143,7 @@ fn combat_prompt_includes_potion_descriptions_but_omits_relic_descriptions() {
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
+            monster_id: None,
             index: 0,
             current_hp: Some(44),
             max_hp: Some(46),
@@ -183,6 +187,7 @@ fn monster_section_shows_index_and_intent() {
         monsters: vec![
             MonsterInfo {
                 name: "大颚虫".into(),
+                monster_id: None,
                 index: 0,
                 current_hp: Some(44),
                 max_hp: Some(46),
@@ -196,6 +201,7 @@ fn monster_section_shows_index_and_intent() {
             },
             MonsterInfo {
                 name: "邪教徒".into(),
+                monster_id: None,
                 index: 1,
                 current_hp: Some(18),
                 max_hp: Some(40),
@@ -227,6 +233,7 @@ fn monster_section_shows_scaling() {
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
+            monster_id: None,
             index: 0,
             current_hp: Some(44),
             max_hp: Some(46),
@@ -590,6 +597,7 @@ fn danger_prefix_shows_wrath_warning() {
         }],
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
+            monster_id: None,
             index: 0,
             current_hp: Some(44),
             max_hp: Some(46),
@@ -629,6 +637,7 @@ fn monster_shows_multi_hit_damage() {
     let state = NormalizedState {
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
+            monster_id: None,
             index: 0,
             current_hp: Some(44),
             max_hp: Some(46),
@@ -786,6 +795,7 @@ fn build_prompt_routes_combat_when_monsters_present() {
         screen_type: None,
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
+            monster_id: None,
             index: 0,
             current_hp: Some(44),
             max_hp: Some(46),
@@ -853,6 +863,7 @@ fn status_line_shows_block_warning() {
         incoming_damage: 12,
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
+            monster_id: None,
             index: 0,
             current_hp: Some(44),
             max_hp: Some(46),
@@ -878,6 +889,7 @@ fn status_line_no_block_warning_when_block_sufficient() {
         incoming_damage: 12,
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
+            monster_id: None,
             index: 0,
             current_hp: Some(44),
             max_hp: Some(46),
@@ -900,6 +912,7 @@ fn monster_with_block() {
     let locale = test_locale();
     let m = MonsterInfo {
         name: "大颚虫".into(),
+        monster_id: None,
         index: 0,
         current_hp: Some(44),
         max_hp: Some(46),

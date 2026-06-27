@@ -1063,6 +1063,7 @@ mod fixture_tests {
             ],
             monsters: vec![MonsterInfo {
                 name: "Time Eater".into(),
+                monster_id: None,
                 index: 0,
                 current_hp: Some(10),
                 max_hp: Some(10),
@@ -1124,6 +1125,7 @@ mod fixture_tests {
             grid_for_purge: false,
             grid_num_cards: None,
             empty_potion_slots: 0,
+            ..Default::default()
         };
 
         // 4 Strike cards (3 dmg each) vs 10hp, but Time Warp present → fail closed

@@ -74,6 +74,8 @@ impl CardInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MonsterInfo {
     pub name: String,
+    #[serde(default)]
+    pub monster_id: Option<String>,
     pub index: usize,
     pub current_hp: Option<i64>,
     pub max_hp: Option<i64>,
@@ -90,6 +92,13 @@ pub struct MonsterInfo {
 pub struct PowerInfo {
     pub id: String,
     pub name: String,
+    pub amount: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct OrbInfo {
+    pub id: String,
+    #[serde(default)]
     pub amount: i64,
 }
 
@@ -217,6 +226,10 @@ pub struct NormalizedState {
     pub purge_available: bool,
     pub purge_cost: Option<i64>,
 
+    pub turn_number: Option<i64>,
+    pub orbs: Vec<OrbInfo>,
+    pub stance: Option<String>,
+
     pub hand_cards: Vec<CardInfo>,
     pub draw_pile: Vec<CardInfo>,
     pub discard_pile: Vec<CardInfo>,
@@ -247,6 +260,21 @@ pub struct NormalizedState {
 
     // count of empty potion slots ("Potion Slot" entries in raw potions array)
     pub empty_potion_slots: usize,
+}
+
+fn detect_stance_from_powers(powers: &[PowerInfo]) -> Option<String> {
+    for p in powers {
+        if p.amount <= 0 {
+            continue;
+        }
+        match p.id.as_str() {
+            "Wrath" => return Some("Wrath".to_string()),
+            "Calm" => return Some("Calm".to_string()),
+            "Divinity" => return Some("Divinity".to_string()),
+            _ => {}
+        }
+    }
+    None
 }
 
 fn extract_cards(arr: &[Value]) -> Vec<CardInfo> {
@@ -469,6 +497,27 @@ impl NormalizedState {
             .map(|arr| extract_powers(arr))
             .unwrap_or_default();
 
+        let turn_number = combat.and_then(|c| c.get("turn")).and_then(|v| v.as_i64());
+
+        let orbs: Vec<OrbInfo> = player
+            .and_then(|p| p.get("orbs"))
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .map(|o| OrbInfo {
+                        id: o
+                            .get("id")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        amount: o.get("amount").and_then(|v| v.as_i64()).unwrap_or(0),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let stance = detect_stance_from_powers(&powers);
+
         let hand: Vec<CardInfo> = combat
             .and_then(|c| c.get("hand"))
             .and_then(|v| v.as_array())
@@ -534,6 +583,7 @@ impl NormalizedState {
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("?")
                                 .to_string(),
+                            monster_id: m.get("id").and_then(|v| v.as_str()).map(|s| s.to_string()),
                             index: idx,
                             current_hp: hp,
                             max_hp: m.get("max_hp").and_then(|n| n.as_i64()),
@@ -830,6 +880,9 @@ impl NormalizedState {
             shop_potions,
             purge_available,
             purge_cost,
+            turn_number,
+            orbs,
+            stance,
             hand_cards,
             draw_pile,
             discard_pile,

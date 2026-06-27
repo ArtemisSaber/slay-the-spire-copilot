@@ -66,6 +66,7 @@ fn state() -> NormalizedState {
         grid_for_purge: false,
         grid_num_cards: None,
         empty_potion_slots: 0,
+        ..Default::default()
     }
 }
 
@@ -102,6 +103,7 @@ fn defend(name: &str, uuid: &str) -> CardInfo {
 fn monster(name: &str, hp: i64, block: i64, powers: Vec<PowerInfo>, index: usize) -> MonsterInfo {
     MonsterInfo {
         name: name.into(),
+        monster_id: None,
         index,
         current_hp: Some(hp),
         max_hp: Some(hp),

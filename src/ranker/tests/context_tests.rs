@@ -48,6 +48,7 @@ fn defend() -> CardInfo {
 fn jaw_worm() -> MonsterInfo {
     MonsterInfo {
         name: "Jaw Worm".into(),
+        monster_id: None,
         index: 0,
         current_hp: Some(44),
         max_hp: Some(46),

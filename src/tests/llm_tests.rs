@@ -226,12 +226,14 @@ fn test_state() -> NormalizedState {
         grid_for_purge: false,
         grid_num_cards: None,
         empty_potion_slots: 0,
+        ..Default::default()
     }
 }
 
 fn monster() -> MonsterInfo {
     MonsterInfo {
         name: "大颚虫".into(),
+        monster_id: None,
         index: 0,
         current_hp: Some(40),
         max_hp: Some(40),
