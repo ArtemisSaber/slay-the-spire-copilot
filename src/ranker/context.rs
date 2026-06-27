@@ -404,6 +404,11 @@ fn fill_parsed_vars(vars: &mut HashMap<String, f64>, parsed: &ParsedEffects) {
 }
 
 fn fill_target_vars(vars: &mut HashMap<String, f64>, monster: &MonsterInfo) {
+    vars.insert(
+        "target_damage".to_string(),
+        monster.damage.unwrap_or(0) as f64,
+    );
+    vars.insert("target_hits".to_string(), monster.hits.unwrap_or(0) as f64);
     if let Some(thorns) = monster.monster_powers.iter().find(|p| p.id == "Thorns") {
         vars.insert("thorns".to_string(), thorns.amount as f64);
     }
