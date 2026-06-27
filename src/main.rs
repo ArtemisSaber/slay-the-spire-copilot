@@ -401,7 +401,7 @@ async fn main() {
             {
                 Ok(Some(action)) => {
                     tracing::info!(
-                        "autoplay executing LLM-planned {:?} screen={} hash={}",
+                        "autoplay executing {:?} screen={} hash={}",
                         action,
                         screen_type,
                         &hash[..16],

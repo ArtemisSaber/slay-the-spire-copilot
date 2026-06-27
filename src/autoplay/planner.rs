@@ -67,12 +67,14 @@ pub async fn plan_action(
 
     let candidates = available_action_candidates(control, session, command_state, state);
     if candidates.is_empty() {
+        tracing::info!("autoplay no candidates, idling");
         return Ok(None);
     }
 
     if let Some(action) =
         try_deterministic_action(control, session, command_state, state, &candidates)
     {
+        tracing::info!("autoplay deterministic {:?}", action);
         tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
         return Ok(Some(action));
     }
@@ -80,6 +82,7 @@ pub async fn plan_action(
     if state.screen_type.as_deref() == Some("NONE")
         && let Some(action) = combat_adviser::try_kill_scan_action(state)
     {
+        tracing::info!("autoplay kill_scan {:?}", action);
         return Ok(Some(action));
     }
 
@@ -112,6 +115,7 @@ pub async fn plan_action(
                 match parse_planner_response(&response, control, command_state, state, &candidates)
                 {
                     Ok(action) => {
+                        tracing::info!("autoplay LLM attempt={} {:?}", attempt, action);
                         if let Some((potion_index, AutoPlayAction::Choose(chosen))) =
                             potion_in_full_slots_was_rejected(
                                 &candidates,
@@ -130,22 +134,34 @@ pub async fn plan_action(
                         }
                         return Ok(action);
                     }
-                    Err(e) => rejections.push(RejectedAttempt {
-                        attempt,
-                        rejected_action: rejected_action_from_response(&response),
-                        reason: e.to_string(),
-                    }),
+                    Err(e) => {
+                        tracing::debug!("autoplay LLM attempt={} rejected: {e}", attempt,);
+                        rejections.push(RejectedAttempt {
+                            attempt,
+                            rejected_action: rejected_action_from_response(&response),
+                            reason: e.to_string(),
+                        })
+                    }
                 }
             }
-            Err(e) => rejections.push(RejectedAttempt {
-                attempt,
-                rejected_action: None,
-                reason: format!("LLM query failed: {e}"),
-            }),
+            Err(e) => {
+                tracing::warn!("autoplay LLM attempt={} query error: {e}", attempt);
+                rejections.push(RejectedAttempt {
+                    attempt,
+                    rejected_action: None,
+                    reason: format!("LLM query failed: {e}"),
+                })
+            }
         }
     }
 
-    Ok(fallback_action(control, command_state, state))
+    let action = fallback_action(control, command_state, state);
+    tracing::info!(
+        "autoplay fallback after {} rejects {:?}",
+        rejections.len(),
+        action,
+    );
+    Ok(action)
 }
 
 fn potion_in_full_slots_was_rejected(
