@@ -99,7 +99,7 @@ fn build_monster_snapshots(monsters: &[MonsterInfo]) -> Option<Vec<MonsterSnapsh
             let is_minion = m
                 .monster_powers
                 .iter()
-                .any(|p| p.id == "Minion" && p.amount > 0);
+                .any(|p| p.id == "Minion" || p.id == "爪牙");
             Some(MonsterSnapshot {
                 command_index: m.index,
                 hp,
@@ -184,7 +184,7 @@ pub fn build_context(state: &NormalizedState) -> Option<CombatScanContext> {
     let cards: Vec<CardInfo> = state
         .hand
         .iter()
-        .filter(|c| c.uuid.is_some())
+        .filter(|c| c.uuid.is_some() && c.playable)
         .cloned()
         .collect();
     if cards.is_empty() {

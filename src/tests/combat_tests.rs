@@ -1,5 +1,5 @@
-use crate::combat::Stance;
 use crate::combat::context::build_context;
+use crate::combat::{Stance, can_end_fight};
 use crate::state::{
     CardInfo, DangerFlags, DangerLevel, MonsterInfo, NormalizedState, PowerInfo, RelicInfo,
 };
@@ -460,6 +460,37 @@ fn context_builder_monster_snapshot_fields() {
     assert_eq!(m1.block, 0);
     assert!(m1.is_minion);
     assert_eq!(m1.powers[0].id, "Minion");
+}
+
+#[test]
+fn context_builder_minion_power_presence_ignores_negative_amount() {
+    let mut s = state();
+    s.hand = vec![strike("打击", "s1")];
+    s.monsters = vec![monster(
+        "Torch Head",
+        40,
+        0,
+        vec![power("Minion", "爪牙", -1)],
+        0,
+    )];
+    s.energy = Some(1);
+
+    let ctx = build_context(&s).unwrap();
+    assert!(ctx.monsters[0].is_minion);
+}
+
+#[test]
+fn kill_scan_collector_ends_when_only_negative_amount_minions_remain() {
+    let mut s = state();
+    s.hand = vec![strike("打击", "s1")];
+    s.monsters = vec![
+        monster("Torch Head", 40, 0, vec![power("Minion", "爪牙", -1)], 0),
+        monster("Torch Head", 40, 0, vec![power("Minion", "爪牙", -1)], 1),
+        monster("Collector", 6, 0, vec![], 2),
+    ];
+    s.energy = Some(1);
+
+    assert!(can_end_fight(&s));
 }
 
 #[test]
