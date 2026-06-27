@@ -769,6 +769,7 @@ fn non_aoe_skill_remains_one_context() {
 fn builds_potion_contexts() {
     let mut state = make_state(vec![], vec![jaw_worm()]);
     state.potions = vec![PotionInfo {
+        slot: 0,
         name: "Fire Potion".into(),
         description: "Deal 20 damage".into(),
         price: None,
@@ -792,6 +793,7 @@ fn builds_potion_contexts() {
 fn skips_unusable_potions() {
     let mut state = make_state(vec![], vec![jaw_worm()]);
     state.potions = vec![PotionInfo {
+        slot: 0,
         name: "Block Potion".into(),
         description: "Gain 12 Block".into(),
         price: None,
@@ -811,6 +813,7 @@ fn skips_unusable_potions() {
 fn untargeted_potion_one_context() {
     let mut state = make_state(vec![], vec![jaw_worm()]);
     state.potions = vec![PotionInfo {
+        slot: 0,
         name: "Block Potion".into(),
         description: "Gain 12 Block".into(),
         price: None,

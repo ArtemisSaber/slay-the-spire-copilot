@@ -163,6 +163,7 @@ fn combat_prompt_includes_potion_descriptions_but_omits_relic_descriptions() {
             price: None,
         }],
         potions: vec![PotionInfo {
+            slot: 0,
             name: "恐惧药水".into(),
             description: "给予3层易伤。".into(),
             price: None,
@@ -1703,6 +1704,7 @@ fn shop_prompt_contains_mode_tag() {
             }
         }],
         shop_potions: vec![PotionInfo {
+            slot: 0,
             name: "再生药水".into(),
             description: "获得 5 层 再生 。".into(),
             price: Some(79),

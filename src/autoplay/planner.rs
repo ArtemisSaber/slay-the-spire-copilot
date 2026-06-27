@@ -329,9 +329,9 @@ fn state_summary(session: &AutoPlaySession, state: &NormalizedState) -> serde_js
                 "type": card.card_type,
             })
         }).collect::<Vec<_>>(),
-        "potions": state.potions.iter().enumerate().map(|(slot, potion)| {
+        "potions": state.potions.iter().map(|potion| {
             json!({
-                "slot": slot,
+                "slot": potion.slot,
                 "name": potion.name,
                 "description": potion.description,
                 "can_use": potion.can_use,

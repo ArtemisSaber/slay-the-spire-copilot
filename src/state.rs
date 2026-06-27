@@ -170,6 +170,8 @@ pub struct RelicInfo {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PotionInfo {
+    #[serde(default)]
+    pub slot: usize,
     pub name: String,
     pub description: String,
     pub price: Option<i64>,
@@ -401,13 +403,15 @@ fn extract_relic_infos(arr: &[Value]) -> Vec<RelicInfo> {
 
 fn extract_potion_infos(arr: &[Value]) -> Vec<PotionInfo> {
     arr.iter()
-        .filter(|p| {
+        .enumerate()
+        .filter(|(_, p)| {
             p.get("id")
                 .and_then(|id| id.as_str())
                 .map(|id| id != "Potion Slot")
                 .unwrap_or(true)
         })
-        .map(|p| PotionInfo {
+        .map(|(i, p)| PotionInfo {
+            slot: i,
             name: p
                 .get("name")
                 .and_then(|v| v.as_str())
