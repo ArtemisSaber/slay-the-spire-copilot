@@ -71,7 +71,7 @@ impl CardInfo {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MonsterInfo {
     pub name: String,
     #[serde(default)]

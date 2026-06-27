@@ -125,10 +125,6 @@ fn eval_condition(cond: &Condition, ctx: &ActionContext, rule: &Rule, rule_set: 
     }
 }
 
-#[allow(
-    clippy::collapsible_if,
-    reason = "condition predicates are most readable with early returns"
-)]
 fn eval_card(cond: &super::rules::CardCondition, ctx: &ActionContext) -> bool {
     let card = match &ctx.card {
         Some(c) => c,
@@ -136,85 +132,139 @@ fn eval_card(cond: &super::rules::CardCondition, ctx: &ActionContext) -> bool {
     };
     let p = &cond.card;
 
-    if let Some(ref t) = p.card_type {
-        if &card.card_type != t {
-            return false;
-        }
+    if let Some(ref t) = p.card_type
+        && &card.card_type != t
+    {
+        return false;
     }
-    if let Some(ref types) = p.type_in {
-        if !types.iter().any(|t| t == &card.card_type) {
-            return false;
-        }
+    if let Some(ref types) = p.type_in
+        && !types.iter().any(|t| t == &card.card_type)
+    {
+        return false;
     }
-    if let Some(ref types) = p.type_not_in {
-        if types.iter().any(|t| t == &card.card_type) {
-            return false;
-        }
+    if let Some(ref types) = p.type_not_in
+        && types.iter().any(|t| t == &card.card_type)
+    {
+        return false;
     }
-    if let Some(cost) = p.cost_eq {
-        if card.cost != cost {
-            return false;
-        }
+    if let Some(cost) = p.cost_eq
+        && card.cost != cost
+    {
+        return false;
     }
     if let Some(ethereal) = p.ethereal {
-        if card.description.contains("虚无") || card.description.contains("Ethereal") {
-            if !ethereal {
-                return false;
-            }
-        } else if ethereal {
+        let is_ethereal =
+            card.description.contains("虚无") || card.description.contains("Ethereal");
+        if is_ethereal != ethereal {
             return false;
         }
     }
-    if let Some(ref id) = p.id {
-        if &card.id != id {
-            return false;
-        }
+    if let Some(ref id) = p.id
+        && &card.id != id
+    {
+        return false;
     }
-    if let Some(ref ids) = p.id_in {
-        if !ids.iter().any(|i| i == &card.id) {
-            return false;
-        }
+    if let Some(ref ids) = p.id_in
+        && !ids.iter().any(|i| i == &card.id)
+    {
+        return false;
     }
     true
 }
 
-#[allow(
-    clippy::collapsible_if,
-    reason = "condition predicates are most readable with early returns"
-)]
 fn eval_parsed(cond: &super::rules::ParsedCondition, ctx: &ActionContext) -> bool {
     let parsed = &ctx.parsed;
     let p = &cond.parsed;
 
-    if let Some(v) = p.damage_gt {
-        if parsed.damage.unwrap_or(0) <= v {
-            return false;
-        }
+    if let Some(v) = p.damage_gt
+        && parsed.damage.unwrap_or(0) <= v
+    {
+        return false;
     }
-    if let Some(v) = p.damage_eq {
-        if parsed.damage.unwrap_or(0) != v {
-            return false;
-        }
+    if let Some(v) = p.damage_eq
+        && parsed.damage.unwrap_or(0) != v
+    {
+        return false;
     }
-    if let Some(v) = p.block_gt {
-        if parsed.block.unwrap_or(0) <= v {
-            return false;
-        }
+    if let Some(v) = p.block_gt
+        && parsed.block.unwrap_or(0) <= v
+    {
+        return false;
     }
-    if let Some(v) = p.block_eq {
-        if parsed.block.unwrap_or(0) != v {
-            return false;
-        }
+    if let Some(v) = p.block_eq
+        && parsed.block.unwrap_or(0) != v
+    {
+        return false;
     }
-    if let Some(v) = p.self_damage_gt {
-        if parsed.self_damage.unwrap_or(0) <= v {
-            return false;
-        }
+    if let Some(v) = p.heal_gt
+        && parsed.heal.unwrap_or(0) <= v
+    {
+        return false;
     }
-    if let Some(v) = p.exhausts_cards {
-        if (parsed.exhaust_count > 0) != v {
-            return false;
-        }
+    if let Some(v) = p.draw_gt
+        && parsed.draw.unwrap_or(0) <= v
+    {
+        return false;
+    }
+    if let Some(v) = p.self_damage_gt
+        && parsed.self_damage.unwrap_or(0) <= v
+    {
+        return false;
+    }
+    if let Some(v) = p.str_gain_gt
+        && parsed.str_gain.unwrap_or(0) <= v
+    {
+        return false;
+    }
+    if let Some(v) = p.dex_gain_gt
+        && parsed.dex_gain.unwrap_or(0) <= v
+    {
+        return false;
+    }
+    if let Some(v) = p.poison_gt
+        && parsed.poison.unwrap_or(0) <= v
+    {
+        return false;
+    }
+    if let Some(v) = p.vulnerable_gt
+        && parsed.vulnerable.unwrap_or(0) <= v
+    {
+        return false;
+    }
+    if let Some(v) = p.weak_gt
+        && parsed.weak.unwrap_or(0) <= v
+    {
+        return false;
+    }
+    if let Some(v) = p.energy_gain_gt
+        && parsed.energy_gain.unwrap_or(0) <= v
+    {
+        return false;
+    }
+    if let Some(v) = p.focus_gain_gt
+        && parsed.focus_gain.unwrap_or(0) <= v
+    {
+        return false;
+    }
+    if let Some(v) = p.str_loss_gt
+        && parsed.str_loss.unwrap_or(0) <= v
+    {
+        return false;
+    }
+    if let Some(v) = p.str_loss_temp
+        && parsed.str_loss_temp != v
+    {
+        return false;
+    }
+    if let Some(v) = p.mantra_gt
+        && parsed.mantra.unwrap_or(0) <= v
+    {
+        return false;
+    }
+    if let Some(v) = p.exhausts_cards
+        && (parsed.exhaust_count > 0) != v
+    {
+        return false;
     }
     if let Some(v) = p.exhausts_status_curse {
         let exhausts_bad_card = parsed.exhaust_count > 0
@@ -226,13 +276,24 @@ fn eval_parsed(cond: &super::rules::ParsedCondition, ctx: &ActionContext) -> boo
             return false;
         }
     }
+    if let Some(ref orb_type) = p.channel_orb
+        && parsed.channel_orb.as_deref() != Some(orb_type.as_str())
+    {
+        return false;
+    }
+    if let Some(v) = p.orb_slot_expand_gt
+        && parsed.orb_slot_expand <= v
+    {
+        return false;
+    }
+    if let Some(v) = p.exits_stance
+        && parsed.exits_stance != v
+    {
+        return false;
+    }
     true
 }
 
-#[allow(
-    clippy::collapsible_if,
-    reason = "condition predicates are most readable with early returns"
-)]
 fn eval_target(cond: &super::rules::TargetCondition, ctx: &ActionContext) -> bool {
     let target = match &ctx.target {
         Some(t) => t,
@@ -240,25 +301,25 @@ fn eval_target(cond: &super::rules::TargetCondition, ctx: &ActionContext) -> boo
     };
     let p = &cond.target;
 
-    if let Some(ref power_id) = p.power {
-        if !has_monster_power(target, power_id) {
-            return false;
-        }
+    if let Some(ref power_id) = p.power
+        && !has_monster_power(target, power_id)
+    {
+        return false;
     }
-    if let Some(ref power_id) = p.power_not {
-        if has_monster_power(target, power_id) {
-            return false;
-        }
+    if let Some(ref power_id) = p.power_not
+        && has_monster_power(target, power_id)
+    {
+        return false;
     }
-    if let Some(ref powers) = p.any_power_in {
-        if !powers.iter().any(|pid| has_monster_power(target, pid)) {
-            return false;
-        }
+    if let Some(ref powers) = p.any_power_in
+        && !powers.iter().any(|pid| has_monster_power(target, pid))
+    {
+        return false;
     }
-    if let Some(v) = p.is_scaling {
-        if target.is_scaling != v {
-            return false;
-        }
+    if let Some(v) = p.is_scaling
+        && target.is_scaling != v
+    {
+        return false;
     }
     if let Some(v) = p.is_minion {
         let is_minion = has_monster_power(target, "Minion");
@@ -266,75 +327,98 @@ fn eval_target(cond: &super::rules::TargetCondition, ctx: &ActionContext) -> boo
             return false;
         }
     }
-    if let Some(v) = p.can_be_killed {
-        if target.can_be_killed != v {
+    if let Some(v) = p.is_max_hp {
+        let at_max = target.current_hp == target.max_hp;
+        if at_max != v {
             return false;
         }
     }
-    if let Some(ref intent) = p.intent {
-        if target.intent.as_deref() != Some(intent) {
-            return false;
-        }
+    if let Some(v) = p.can_be_killed
+        && target.can_be_killed != v
+    {
+        return false;
     }
-    if let Some(ref intent) = p.intent_not {
-        if target.intent.as_deref() == Some(intent) {
-            return false;
-        }
+    if let Some(ref intent) = p.intent
+        && target.intent.as_deref() != Some(intent)
+    {
+        return false;
+    }
+    if let Some(ref intent) = p.intent_not
+        && target.intent.as_deref() == Some(intent)
+    {
+        return false;
     }
     true
 }
 
-#[allow(
-    clippy::collapsible_if,
-    reason = "condition predicates are most readable with early returns"
-)]
 fn eval_monsters(cond: &super::rules::MonstersCondition, ctx: &ActionContext) -> bool {
     let p = &cond.monsters;
 
-    if let Some(ref any) = p.any {
-        if !any_monster_matches(any, ctx) {
-            return false;
-        }
+    if let Some(ref any) = p.any
+        && !any_monster_matches(any, ctx)
+    {
+        return false;
     }
-    if let Some(ref none) = p.none {
-        if any_monster_matches(none, ctx) {
-            return false;
-        }
+    if let Some(ref none) = p.none
+        && any_monster_matches(none, ctx)
+    {
+        return false;
     }
     true
 }
 
-#[allow(
-    clippy::collapsible_if,
-    reason = "condition predicates are most readable with early returns"
-)]
 fn any_monster_matches(sub: &super::rules::MonsterSubPredicates, ctx: &ActionContext) -> bool {
     let monsters = &ctx.monsters;
+    let target_idx = ctx.target_index;
 
-    if let Some(ref monster_id) = sub.monster_id {
-        if monsters
-            .iter()
-            .any(|m| m.name.contains(monster_id.as_str()))
+    monsters.iter().enumerate().any(|(i, m)| {
+        if let Some(true) = sub.exclude_target
+            && target_idx == Some(i)
         {
-            return true;
+            return false;
         }
-    }
-    false
+
+        if let Some(ref monster_id) = sub.monster_id {
+            let matches = m.monster_id.as_ref().is_some_and(|mid| mid == monster_id);
+            if !matches {
+                return false;
+            }
+        }
+
+        if let Some(v) = sub.is_scaling
+            && m.is_scaling != v
+        {
+            return false;
+        }
+        if let Some(v) = sub.is_not_minion {
+            let is_minion = has_monster_power(m, "Minion");
+            let is_not_minion = !is_minion;
+            if is_not_minion != v {
+                return false;
+            }
+        }
+        if let Some(ref power_id) = sub.power
+            && !has_monster_power(m, power_id)
+        {
+            return false;
+        }
+        if let Some(ref intent) = sub.intent
+            && m.intent.as_deref() != Some(intent)
+        {
+            return false;
+        }
+
+        true
+    })
 }
 
-#[allow(
-    clippy::collapsible_if,
-    reason = "condition predicates are most readable with early returns"
-)]
 fn eval_player(cond: &super::rules::PlayerCondition, ctx: &ActionContext) -> bool {
     let p = &cond.player;
 
     if let Some(ref power_id) = p.power {
-        if ctx.vars.get("player_power").copied() != Some(1.0) {
-            let tag = format!("player_power_{power_id}");
-            if ctx.vars.get(&tag).copied() != Some(1.0) {
-                return false;
-            }
+        let tag = format!("player_power_{power_id}");
+        if ctx.vars.get(&tag).copied() != Some(1.0) {
+            return false;
         }
     }
     if let Some(ref power_id) = p.power_not {
@@ -370,17 +454,13 @@ fn eval_player(cond: &super::rules::PlayerCondition, ctx: &ActionContext) -> boo
     true
 }
 
-#[allow(
-    clippy::collapsible_if,
-    reason = "condition predicates are most readable with early returns"
-)]
 fn eval_state(cond: &super::rules::StateCondition, ctx: &ActionContext) -> bool {
     let p = &cond.state;
 
-    if let Some(v) = p.turn_eq {
-        if ctx.vars.get("turn").copied().unwrap_or(0.0) as i64 != v {
-            return false;
-        }
+    if let Some(v) = p.turn_eq
+        && ctx.vars.get("turn").copied().unwrap_or(0.0) as i64 != v
+    {
+        return false;
     }
     if let Some(v) = p.remaining_energy_gt {
         let energy = ctx.vars.get("remaining_energy").copied().unwrap_or(0.0) as i64;
@@ -419,6 +499,22 @@ fn eval_compute(
 }
 
 fn compute_score(rule: &Rule, ctx: &ActionContext) -> i64 {
+    if rule.per_target {
+        let monster_count = ctx.monsters.len();
+        if monster_count == 0 {
+            return 0;
+        }
+        let mut total: i64 = 0;
+        for _i in 0..monster_count {
+            total = total.saturating_add(compute_single_score(rule, ctx));
+        }
+        return total;
+    }
+
+    compute_single_score(rule, ctx)
+}
+
+fn compute_single_score(rule: &Rule, ctx: &ActionContext) -> i64 {
     if let Some(ref fn_name) = rule.score_fn {
         let mut vars = ctx.vars.clone();
         vars.insert("weight".to_string(), rule.weight.resolve() as f64);
