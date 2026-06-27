@@ -1,6 +1,6 @@
 #![allow(
     dead_code,
-    reason = "used in tests, will be consumed by engine in next cycles"
+    reason = "types deserialized from JSON; constructed in tests and engine"
 )]
 
 use serde::{Deserialize, Deserializer};

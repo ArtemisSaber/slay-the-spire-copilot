@@ -1,4 +1,4 @@
-#![allow(dead_code, reason = "WIP: ranker module being built in phases")]
+#![allow(dead_code, reason = "awaiting autoplay integration")]
 
 pub mod context;
 pub mod engine;

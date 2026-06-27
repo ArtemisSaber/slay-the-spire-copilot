@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "available_score_fns": ["hp_cost_penalty"],
+  "available_score_fns": ["hp_cost_penalty", "weak_new_formula", "weak_refresh_formula"],
   "rules": [
     {
       "rule_id": "base_status_curse",
