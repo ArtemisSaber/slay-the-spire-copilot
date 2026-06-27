@@ -9,7 +9,7 @@
     {
       "rule_id": "potion_base",
       "priority": 1000,
-      "weight": -50,
+      "weight": -20,
       "applies_to": [
         "use_potion"
       ],

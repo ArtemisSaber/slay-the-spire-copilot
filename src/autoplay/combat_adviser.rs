@@ -31,21 +31,43 @@ fn resolve_target(
     }))
 }
 
+fn derive_tags(breakdown: &[crate::ranker::engine::RuleResult]) -> Vec<String> {
+    let mut tags = Vec::new();
+    for r in breakdown {
+        if !r.matched {
+            continue;
+        }
+        let tag = match r.rule_id.as_str() {
+            "core_damage" | "core_damage_vulnerable" | "core_damage_intangible" => "damage",
+            "core_block_non_excessive" | "core_block_retain" | "core_block_retain_relic" => "block",
+            "core_block_excessive" => "excessive",
+            "target_killable" => "killable",
+            "combat_ends_fight" => "lethal",
+            "combat_priority_kill" | "combat_minion_kill" => "priority_kill",
+            "core_heal" => "heal",
+            "setup_power_card" => "power",
+            "core_draw_has_energy" => "draw",
+            "potion_base" => "potion",
+            _ => continue,
+        };
+        if !tags.contains(&tag.to_string()) {
+            tags.push(tag.to_string());
+        }
+    }
+    tags
+}
+
 fn action_entry(
     s: &crate::ranker::engine::ScoredAction,
     state: &NormalizedState,
 ) -> serde_json::Value {
     let target = resolve_target(state, s.target_index);
+    let tags = derive_tags(&s.breakdown);
     serde_json::json!({
         "action": s.action_type,
         "target": target,
-        "matched_rules": s.breakdown.iter()
-            .filter(|b| b.matched)
-            .map(|b| serde_json::json!({
-                "rule_id": b.rule_id,
-                "score": b.score,
-            }))
-            .collect::<Vec<_>>(),
+        "score": s.score,
+        "tags": tags,
     })
 }
 
@@ -58,33 +80,14 @@ pub fn top_ranked_context(state: &NormalizedState) -> Option<serde_json::Value> 
         return None;
     }
 
-    let (non_avoided, avoided): (Vec<_>, Vec<_>) = scored.iter().partition(|s| !s.is_avoid);
-
-    let suggested: Vec<serde_json::Value> = non_avoided
+    let actions: Vec<serde_json::Value> = scored
         .iter()
-        .take(5)
+        .filter(|s| !s.is_avoid)
         .map(|s| action_entry(s, state))
-        .collect();
-    let other: Vec<serde_json::Value> = non_avoided
-        .iter()
-        .skip(5)
-        .map(|s| action_entry(s, state))
-        .collect();
-    let avoided_actions: Vec<serde_json::Value> = avoided
-        .iter()
-        .map(|s| {
-            let mut entry = action_entry(s, state);
-            entry["score"] = serde_json::json!("AVOID");
-            entry
-        })
         .collect();
 
     Some(serde_json::json!({
-        "ranked_suggestions": {
-            "suggested_actions": suggested,
-            "other_actions": other,
-            "avoided_actions": avoided_actions,
-        }
+        "ranked_suggestions": actions
     }))
 }
 
@@ -223,29 +226,36 @@ mod tests {
     }
 
     #[test]
-    fn top_ranked_splits_into_three_arrays() {
+    fn top_ranked_returns_flat_array_with_score_and_tags() {
         let state = combat_state_with_cards(3, vec![strike_card("s1", 1)]);
         let context = top_ranked_context(&state).expect("should produce ranked context");
-        let rs = &context["ranked_suggestions"];
-        assert!(rs["suggested_actions"].is_array());
-        assert!(rs["other_actions"].is_array());
-        assert!(rs["avoided_actions"].is_array());
-        assert!(!rs["suggested_actions"].as_array().unwrap().is_empty());
+        let rs = context["ranked_suggestions"]
+            .as_array()
+            .expect("should be array");
+        assert!(!rs.is_empty(), "should have ranked actions");
+        let first = &rs[0];
+        assert!(first["score"].is_i64(), "should have numeric score");
+        assert!(first["tags"].is_array(), "should have tags array");
+        assert!(
+            first["tags"]
+                .as_array()
+                .unwrap()
+                .contains(&serde_json::json!("damage")),
+            "Strike should have damage tag"
+        );
     }
 
     #[test]
     fn top_ranked_includes_target_resolution() {
         let state = combat_state_with_cards(3, vec![strike_card("s1", 1)]);
         let context = top_ranked_context(&state).expect("should produce ranked context");
-        let sa = &context["ranked_suggestions"]["suggested_actions"];
-        let first = &sa[0];
+        let rs = context["ranked_suggestions"].as_array().unwrap();
+        let first = &rs[0];
         let target = &first["target"];
         assert_eq!(target["name"], "Jaw Worm");
         assert_eq!(target["hp"], 20);
 
-        let strike_entries: Vec<_> = sa
-            .as_array()
-            .unwrap()
+        let strike_entries: Vec<_> = rs
             .iter()
             .filter(|e| e["action"]["PlayCard"]["card_name"].as_str() == Some("Strike"))
             .collect();
@@ -254,7 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn top_ranked_avoided_uses_avoid_string() {
+    fn top_ranked_excludes_avoided_actions() {
         let state = combat_state_with_cards(
             3,
             vec![serde_json::json!({
@@ -269,11 +279,15 @@ mod tests {
             })],
         );
         let context = top_ranked_context(&state).expect("should produce ranked context");
-        let aa = context["ranked_suggestions"]["avoided_actions"]
-            .as_array()
-            .unwrap();
-        assert!(!aa.is_empty(), "should have avoided actions");
-        assert_eq!(aa[0]["score"], "AVOID");
+        let rs = context["ranked_suggestions"].as_array().unwrap();
+        let limit_break_entries: Vec<_> = rs
+            .iter()
+            .filter(|e| e["action"]["PlayCard"]["card_name"].as_str() == Some("Limit Break"))
+            .collect();
+        assert!(
+            limit_break_entries.is_empty(),
+            "Limit Break with 0 Strength should be excluded"
+        );
     }
 
     #[test]
@@ -289,10 +303,8 @@ mod tests {
     fn aoe_merged_into_single_entry_with_null_target() {
         let state = two_monster_state(3, vec![thunderclap_card()]);
         let context = top_ranked_context(&state).expect("should produce ranked context");
-        let sa = context["ranked_suggestions"]["suggested_actions"]
-            .as_array()
-            .unwrap();
-        let aoe_entries: Vec<_> = sa
+        let rs = context["ranked_suggestions"].as_array().unwrap();
+        let aoe_entries: Vec<_> = rs
             .iter()
             .filter(|e| e["action"]["PlayCard"]["card_name"].as_str() == Some("Thunderclap"))
             .collect();
@@ -311,10 +323,8 @@ mod tests {
     fn targeted_keeps_separate_entries_per_monster() {
         let state = two_monster_state(3, vec![strike_card("s1", 1)]);
         let context = top_ranked_context(&state).expect("should produce ranked context");
-        let sa = context["ranked_suggestions"]["suggested_actions"]
-            .as_array()
-            .unwrap();
-        let strike_entries: Vec<_> = sa
+        let rs = context["ranked_suggestions"].as_array().unwrap();
+        let strike_entries: Vec<_> = rs
             .iter()
             .filter(|e| e["action"]["PlayCard"]["card_name"].as_str() == Some("Strike"))
             .collect();
