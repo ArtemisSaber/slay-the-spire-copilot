@@ -39,7 +39,7 @@ pub struct OverlayMetadata {
     pub character: Option<String>,
 }
 
-fn timestamp_ms() -> u128 {
+pub(crate) fn timestamp_ms() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis())
@@ -85,7 +85,7 @@ pub fn parse_advice_response(raw: &str, locale: &Locale) -> AdviceFields {
     }
 }
 
-fn atomic_write_json(path: &std::path::Path, json: &str) {
+pub(crate) fn atomic_write_json(path: &std::path::Path, json: &str) {
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }

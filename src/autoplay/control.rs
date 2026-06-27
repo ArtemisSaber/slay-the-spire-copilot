@@ -11,21 +11,36 @@ pub enum AutoPlayMode {
     Paused,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct AutoPlayControl {
     pub schema_version: u32,
     pub revision: u64,
     pub mode: AutoPlayMode,
+    #[serde(default)]
     pub updated_at_ms: u128,
+    #[serde(default)]
     pub require_confirmation: bool,
+    #[serde(default = "default_true")]
     pub allow_card_rewards: bool,
+    #[serde(default = "default_true")]
     pub allow_combat_rewards: bool,
+    #[serde(default = "default_true")]
     pub allow_boss_rewards: bool,
+    #[serde(default = "default_true")]
     pub allow_rest: bool,
+    #[serde(default = "default_true")]
     pub allow_events: bool,
+    #[serde(default = "default_true")]
     pub allow_map: bool,
+    #[serde(default = "default_true")]
     pub allow_shop: bool,
+    #[serde(default = "default_true")]
     pub allow_combat: bool,
+    #[serde(default = "default_true")]
     pub allow_selection_screens: bool,
     pub min_hp_percent: Option<u8>,
 }
@@ -191,5 +206,33 @@ mod tests {
             load_control(&path, None),
             ControlLoad::Malformed(_)
         ));
+    }
+
+    #[test]
+    fn minimal_json_defaults_allow_flags_to_true() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("autoplay-control.json");
+        fs::write(
+            &path,
+            r#"{"schema_version": 1, "revision": 1, "mode": "auto"}"#,
+        )
+        .unwrap();
+
+        let loaded = load_control(&path, None);
+        let ControlLoad::Updated(control) = loaded else {
+            panic!("expected updated control");
+        };
+
+        assert_eq!(control.mode, AutoPlayMode::Auto);
+        assert!(control.allow_card_rewards);
+        assert!(control.allow_combat_rewards);
+        assert!(control.allow_boss_rewards);
+        assert!(control.allow_rest);
+        assert!(control.allow_events);
+        assert!(control.allow_map);
+        assert!(control.allow_shop);
+        assert!(control.allow_combat);
+        assert!(control.allow_selection_screens);
+        assert!(!control.require_confirmation);
     }
 }

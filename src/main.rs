@@ -230,6 +230,7 @@ async fn main() {
         None
     };
     let mut autoplay_session = autoplay::control::AutoPlaySession::default();
+    let mut autoplay_overlay_state = autoplay::status::AutoPlayState::default();
     let mut last_autoplay_state: Option<(
         serde_json::Value,
         state::NormalizedState,
@@ -338,6 +339,18 @@ async fn main() {
         let normalized = state::NormalizedState::from_raw(&raw, &locale);
         let hash = normalized.stable_hash();
         let command_state = autoplay::command_state::CommandState::from_raw(&raw);
+        let scenario = AdviceScenario::from_state(&normalized);
+        let overlay_path = logging::advice_output_dir()
+            .join("output")
+            .join("overlay.json");
+        let metadata = OverlayMetadata {
+            screen_type: Some(screen_type.to_string()),
+            scenario: scenario.as_str().to_string(),
+            in_combat: has_monsters(&raw),
+            state_hash: hash.clone(),
+            floor: normalized.floor,
+            character: normalized.character.clone(),
+        };
 
         if config.auto_play {
             let autoplay_control_path = logging::advice_output_dir()
@@ -388,6 +401,14 @@ async fn main() {
         journal.log_state_change(&hash, &normalized);
 
         if let Some(control) = current_autoplay_control.as_mut() {
+            autoplay_overlay_state.mode = "auto".into();
+            autoplay_overlay_state.status = "planning".into();
+            autoplay::status::write_overlay_autoplay(
+                &overlay_path,
+                &metadata,
+                &autoplay_overlay_state,
+            );
+
             match autoplay::planner::plan_action(
                 &provider,
                 control,
@@ -400,6 +421,12 @@ async fn main() {
             .await
             {
                 Ok(Some(action)) => {
+                    autoplay_overlay_state.status = "executing".into();
+                    autoplay::status::write_overlay_autoplay(
+                        &overlay_path,
+                        &metadata,
+                        &autoplay_overlay_state,
+                    );
                     tracing::info!(
                         "autoplay executing {:?} screen={} hash={}",
                         action,
@@ -412,8 +439,21 @@ async fn main() {
                     autoplay::action::execute_action_to(&mut stdout, &action);
                     continue;
                 }
-                Ok(None) => {}
+                Ok(None) => {
+                    autoplay_overlay_state.status = "idle".into();
+                    autoplay::status::write_overlay_autoplay(
+                        &overlay_path,
+                        &metadata,
+                        &autoplay_overlay_state,
+                    );
+                }
                 Err(e) => {
+                    autoplay_overlay_state.status = "error".into();
+                    autoplay::status::write_overlay_autoplay(
+                        &overlay_path,
+                        &metadata,
+                        &autoplay_overlay_state,
+                    );
                     tracing::warn!("autoplay planner did not produce an executable action: {e}");
                 }
             }
@@ -508,6 +548,7 @@ async fn main() {
             saw_game_state = false;
             run_finalized = false;
             last_autoplay_state = None;
+            autoplay_overlay_state = autoplay::status::AutoPlayState::default();
             consecutive_errors = 0;
             tracing::info!("run ended, waiting for next run...");
             continue;
@@ -548,7 +589,6 @@ async fn main() {
         );
 
         let effort = Effort::from_screen_type(screen_type, has_monsters(&raw));
-        let scenario = AdviceScenario::from_state(&normalized);
 
         let prompt = prompt::build_prompt(&normalized, &locale, map_gate.shop_visited);
         tracing::debug!(
@@ -557,14 +597,6 @@ async fn main() {
             &prompt[..prompt.len().min(200)]
         );
 
-        let metadata = OverlayMetadata {
-            screen_type: Some(screen_type.to_string()),
-            scenario: scenario.as_str().to_string(),
-            in_combat: has_monsters(&raw),
-            state_hash: hash.clone(),
-            floor: normalized.floor,
-            character: normalized.character.clone(),
-        };
         cache.write_overlay_loading(&metadata);
 
         let advice = cache
