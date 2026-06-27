@@ -13,6 +13,7 @@ pub(crate) fn find_kill_sequence_inner(
     state: &NormalizedState,
     options: &KillScanOptions,
 ) -> Option<KillSequence> {
+    let started = Instant::now();
     let ctx = build_context(state)?;
     let locale = crate::locales::Locale::load("zh");
 
@@ -29,11 +30,21 @@ pub(crate) fn find_kill_sequence_inner(
         .collect();
 
     if relevant.is_empty() {
+        tracing::debug!("kill_scan: no parseable cards in hand");
         return None;
     }
 
     let initial_mask: u16 = relevant.iter().fold(0, |m, (i, _, _)| m | (1u16 << i));
     let max_depth = relevant.len().min(ctx.remaining_card_plays);
+
+    tracing::info!(
+        "kill_scan searching hand={} energy={} mons={} max_depth={} deadline={:?}",
+        ctx.cards.len(),
+        ctx.energy,
+        ctx.monsters.len(),
+        max_depth,
+        options.deadline,
+    );
 
     let mut dfs_ctx = DfsContext {
         effects: &effects,
@@ -57,6 +68,7 @@ pub(crate) fn find_kill_sequence_inner(
         &mut dfs_ctx,
     );
 
+    let duration_ms = started.elapsed().as_millis();
     if let Some(steps) = result {
         let seq: KillSequence = steps
             .into_iter()
@@ -68,8 +80,21 @@ pub(crate) fn find_kill_sequence_inner(
                 target: s.target,
             })
             .collect();
+        tracing::info!(
+            "kill_scan found lethal {} steps expanded={} memo={} duration_ms={}",
+            seq.len(),
+            dfs_ctx.expanded,
+            dfs_ctx.memo.len(),
+            duration_ms,
+        );
         Some(seq)
     } else {
+        tracing::info!(
+            "kill_scan no lethal expanded={} memo={} duration_ms={}",
+            dfs_ctx.expanded,
+            dfs_ctx.memo.len(),
+            duration_ms,
+        );
         None
     }
 }
@@ -148,6 +173,10 @@ fn dfs(
     }
 
     if ctx.expanded.is_multiple_of(1000) && Instant::now() > ctx.deadline {
+        tracing::debug!(
+            "kill_scan DFS deadline expired at {} expanded states",
+            ctx.expanded
+        );
         return None;
     }
 

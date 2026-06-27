@@ -113,21 +113,26 @@ fn build_monster_snapshots(monsters: &[MonsterInfo]) -> Option<Vec<MonsterSnapsh
 
 pub fn build_context(state: &NormalizedState) -> Option<CombatScanContext> {
     if state.hand.is_empty() {
+        tracing::debug!("kill_scan: skipping — empty hand");
         return None;
     }
     if state.screen_type.as_deref() != Some("NONE") {
+        tracing::debug!("kill_scan: skipping — screen_type={:?}", state.screen_type);
         return None;
     }
 
     if has_one_shot_player_power(&state.powers) {
+        tracing::debug!("kill_scan: skipping — one-shot player power present");
         return None;
     }
 
     if has_dangerous_monster_power(&state.monsters) {
+        tracing::debug!("kill_scan: skipping — dangerous monster power (Shifting/变化)");
         return None;
     }
 
     if has_play_limiter_and_unknown_count(state) {
+        tracing::debug!("kill_scan: skipping — play limiter present");
         return None;
     }
 
@@ -154,6 +159,7 @@ pub fn build_context(state: &NormalizedState) -> Option<CombatScanContext> {
                 || p.id == "Strength"
                 || p.id == "力量";
             if !known {
+                tracing::debug!("kill_scan: skipping — unknown monster power \"{}\"", p.id);
                 return None;
             }
         }
@@ -182,9 +188,17 @@ pub fn build_context(state: &NormalizedState) -> Option<CombatScanContext> {
         .cloned()
         .collect();
     if cards.is_empty() {
+        tracing::debug!("kill_scan: skipping — no UUID cards after filter");
         return None;
     }
 
+    tracing::debug!(
+        "kill_scan: built context cards={} energy={} mons={} stance={:?}",
+        cards.len(),
+        energy,
+        monsters.len(),
+        stance,
+    );
     Some(CombatScanContext {
         cards,
         energy,
