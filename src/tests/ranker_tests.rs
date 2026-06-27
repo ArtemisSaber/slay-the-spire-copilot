@@ -273,6 +273,64 @@ fn strike_scores_damage() {
 }
 
 #[test]
+fn attack_vs_shifting_scores_effective_block() {
+    let state: NormalizedState = serde_json::from_value(serde_json::json!({
+        "screen_type": "NONE",
+        "current_hp": 50,
+        "max_hp": 70,
+        "energy": 3,
+        "block": 0,
+        "hand": [{
+            "id": "Strike_R",
+            "name": "Strike",
+            "cost": 1,
+            "card_type": "ATTACK",
+            "uuid": "uuid-strike",
+            "description": "Deal 12 damage.",
+            "has_target": true,
+            "playable": true
+        }],
+        "monsters": [{
+            "name": "Transient",
+            "monster_id": "Transient",
+            "index": 0,
+            "current_hp": 999,
+            "max_hp": 999,
+            "block": 0,
+            "intent": "ATTACK",
+            "damage": 30,
+            "hits": 1,
+            "monster_powers": [
+                {"id": "Shifting", "name": "Shifting", "amount": -1}
+            ],
+            "is_scaling": false,
+            "can_be_killed": false
+        }],
+        "incoming_damage": 30,
+        "powers": [],
+        "relics": [],
+        "draw_pile": [],
+        "discard_pile": [],
+        "potions": [],
+        "deck_names": []
+    }))
+    .expect("should parse");
+
+    let scored = ranker::rank(&state);
+    let strike = find_scored(&scored, "Strike");
+    let rule = find_breakdown(&strike.breakdown, "core_shifting_attack_block");
+
+    assert!(
+        rule.matched,
+        "Attack damage vs Shifting should mitigate incoming"
+    );
+    assert_eq!(
+        rule.score, 240,
+        "12 effective damage mitigation × 1000 weight / 50 current HP"
+    );
+}
+
+#[test]
 fn defend_scores_block() {
     let state = comm_mod_state("comm-f16t16-hexaghost-turn.json");
     let scored = ranker::rank(&state);

@@ -441,6 +441,38 @@
       "category": "per_card"
     },
     {
+      "rule_id": "core_shifting_attack_block",
+      "priority": 1064,
+      "weight": 1000,
+      "applies_to": [
+        "play_card"
+      ],
+      "formula": "min(min(@damage * @hits, @target_damage * @target_hits), max(@incoming_damage - @current_block, 0)) * @weight / max(@current_hp, 1)",
+      "conditions": [
+        {
+          "card": {
+            "type": "ATTACK"
+          }
+        },
+        {
+          "parsed": {
+            "damage_gt": 0
+          }
+        },
+        {
+          "target": {
+            "power": "Shifting"
+          }
+        },
+        {
+          "state": {
+            "incoming_damage_gt": 0
+          }
+        }
+      ],
+      "category": "per_target"
+    },
+    {
       "rule_id": "core_heal",
       "priority": 1070,
       "weight": 50,

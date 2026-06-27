@@ -100,6 +100,7 @@ guaranteed finisher later.
 |------|-----------|-------|
 | Block (non-excessive) | Parsed block > 0 AND (`current_block < incoming_damage` OR has retain) | `+1000 × min(block, incoming_damage) / current_hp` |
 | Block (excessive) | Parsed block > 0 AND `current_block >= incoming_damage` AND no retain | `-2000 × block / current_hp` |
+| Shifting attack mitigation | ATTACK damage > 0 AND target has `"Shifting"` AND incoming damage > 0 | `+1000 × min(damage × hits, target_damage × target_hits, incoming_damage - current_block) / current_hp` |
 
 Block is scored as the fraction of current HP saved, capped at incoming damage to
 prevent valuing over-blocking. This naturally makes blocks higher priority at low
@@ -119,6 +120,11 @@ the excess is silently discarded.
 Block retain detection: player has `"Barricade"` power or `"Calipers"` relic.
 When retain is present, all block scores at `+1000 × block / current_hp` regardless of
 pre-existing block (no `min()` cap since block carries over).
+
+Shifting mitigation models enemies such as Transient: attack damage against the
+Shifting target reduces that target's attack this turn, so it is scored like
+effective block. The score is capped by the target's visible attack and by the
+currently unblocked incoming damage.
 
 ### 3e. Heal
 

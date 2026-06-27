@@ -15,6 +15,7 @@ use crate::prompt;
 use crate::state::NormalizedState;
 
 const MAX_LLM_ATTEMPTS: usize = 3;
+const DETERMINISTIC_ACTION_DELAY: std::time::Duration = std::time::Duration::from_millis(1500);
 
 #[derive(Debug, Deserialize)]
 struct PlannerResponse {
@@ -75,7 +76,7 @@ pub async fn plan_action(
         try_deterministic_action(control, session, command_state, state, &candidates)
     {
         tracing::info!("autoplay deterministic {:?}", action);
-        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+        delay_before_deterministic_action().await;
         return Ok(Some(action));
     }
 
@@ -83,6 +84,7 @@ pub async fn plan_action(
         && let Some(action) = combat_adviser::try_kill_scan_action(state)
     {
         tracing::info!("autoplay kill_scan {:?}", action);
+        delay_before_deterministic_action().await;
         return Ok(Some(action));
     }
 
@@ -161,7 +163,14 @@ pub async fn plan_action(
         rejections.len(),
         action,
     );
+    if action.is_some() {
+        delay_before_deterministic_action().await;
+    }
     Ok(action)
+}
+
+async fn delay_before_deterministic_action() {
+    tokio::time::sleep(DETERMINISTIC_ACTION_DELAY).await;
 }
 
 fn potion_in_full_slots_was_rejected(
