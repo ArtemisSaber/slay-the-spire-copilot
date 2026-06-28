@@ -415,3 +415,7 @@ pub fn combat_ended(monsters: &[MonsterSnapshot]) -> bool {
     }
     monsters.iter().all(|m| m.hp <= 0 || m.is_minion)
 }
+
+#[cfg(test)]
+#[path = "../tests/damage_tests.rs"]
+mod tests;

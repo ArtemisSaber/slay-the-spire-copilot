@@ -103,3 +103,105 @@ fn validate_score_fns(rule_set: &mut RuleSet) {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::context::ActionType;
+    use super::rules::{Rule, RuleCategory, Weight};
+    use super::*;
+
+    #[test]
+    fn validate_score_fns_removes_unknown_and_ambiguous_rules() {
+        let mut rule_set = RuleSet {
+            version: "1.0".into(),
+            available_score_fns: vec!["known_fn".into()],
+            rules: vec![
+                Rule {
+                    rule_id: "valid_formula_rule".into(),
+                    priority: 1000,
+                    weight: Weight::Value(10),
+                    formula: Some("@weight * 1".into()),
+                    score_fn: None,
+                    override_rule: None,
+                    applies_to: vec!["play_card".into()],
+                    category: RuleCategory::PerTarget,
+                    conditions: vec![],
+                },
+                Rule {
+                    rule_id: "unknown_score_fn".into(),
+                    priority: 1000,
+                    weight: Weight::Value(10),
+                    formula: None,
+                    score_fn: Some("unknown_fn".into()),
+                    override_rule: None,
+                    applies_to: vec!["play_card".into()],
+                    category: RuleCategory::PerTarget,
+                    conditions: vec![],
+                },
+                Rule {
+                    rule_id: "both_formula_and_fn".into(),
+                    priority: 1000,
+                    weight: Weight::Value(10),
+                    formula: Some("@weight * 1".into()),
+                    score_fn: Some("known_fn".into()),
+                    override_rule: None,
+                    applies_to: vec!["play_card".into()],
+                    category: RuleCategory::PerTarget,
+                    conditions: vec![],
+                },
+                Rule {
+                    rule_id: "valid_known_fn".into(),
+                    priority: 1000,
+                    weight: Weight::Value(10),
+                    formula: None,
+                    score_fn: Some("known_fn".into()),
+                    override_rule: None,
+                    applies_to: vec!["play_card".into()],
+                    category: RuleCategory::PerTarget,
+                    conditions: vec![],
+                },
+            ],
+        };
+
+        validate_score_fns(&mut rule_set);
+
+        let ids: Vec<&str> = rule_set.rules.iter().map(|r| r.rule_id.as_str()).collect();
+        assert_eq!(ids.len(), 2, "expected 2 valid rules, got: {:?}", ids);
+        assert!(ids.contains(&"valid_formula_rule"));
+        assert!(ids.contains(&"valid_known_fn"));
+    }
+
+    #[test]
+    fn rank_returns_single_end_turn_for_default_state() {
+        let state = NormalizedState::default();
+        let result = rank(&state);
+        assert_eq!(
+            result.len(),
+            1,
+            "expected 1 end-turn action, got {}",
+            result.len()
+        );
+        assert!(
+            matches!(result[0].action_type, ActionType::EndTurn),
+            "expected EndTurn action"
+        );
+    }
+
+    #[test]
+    fn rules_lazy_static_loads_embedded_rules_json() {
+        let rules = &*RULES;
+        assert_eq!(rules.version, "1.0");
+        assert!(
+            !rules.rules.is_empty(),
+            "embedded rules.json should have rules"
+        );
+        assert!(
+            !rules.available_score_fns.is_empty(),
+            "should have available_score_fns"
+        );
+        assert!(
+            rules.rules.iter().any(|r| r.rule_id == "base_cost_penalty"),
+            "should include base_cost_penalty rule from embedded rules.json"
+        );
+    }
+}

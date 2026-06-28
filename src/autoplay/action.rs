@@ -1604,4 +1604,2208 @@ mod tests {
             "block potion should use raw slot 2"
         );
     }
+
+    // ─── active_control ───────────────────────────────────────────────
+
+    #[test]
+    fn stale_control_is_not_active() {
+        assert_eq!(active_control(&ControlLoad::Stale), None);
+    }
+
+    #[test]
+    fn updated_control_is_active() {
+        let load = ControlLoad::Updated(AutoPlayControl::default_enabled());
+        assert!(active_control(&load).is_some());
+    }
+
+    // ─── available_action_candidates early exit ───────────────────────
+
+    #[test]
+    fn require_confirmation_blocks_candidates() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "EVENT", "choice_list": ["Fight"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.require_confirmation = true;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn unknown_screen_type_returns_empty_candidates() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "UNKNOWN_WEIRD_SCREEN", "choice_list": ["A"]}
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn disallowed_screen_flag_returns_empty() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "REST", "screen_state": {"rest_options": ["rest"]}}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_rest = false;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    // ─── combat_reward_candidates ─────────────────────────────────────
+
+    #[test]
+    fn combat_reward_skips_potion_when_slots_full() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["potion", "gold"]}
+        });
+        let mut session = AutoPlaySession::default();
+        session.skipped_combat_reward_potion = true;
+        let mut s = state(raw.clone());
+        s.empty_potion_slots = 0;
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &session,
+            &command_state(&raw),
+            &s,
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "combat_reward:gold:1");
+    }
+
+    #[test]
+    fn combat_reward_skips_card_when_session_says_so() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["card", "gold"]}
+        });
+        let mut session = AutoPlaySession::default();
+        session.skipped_combat_reward_card = true;
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &session,
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "combat_reward:gold:1");
+    }
+
+    #[test]
+    fn combat_reward_card_not_allowed_when_flag_false() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["card", "gold"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_card_rewards = false;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "combat_reward:gold:1");
+    }
+
+    #[test]
+    fn combat_reward_filters_disallowed_choices() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["unknown_type", "gold"]}
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "combat_reward:gold:1");
+    }
+
+    #[test]
+    fn combat_reward_no_proceed_when_candidates_visible() {
+        let raw = json!({
+            "available_commands": ["choose", "proceed"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["gold"]}
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].kind, "choose");
+    }
+
+    #[test]
+    fn combat_reward_proceed_added_when_no_visible_candidates() {
+        let raw = json!({
+            "available_commands": ["choose", "proceed"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["unknown"]}
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "combat_reward:proceed");
+    }
+
+    #[test]
+    fn combat_reward_allows_emerald_key() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["emerald_key"]}
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "combat_reward:emerald_key:0");
+    }
+
+    // ─── card_reward boss / skip_available ────────────────────────────
+
+    #[test]
+    fn card_reward_boss_uses_boss_prefix_in_candidates() {
+        let raw = json!({
+            "available_commands": ["choose", "skip"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "CARD_REWARD",
+                "floor": 16,
+                "screen_state": {
+                    "skip_available": true,
+                    "cards": [{"id": "Impervious", "name": "Impervious"}]
+                }
+            }
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(
+            candidates
+                .iter()
+                .any(|c| c.action_id == "boss_card_reward:0")
+        );
+        assert!(
+            candidates
+                .iter()
+                .any(|c| c.action_id == "boss_card_reward:skip")
+        );
+    }
+
+    #[test]
+    fn card_reward_no_skip_when_not_available() {
+        let raw = json!({
+            "available_commands": ["choose", "skip"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "CARD_REWARD",
+                "screen_state": {
+                    "skip_available": false,
+                    "cards": [{"id": "Anger", "name": "Anger"}]
+                }
+            }
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "card_reward:0");
+    }
+
+    // ─── boss_reward ──────────────────────────────────────────────────
+
+    #[test]
+    fn boss_reward_candidates_empty_without_choose() {
+        let raw = json!({
+            "available_commands": ["proceed"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "BOSS_REWARD",
+                "screen_state": {"relics": [{"id": "Runic Dome", "name": "Runic Dome"}]}
+            }
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn resolve_boss_reward_rejects_wrong_kind() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "BOSS_REWARD",
+                "screen_state": {"relics": [{"id": "Runic Dome", "name": "Runic Dome"}]}
+            }
+        });
+        assert_eq!(
+            resolve(
+                &raw,
+                &AutoPlayControl::default_enabled(),
+                &request("skip", "boss_relic:0")
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn resolve_boss_reward_rejects_out_of_bounds() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "BOSS_REWARD",
+                "screen_state": {"relics": [{"id": "Runic Dome", "name": "Runic Dome"}]}
+            }
+        });
+        assert_eq!(
+            resolve(
+                &raw,
+                &AutoPlayControl::default_enabled(),
+                &request("choose", "boss_relic:5")
+            ),
+            None
+        );
+    }
+
+    // ─── rest ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn rest_candidates_empty_without_choose_or_proceed() {
+        let raw = json!({
+            "available_commands": ["wait"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "REST",
+                "screen_state": {"rest_options": ["rest"]}
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_rest = true;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn resolve_rest_option_not_found() {
+        let s = NormalizedState {
+            rest_options: vec!["rest".to_string()],
+            ..NormalizedState::default()
+        };
+        let req = ActionRequest {
+            kind: "choose".into(),
+            action_id: "rest:nonexistent".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_rest(&s, &req), None);
+    }
+
+    #[test]
+    fn resolve_rest_rejects_wrong_kind() {
+        let s = NormalizedState {
+            rest_options: vec!["rest".to_string()],
+            ..NormalizedState::default()
+        };
+        let req = ActionRequest {
+            kind: "skip".into(),
+            action_id: "rest:rest".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_rest(&s, &req), None);
+    }
+
+    // ─── event ────────────────────────────────────────────────────────
+
+    #[test]
+    fn event_candidates_empty_without_choose() {
+        let raw = json!({
+            "available_commands": ["proceed"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "EVENT", "choice_list": ["Fight"]}
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    // ─── map ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn map_candidates_empty_without_choose() {
+        let raw = json!({
+            "available_commands": ["proceed"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "MAP", "choice_list": ["M", "?"]}
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn resolve_map_rejects_out_of_bounds() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "MAP", "choice_list": ["M"]}
+        });
+        assert_eq!(
+            resolve(
+                &raw,
+                &AutoPlayControl::default_enabled(),
+                &request("choose", "map:choice:5")
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn resolve_map_rejects_wrong_kind() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "MAP", "choice_list": ["M"]}
+        });
+        assert_eq!(
+            resolve(
+                &raw,
+                &AutoPlayControl::default_enabled(),
+                &request("skip", "map:choice:0")
+            ),
+            None
+        );
+    }
+
+    // ─── shop ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn shop_candidates_already_entered_shows_proceed_and_leave() {
+        let raw = json!({
+            "available_commands": ["choose", "proceed", "leave"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5, "choice_list": ["purge"]}
+        });
+        let mut session = AutoPlaySession::default();
+        session.last_shop_room_floor = Some(5);
+        let mut s = state(raw.clone());
+        s.floor = Some(5);
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &session,
+            &command_state(&raw),
+            &s,
+        );
+        assert!(candidates.iter().any(|c| c.action_id == "shop:proceed"));
+        assert!(candidates.iter().any(|c| c.action_id == "shop:leave"));
+        assert!(!candidates.iter().any(|c| c.kind == "choose"));
+    }
+
+    #[test]
+    fn shop_candidates_first_visit_shows_choices_and_leave() {
+        let raw = json!({
+            "available_commands": ["choose", "leave"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5, "choice_list": ["purge", "Strike"]}
+        });
+        let mut session = AutoPlaySession::default();
+        session.last_shop_room_floor = Some(3);
+        let mut s = state(raw.clone());
+        s.floor = Some(5);
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &session,
+            &command_state(&raw),
+            &s,
+        );
+        assert!(candidates.iter().any(|c| c.action_id == "shop:choice:0"));
+        assert!(candidates.iter().any(|c| c.action_id == "shop:choice:1"));
+        assert!(candidates.iter().any(|c| c.action_id == "shop:leave"));
+    }
+
+    #[test]
+    fn resolve_shop_proceed_returns_proceed() {
+        let raw = json!({
+            "available_commands": ["proceed"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5, "choice_list": []}
+        });
+        let mut session = AutoPlaySession::default();
+        session.last_shop_room_floor = Some(5);
+        let mut s = state(raw.clone());
+        s.floor = Some(5);
+        assert_eq!(
+            resolve_requested_action(
+                &AutoPlayControl::default_enabled(),
+                &session,
+                &command_state(&raw),
+                &s,
+                &request("proceed", "shop:proceed"),
+            ),
+            Some(AutoPlayAction::Proceed)
+        );
+    }
+
+    // ─── chest ────────────────────────────────────────────────────────
+
+    #[test]
+    fn chest_candidates_choose_options() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "CHEST", "choice_list": ["Open", "Leave"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].action_id, "chest:0");
+        assert_eq!(candidates[1].action_id, "chest:1");
+    }
+
+    #[test]
+    fn chest_candidates_proceed_only() {
+        let raw = json!({
+            "available_commands": ["proceed"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "CHEST", "choice_list": []}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "chest:proceed");
+    }
+
+    #[test]
+    fn chest_candidates_empty_no_commands() {
+        let raw = json!({
+            "available_commands": ["wait"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "CHEST", "choice_list": []}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn resolve_chest_proceed_returns_proceed() {
+        let raw = json!({
+            "available_commands": ["proceed"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "CHEST", "choice_list": []}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        assert_eq!(
+            resolve_requested_action(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state(&raw),
+                &state(raw),
+                &request("proceed", "chest:proceed"),
+            ),
+            Some(AutoPlayAction::Proceed)
+        );
+    }
+
+    // ─── grid / hand_select no commands ───────────────────────────────
+
+    #[test]
+    fn grid_candidates_empty_no_commands() {
+        let raw = json!({
+            "available_commands": ["wait"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "GRID", "choice_list": []}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn hand_select_candidates_empty_no_commands() {
+        let raw = json!({
+            "available_commands": ["wait"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "HAND_SELECT", "choice_list": []}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    // ─── complete ─────────────────────────────────────────────────────
+
+    #[test]
+    fn resolve_complete_rejects_non_proceed() {
+        let raw = json!({
+            "game_state": {
+                "screen_type": "COMPLETE", "screen_state": {},
+                "seed": -582230291998696632_i64, "relics": [], "deck": [], "map": [], "floor": 50
+            },
+            "available_commands": ["proceed", "wait", "state"],
+            "ready_for_command": true,
+            "in_game": true
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        assert_eq!(
+            resolve_requested_action(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state(&raw),
+                &state(raw),
+                &request("skip", "complete:proceed"),
+            ),
+            None
+        );
+    }
+
+    // ─── combat candidates edge cases ─────────────────────────────────
+
+    #[test]
+    fn combat_candidates_skip_unplayable_card() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 3, "block": 0, "powers": []},
+                    "hand": [
+                        {"id": "Strike", "name": "Strike", "cost": 1, "type": "ATTACK", "uuid": "s-1", "has_target": true, "is_playable": false}
+                    ],
+                    "monsters": [
+                        {"name": "Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
+                    ]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_combat = true;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "combat:end");
+    }
+
+    #[test]
+    fn combat_candidates_skip_card_no_uuid() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 3, "block": 0, "powers": []},
+                    "hand": [
+                        {"id": "Strike", "name": "Strike", "cost": 1, "type": "ATTACK", "has_target": true, "is_playable": true}
+                    ],
+                    "monsters": [
+                        {"name": "Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
+                    ]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_combat = true;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.iter().all(|c| c.kind != "play"));
+    }
+
+    #[test]
+    fn combat_candidates_skip_unusable_potion() {
+        use crate::state::PotionInfo;
+        let s = NormalizedState {
+            screen_type: Some("NONE".into()),
+            potions: vec![PotionInfo {
+                slot: 0,
+                name: "Bad".into(),
+                description: "".into(),
+                price: None,
+                can_use: false,
+                can_discard: true,
+                requires_target: false,
+            }],
+            monsters: vec![crate::state::MonsterInfo {
+                name: "Test".into(),
+                index: 0,
+                current_hp: Some(10),
+                max_hp: Some(10),
+                block: Some(0),
+                intent: Some("ATTACK".into()),
+                damage: Some(5),
+                hits: Some(1),
+                monster_powers: vec![],
+                can_be_killed: false,
+                is_scaling: false,
+                monster_id: None,
+            }],
+            ..NormalizedState::default()
+        };
+        let raw = json!({
+            "available_commands": ["end", "potion"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "hand": [],
+                    "monsters": [{"name": "Test", "current_hp": 10, "max_hp": 10, "block": 0, "intent": "ATTACK", "is_gone": false}],
+                    "player": {"energy": 0, "block": 0, "powers": []},
+                    "turn": 1
+                }
+            }
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &s,
+        );
+        assert!(candidates.iter().all(|c| c.kind != "drink"));
+    }
+
+    // ─── resolve combat edge cases ────────────────────────────────────
+
+    #[test]
+    fn resolve_combat_missing_target_for_targeted_card() {
+        use crate::state::CardInfo;
+        let s = NormalizedState {
+            hand: vec![CardInfo {
+                id: "Strike".into(),
+                name: "Strike".into(),
+                cost: 1,
+                card_type: "ATTACK".into(),
+                upgraded: false,
+                uuid: Some("s-1".into()),
+                description: "".into(),
+                price: None,
+                playable: true,
+                has_target: true,
+            }],
+            monsters: vec![crate::state::MonsterInfo {
+                name: "Worm".into(),
+                index: 0,
+                current_hp: Some(10),
+                max_hp: Some(10),
+                block: Some(0),
+                intent: Some("ATTACK".into()),
+                damage: Some(5),
+                hits: Some(1),
+                monster_powers: vec![],
+                can_be_killed: false,
+                is_scaling: false,
+                monster_id: None,
+            }],
+            energy: Some(3),
+            ..NormalizedState::default()
+        };
+        let req = ActionRequest {
+            kind: "play".into(),
+            action_id: "combat:play:s-1".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_combat(&s, &req), None);
+    }
+
+    #[test]
+    fn resolve_combat_invalid_monster_index() {
+        use crate::state::CardInfo;
+        let s = NormalizedState {
+            hand: vec![CardInfo {
+                id: "Strike".into(),
+                name: "Strike".into(),
+                cost: 1,
+                card_type: "ATTACK".into(),
+                upgraded: false,
+                uuid: Some("s-1".into()),
+                description: "".into(),
+                price: None,
+                playable: true,
+                has_target: true,
+            }],
+            monsters: vec![crate::state::MonsterInfo {
+                name: "Worm".into(),
+                index: 0,
+                current_hp: Some(10),
+                max_hp: Some(10),
+                block: Some(0),
+                intent: Some("ATTACK".into()),
+                damage: Some(5),
+                hits: Some(1),
+                monster_powers: vec![],
+                can_be_killed: false,
+                is_scaling: false,
+                monster_id: None,
+            }],
+            energy: Some(3),
+            ..NormalizedState::default()
+        };
+        let req = ActionRequest {
+            kind: "play".into(),
+            action_id: "combat:play:s-1".into(),
+            target_index: Some(99),
+        };
+        assert_eq!(resolve_requested_combat(&s, &req), None);
+    }
+
+    #[test]
+    fn resolve_combat_uuid_not_found() {
+        use crate::state::CardInfo;
+        let s = NormalizedState {
+            hand: vec![CardInfo {
+                id: "Defend".into(),
+                name: "Defend".into(),
+                cost: 1,
+                card_type: "SKILL".into(),
+                upgraded: false,
+                uuid: Some("d-1".into()),
+                description: "".into(),
+                price: None,
+                playable: true,
+                has_target: false,
+            }],
+            energy: Some(3),
+            ..NormalizedState::default()
+        };
+        let req = ActionRequest {
+            kind: "play".into(),
+            action_id: "combat:play:bad-uuid".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_combat(&s, &req), None);
+    }
+
+    #[test]
+    fn resolve_combat_drink_potion_not_found() {
+        use crate::state::PotionInfo;
+        let s = NormalizedState {
+            potions: vec![PotionInfo {
+                slot: 0,
+                name: "Heal".into(),
+                description: "".into(),
+                price: None,
+                can_use: true,
+                can_discard: true,
+                requires_target: false,
+            }],
+            ..NormalizedState::default()
+        };
+        let req = ActionRequest {
+            kind: "drink".into(),
+            action_id: "combat:potion:5".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_combat(&s, &req), None);
+    }
+
+    #[test]
+    fn resolve_combat_drink_potion_cannot_use() {
+        use crate::state::PotionInfo;
+        let s = NormalizedState {
+            potions: vec![PotionInfo {
+                slot: 0,
+                name: "Heal".into(),
+                description: "".into(),
+                price: None,
+                can_use: false,
+                can_discard: true,
+                requires_target: false,
+            }],
+            ..NormalizedState::default()
+        };
+        let req = ActionRequest {
+            kind: "drink".into(),
+            action_id: "combat:potion:0".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_combat(&s, &req), None);
+    }
+
+    #[test]
+    fn resolve_combat_drink_missing_target_for_targeted_potion() {
+        use crate::state::PotionInfo;
+        let s = NormalizedState {
+            potions: vec![PotionInfo {
+                slot: 0,
+                name: "Fire".into(),
+                description: "".into(),
+                price: None,
+                can_use: true,
+                can_discard: true,
+                requires_target: true,
+            }],
+            monsters: vec![crate::state::MonsterInfo {
+                name: "Worm".into(),
+                index: 0,
+                current_hp: Some(10),
+                max_hp: Some(10),
+                block: Some(0),
+                intent: Some("ATTACK".into()),
+                damage: Some(5),
+                hits: Some(1),
+                monster_powers: vec![],
+                can_be_killed: false,
+                is_scaling: false,
+                monster_id: None,
+            }],
+            ..NormalizedState::default()
+        };
+        let req = ActionRequest {
+            kind: "drink".into(),
+            action_id: "combat:potion:0".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_combat(&s, &req), None);
+    }
+
+    #[test]
+    fn resolve_combat_drink_invalid_monster_target() {
+        use crate::state::PotionInfo;
+        let s = NormalizedState {
+            potions: vec![PotionInfo {
+                slot: 0,
+                name: "Fire".into(),
+                description: "".into(),
+                price: None,
+                can_use: true,
+                can_discard: true,
+                requires_target: true,
+            }],
+            monsters: vec![crate::state::MonsterInfo {
+                name: "Worm".into(),
+                index: 0,
+                current_hp: Some(10),
+                max_hp: Some(10),
+                block: Some(0),
+                intent: Some("ATTACK".into()),
+                damage: Some(5),
+                hits: Some(1),
+                monster_powers: vec![],
+                can_be_killed: false,
+                is_scaling: false,
+                monster_id: None,
+            }],
+            ..NormalizedState::default()
+        };
+        let req = ActionRequest {
+            kind: "drink".into(),
+            action_id: "combat:potion:0".into(),
+            target_index: Some(99),
+        };
+        assert_eq!(resolve_requested_combat(&s, &req), None);
+    }
+
+    #[test]
+    fn resolve_combat_rejects_unknown_kind() {
+        let s = NormalizedState {
+            energy: Some(3),
+            ..NormalizedState::default()
+        };
+        let req = ActionRequest {
+            kind: "unknown".into(),
+            action_id: "combat:end".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_combat(&s, &req), None);
+    }
+
+    // ─── resolve combat_reward edge cases ─────────────────────────────
+
+    #[test]
+    fn resolve_combat_reward_rejects_wrong_kind() {
+        let cmd = CommandState {
+            ready_for_command: true,
+            available_commands: vec!["choose".into()],
+            choice_list: vec!["gold".into()],
+        };
+        let req = ActionRequest {
+            kind: "skip".into(),
+            action_id: "combat_reward:gold:0".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_combat_reward(&cmd, &req), None);
+    }
+
+    #[test]
+    fn resolve_combat_reward_rejects_no_choose_command() {
+        let cmd = CommandState {
+            ready_for_command: true,
+            available_commands: vec!["proceed".into()],
+            choice_list: vec!["gold".into()],
+        };
+        let req = ActionRequest {
+            kind: "choose".into(),
+            action_id: "combat_reward:gold:0".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_combat_reward(&cmd, &req), None);
+    }
+
+    #[test]
+    fn resolve_combat_reward_rejects_bad_index_format() {
+        let cmd = CommandState {
+            ready_for_command: true,
+            available_commands: vec!["choose".into()],
+            choice_list: vec!["gold".into()],
+        };
+        let req = ActionRequest {
+            kind: "choose".into(),
+            action_id: "combat_reward:gold:abc".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_combat_reward(&cmd, &req), None);
+    }
+
+    // ─── resolve card_reward edge cases ───────────────────────────────
+
+    #[test]
+    fn resolve_card_reward_rejects_index_out_of_bounds() {
+        let raw = json!({
+            "game_state": {
+                "screen_type": "CARD_REWARD",
+                "screen_state": {"cards": [{"id": "Anger", "name": "Anger"}]}
+            }
+        });
+        let cmd = CommandState {
+            ready_for_command: true,
+            available_commands: vec!["choose".into()],
+            choice_list: vec![],
+        };
+        let s = state(raw);
+        let req = ActionRequest {
+            kind: "choose".into(),
+            action_id: "card_reward:5".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_card_reward(&cmd, &s, &req), None);
+    }
+
+    #[test]
+    fn resolve_card_reward_rejects_wrong_kind() {
+        let raw = json!({
+            "game_state": {
+                "screen_type": "CARD_REWARD",
+                "screen_state": {"cards": [{"id": "Anger", "name": "Anger"}]}
+            }
+        });
+        let cmd = CommandState {
+            ready_for_command: true,
+            available_commands: vec!["choose".into()],
+            choice_list: vec![],
+        };
+        let s = state(raw);
+        let req = ActionRequest {
+            kind: "skip".into(),
+            action_id: "card_reward:0".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_card_reward(&cmd, &s, &req), None);
+    }
+
+    #[test]
+    fn resolve_boss_card_reward_skip() {
+        let raw = json!({
+            "available_commands": ["choose", "skip"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "CARD_REWARD",
+                "floor": 16,
+                "screen_state": {
+                    "skip_available": true,
+                    "cards": [{"id": "Impervious", "name": "Impervious"}]
+                }
+            }
+        });
+        assert_eq!(
+            resolve(
+                &raw,
+                &AutoPlayControl::default_enabled(),
+                &request("skip", "boss_card_reward:skip")
+            ),
+            Some(AutoPlayAction::Skip)
+        );
+    }
+
+    // ─── resolve event edge cases ─────────────────────────────────────
+
+    #[test]
+    fn resolve_event_rejects_out_of_bounds() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "EVENT", "choice_list": ["Fight"]}
+        });
+        assert_eq!(
+            resolve(
+                &raw,
+                &AutoPlayControl::default_enabled(),
+                &request("choose", "event:5")
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn resolve_event_rejects_wrong_kind() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "EVENT", "choice_list": ["Fight"]}
+        });
+        assert_eq!(
+            resolve(
+                &raw,
+                &AutoPlayControl::default_enabled(),
+                &request("skip", "event:0")
+            ),
+            None
+        );
+    }
+
+    // ─── resolve indexed direct tests ─────────────────────────────────
+
+    #[test]
+    fn resolve_indexed_rejects_wrong_kind() {
+        let req = ActionRequest {
+            kind: "skip".into(),
+            action_id: "prefix:0".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_indexed("prefix:", 5, &req), None);
+    }
+
+    #[test]
+    fn resolve_indexed_rejects_out_of_bounds() {
+        let req = ActionRequest {
+            kind: "choose".into(),
+            action_id: "prefix:5".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_indexed("prefix:", 3, &req), None);
+    }
+
+    #[test]
+    fn resolve_indexed_rejects_bad_format() {
+        let req = ActionRequest {
+            kind: "choose".into(),
+            action_id: "prefix:abc".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_indexed("prefix:", 3, &req), None);
+    }
+
+    // ─── resolve: mismatched kind passes early filter but fails later ──
+
+    #[test]
+    fn resolve_rejects_when_action_id_and_kind_mismatch_candidates() {
+        let raw = json!({
+            "available_commands": ["end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 3, "block": 0, "powers": []},
+                    "hand": [],
+                    "monsters": [
+                        {"name": "Worm", "current_hp": 44, "max_hp": 46, "block": 0, "intent": "ATTACK", "is_gone": false}
+                    ]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_combat = true;
+        let result = resolve_requested_action(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+            &request("play", "combat:end"),
+        );
+        assert_eq!(result, None);
+    }
+
+    // ─── resolve grid / hand_select non-confirm non-choose rejections ─
+
+    #[test]
+    fn resolve_grid_no_candidates_for_non_confirm_non_choose() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "GRID", "choice_list": ["Strike"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        assert_eq!(
+            resolve_requested_action(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state(&raw),
+                &state(raw),
+                &request("skip", "grid:0"),
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn resolve_hand_select_no_candidates_for_non_confirm_non_choose() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "HAND_SELECT", "choice_list": ["Strike"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        assert_eq!(
+            resolve_requested_action(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state(&raw),
+                &state(raw),
+                &request("skip", "hand_select:0"),
+            ),
+            None
+        );
+    }
+
+    // ─── resolve chest / complete invalid requests ────────────────────
+
+    #[test]
+    fn resolve_chest_no_candidates_for_non_proceed_non_choose() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "CHEST", "choice_list": ["Open"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        assert_eq!(
+            resolve_requested_action(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state(&raw),
+                &state(raw),
+                &request("skip", "chest:0"),
+            ),
+            None
+        );
+    }
+
+    // ─── execute_action_to Edge cases ─────────────────────────────────
+
+    #[test]
+    fn execute_each_action_type_in_isolation() {
+        let mut buf = Vec::new();
+        execute_action_to(
+            &mut buf,
+            &AutoPlayAction::Play {
+                hand_index: 0,
+                target_index: None,
+            },
+        );
+        assert_eq!(String::from_utf8(buf).unwrap().trim(), "play 1");
+
+        let mut buf = Vec::new();
+        execute_action_to(
+            &mut buf,
+            &AutoPlayAction::Play {
+                hand_index: 1,
+                target_index: Some(0),
+            },
+        );
+        assert_eq!(String::from_utf8(buf).unwrap().trim(), "play 2 0");
+
+        let mut buf = Vec::new();
+        execute_action_to(&mut buf, &AutoPlayAction::Choose(0));
+        assert_eq!(String::from_utf8(buf).unwrap().trim(), "choose 0");
+
+        let mut buf = Vec::new();
+        execute_action_to(
+            &mut buf,
+            &AutoPlayAction::Drink {
+                slot_index: 0,
+                target_index: None,
+            },
+        );
+        assert_eq!(String::from_utf8(buf).unwrap().trim(), "potion use 0");
+
+        let mut buf = Vec::new();
+        execute_action_to(&mut buf, &AutoPlayAction::End);
+        assert_eq!(String::from_utf8(buf).unwrap().trim(), "end");
+
+        let mut buf = Vec::new();
+        execute_action_to(&mut buf, &AutoPlayAction::Skip);
+        assert_eq!(String::from_utf8(buf).unwrap().trim(), "skip");
+
+        let mut buf = Vec::new();
+        execute_action_to(&mut buf, &AutoPlayAction::Proceed);
+        assert_eq!(String::from_utf8(buf).unwrap().trim(), "proceed");
+
+        let mut buf = Vec::new();
+        execute_action_to(&mut buf, &AutoPlayAction::Leave);
+        assert_eq!(String::from_utf8(buf).unwrap().trim(), "leave");
+    }
+
+    // ─── candidate helpers ────────────────────────────────────────────
+
+    #[test]
+    fn candidate_has_target_required_none() {
+        let c = candidate("choose", "id:0".into(), "label".into());
+        assert_eq!(c.target_required, None);
+    }
+
+    #[test]
+    fn targeted_candidate_has_target_required_true() {
+        let c = targeted_candidate("play", "id:1".into(), "label".into());
+        assert_eq!(c.target_required, Some(true));
+    }
+
+    // ─── parse_index ──────────────────────────────────────────────────
+
+    #[test]
+    fn parse_index_valid() {
+        assert_eq!(parse_index("prefix:42", "prefix:"), Some(42));
+    }
+
+    #[test]
+    fn parse_index_missing_prefix() {
+        assert_eq!(parse_index("wrong:42", "prefix:"), None);
+    }
+
+    #[test]
+    fn parse_index_non_numeric() {
+        assert_eq!(parse_index("prefix:abc", "prefix:"), None);
+    }
+
+    #[test]
+    fn parse_index_empty() {
+        assert_eq!(parse_index("prefix:", "prefix:"), None);
+    }
+
+    // ─── resolve index via full path (grid / hand_select choose) ──────
+
+    #[test]
+    fn resolve_grid_choose_returns_choose() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "GRID", "choice_list": ["Strike", "Defend"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        assert_eq!(
+            resolve_requested_action(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state(&raw),
+                &state(raw),
+                &request("choose", "grid:1"),
+            ),
+            Some(AutoPlayAction::Choose(1))
+        );
+    }
+
+    #[test]
+    fn resolve_hand_select_choose_returns_choose() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "HAND_SELECT", "choice_list": ["Strike", "Defend"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        assert_eq!(
+            resolve_requested_action(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state(&raw),
+                &state(raw),
+                &request("choose", "hand_select:0"),
+            ),
+            Some(AutoPlayAction::Choose(0))
+        );
+    }
+
+    #[test]
+    fn resolve_chest_choose_returns_choose() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "CHEST", "choice_list": ["Open", "Leave"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        assert_eq!(
+            resolve_requested_action(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state(&raw),
+                &state(raw),
+                &request("choose", "chest:1"),
+            ),
+            Some(AutoPlayAction::Choose(1))
+        );
+    }
+
+    // ─── accessible hand_index 0 yields 0-based protocol index ────────
+
+    #[test]
+    fn resolve_combat_play_targetless_returns_play_without_target() {
+        let raw = json!({
+            "available_commands": ["play", "end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 3, "block": 0, "powers": []},
+                    "hand": [
+                        {"id": "Defend", "name": "Defend", "cost": 1, "type": "SKILL", "uuid": "def-1", "has_target": false}
+                    ],
+                    "monsters": [
+                        {"name": "Worm", "current_hp": 10, "max_hp": 10, "block": 0, "intent": "ATTACK", "is_gone": false}
+                    ]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_combat = true;
+        assert_eq!(
+            resolve_requested_action(
+                &control,
+                &AutoPlaySession::default(),
+                &command_state(&raw),
+                &state(raw),
+                &request("play", "combat:play:def-1"),
+            ),
+            Some(AutoPlayAction::Play {
+                hand_index: 0,
+                target_index: None
+            })
+        );
+    }
+
+    #[test]
+    fn resolve_combat_drink_targetless_potion_returns_drink_without_target() {
+        use crate::state::PotionInfo;
+        let s = NormalizedState {
+            screen_type: Some("NONE".into()),
+            potions: vec![PotionInfo {
+                slot: 0,
+                name: "Heal".into(),
+                description: "".into(),
+                price: None,
+                can_use: true,
+                can_discard: true,
+                requires_target: false,
+            }],
+            ..NormalizedState::default()
+        };
+        let raw = json!({
+            "available_commands": ["potion"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "hand": [], "monsters": [], "player": {"energy": 3, "block": 0, "powers": []}, "turn": 1
+                }
+            }
+        });
+        assert_eq!(
+            resolve_requested_action(
+                &AutoPlayControl::default_enabled(),
+                &AutoPlaySession::default(),
+                &command_state(&raw),
+                &s,
+                &request("drink", "combat:potion:0"),
+            ),
+            Some(AutoPlayAction::Drink {
+                slot_index: 0,
+                target_index: None
+            })
+        );
+    }
+
+    // ─── combat_reward: more allowed choice types ──────────────────────
+
+    #[test]
+    fn combat_reward_allows_sapphire_key() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["sapphire_key"]}
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "combat_reward:sapphire_key:0");
+    }
+
+    #[test]
+    fn combat_reward_allows_relic_choice() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["relic"]}
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "combat_reward:relic:0");
+    }
+
+    #[test]
+    fn combat_reward_allows_stolen_gold() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["stolen_gold"]}
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "combat_reward:stolen_gold:0");
+    }
+
+    // ─── combat_reward: potion NOT skipped when slots not full ─────────
+
+    #[test]
+    fn combat_reward_does_not_skip_potion_when_slots_not_full() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["potion", "gold"]}
+        });
+        let mut session = AutoPlaySession::default();
+        session.skipped_combat_reward_potion = true;
+        let mut s = state(raw.clone());
+        s.empty_potion_slots = 2;
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &session,
+            &command_state(&raw),
+            &s,
+        );
+        assert_eq!(candidates.len(), 2);
+        assert!(
+            candidates
+                .iter()
+                .any(|c| c.action_id == "combat_reward:potion:0")
+        );
+        assert!(
+            candidates
+                .iter()
+                .any(|c| c.action_id == "combat_reward:gold:1")
+        );
+    }
+
+    // ─── card_reward: skip_available true but no skip command ──────────
+
+    #[test]
+    fn card_reward_no_skip_when_skip_command_missing() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "CARD_REWARD",
+                "screen_state": {
+                    "skip_available": true,
+                    "cards": [{"id": "Anger", "name": "Anger"}]
+                }
+            }
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "card_reward:0");
+    }
+
+    #[test]
+    fn boss_card_reward_no_skip_when_skip_command_missing() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "CARD_REWARD",
+                "floor": 16,
+                "screen_state": {
+                    "skip_available": true,
+                    "cards": [{"id": "Impervious", "name": "Impervious"}]
+                }
+            }
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "boss_card_reward:0");
+    }
+
+    // ─── disallowed screen flags for candidates ────────────────────────
+
+    #[test]
+    fn boss_reward_disallowed_flag_returns_empty() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "BOSS_REWARD",
+                "screen_state": {"relics": [{"id": "Runic Dome", "name": "Runic Dome"}]}
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_boss_rewards = false;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn card_reward_disallowed_flag_returns_empty() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "CARD_REWARD",
+                "screen_state": {"cards": [{"id": "Anger", "name": "Anger"}]}
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_card_rewards = false;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn combat_reward_disallowed_flag_returns_empty() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["gold"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_combat_rewards = false;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn event_disallowed_flag_returns_empty() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "EVENT", "choice_list": ["Fight"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_events = false;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn shop_disallowed_flag_returns_empty() {
+        let raw = json!({
+            "available_commands": ["choose", "leave"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "SHOP_SCREEN", "choice_list": ["purge"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_shop = false;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn map_disallowed_flag_returns_empty() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "MAP", "choice_list": ["M"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_map = false;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn combat_none_disallowed_flag_returns_empty() {
+        let raw = json!({
+            "available_commands": ["end"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "player": {"energy": 3, "block": 0, "powers": []},
+                    "hand": [],
+                    "monsters": [{"name": "Worm", "current_hp": 10, "max_hp": 10, "block": 0, "intent": "ATTACK", "is_gone": false}]
+                }
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_combat = false;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn grid_disallowed_flag_returns_empty() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "GRID", "choice_list": ["Strike"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = false;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn hand_select_disallowed_flag_returns_empty() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "HAND_SELECT", "choice_list": ["Strike"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = false;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    // ─── AutoPlayMode variants produce no candidates ───────────────────
+
+    #[test]
+    fn off_mode_produces_no_candidates() {
+        let raw = json!({
+            "available_commands": ["choose", "proceed"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "COMBAT_REWARD",
+                "choice_list": ["gold"]
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.mode = crate::autoplay::control::AutoPlayMode::Off;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn advise_mode_produces_no_candidates() {
+        let raw = json!({
+            "available_commands": ["choose", "proceed"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "COMBAT_REWARD",
+                "choice_list": ["gold"]
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.mode = crate::autoplay::control::AutoPlayMode::Advise;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    // ─── rest: empty rest_options with proceed only ────────────────────
+
+    #[test]
+    fn rest_candidates_empty_options_with_proceed() {
+        let raw = json!({
+            "available_commands": ["choose", "proceed"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "REST",
+                "screen_state": {"rest_options": []}
+            }
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_rest = true;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "rest:proceed");
+    }
+
+    // ─── event: empty event_choices with choose command ────────────────
+
+    #[test]
+    fn event_candidates_empty_choices_with_choose_command() {
+        let raw = json!({
+            "available_commands": ["choose"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "EVENT", "choice_list": []}
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.is_empty());
+    }
+
+    // ─── shop: already entered without proceed command ─────────────────
+
+    #[test]
+    fn shop_candidates_already_entered_no_proceed_command() {
+        let raw = json!({
+            "available_commands": ["leave"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5, "choice_list": []}
+        });
+        let mut session = AutoPlaySession::default();
+        session.last_shop_room_floor = Some(5);
+        let mut s = state(raw.clone());
+        s.floor = Some(5);
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &session,
+            &command_state(&raw),
+            &s,
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "shop:leave");
+    }
+
+    // ─── shop: floor None, session has last_shop → not entered ────────
+
+    #[test]
+    fn shop_candidates_floor_none_not_entered() {
+        let raw = json!({
+            "available_commands": ["choose", "leave"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "SHOP_SCREEN", "choice_list": ["purge"]}
+        });
+        let mut session = AutoPlaySession::default();
+        session.last_shop_room_floor = Some(5);
+        let s = state(raw.clone());
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &session,
+            &command_state(&raw),
+            &s,
+        );
+        assert!(candidates.iter().any(|c| c.action_id == "shop:choice:0"));
+    }
+
+    // ─── SHOP_ROOM screen type ─────────────────────────────────────────
+
+    #[test]
+    fn shop_room_screen_type_produces_candidates() {
+        let raw = json!({
+            "available_commands": ["choose", "leave"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "SHOP_ROOM", "choice_list": ["purge", "Strike"]}
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert!(candidates.iter().any(|c| c.action_id == "shop:choice:0"));
+        assert!(candidates.iter().any(|c| c.action_id == "shop:leave"));
+    }
+
+    #[test]
+    fn resolve_shop_room_leave_returns_leave() {
+        let raw = json!({
+            "available_commands": ["choose", "leave"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "SHOP_ROOM", "choice_list": ["purge"]}
+        });
+        let control = AutoPlayControl::default_enabled();
+        assert_eq!(
+            resolve(&raw, &control, &request("leave", "shop:leave")),
+            Some(AutoPlayAction::Leave)
+        );
+    }
+
+    // ─── resolve shop: leave/proceed with wrong kind ───────────────────
+
+    #[test]
+    fn resolve_requested_shop_leave_wrong_kind() {
+        let cmd = CommandState {
+            ready_for_command: true,
+            available_commands: vec!["choose".into(), "leave".into()],
+            choice_list: vec!["purge".into()],
+        };
+        let req = ActionRequest {
+            kind: "skip".into(),
+            action_id: "shop:leave".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_shop(&cmd, &req), None);
+    }
+
+    #[test]
+    fn resolve_requested_shop_proceed_wrong_kind() {
+        let cmd = CommandState {
+            ready_for_command: true,
+            available_commands: vec!["proceed".into(), "leave".into()],
+            choice_list: vec![],
+        };
+        let req = ActionRequest {
+            kind: "skip".into(),
+            action_id: "shop:proceed".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_shop(&cmd, &req), None);
+    }
+
+    // ─── chest: both choose and proceed → choose takes priority ────────
+
+    #[test]
+    fn chest_candidates_both_choose_and_proceed_choose_priority() {
+        let raw = json!({
+            "available_commands": ["choose", "proceed"],
+            "ready_for_command": true,
+            "game_state": {"screen_type": "CHEST", "choice_list": ["Open"]}
+        });
+        let mut control = AutoPlayControl::default_enabled();
+        control.allow_selection_screens = true;
+        let candidates = available_action_candidates(
+            &control,
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &state(raw),
+        );
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].action_id, "chest:0");
+        assert_eq!(candidates[0].kind, "choose");
+    }
+
+    // ─── combat candidates: potion requires_target ─────────────────────
+
+    #[test]
+    fn combat_candidates_targeted_potion() {
+        use crate::state::PotionInfo;
+        let s = NormalizedState {
+            screen_type: Some("NONE".into()),
+            potions: vec![PotionInfo {
+                slot: 0,
+                name: "Fire Potion".into(),
+                description: "Deal 20 damage.".into(),
+                price: None,
+                can_use: true,
+                can_discard: true,
+                requires_target: true,
+            }],
+            monsters: vec![crate::state::MonsterInfo {
+                name: "Test".into(),
+                index: 0,
+                current_hp: Some(10),
+                max_hp: Some(10),
+                block: Some(0),
+                intent: Some("ATTACK".into()),
+                damage: Some(5),
+                hits: Some(1),
+                monster_powers: vec![],
+                can_be_killed: false,
+                is_scaling: false,
+                monster_id: None,
+            }],
+            ..NormalizedState::default()
+        };
+        let raw = json!({
+            "available_commands": ["end", "potion"],
+            "ready_for_command": true,
+            "game_state": {
+                "screen_type": "NONE",
+                "combat_state": {
+                    "hand": [],
+                    "monsters": [{"name": "Test", "current_hp": 10, "max_hp": 10, "block": 0, "intent": "ATTACK", "is_gone": false}],
+                    "player": {"energy": 0, "block": 0, "powers": []},
+                    "turn": 1
+                }
+            }
+        });
+        let candidates = available_action_candidates(
+            &AutoPlayControl::default_enabled(),
+            &AutoPlaySession::default(),
+            &command_state(&raw),
+            &s,
+        );
+        let potion_candidate = candidates.iter().find(|c| c.kind == "drink").unwrap();
+        assert_eq!(potion_candidate.action_id, "combat:potion:0");
+        assert_eq!(potion_candidate.target_required, Some(true));
+    }
+
+    // ─── resolve combat: drink with non-parseable slot index ───────────
+
+    #[test]
+    fn resolve_combat_drink_bad_slot_parse() {
+        let req = ActionRequest {
+            kind: "drink".into(),
+            action_id: "combat:potion:abc".into(),
+            target_index: None,
+        };
+        assert_eq!(
+            resolve_requested_combat(&NormalizedState::default(), &req),
+            None
+        );
+    }
+
+    // ─── resolve combat: drink targeted potion successfully ────────────
+
+    #[test]
+    fn resolve_combat_drink_targeted_potion_success() {
+        use crate::state::PotionInfo;
+        let s = NormalizedState {
+            potions: vec![PotionInfo {
+                slot: 0,
+                name: "Fire Potion".into(),
+                description: "".into(),
+                price: None,
+                can_use: true,
+                can_discard: true,
+                requires_target: true,
+            }],
+            monsters: vec![crate::state::MonsterInfo {
+                name: "Worm".into(),
+                index: 0,
+                current_hp: Some(10),
+                max_hp: Some(10),
+                block: Some(0),
+                intent: Some("ATTACK".into()),
+                damage: Some(5),
+                hits: Some(1),
+                monster_powers: vec![],
+                can_be_killed: false,
+                is_scaling: false,
+                monster_id: None,
+            }],
+            ..NormalizedState::default()
+        };
+        let req = targeted_request("drink", "combat:potion:0", 0);
+        assert_eq!(
+            resolve_requested_combat(&s, &req),
+            Some(AutoPlayAction::Drink {
+                slot_index: 0,
+                target_index: Some(0)
+            })
+        );
+    }
+
+    // ─── resolve combat_reward: proceed with wrong kind ────────────────
+
+    #[test]
+    fn resolve_combat_reward_proceed_wrong_kind() {
+        let cmd = CommandState {
+            ready_for_command: true,
+            available_commands: vec!["proceed".into()],
+            choice_list: vec![],
+        };
+        let req = ActionRequest {
+            kind: "skip".into(),
+            action_id: "combat_reward:proceed".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_combat_reward(&cmd, &req), None);
+    }
+
+    // ─── resolve card_reward: kind choose without choose command ───────
+
+    #[test]
+    fn resolve_card_reward_choose_without_choose_command() {
+        let raw = json!({
+            "game_state": {
+                "screen_type": "CARD_REWARD",
+                "screen_state": {"cards": [{"id": "Anger", "name": "Anger"}]}
+            }
+        });
+        let cmd = CommandState {
+            ready_for_command: true,
+            available_commands: vec![],
+            choice_list: vec![],
+        };
+        let s = state(raw);
+        let req = ActionRequest {
+            kind: "choose".into(),
+            action_id: "card_reward:0".into(),
+            target_index: None,
+        };
+        assert_eq!(resolve_requested_card_reward(&cmd, &s, &req), None);
+    }
 }

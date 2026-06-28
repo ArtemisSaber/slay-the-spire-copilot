@@ -1458,3 +1458,1401 @@ fn wrath_penalty_is_per_card_not_per_target() {
     let rule = make_enters_wrath_rule();
     assert_eq!(rule.category, RuleCategory::PerCard);
 }
+
+// --- rank_contexts edge cases ---
+
+#[test]
+fn rank_contexts_empty_returns_empty() {
+    let rules = make_rules(vec![]);
+    let scored = rank_contexts(&[], &rules);
+    assert!(scored.is_empty());
+}
+
+#[test]
+fn mixed_avoid_and_normal_in_rank() {
+    let rules = make_rules(vec![
+        Rule {
+            category: RuleCategory::PerTarget,
+            rule_id: "avoid_on_turn_1".into(),
+            priority: 1000,
+            weight: Weight::MinI64,
+            formula: None,
+            score_fn: None,
+            override_rule: None,
+            applies_to: vec!["play_card".into()],
+            conditions: vec![Condition::State(crate::ranker::rules::StateCondition {
+                state: crate::ranker::rules::StatePredicates {
+                    turn_eq: Some(1),
+                    ..Default::default()
+                },
+            })],
+        },
+        Rule {
+            category: RuleCategory::PerTarget,
+            rule_id: "normal_score".into(),
+            priority: 1000,
+            weight: Weight::Value(50),
+            formula: None,
+            score_fn: None,
+            override_rule: None,
+            applies_to: vec!["play_card".into()],
+            conditions: vec![],
+        },
+    ]);
+    let mut v1 = HashMap::new();
+    v1.insert("turn".to_string(), 1.0);
+    let mut v2 = HashMap::new();
+    v2.insert("turn".to_string(), 2.0);
+    let scored = rank_contexts(&[make_ctx(v1), make_ctx(v2)], &rules);
+    assert_eq!(scored.len(), 2);
+    let avoids: Vec<_> = scored.iter().filter(|s| s.is_avoid).collect();
+    assert_eq!(avoids.len(), 1);
+    assert_eq!(avoids[0].score, i64::MIN);
+    let normals: Vec<_> = scored.iter().filter(|s| !s.is_avoid).collect();
+    assert_eq!(normals.len(), 1);
+    assert_eq!(normals[0].score, 50);
+}
+
+#[test]
+fn end_turn_through_rank_contexts() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "end_turn_rule".into(),
+        priority: 1000,
+        weight: Weight::Value(30),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["end_turn".into()],
+        conditions: vec![],
+    }]);
+    let ctx = end_turn_ctx(HashMap::new());
+    let scored = rank_contexts(&[ctx], &rules);
+    assert_eq!(scored.len(), 1);
+    assert_eq!(scored[0].score, 30);
+    assert!(!scored[0].is_avoid);
+}
+
+// --- AoE merge edge cases ---
+
+#[test]
+fn aoe_merge_with_avoid_score() {
+    let monsters = vec![
+        MonsterInfo {
+            name: "A".into(),
+            index: 0,
+            current_hp: Some(10),
+            max_hp: Some(10),
+            can_be_killed: true,
+            ..Default::default()
+        },
+        MonsterInfo {
+            name: "B".into(),
+            index: 1,
+            current_hp: Some(10),
+            max_hp: Some(10),
+            can_be_killed: false,
+            ..Default::default()
+        },
+    ];
+    let contexts = aoe_contexts("tc-1", "Thunderclap", 4, 1, monsters);
+    let rules = make_rules(vec![
+        per_target_damage_rule("core_damage", 1050, 10),
+        Rule {
+            category: RuleCategory::PerTarget,
+            rule_id: "avoid_killable".into(),
+            priority: 800,
+            weight: Weight::MinI64,
+            formula: None,
+            score_fn: None,
+            override_rule: None,
+            applies_to: vec!["play_card".into()],
+            conditions: vec![Condition::Target(crate::ranker::rules::TargetCondition {
+                target: crate::ranker::rules::TargetPredicates {
+                    can_be_killed: Some(true),
+                    ..Default::default()
+                },
+            })],
+        },
+    ]);
+    let scored = rank_contexts(&contexts, &rules);
+    assert_eq!(scored.len(), 1);
+    assert!(scored[0].is_avoid);
+    assert_eq!(scored[0].score, i64::MIN);
+}
+
+#[test]
+fn aoe_single_monster_still_merges() {
+    let monsters = vec![MonsterInfo {
+        name: "Solo".into(),
+        index: 0,
+        current_hp: Some(10),
+        max_hp: Some(10),
+        ..Default::default()
+    }];
+    let contexts = aoe_contexts("tc-1", "Thunderclap", 4, 1, monsters);
+    let rules = make_rules(vec![per_target_damage_rule("core_damage", 1050, 10)]);
+    let scored = rank_contexts(&contexts, &rules);
+    assert_eq!(scored.len(), 1, "single monster AoE should still merge");
+    assert_eq!(scored[0].score, 40);
+}
+
+#[test]
+fn multiple_aoe_cards_in_separate_groups() {
+    let monsters = vec![MonsterInfo {
+        name: "A".into(),
+        index: 0,
+        current_hp: Some(10),
+        max_hp: Some(10),
+        ..Default::default()
+    }];
+    let contexts_a = aoe_contexts("card_a", "Cleave", 8, 1, monsters.clone());
+    let contexts_b = aoe_contexts("card_b", "Whirlwind", 6, 1, monsters);
+    let all: Vec<ActionContext> = [contexts_a, contexts_b].concat();
+    let rules = make_rules(vec![per_target_damage_rule("core_damage", 1050, 10)]);
+    let scored = rank_contexts(&all, &rules);
+    assert_eq!(scored.len(), 2, "two different AoE cards stay separate");
+}
+
+#[test]
+fn aoe_non_playcard_goes_to_standalone() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["end_turn".into()],
+        conditions: vec![],
+    }]);
+    let mut vars = HashMap::new();
+    vars.insert("aoe".to_string(), 1.0);
+    let ctx = end_turn_ctx(vars);
+    let scored = rank_contexts(&[ctx], &rules);
+    assert_eq!(scored.len(), 1, "non-PlayCard AoE goes to standalone");
+    assert_eq!(scored[0].score, 10);
+}
+
+// --- card conditions ---
+
+fn status_card() -> crate::state::CardInfo {
+    crate::state::CardInfo {
+        id: "Burn".into(),
+        name: "Burn".into(),
+        cost: 0,
+        card_type: "STATUS".into(),
+        upgraded: false,
+        uuid: None,
+        description: "".into(),
+        price: None,
+        playable: true,
+        has_target: false,
+    }
+}
+
+#[test]
+fn card_type_exact_match_matches() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Card(crate::ranker::rules::CardCondition {
+            card: crate::ranker::rules::CardPredicates {
+                card_type: Some("ATTACK".into()),
+                ..Default::default()
+            },
+        })],
+    }]);
+    let mut ctx = make_ctx(HashMap::new());
+    ctx.card = Some(crate::state::CardInfo {
+        id: "Strike".into(),
+        name: "Strike".into(),
+        cost: 1,
+        card_type: "ATTACK".into(),
+        upgraded: false,
+        uuid: None,
+        description: "".into(),
+        price: None,
+        playable: true,
+        has_target: true,
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn card_type_exact_mismatch_fails() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Card(crate::ranker::rules::CardCondition {
+            card: crate::ranker::rules::CardPredicates {
+                card_type: Some("ATTACK".into()),
+                ..Default::default()
+            },
+        })],
+    }]);
+    let mut ctx = make_ctx(HashMap::new());
+    ctx.card = Some(crate::state::CardInfo {
+        id: "Defend".into(),
+        name: "Defend".into(),
+        cost: 1,
+        card_type: "SKILL".into(),
+        upgraded: false,
+        uuid: None,
+        description: "".into(),
+        price: None,
+        playable: true,
+        has_target: false,
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn card_type_in_match() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Card(crate::ranker::rules::CardCondition {
+            card: crate::ranker::rules::CardPredicates {
+                type_in: Some(vec!["ATTACK".into(), "SKILL".into()]),
+                ..Default::default()
+            },
+        })],
+    }]);
+    let mut ctx = make_ctx(HashMap::new());
+    ctx.card = Some(crate::state::CardInfo {
+        id: "Strike".into(),
+        name: "Strike".into(),
+        cost: 1,
+        card_type: "ATTACK".into(),
+        upgraded: false,
+        uuid: None,
+        description: "".into(),
+        price: None,
+        playable: true,
+        has_target: true,
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn card_type_not_in_match() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Card(crate::ranker::rules::CardCondition {
+            card: crate::ranker::rules::CardPredicates {
+                type_not_in: Some(vec!["STATUS".into(), "CURSE".into()]),
+                ..Default::default()
+            },
+        })],
+    }]);
+    let mut ctx = make_ctx(HashMap::new());
+    ctx.card = Some(crate::state::CardInfo {
+        id: "Strike".into(),
+        name: "Strike".into(),
+        cost: 1,
+        card_type: "ATTACK".into(),
+        upgraded: false,
+        uuid: None,
+        description: "".into(),
+        price: None,
+        playable: true,
+        has_target: true,
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn card_type_not_in_fails_when_type_is_excluded() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Card(crate::ranker::rules::CardCondition {
+            card: crate::ranker::rules::CardPredicates {
+                type_not_in: Some(vec!["STATUS".into(), "CURSE".into()]),
+                ..Default::default()
+            },
+        })],
+    }]);
+    let mut ctx = make_ctx(HashMap::new());
+    ctx.card = Some(status_card());
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn card_cost_eq_matches() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Card(crate::ranker::rules::CardCondition {
+            card: crate::ranker::rules::CardPredicates {
+                cost_eq: Some(2),
+                ..Default::default()
+            },
+        })],
+    }]);
+    let mut ctx = make_ctx(HashMap::new());
+    ctx.card = Some(crate::state::CardInfo {
+        id: "Carnage".into(),
+        name: "Carnage".into(),
+        cost: 2,
+        card_type: "ATTACK".into(),
+        upgraded: false,
+        uuid: None,
+        description: "".into(),
+        price: None,
+        playable: true,
+        has_target: false,
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn card_id_exact_match() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Card(crate::ranker::rules::CardCondition {
+            card: crate::ranker::rules::CardPredicates {
+                id: Some("Strike_R".into()),
+                ..Default::default()
+            },
+        })],
+    }]);
+    let mut ctx = make_ctx(HashMap::new());
+    ctx.card = Some(crate::state::CardInfo {
+        id: "Strike_R".into(),
+        name: "Strike".into(),
+        cost: 1,
+        card_type: "ATTACK".into(),
+        upgraded: false,
+        uuid: None,
+        description: "".into(),
+        price: None,
+        playable: true,
+        has_target: true,
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn card_id_in_match() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Card(crate::ranker::rules::CardCondition {
+            card: crate::ranker::rules::CardPredicates {
+                id_in: Some(vec!["Strike_R".into(), "Strike_G".into()]),
+                ..Default::default()
+            },
+        })],
+    }]);
+    let mut ctx = make_ctx(HashMap::new());
+    ctx.card = Some(crate::state::CardInfo {
+        id: "Strike_R".into(),
+        name: "Strike".into(),
+        cost: 1,
+        card_type: "ATTACK".into(),
+        upgraded: false,
+        uuid: None,
+        description: "".into(),
+        price: None,
+        playable: true,
+        has_target: true,
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn card_ethereal_match() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Card(crate::ranker::rules::CardCondition {
+            card: crate::ranker::rules::CardPredicates {
+                ethereal: Some(true),
+                ..Default::default()
+            },
+        })],
+    }]);
+    let mut ctx = make_ctx(HashMap::new());
+    ctx.card = Some(crate::state::CardInfo {
+        id: "AscendersBane".into(),
+        name: "Ascender's Bane".into(),
+        cost: 0,
+        card_type: "CURSE".into(),
+        upgraded: false,
+        uuid: None,
+        description: "Ethereal".into(),
+        price: None,
+        playable: false,
+        has_target: false,
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn card_is_none_fails_card_condition() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Card(crate::ranker::rules::CardCondition {
+            card: crate::ranker::rules::CardPredicates {
+                card_type: Some("ATTACK".into()),
+                ..Default::default()
+            },
+        })],
+    }]);
+    let ctx = make_ctx(HashMap::new());
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+// --- target conditions ---
+
+#[test]
+fn target_power_matches() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            power: Some("Thorns".into()),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        monster_id: None,
+        index: 0,
+        monster_powers: vec![crate::state::PowerInfo {
+            id: "Thorns".into(),
+            name: "Thorns".into(),
+            amount: 1,
+        }],
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_power_not_matches_when_absent() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            power_not: Some("Thorns".into()),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_any_power_in_match() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            any_power_in: Some(vec!["Thorns".into(), "Metallicize".into()]),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        monster_powers: vec![crate::state::PowerInfo {
+            id: "Thorns".into(),
+            name: "Thorns".into(),
+            amount: 1,
+        }],
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_is_scaling_match() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            is_scaling: Some(true),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        is_scaling: true,
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_is_minion_match() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            is_minion: Some(true),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        monster_powers: vec![crate::state::PowerInfo {
+            id: "Minion".into(),
+            name: "Minion".into(),
+            amount: 1,
+        }],
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_is_minion_no_match() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            is_minion: Some(true),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        ..Default::default()
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_can_be_killed_match() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            can_be_killed: Some(true),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        can_be_killed: true,
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_intent_match() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            intent: Some("ATTACK".into()),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        intent: Some("ATTACK".into()),
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_intent_not_match() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            intent_not: Some("ATTACK".into()),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        intent: Some("BUFF".into()),
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_is_none_fails_target_condition() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            is_scaling: Some(true),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = make_ctx(HashMap::new());
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+// --- monster condition edge cases ---
+
+#[test]
+fn monsters_none_exclude_target_finds_none_other() {
+    let c = Condition::Monsters(crate::ranker::rules::MonstersCondition {
+        monsters: crate::ranker::rules::MonstersPredicates {
+            none: Some(crate::ranker::rules::MonsterSubPredicates {
+                exclude_target: Some(true),
+                is_scaling: Some(true),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let monsters = vec![
+        MonsterInfo {
+            name: "Target".into(),
+            index: 0,
+            is_scaling: true,
+            ..Default::default()
+        },
+        MonsterInfo {
+            name: "Other".into(),
+            index: 1,
+            is_scaling: false,
+            ..Default::default()
+        },
+    ];
+    let ctx = monsters_ctx(monsters, 0);
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn monsters_none_with_intent_fails_when_monster_has_intent() {
+    let c = Condition::Monsters(crate::ranker::rules::MonstersCondition {
+        monsters: crate::ranker::rules::MonstersPredicates {
+            none: Some(crate::ranker::rules::MonsterSubPredicates {
+                intent: Some("ATTACK".into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let monsters = vec![MonsterInfo {
+        name: "A".into(),
+        index: 0,
+        intent: Some("ATTACK".into()),
+        ..Default::default()
+    }];
+    let ctx = monsters_ctx(monsters, 0);
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn monsters_none_with_intent_matches_when_no_monster_has_intent() {
+    let c = Condition::Monsters(crate::ranker::rules::MonstersCondition {
+        monsters: crate::ranker::rules::MonstersPredicates {
+            none: Some(crate::ranker::rules::MonsterSubPredicates {
+                intent: Some("ATTACK".into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let monsters = vec![MonsterInfo {
+        name: "A".into(),
+        index: 0,
+        intent: Some("BUFF".into()),
+        ..Default::default()
+    }];
+    let ctx = monsters_ctx(monsters, 0);
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn monsters_both_any_and_none_combined() {
+    let c = Condition::Monsters(crate::ranker::rules::MonstersCondition {
+        monsters: crate::ranker::rules::MonstersPredicates {
+            any: Some(crate::ranker::rules::MonsterSubPredicates {
+                is_scaling: Some(true),
+                ..Default::default()
+            }),
+            none: Some(crate::ranker::rules::MonsterSubPredicates {
+                intent: Some("ATTACK".into()),
+                ..Default::default()
+            }),
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let monsters = vec![
+        MonsterInfo {
+            name: "Scaler".into(),
+            index: 0,
+            is_scaling: true,
+            intent: Some("BUFF".into()),
+            ..Default::default()
+        },
+        MonsterInfo {
+            name: "Attacker".into(),
+            index: 1,
+            is_scaling: false,
+            intent: Some("BUFF".into()),
+            ..Default::default()
+        },
+    ];
+    let ctx = monsters_ctx(monsters, 0);
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+// --- parsed conditions ---
+
+#[test]
+fn parsed_damage_gt_match() {
+    let c = Condition::Parsed(crate::ranker::rules::ParsedCondition {
+        parsed: crate::ranker::rules::ParsedPredicates {
+            damage_gt: Some(0),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = make_parsed_ctx(ParsedEffects {
+        damage: Some(6),
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn parsed_damage_gt_no_match() {
+    let c = Condition::Parsed(crate::ranker::rules::ParsedCondition {
+        parsed: crate::ranker::rules::ParsedPredicates {
+            damage_gt: Some(10),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = make_parsed_ctx(ParsedEffects {
+        damage: Some(5),
+        ..Default::default()
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn parsed_damage_eq_match() {
+    let c = Condition::Parsed(crate::ranker::rules::ParsedCondition {
+        parsed: crate::ranker::rules::ParsedPredicates {
+            damage_eq: Some(6),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = make_parsed_ctx(ParsedEffects {
+        damage: Some(6),
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn parsed_block_gt_match() {
+    let c = Condition::Parsed(crate::ranker::rules::ParsedCondition {
+        parsed: crate::ranker::rules::ParsedPredicates {
+            block_gt: Some(4),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = make_parsed_ctx(ParsedEffects {
+        block: Some(8),
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn parsed_self_damage_gt_match() {
+    let c = Condition::Parsed(crate::ranker::rules::ParsedCondition {
+        parsed: crate::ranker::rules::ParsedPredicates {
+            self_damage_gt: Some(0),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = make_parsed_ctx(ParsedEffects {
+        self_damage: Some(3),
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn parsed_exhausts_cards_match() {
+    let c = Condition::Parsed(crate::ranker::rules::ParsedCondition {
+        parsed: crate::ranker::rules::ParsedPredicates {
+            exhausts_cards: Some(true),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = make_parsed_ctx(ParsedEffects {
+        exhaust_count: 2,
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn parsed_exhausts_cards_no_match() {
+    let c = Condition::Parsed(crate::ranker::rules::ParsedCondition {
+        parsed: crate::ranker::rules::ParsedPredicates {
+            exhausts_cards: Some(false),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = make_parsed_ctx(ParsedEffects {
+        exhaust_count: 2,
+        ..Default::default()
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn parsed_exhausts_status_curse_matches() {
+    let c = Condition::Parsed(crate::ranker::rules::ParsedCondition {
+        parsed: crate::ranker::rules::ParsedPredicates {
+            exhausts_status_curse: Some(true),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let mut ctx = make_parsed_ctx(ParsedEffects {
+        exhaust_count: 1,
+        ..Default::default()
+    });
+    ctx.card = Some(status_card());
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn parsed_exhausts_status_curse_no_match() {
+    let c = Condition::Parsed(crate::ranker::rules::ParsedCondition {
+        parsed: crate::ranker::rules::ParsedPredicates {
+            exhausts_status_curse: Some(false),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let mut ctx = make_parsed_ctx(ParsedEffects {
+        exhaust_count: 1,
+        ..Default::default()
+    });
+    ctx.card = Some(status_card());
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+// --- state condition no-match branches ---
+
+#[test]
+fn state_turn_eq_no_match() {
+    let c = Condition::State(crate::ranker::rules::StateCondition {
+        state: crate::ranker::rules::StatePredicates {
+            turn_eq: Some(2),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let mut vars = HashMap::new();
+    vars.insert("turn".to_string(), 1.0);
+    let ctx = make_ctx(vars);
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn state_remaining_energy_gt_no_match() {
+    let c = Condition::State(crate::ranker::rules::StateCondition {
+        state: crate::ranker::rules::StatePredicates {
+            remaining_energy_gt: Some(2),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let mut vars = HashMap::new();
+    vars.insert("remaining_energy".to_string(), 1.0);
+    let ctx = make_ctx(vars);
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn state_incoming_damage_gt_no_match() {
+    let c = Condition::State(crate::ranker::rules::StateCondition {
+        state: crate::ranker::rules::StatePredicates {
+            incoming_damage_gt: Some(10),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let mut vars = HashMap::new();
+    vars.insert("incoming_damage".to_string(), 5.0);
+    let ctx = make_ctx(vars);
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+// --- player relic conditions ---
+
+#[test]
+fn player_relic_matches() {
+    let c = Condition::Player(crate::ranker::rules::PlayerCondition {
+        player: crate::ranker::rules::PlayerPredicates {
+            relic: Some("Chemical X".into()),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let mut vars = HashMap::new();
+    vars.insert("player_relic_Chemical X".to_string(), 1.0);
+    let ctx = make_ctx(vars);
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn player_relic_not_matches() {
+    let c = Condition::Player(crate::ranker::rules::PlayerCondition {
+        player: crate::ranker::rules::PlayerPredicates {
+            relic_not: Some("Snecko Eye".into()),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = make_ctx(HashMap::new());
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn player_relic_not_fails_when_present() {
+    let c = Condition::Player(crate::ranker::rules::PlayerCondition {
+        player: crate::ranker::rules::PlayerPredicates {
+            relic_not: Some("Snecko Eye".into()),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let mut vars = HashMap::new();
+    vars.insert("player_relic_Snecko Eye".to_string(), 1.0);
+    let ctx = make_ctx(vars);
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+// --- score formula evaluation edge cases ---
+
+#[test]
+fn score_fn_dispatch_path_used() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test_score_fn".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: Some("hp_cost_penalty".into()),
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![],
+    }]);
+    let mut vars = HashMap::new();
+    vars.insert("self_damage".to_string(), 12.0);
+    vars.insert("current_hp".to_string(), 60.0);
+    let ctx = make_ctx(vars);
+    let results = evaluate(&ctx, &rules);
+    assert!(results[0].matched);
+    assert_eq!(results[0].score, -58);
+}
+
+#[test]
+fn formula_eval_failure_returns_zero_and_matches() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "bad_formula".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: Some("max(@x)".into()),
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![],
+    }]);
+    let ctx = make_ctx(HashMap::new());
+    let results = evaluate(&ctx, &rules);
+    assert!(results[0].matched);
+    assert_eq!(results[0].score, 0);
+}
+
+#[test]
+fn weight_only_no_formula_no_score_fn() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "weight_only".into(),
+        priority: 1000,
+        weight: Weight::Value(42),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![],
+    }]);
+    let ctx = make_ctx(HashMap::new());
+    let results = evaluate(&ctx, &rules);
+    assert!(results[0].matched);
+    assert_eq!(results[0].score, 42);
+}
+
+// --- compute condition edge cases ---
+
+#[test]
+fn compute_condition_zero_evaluates_false() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "zcheck".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Compute(crate::ranker::rules::ComputeCondition {
+            compute: crate::ranker::rules::ComputePredicates {
+                formula: Some("0".into()),
+            },
+        })],
+    }]);
+    let ctx = make_ctx(HashMap::new());
+    let results = evaluate(&ctx, &rules);
+    assert!(!results[0].matched);
+    assert_eq!(results[0].score, 0);
+}
+
+#[test]
+fn compute_condition_formula_error_returns_false() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "bad_compute".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Compute(crate::ranker::rules::ComputeCondition {
+            compute: crate::ranker::rules::ComputePredicates {
+                formula: Some("max(@x)".into()),
+            },
+        })],
+    }]);
+    let ctx = make_ctx(HashMap::new());
+    let results = evaluate(&ctx, &rules);
+    assert!(!results[0].matched);
+    assert_eq!(results[0].score, 0);
+}
+
+// --- applies_to mismatch ---
+
+#[test]
+fn play_card_rule_does_not_apply_to_end_turn() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "only_play".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![],
+    }]);
+    let ctx = end_turn_ctx(HashMap::new());
+    let results = evaluate(&ctx, &rules);
+    assert!(!results[0].matched);
+    assert_eq!(results[0].score, 0);
+}
+
+// --- additional negative branches ---
+
+#[test]
+fn card_cost_eq_no_match() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "test".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: None,
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![Condition::Card(crate::ranker::rules::CardCondition {
+            card: crate::ranker::rules::CardPredicates {
+                cost_eq: Some(2),
+                ..Default::default()
+            },
+        })],
+    }]);
+    let mut ctx = make_ctx(HashMap::new());
+    ctx.card = Some(crate::state::CardInfo {
+        id: "Strike".into(),
+        name: "Strike".into(),
+        cost: 1,
+        card_type: "ATTACK".into(),
+        upgraded: false,
+        uuid: None,
+        description: "".into(),
+        price: None,
+        playable: true,
+        has_target: true,
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_power_not_fails_when_present() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            power_not: Some("Thorns".into()),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        monster_powers: vec![crate::state::PowerInfo {
+            id: "Thorns".into(),
+            name: "Thorns".into(),
+            amount: 1,
+        }],
+        ..Default::default()
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_is_scaling_no_match() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            is_scaling: Some(true),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        is_scaling: false,
+        ..Default::default()
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_can_be_killed_no_match() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            can_be_killed: Some(true),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        can_be_killed: false,
+        ..Default::default()
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_intent_no_match() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            intent: Some("ATTACK".into()),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        intent: Some("BUFF".into()),
+        ..Default::default()
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_intent_not_fails_when_intent_matches() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            intent_not: Some("ATTACK".into()),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        intent: Some("ATTACK".into()),
+        ..Default::default()
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn target_any_power_in_no_match() {
+    let c = Condition::Target(crate::ranker::rules::TargetCondition {
+        target: crate::ranker::rules::TargetPredicates {
+            any_power_in: Some(vec!["Thorns".into(), "Metallicize".into()]),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = target_ctx(MonsterInfo {
+        name: "A".into(),
+        monster_powers: vec![crate::state::PowerInfo {
+            id: "Strength".into(),
+            name: "Strength".into(),
+            amount: 3,
+        }],
+        ..Default::default()
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn parsed_damage_eq_no_match() {
+    let c = Condition::Parsed(crate::ranker::rules::ParsedCondition {
+        parsed: crate::ranker::rules::ParsedPredicates {
+            damage_eq: Some(6),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = make_parsed_ctx(ParsedEffects {
+        damage: Some(8),
+        ..Default::default()
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn parsed_exhausts_cards_true_fails_when_count_zero() {
+    let c = Condition::Parsed(crate::ranker::rules::ParsedCondition {
+        parsed: crate::ranker::rules::ParsedPredicates {
+            exhausts_cards: Some(true),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = make_parsed_ctx(ParsedEffects {
+        exhaust_count: 0,
+        ..Default::default()
+    });
+    assert!(!evaluate(&ctx, &rules)[0].matched);
+}
+
+#[test]
+fn parsed_exhausts_cards_false_matches_when_count_zero() {
+    let c = Condition::Parsed(crate::ranker::rules::ParsedCondition {
+        parsed: crate::ranker::rules::ParsedPredicates {
+            exhausts_cards: Some(false),
+            ..Default::default()
+        },
+    });
+    let rules = make_rules(vec![rule_with_condition(c)]);
+    let ctx = make_parsed_ctx(ParsedEffects {
+        exhaust_count: 0,
+        ..Default::default()
+    });
+    assert!(evaluate(&ctx, &rules)[0].matched);
+}
+
+// --- sort behavior ---
+
+#[test]
+fn equal_scores_preserve_order() {
+    let rules = make_rules(vec![Rule {
+        category: RuleCategory::PerTarget,
+        rule_id: "equal_score".into(),
+        priority: 1000,
+        weight: Weight::Value(10),
+        formula: Some("@weight".into()),
+        score_fn: None,
+        override_rule: None,
+        applies_to: vec!["play_card".into()],
+        conditions: vec![],
+    }]);
+    let ctx_a = {
+        let mut v = HashMap::new();
+        v.insert("tag".to_string(), 1.0);
+        make_ctx(v)
+    };
+    let ctx_b = {
+        let mut v = HashMap::new();
+        v.insert("tag".to_string(), 2.0);
+        make_ctx(v)
+    };
+    let scored = rank_contexts(&[ctx_a, ctx_b], &rules);
+    assert_eq!(scored.len(), 2);
+    assert_eq!(scored[0].score, 10);
+    assert_eq!(scored[1].score, 10);
+}

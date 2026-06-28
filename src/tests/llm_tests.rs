@@ -660,3 +660,200 @@ fn from_config_anthropic_accepts_valid_config() {
     let result = LlmProvider::from_config(&config);
     assert!(matches!(result, Ok(LlmProvider::Anthropic { .. })));
 }
+
+#[test]
+fn advice_scenario_as_str_all_variants() {
+    assert_eq!(AdviceScenario::CardReward.as_str(), "card_reward");
+    assert_eq!(AdviceScenario::BossCardReward.as_str(), "boss_card_reward");
+    assert_eq!(AdviceScenario::BossRelic.as_str(), "boss_relic");
+    assert_eq!(AdviceScenario::Rest.as_str(), "rest");
+    assert_eq!(AdviceScenario::EventChoice.as_str(), "event_choice");
+    assert_eq!(AdviceScenario::Shop.as_str(), "shop");
+    assert_eq!(AdviceScenario::CombatEntry.as_str(), "combat_entry");
+    assert_eq!(AdviceScenario::MapSuggestion.as_str(), "map_suggestion");
+    assert_eq!(AdviceScenario::MapCrossroad.as_str(), "map_crossroad");
+    assert_eq!(AdviceScenario::Generic.as_str(), "generic");
+    assert_eq!(AdviceScenario::Postmortem.as_str(), "postmortem");
+}
+
+#[test]
+fn effort_as_str_returns_correct_strings() {
+    assert_eq!(Effort::Fast.as_str(), "fast");
+    assert_eq!(Effort::Medium.as_str(), "medium");
+    assert_eq!(Effort::Heavy.as_str(), "heavy");
+}
+
+#[test]
+fn unified_system_prompt_contains_shop_mode() {
+    let prompt = unified_system_prompt(&test_locale());
+    assert!(prompt.contains("[mode: shop]"));
+}
+
+#[test]
+fn unified_system_prompt_contains_all_ten_modes() {
+    let prompt = unified_system_prompt(&test_locale());
+    for mode in [
+        "combat",
+        "card_reward",
+        "boss_card_reward",
+        "rest",
+        "boss_relic",
+        "event_choice",
+        "shop",
+        "map_suggestion",
+        "map_crossroad",
+        "generic",
+    ] {
+        assert!(
+            prompt.contains(&format!("[mode: {mode}]")),
+            "missing mode: {mode}"
+        );
+    }
+    assert!(!prompt.contains("[mode: postmortem]"));
+}
+
+#[test]
+fn autoplay_action_system_prompt_contains_planner_header() {
+    let prompt = autoplay_action_system_prompt(&test_locale());
+    assert!(prompt.contains("AUTO_PLAY_ACTION_PLANNER"));
+    assert!(!prompt.is_empty());
+}
+
+#[test]
+fn mock_autoplay_fallback_test_marker_returns_invalid_action() {
+    let prompt = r#"{"localized_status_context":"fallback_test_marker","available_actions":[{"kind":"play","action_id":"card:strike","label":"Strike"}],"rejected_attempts":["previous fail"]}"#;
+    let response = mock_autoplay_action_response(prompt);
+    let json: serde_json::Value = serde_json::from_str(&response).unwrap();
+    assert_eq!(json["actions"][0]["action_id"], "event:99");
+    assert_eq!(json["actions"][0]["label"], "Invalid");
+}
+
+#[test]
+fn mock_autoplay_retry_test_marker_no_rejections_returns_invalid_action() {
+    let prompt = r#"{"localized_status_context":"retry_test_marker","available_actions":[{"kind":"play","action_id":"card:strike","label":"Strike"}],"rejected_attempts":[]}"#;
+    let response = mock_autoplay_action_response(prompt);
+    let json: serde_json::Value = serde_json::from_str(&response).unwrap();
+    assert_eq!(json["actions"][0]["action_id"], "event:99");
+}
+
+#[test]
+fn mock_autoplay_prefers_card_reward_skip() {
+    let prompt = r#"{"available_actions":[{"kind":"choose","action_id":"card_reward:skip","label":"Skip"},{"kind":"choose","action_id":"card_reward:0","label":"Card 0"}],"localized_status_context":""}"#;
+    let response = mock_autoplay_action_response(prompt);
+    let json: serde_json::Value = serde_json::from_str(&response).unwrap();
+    assert_eq!(json["actions"][0]["action_id"], "card_reward:skip");
+    assert_eq!(json["actions"][0]["kind"], "choose");
+}
+
+#[test]
+fn mock_autoplay_prefers_play_action() {
+    let prompt = r#"{"available_actions":[{"kind":"end","action_id":"end:turn","label":"End Turn"},{"kind":"play","action_id":"card:strike","label":"Strike"}],"localized_status_context":""}"#;
+    let response = mock_autoplay_action_response(prompt);
+    let json: serde_json::Value = serde_json::from_str(&response).unwrap();
+    assert_eq!(json["actions"][0]["kind"], "play");
+    assert_eq!(json["actions"][0]["action_id"], "card:strike");
+}
+
+#[test]
+fn mock_autoplay_first_action_fallback() {
+    let prompt = r#"{"available_actions":[{"kind":"end","action_id":"end:turn","label":"End Turn"},{"kind":"proceed","action_id":"proceed","label":"Proceed"}],"localized_status_context":""}"#;
+    let response = mock_autoplay_action_response(prompt);
+    let json: serde_json::Value = serde_json::from_str(&response).unwrap();
+    assert_eq!(json["actions"][0]["kind"], "end");
+    assert_eq!(json["actions"][0]["action_id"], "end:turn");
+}
+
+#[test]
+fn mock_autoplay_empty_actions_returns_empty() {
+    let prompt = r#"{"available_actions":[],"localized_status_context":""}"#;
+    let response = mock_autoplay_action_response(prompt);
+    let json: serde_json::Value = serde_json::from_str(&response).unwrap();
+    assert_eq!(json["schema_version"], 1);
+    assert!(json["actions"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn mock_autoplay_target_required_sets_target_index() {
+    let prompt = r#"{"available_actions":[{"kind":"play","action_id":"card:strike","label":"Strike","target_required":true}],"localized_status_context":""}"#;
+    let response = mock_autoplay_action_response(prompt);
+    let json: serde_json::Value = serde_json::from_str(&response).unwrap();
+    assert_eq!(json["actions"][0]["target_index"], 0);
+}
+
+#[test]
+fn mock_autoplay_no_target_required_sets_null_target_index() {
+    let prompt = r#"{"available_actions":[{"kind":"play","action_id":"card:strike","label":"Strike","target_required":false}],"localized_status_context":""}"#;
+    let response = mock_autoplay_action_response(prompt);
+    let json: serde_json::Value = serde_json::from_str(&response).unwrap();
+    assert_eq!(json["actions"][0]["target_index"], serde_json::Value::Null);
+}
+
+#[test]
+fn from_config_accepts_mock_provider() {
+    let config = crate::config::Config {
+        provider: "mock".into(),
+        base_url: None,
+        api_key: None,
+        model_fast: "m".into(),
+        model_medium: "m".into(),
+        model_heavy: "m".into(),
+        max_tokens_fast: 100,
+        max_tokens_medium: 500,
+        max_tokens_heavy: 1000,
+        temperature: 0.5,
+        disable_fast_thinking: false,
+        auto_play: false,
+    };
+    let result = LlmProvider::from_config(&config);
+    assert!(matches!(result, Ok(LlmProvider::Mock)));
+}
+
+#[tokio::test]
+async fn mock_provider_query_autoplay_action_returns_json() {
+    let provider = LlmProvider::Mock;
+    let prompt = r#"{"available_actions":[{"kind":"play","action_id":"card:strike","label":"Strike"}],"localized_status_context":""}"#;
+    let result = provider
+        .query_autoplay_action(prompt, Effort::Fast, &test_locale())
+        .await;
+    assert!(result.is_ok());
+    let text = result.unwrap();
+    let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(json["schema_version"], 1);
+    assert_eq!(json["actions"][0]["kind"], "play");
+}
+
+#[tokio::test]
+async fn mock_provider_query_advice_error_path() {
+    let provider = LlmProvider::Mock;
+    let result = provider
+        .query_advice(
+            "TRIGGER_LLM_ERROR",
+            Effort::Fast,
+            AdviceScenario::Generic,
+            &test_locale(),
+        )
+        .await;
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("mock error"));
+}
+
+#[test]
+fn log_prompt_into_dir_writes_formatted_entry() {
+    let dir = tempfile::tempdir().unwrap();
+    log_prompt_into_dir(dir.path(), "sys-content", "usr-content", "ast-content");
+    let log_path = dir.path().join("logs").join("prompts.log");
+    let contents = std::fs::read_to_string(&log_path).unwrap();
+    assert!(contents.contains("[system]\nsys-content"));
+    assert!(contents.contains("[user]\nusr-content"));
+    assert!(contents.contains("[assistant]\nast-content"));
+    assert!(contents.contains("\n---\n"));
+}
+
+#[test]
+fn scenario_resolver_detects_shop() {
+    let state = NormalizedState {
+        screen_type: Some("SHOP_SCREEN".into()),
+        ..test_state()
+    };
+    assert_eq!(AdviceScenario::from_state(&state), AdviceScenario::Shop);
+}
