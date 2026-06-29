@@ -8,7 +8,7 @@ pub struct ScreenConfig {
 }
 
 pub const SCREEN_CONFIG: ScreenConfig = ScreenConfig {
-    generate: &["CARD_REWARD", "BOSS_REWARD", "EVENT", "REST"],
+    generate: &["CARD_REWARD", "BOSS_REWARD", "EVENT", "REST", "SHOP_SCREEN"],
     generate_on_combat: &[],
 };
 

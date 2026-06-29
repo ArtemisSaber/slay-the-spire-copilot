@@ -1,0 +1,1191 @@
+{
+  "ascension_level": -15,
+  "block": 48,
+  "boss_relic_choices": [],
+  "card_in_play": null,
+  "card_reward_choices": [],
+  "character": "IRONCLAD",
+  "current_action": null,
+  "current_hp": 87,
+  "danger": {
+    "any_monster_attacking": true,
+    "hp_critical": false,
+    "incoming_lethal": false,
+    "level": "Caution",
+    "no_block_against_hit": false,
+    "wrath_stance": false
+  },
+  "deck_names": [
+    "战吼",
+    "打击",
+    "打击",
+    "打击",
+    "打击",
+    "打击",
+    "旋风斩",
+    "痛击",
+    "观察弱点",
+    "防御",
+    "防御",
+    "防御",
+    "防御",
+    "降阶之福+",
+    "飞剑回旋镖"
+  ],
+  "discard_pile": [
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "27292917-2356-430c-9788-95a4bebc98d9"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 16 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "9b77f2f6-0182-4fbd-bc3a-9f478f70fd2e"
+    }
+  ],
+  "draw_pile": [
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "如果一名敌人的意图是攻击，你获得 3 点 力量 。",
+      "has_target": true,
+      "id": "Spot Weakness",
+      "name": "观察弱点",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "b98ac318-7fa2-4b79-9822-16a767545219"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "固有。 \n 虚无。 \n 这是一张DEBUG卡牌， \n 可能时打出。 \n 获得24层多层护甲 \n 和壁垒。",
+      "has_target": false,
+      "id": "descendersblessing:DescendersBlessing",
+      "name": "降阶之福+",
+      "playable": true,
+      "price": null,
+      "upgraded": true,
+      "uuid": "bae53294-f1aa-40a2-9686-7816c884452b"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "has_target": false,
+      "id": "Defend_R",
+      "name": "防御",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "98f28f77-cb97-4f26-8e43-877b51faf411"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "has_target": false,
+      "id": "Defend_R",
+      "name": "防御",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "f6811e11-974f-4362-beac-37591bd59501"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "抽 1 张牌。 \n 将手牌中的一张牌放到你的抽牌堆顶部。 \n 消耗 。",
+      "has_target": false,
+      "id": "Warcry",
+      "name": "战吼",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "d9a03a83-16e8-492f-8d88-de2ffb809f23"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 2,
+      "description": "造成 8 点伤害。 \n 给予 2 层 易伤 。",
+      "has_target": true,
+      "id": "Bash",
+      "name": "痛击",
+      "playable": false,
+      "price": null,
+      "upgraded": false,
+      "uuid": "31b68d7f-d917-40ad-b351-0755f8148fd3"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "has_target": false,
+      "id": "Defend_R",
+      "name": "防御",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "24c9488d-a9c2-4dfe-a6de-741e9eae06c0"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": -1,
+      "description": "对所有敌人造成 5 点伤害X次。",
+      "has_target": false,
+      "id": "Whirlwind",
+      "name": "旋风斩",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "c8aa34e8-9b6e-48d7-a6fc-ec7502479607"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "随机对敌人造成 3 点伤害 3 次。",
+      "has_target": false,
+      "id": "Sword Boomerang",
+      "name": "飞剑回旋镖",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "a2f8bc0f-be32-44e5-9a69-b3d32ff91691"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "has_target": false,
+      "id": "Defend_R",
+      "name": "防御",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "466e4ae4-cb7d-4344-8e33-525dcd17750a"
+    }
+  ],
+  "empty_potion_slots": 3,
+  "energy": 1,
+  "event_body": null,
+  "event_choices": [],
+  "event_id": null,
+  "event_name": null,
+  "exhaust_cards": [],
+  "floor": 7,
+  "gold": 162,
+  "grid_cards": [],
+  "grid_for_purge": false,
+  "grid_for_transform": false,
+  "grid_for_upgrade": false,
+  "grid_num_cards": null,
+  "hand": [
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 11 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "c2c3698a-7dfd-412d-bc08-ff42c3e7ea3b"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 11 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "8e7095ae-59b8-41e9-86cf-973a4246420f"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 11 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "4ab9c4b8-78f5-47b7-af67-9005a8024922"
+    }
+  ],
+  "hand_cards": [
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 11 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "c2c3698a-7dfd-412d-bc08-ff42c3e7ea3b"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 11 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "8e7095ae-59b8-41e9-86cf-973a4246420f"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 11 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "4ab9c4b8-78f5-47b7-af67-9005a8024922"
+    }
+  ],
+  "hand_select_can_pick_zero": false,
+  "hand_select_max_cards": null,
+  "hand_select_selected": [],
+  "incoming_damage": 10,
+  "map_current_x": null,
+  "map_current_y": null,
+  "map_first_node_chosen": null,
+  "map_nodes": [
+    {
+      "children": [
+        [
+          2,
+          1
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 0
+    },
+    {
+      "children": [
+        [
+          3,
+          1
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 0
+    },
+    {
+      "children": [
+        [
+          6,
+          1
+        ]
+      ],
+      "symbol": "M",
+      "x": 5,
+      "y": 0
+    },
+    {
+      "children": [
+        [
+          3,
+          2
+        ]
+      ],
+      "symbol": "?",
+      "x": 2,
+      "y": 1
+    },
+    {
+      "children": [
+        [
+          3,
+          2
+        ]
+      ],
+      "symbol": "?",
+      "x": 3,
+      "y": 1
+    },
+    {
+      "children": [
+        [
+          4,
+          2
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 1
+    },
+    {
+      "children": [
+        [
+          6,
+          2
+        ]
+      ],
+      "symbol": "M",
+      "x": 6,
+      "y": 1
+    },
+    {
+      "children": [
+        [
+          4,
+          3
+        ]
+      ],
+      "symbol": "M",
+      "x": 3,
+      "y": 2
+    },
+    {
+      "children": [
+        [
+          5,
+          3
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 2
+    },
+    {
+      "children": [
+        [
+          5,
+          3
+        ],
+        [
+          6,
+          3
+        ]
+      ],
+      "symbol": "M",
+      "x": 6,
+      "y": 2
+    },
+    {
+      "children": [
+        [
+          5,
+          4
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          5,
+          4
+        ],
+        [
+          6,
+          4
+        ]
+      ],
+      "symbol": "?",
+      "x": 5,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          6,
+          4
+        ]
+      ],
+      "symbol": "M",
+      "x": 6,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          4,
+          5
+        ],
+        [
+          5,
+          5
+        ]
+      ],
+      "symbol": "M",
+      "x": 5,
+      "y": 4
+    },
+    {
+      "children": [
+        [
+          5,
+          5
+        ],
+        [
+          6,
+          5
+        ]
+      ],
+      "symbol": "$",
+      "x": 6,
+      "y": 4
+    },
+    {
+      "children": [
+        [
+          3,
+          6
+        ],
+        [
+          4,
+          6
+        ]
+      ],
+      "symbol": "R",
+      "x": 4,
+      "y": 5
+    },
+    {
+      "children": [
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          6
+        ]
+      ],
+      "symbol": "E",
+      "x": 5,
+      "y": 5
+    },
+    {
+      "children": [
+        [
+          6,
+          6
+        ]
+      ],
+      "symbol": "R",
+      "x": 6,
+      "y": 5
+    },
+    {
+      "children": [
+        [
+          3,
+          7
+        ],
+        [
+          4,
+          7
+        ]
+      ],
+      "symbol": "E",
+      "x": 3,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          4,
+          7
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          4,
+          7
+        ]
+      ],
+      "symbol": "R",
+      "x": 5,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          6,
+          7
+        ]
+      ],
+      "symbol": "M",
+      "x": 6,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          3,
+          8
+        ]
+      ],
+      "symbol": "R",
+      "x": 3,
+      "y": 7
+    },
+    {
+      "children": [
+        [
+          4,
+          8
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 7
+    },
+    {
+      "children": [
+        [
+          6,
+          8
+        ]
+      ],
+      "symbol": "R",
+      "x": 6,
+      "y": 7
+    },
+    {
+      "children": [
+        [
+          2,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 3,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          3,
+          9
+        ],
+        [
+          5,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 4,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          5,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 5,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          5,
+          9
+        ],
+        [
+          6,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 6,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          1,
+          10
+        ]
+      ],
+      "symbol": "E",
+      "x": 2,
+      "y": 9
+    },
+    {
+      "children": [
+        [
+          2,
+          10
+        ]
+      ],
+      "symbol": "E",
+      "x": 3,
+      "y": 9
+    },
+    {
+      "children": [
+        [
+          4,
+          10
+        ],
+        [
+          5,
+          10
+        ],
+        [
+          6,
+          10
+        ]
+      ],
+      "symbol": "M",
+      "x": 5,
+      "y": 9
+    },
+    {
+      "children": [
+        [
+          6,
+          10
+        ]
+      ],
+      "symbol": "?",
+      "x": 6,
+      "y": 9
+    },
+    {
+      "children": [
+        [
+          0,
+          11
+        ]
+      ],
+      "symbol": "?",
+      "x": 1,
+      "y": 10
+    },
+    {
+      "children": [
+        [
+          1,
+          11
+        ]
+      ],
+      "symbol": "M",
+      "x": 2,
+      "y": 10
+    },
+    {
+      "children": [
+        [
+          4,
+          11
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 10
+    },
+    {
+      "children": [
+        [
+          5,
+          11
+        ]
+      ],
+      "symbol": "R",
+      "x": 5,
+      "y": 10
+    },
+    {
+      "children": [
+        [
+          6,
+          11
+        ]
+      ],
+      "symbol": "?",
+      "x": 6,
+      "y": 10
+    },
+    {
+      "children": [
+        [
+          0,
+          12
+        ]
+      ],
+      "symbol": "M",
+      "x": 0,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          0,
+          12
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          5,
+          12
+        ]
+      ],
+      "symbol": "$",
+      "x": 4,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          5,
+          12
+        ]
+      ],
+      "symbol": "?",
+      "x": 5,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          6,
+          12
+        ]
+      ],
+      "symbol": "?",
+      "x": 6,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          1,
+          13
+        ]
+      ],
+      "symbol": "?",
+      "x": 0,
+      "y": 12
+    },
+    {
+      "children": [
+        [
+          4,
+          13
+        ],
+        [
+          6,
+          13
+        ]
+      ],
+      "symbol": "?",
+      "x": 5,
+      "y": 12
+    },
+    {
+      "children": [
+        [
+          6,
+          13
+        ]
+      ],
+      "symbol": "?",
+      "x": 6,
+      "y": 12
+    },
+    {
+      "children": [
+        [
+          0,
+          14
+        ],
+        [
+          2,
+          14
+        ]
+      ],
+      "symbol": "$",
+      "x": 1,
+      "y": 13
+    },
+    {
+      "children": [
+        [
+          4,
+          14
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 13
+    },
+    {
+      "children": [
+        [
+          5,
+          14
+        ],
+        [
+          6,
+          14
+        ]
+      ],
+      "symbol": "M",
+      "x": 6,
+      "y": 13
+    },
+    {
+      "children": [
+        [
+          3,
+          16
+        ]
+      ],
+      "symbol": "R",
+      "x": 0,
+      "y": 14
+    },
+    {
+      "children": [
+        [
+          3,
+          16
+        ]
+      ],
+      "symbol": "R",
+      "x": 2,
+      "y": 14
+    },
+    {
+      "children": [
+        [
+          3,
+          16
+        ]
+      ],
+      "symbol": "R",
+      "x": 4,
+      "y": 14
+    },
+    {
+      "children": [
+        [
+          3,
+          16
+        ]
+      ],
+      "symbol": "R",
+      "x": 5,
+      "y": 14
+    },
+    {
+      "children": [
+        [
+          3,
+          16
+        ]
+      ],
+      "symbol": "R",
+      "x": 6,
+      "y": 14
+    }
+  ],
+  "master_cards": [
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "4ab9c4b8-78f5-47b7-af67-9005a8024922"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "9b77f2f6-0182-4fbd-bc3a-9f478f70fd2e"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "8e7095ae-59b8-41e9-86cf-973a4246420f"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "c2c3698a-7dfd-412d-bc08-ff42c3e7ea3b"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "has_target": true,
+      "id": "Strike_R",
+      "name": "打击",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "27292917-2356-430c-9788-95a4bebc98d9"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "has_target": false,
+      "id": "Defend_R",
+      "name": "防御",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "f6811e11-974f-4362-beac-37591bd59501"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "has_target": false,
+      "id": "Defend_R",
+      "name": "防御",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "24c9488d-a9c2-4dfe-a6de-741e9eae06c0"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "has_target": false,
+      "id": "Defend_R",
+      "name": "防御",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "98f28f77-cb97-4f26-8e43-877b51faf411"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "has_target": false,
+      "id": "Defend_R",
+      "name": "防御",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "466e4ae4-cb7d-4344-8e33-525dcd17750a"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 2,
+      "description": "造成 8 点伤害。 \n 给予 2 层 易伤 。",
+      "has_target": true,
+      "id": "Bash",
+      "name": "痛击",
+      "playable": false,
+      "price": null,
+      "upgraded": false,
+      "uuid": "31b68d7f-d917-40ad-b351-0755f8148fd3"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "固有。 \n 虚无。 \n 这是一张DEBUG卡牌， \n 可能时打出。 \n 获得24层多层护甲 \n 和壁垒。",
+      "has_target": false,
+      "id": "descendersblessing:DescendersBlessing",
+      "name": "降阶之福+",
+      "playable": true,
+      "price": null,
+      "upgraded": true,
+      "uuid": "bae53294-f1aa-40a2-9686-7816c884452b"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "随机对敌人造成 3 点伤害 3 次。",
+      "has_target": false,
+      "id": "Sword Boomerang",
+      "name": "飞剑回旋镖",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "a2f8bc0f-be32-44e5-9a69-b3d32ff91691"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": -1,
+      "description": "对所有敌人造成 5 点伤害X次。",
+      "has_target": false,
+      "id": "Whirlwind",
+      "name": "旋风斩",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "c8aa34e8-9b6e-48d7-a6fc-ec7502479607"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "如果一名敌人的意图是攻击，你获得 3 点 力量 。",
+      "has_target": true,
+      "id": "Spot Weakness",
+      "name": "观察弱点",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "b98ac318-7fa2-4b79-9822-16a767545219"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "抽 1 张牌。 \n 将手牌中的一张牌放到你的抽牌堆顶部。 \n 消耗 。",
+      "has_target": false,
+      "id": "Warcry",
+      "name": "战吼",
+      "playable": true,
+      "price": null,
+      "upgraded": false,
+      "uuid": "d9a03a83-16e8-492f-8d88-de2ffb809f23"
+    }
+  ],
+  "max_hp": 88,
+  "monsters": [
+    {
+      "block": 0,
+      "can_be_killed": true,
+      "current_hp": 4,
+      "damage": 10,
+      "hits": 1,
+      "index": 0,
+      "intent": "ATTACK_DEBUFF",
+      "is_scaling": true,
+      "max_hp": 84,
+      "monster_powers": [
+        {
+          "amount": 2,
+          "id": "Anger",
+          "name": "激怒"
+        },
+        {
+          "amount": 4,
+          "id": "Strength",
+          "name": "力量"
+        },
+        {
+          "amount": 1,
+          "id": "Vulnerable",
+          "name": "易伤"
+        }
+      ],
+      "name": "地精大块头"
+    }
+  ],
+  "potions": [],
+  "powers": [
+    {
+      "amount": 24,
+      "id": "Plated Armor",
+      "name": "多层护甲"
+    },
+    {
+      "amount": -1,
+      "id": "Barricade",
+      "name": "壁垒"
+    },
+    {
+      "amount": 5,
+      "id": "Strength",
+      "name": "力量"
+    }
+  ],
+  "purge_available": false,
+  "purge_cost": null,
+  "relics": [
+    {
+      "counter": null,
+      "description": "在战斗结束时，回复 6 点生命。",
+      "id": "Burning Blood",
+      "name": "燃烧之血",
+      "price": null
+    }
+  ],
+  "rest_options": [],
+  "room_type": "MonsterRoomElite",
+  "screen_type": "NONE",
+  "seed": -582230291998696632,
+  "shop_cards": [],
+  "shop_potions": [],
+  "shop_relics": [],
+  "skip_available": false
+}

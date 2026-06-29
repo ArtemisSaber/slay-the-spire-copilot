@@ -1,18 +1,28 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::locales::Locale;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CardInfo {
     pub id: String,
     pub name: String,
     pub cost: i64,
     pub card_type: String,
+    #[serde(default)]
     pub upgraded: bool,
     pub uuid: Option<String>,
     pub description: String,
+    pub price: Option<i64>,
+    #[serde(default = "default_true")]
+    pub playable: bool,
+    #[serde(default)]
+    pub has_target: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl CardInfo {
@@ -48,13 +58,24 @@ impl CardInfo {
                 .and_then(|n| n.as_str())
                 .unwrap_or("")
                 .to_string(),
+            price: c.get("price").and_then(|n| n.as_i64()),
+            playable: c
+                .get("is_playable")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true),
+            has_target: c
+                .get("has_target")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MonsterInfo {
     pub name: String,
+    #[serde(default)]
+    pub monster_id: Option<String>,
     pub index: usize,
     pub current_hp: Option<i64>,
     pub max_hp: Option<i64>,
@@ -67,21 +88,29 @@ pub struct MonsterInfo {
     pub is_scaling: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PowerInfo {
     pub id: String,
     pub name: String,
     pub amount: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct OrbInfo {
+    pub id: String,
+    #[serde(default)]
+    pub amount: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum DangerLevel {
+    #[default]
     Safe,
     Caution,
     Danger,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DangerFlags {
     pub hp_critical: bool,
     pub incoming_lethal: bool,
@@ -130,21 +159,31 @@ impl DangerFlags {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RelicInfo {
     pub id: String,
     pub name: String,
     pub description: String,
     pub counter: Option<i64>,
+    pub price: Option<i64>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PotionInfo {
+    #[serde(default)]
+    pub slot: usize,
     pub name: String,
     pub description: String,
+    pub price: Option<i64>,
+    #[serde(default)]
+    pub can_use: bool,
+    #[serde(default)]
+    pub can_discard: bool,
+    #[serde(default)]
+    pub requires_target: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MapCoord {
     pub symbol: String,
     pub x: i64,
@@ -152,7 +191,8 @@ pub struct MapCoord {
     pub children: Vec<(i64, i64)>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct NormalizedState {
     pub screen_type: Option<String>,
     pub room_type: Option<String>,
@@ -182,6 +222,16 @@ pub struct NormalizedState {
     pub danger: DangerFlags,
     pub skip_available: bool,
 
+    pub shop_cards: Vec<CardInfo>,
+    pub shop_relics: Vec<RelicInfo>,
+    pub shop_potions: Vec<PotionInfo>,
+    pub purge_available: bool,
+    pub purge_cost: Option<i64>,
+
+    pub turn_number: Option<i64>,
+    pub orbs: Vec<OrbInfo>,
+    pub stance: Option<String>,
+
     pub hand_cards: Vec<CardInfo>,
     pub draw_pile: Vec<CardInfo>,
     pub discard_pile: Vec<CardInfo>,
@@ -191,6 +241,42 @@ pub struct NormalizedState {
     pub map_first_node_chosen: Option<bool>,
     pub map_current_x: Option<i64>,
     pub map_current_y: Option<i64>,
+
+    // HAND_SELECT
+    pub hand_select_max_cards: Option<i64>,
+    pub hand_select_can_pick_zero: bool,
+    pub hand_select_selected: Vec<CardInfo>,
+    pub current_action: Option<String>,
+
+    // card_in_play (card that triggered the hand selection, e.g. Burning Pact)
+    pub card_in_play: Option<CardInfo>,
+
+    // GRID
+    pub grid_cards: Vec<CardInfo>,
+    #[serde(default)]
+    pub grid_selected_cards: Vec<CardInfo>,
+    pub grid_for_upgrade: bool,
+    pub grid_for_transform: bool,
+    pub grid_for_purge: bool,
+    pub grid_num_cards: Option<i64>,
+
+    // count of empty potion slots ("Potion Slot" entries in raw potions array)
+    pub empty_potion_slots: usize,
+}
+
+fn detect_stance_from_powers(powers: &[PowerInfo]) -> Option<String> {
+    for p in powers {
+        if p.amount <= 0 {
+            continue;
+        }
+        match p.id.as_str() {
+            "Wrath" => return Some("Wrath".to_string()),
+            "Calm" => return Some("Calm".to_string()),
+            "Divinity" => return Some("Divinity".to_string()),
+            _ => {}
+        }
+    }
+    None
 }
 
 fn extract_cards(arr: &[Value]) -> Vec<CardInfo> {
@@ -280,6 +366,7 @@ fn extract_relic_infos(arr: &[Value]) -> Vec<RelicInfo> {
                 name: name.clone(),
                 description: String::new(),
                 counter: None,
+                price: None,
             },
             Value::Object(_) => RelicInfo {
                 id: r
@@ -301,12 +388,14 @@ fn extract_relic_infos(arr: &[Value]) -> Vec<RelicInfo> {
                     .get("counter")
                     .and_then(|v| v.as_i64())
                     .filter(|&c| c >= 0),
+                price: r.get("price").and_then(|v| v.as_i64()),
             },
             _ => RelicInfo {
                 id: String::new(),
                 name: "?".to_string(),
                 description: String::new(),
                 counter: None,
+                price: None,
             },
         })
         .collect()
@@ -314,13 +403,15 @@ fn extract_relic_infos(arr: &[Value]) -> Vec<RelicInfo> {
 
 fn extract_potion_infos(arr: &[Value]) -> Vec<PotionInfo> {
     arr.iter()
-        .filter(|p| {
+        .enumerate()
+        .filter(|(_, p)| {
             p.get("id")
                 .and_then(|id| id.as_str())
                 .map(|id| id != "Potion Slot")
                 .unwrap_or(true)
         })
-        .map(|p| PotionInfo {
+        .map(|(i, p)| PotionInfo {
+            slot: i,
             name: p
                 .get("name")
                 .and_then(|v| v.as_str())
@@ -331,6 +422,16 @@ fn extract_potion_infos(arr: &[Value]) -> Vec<PotionInfo> {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string(),
+            price: p.get("price").and_then(|v| v.as_i64()),
+            can_use: p.get("can_use").and_then(|v| v.as_bool()).unwrap_or(false),
+            can_discard: p
+                .get("can_discard")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            requires_target: p
+                .get("requires_target")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
         })
         .collect()
 }
@@ -400,6 +501,27 @@ impl NormalizedState {
             .map(|arr| extract_powers(arr))
             .unwrap_or_default();
 
+        let turn_number = combat.and_then(|c| c.get("turn")).and_then(|v| v.as_i64());
+
+        let orbs: Vec<OrbInfo> = player
+            .and_then(|p| p.get("orbs"))
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .map(|o| OrbInfo {
+                        id: o
+                            .get("id")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        amount: o.get("amount").and_then(|v| v.as_i64()).unwrap_or(0),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let stance = detect_stance_from_powers(&powers);
+
         let hand: Vec<CardInfo> = combat
             .and_then(|c| c.get("hand"))
             .and_then(|v| v.as_array())
@@ -465,6 +587,7 @@ impl NormalizedState {
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("?")
                                 .to_string(),
+                            monster_id: m.get("id").and_then(|v| v.as_str()).map(|s| s.to_string()),
                             index: idx,
                             current_hp: hp,
                             max_hp: m.get("max_hp").and_then(|n| n.as_i64()),
@@ -492,6 +615,7 @@ impl NormalizedState {
             .iter()
             .filter(|m| m.intent.as_deref() != Some("NONE"))
             .filter_map(|m| m.damage)
+            .filter(|&d| d > 0)
             .sum();
 
         let danger = DangerFlags::compute(
@@ -573,6 +697,33 @@ impl NormalizedState {
             })
             .unwrap_or_default();
 
+        let shop_cards: Vec<CardInfo> = screen_state
+            .and_then(|s| s.get("cards"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_cards(arr))
+            .unwrap_or_default();
+
+        let shop_relics: Vec<RelicInfo> = screen_state
+            .and_then(|s| s.get("relics"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_relic_infos(arr))
+            .unwrap_or_default();
+
+        let shop_potions: Vec<PotionInfo> = screen_state
+            .and_then(|s| s.get("potions"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_potion_infos(arr))
+            .unwrap_or_default();
+
+        let purge_available = screen_state
+            .and_then(|s| s.get("purge_available"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        let purge_cost = screen_state
+            .and_then(|s| s.get("purge_cost"))
+            .and_then(|v| v.as_i64());
+
         let master_cards: Vec<CardInfo> = gs
             .and_then(|g| g.get("deck"))
             .and_then(|v| v.as_array())
@@ -621,6 +772,76 @@ impl NormalizedState {
             .map(|arr| extract_potion_infos(arr))
             .unwrap_or_default();
 
+        let empty_potion_slots = gs
+            .and_then(|g| g.get("potions"))
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter(|p| {
+                        p.get("id")
+                            .and_then(|id| id.as_str())
+                            .map(|id| id == "Potion Slot")
+                            .unwrap_or(false)
+                    })
+                    .count()
+            })
+            .unwrap_or(0);
+
+        let hand_select_max_cards = screen_state
+            .and_then(|s| s.get("max_cards"))
+            .and_then(|v| v.as_i64());
+
+        let hand_select_can_pick_zero = screen_state
+            .and_then(|s| s.get("can_pick_zero"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        let hand_select_selected: Vec<CardInfo> = screen_state
+            .and_then(|s| s.get("selected"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_cards(arr))
+            .unwrap_or_default();
+
+        let current_action = gs
+            .and_then(|g| g.get("current_action"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let card_in_play = combat
+            .and_then(|c| c.get("card_in_play"))
+            .map(CardInfo::from_json);
+
+        let grid_cards: Vec<CardInfo> = screen_state
+            .and_then(|s| s.get("cards"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_cards(arr))
+            .unwrap_or_default();
+
+        let grid_selected_cards: Vec<CardInfo> = screen_state
+            .and_then(|s| s.get("selected_cards"))
+            .and_then(|v| v.as_array())
+            .map(|arr| extract_cards(arr))
+            .unwrap_or_default();
+
+        let grid_for_upgrade = screen_state
+            .and_then(|s| s.get("for_upgrade"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        let grid_for_transform = screen_state
+            .and_then(|s| s.get("for_transform"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        let grid_for_purge = screen_state
+            .and_then(|s| s.get("for_purge"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        let grid_num_cards = screen_state
+            .and_then(|s| s.get("num_cards"))
+            .and_then(|v| v.as_i64());
+
         let mut deck_names: Vec<String> = gs
             .and_then(|g| g.get("deck"))
             .and_then(|v| v.as_array())
@@ -659,6 +880,14 @@ impl NormalizedState {
             rest_options,
             danger,
             skip_available,
+            shop_cards,
+            shop_relics,
+            shop_potions,
+            purge_available,
+            purge_cost,
+            turn_number,
+            orbs,
+            stance,
             hand_cards,
             draw_pile,
             discard_pile,
@@ -668,6 +897,18 @@ impl NormalizedState {
             map_first_node_chosen,
             map_current_x,
             map_current_y,
+            hand_select_max_cards,
+            hand_select_can_pick_zero,
+            hand_select_selected,
+            current_action,
+            card_in_play,
+            grid_cards,
+            grid_selected_cards,
+            grid_for_upgrade,
+            grid_for_transform,
+            grid_for_purge,
+            grid_num_cards,
+            empty_potion_slots,
         }
     }
 
@@ -891,6 +1132,54 @@ impl NormalizedState {
             Value::Bool(self.skip_available),
         );
 
+        let mut sorted_shop_cards = self.shop_cards.clone();
+        sorted_shop_cards.sort_by(|a, b| a.id.cmp(&b.id));
+        map.insert(
+            "shop_cards".to_string(),
+            Value::Array(
+                sorted_shop_cards
+                    .into_iter()
+                    .map(|c| {
+                        let mut cm = serde_json::Map::new();
+                        cm.insert("id".to_string(), Value::String(c.id.clone()));
+                        cm.insert("cost".to_string(), Value::Number(c.cost.into()));
+                        cm.insert(
+                            "price".to_string(),
+                            Value::Number(c.price.unwrap_or(0).into()),
+                        );
+                        Value::Object(cm)
+                    })
+                    .collect(),
+            ),
+        );
+
+        let mut sorted_shop_relics = self.shop_relics.clone();
+        sorted_shop_relics.sort_by(|a, b| a.name.cmp(&b.name));
+        map.insert(
+            "shop_relics".to_string(),
+            Value::Array(
+                sorted_shop_relics
+                    .into_iter()
+                    .map(|r| {
+                        let mut rm = serde_json::Map::new();
+                        rm.insert("name".to_string(), Value::String(r.name.clone()));
+                        rm.insert(
+                            "price".to_string(),
+                            Value::Number(r.price.unwrap_or(0).into()),
+                        );
+                        Value::Object(rm)
+                    })
+                    .collect(),
+            ),
+        );
+
+        if self.purge_available {
+            map.insert("purge_available".to_string(), Value::Bool(true));
+            if let Some(c) = self.purge_cost {
+                map.insert("purge_cost".to_string(), Value::Number(c.into()));
+            }
+        }
+
         if let Some(v) = self.map_first_node_chosen {
             map.insert("map_first_node_chosen".to_string(), Value::Bool(v));
         }
@@ -899,6 +1188,93 @@ impl NormalizedState {
         }
         if let Some(v) = self.map_current_y {
             map.insert("map_current_y".to_string(), Value::Number(v.into()));
+        }
+
+        if let Some(v) = self.hand_select_max_cards {
+            map.insert("hand_select_max_cards".to_string(), Value::Number(v.into()));
+        }
+        if self.hand_select_can_pick_zero {
+            map.insert("hand_select_can_pick_zero".to_string(), Value::Bool(true));
+        }
+        let mut sorted_hand_select_selected = self.hand_select_selected.clone();
+        sorted_hand_select_selected.sort_by(|a, b| a.id.cmp(&b.id));
+        if !sorted_hand_select_selected.is_empty() {
+            map.insert(
+                "hand_select_selected".to_string(),
+                Value::Array(
+                    sorted_hand_select_selected
+                        .into_iter()
+                        .map(|c| {
+                            let mut cm = serde_json::Map::new();
+                            cm.insert("id".to_string(), Value::String(c.id.clone()));
+                            Value::Object(cm)
+                        })
+                        .collect(),
+                ),
+            );
+        }
+        if let Some(ref v) = self.current_action {
+            map.insert("current_action".to_string(), Value::String(v.clone()));
+        }
+        if let Some(ref c) = self.card_in_play {
+            let mut cm = serde_json::Map::new();
+            cm.insert("id".to_string(), Value::String(c.id.clone()));
+            cm.insert("cost".to_string(), Value::Number(c.cost.into()));
+            cm.insert("type".to_string(), Value::String(c.card_type.clone()));
+            cm.insert("upgraded".to_string(), Value::Bool(c.upgraded));
+            map.insert("card_in_play".to_string(), Value::Object(cm));
+        }
+        let mut sorted_grid_cards = self.grid_cards.clone();
+        sorted_grid_cards.sort_by(|a, b| a.id.cmp(&b.id));
+        if !sorted_grid_cards.is_empty() {
+            map.insert(
+                "grid_cards".to_string(),
+                Value::Array(
+                    sorted_grid_cards
+                        .into_iter()
+                        .map(|c| {
+                            let mut cm = serde_json::Map::new();
+                            cm.insert("id".to_string(), Value::String(c.id.clone()));
+                            Value::Object(cm)
+                        })
+                        .collect(),
+                ),
+            );
+        }
+        let mut sorted_grid_selected = self.grid_selected_cards.clone();
+        sorted_grid_selected.sort_by(|a, b| a.id.cmp(&b.id));
+        if !sorted_grid_selected.is_empty() {
+            map.insert(
+                "grid_selected_cards".to_string(),
+                Value::Array(
+                    sorted_grid_selected
+                        .into_iter()
+                        .map(|c| {
+                            let mut cm = serde_json::Map::new();
+                            cm.insert("id".to_string(), Value::String(c.id.clone()));
+                            Value::Object(cm)
+                        })
+                        .collect(),
+                ),
+            );
+        }
+        if self.grid_for_upgrade {
+            map.insert("grid_for_upgrade".to_string(), Value::Bool(true));
+        }
+        if self.grid_for_transform {
+            map.insert("grid_for_transform".to_string(), Value::Bool(true));
+        }
+        if self.grid_for_purge {
+            map.insert("grid_for_purge".to_string(), Value::Bool(true));
+        }
+        if let Some(v) = self.grid_num_cards {
+            map.insert("grid_num_cards".to_string(), Value::Number(v.into()));
+        }
+        if self.empty_potion_slots > 0 {
+            map.insert(
+                "empty_potion_slots".to_string(),
+                Value::Number(self.empty_potion_slots.into()),
+            );
         }
 
         Value::Object(map)

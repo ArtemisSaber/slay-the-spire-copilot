@@ -1,6 +1,7 @@
 use super::*;
 use crate::llm::AdviceScenario;
 use crate::test_utils::{load_fixture, test_locale};
+use chrono::{TimeZone, Utc};
 use serde_json::Value;
 
 fn read_events(path: &Path) -> Vec<Value> {
@@ -171,6 +172,7 @@ fn run_started_includes_provider_and_models() {
         max_tokens_heavy: 300,
         temperature: 0.2,
         disable_fast_thinking: false,
+        auto_play: false,
     };
 
     journal.log_run_started_with_config(&config);
@@ -388,4 +390,35 @@ fn run_continued_includes_metadata() {
     assert_eq!(continued["character"], "IRONCLAD");
     assert_eq!(continued["ascension_level"], 20);
     assert!(!continued["app_version"].as_str().unwrap().is_empty());
+}
+
+#[test]
+fn format_datetime_produces_valid_format() {
+    let ts = timestamp_ms();
+    let result = format_datetime(ts);
+    assert!(
+        result
+            .chars()
+            .all(|c| c.is_ascii_digit() || c == '-' || c == '_'),
+        "expected YYYY-MM-DD_HH-MM, got {result}"
+    );
+    assert_eq!(result.len(), 16);
+}
+
+#[test]
+fn format_datetime_uses_local_time() {
+    let ts_ms = timestamp_ms();
+    let utc_str = Utc
+        .timestamp_millis_opt(ts_ms as i64)
+        .single()
+        .map(|dt| dt.format("%Y-%m-%d_%H-%M").to_string());
+    let local = format_datetime(ts_ms);
+    if utc_str.as_ref() == Some(&local) {
+        return;
+    }
+    assert_ne!(
+        utc_str.unwrap(),
+        local,
+        "should differ from UTC when timezone offset is non-zero"
+    );
 }

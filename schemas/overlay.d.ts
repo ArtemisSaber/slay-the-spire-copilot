@@ -12,6 +12,10 @@ export interface OverlayOutput {
   status: "loading" | "ok" | "error";
   overlay_visibility: boolean;
   advice: AdviceFields;
+  autoplay?: {
+    mode: "off" | "auto";
+    status: "idle" | "planning" | "executing" | "error";
+  };
   screen_type: string | null;
   scenario: string;
   in_combat: boolean;

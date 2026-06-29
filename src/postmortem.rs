@@ -20,10 +20,37 @@ pub fn generate_report_from_journal_file(
     generate_report_from_jsonl(&content, locale)
 }
 
+pub fn combine_postmortem_report(
+    ai_report: &str,
+    deterministic_report: &str,
+    section_machine: &str,
+) -> String {
+    format!("{ai_report}\n\n---\n\n{section_machine}\n\n{deterministic_report}")
+}
+
 pub fn write_report_for_journal(journal_path: &Path, report: &str) -> Result<PathBuf, String> {
     let report_path = postmortem_path_for_journal(journal_path);
-    fs::write(&report_path, report).map_err(|e| e.to_string())?;
+    atomic_write(&report_path, report).map_err(|e| e.to_string())?;
     Ok(report_path)
+}
+
+fn atomic_write(path: &Path, content: &str) -> Result<(), std::io::Error> {
+    let tmp = tmp_path(path);
+    fs::write(&tmp, content)?;
+    fs::rename(&tmp, path)?;
+    Ok(())
+}
+
+fn tmp_path(path: &Path) -> std::path::PathBuf {
+    let mut tmp = path.to_path_buf();
+    let mut name = path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned();
+    name.push_str(".tmp");
+    tmp.set_file_name(name);
+    tmp
 }
 
 #[derive(Debug, Default)]
@@ -270,8 +297,22 @@ pub fn generate_report_from_jsonl(
 
     if let Some(ref cause) = death_cause {
         report.push(pm.label_death.replace("{cause}", cause));
-        if let Some(reason) = run_ended_reason.as_ref() {
-            report.push(pm.label_ended.replace("{reason}", reason));
+    }
+
+    let is_victory = final_state.as_ref().is_some_and(|s| {
+        s.get("current_hp").and_then(|v| v.as_i64()).unwrap_or(0) > 0
+            && run_ended_reason.as_deref() == Some("game_over")
+    });
+
+    if is_victory {
+        let room = final_state
+            .as_ref()
+            .and_then(|s| s.get("room_type"))
+            .and_then(|v| v.as_str());
+        if room == Some("VictoryRoom") {
+            report.push(format!("{} — Heart defeated!", pm.label_victory));
+        } else {
+            report.push(pm.label_victory.clone());
         }
     } else if let Some(reason) = run_ended_reason.as_ref() {
         report.push(pm.label_ended.replace("{reason}", reason));
@@ -496,11 +537,12 @@ pub fn generate_report_from_jsonl(
 pub fn build_ai_postmortem_prompt(
     deterministic_report: &str,
     locale: &crate::locales::Locale,
+    outcome: &str,
 ) -> String {
     let pm = &locale.postmortem;
     let lang_name = &locale.language_name;
     format!(
-        "{}\n\n{}\n{}\n{}\n{}\n{}\n\n{}\n{deterministic_report}\n",
+        "{}\n\n{}\n{}\n{}\n{}\n{}\n\n{}\n\nOutcome: {outcome}\n\n{deterministic_report}\n",
         pm.ai_prompt.replace("{lang_name}", lang_name),
         pm.ai_requirements,
         pm.ai_req1,

@@ -1,0 +1,1448 @@
+{
+  "action_phase": "WAITING_ON_USER",
+  "ascension_level": 0,
+  "block": 0,
+  "boss_relic_choices": [],
+  "card_reward_choices": [],
+  "character": "IRONCLAD",
+  "current_hp": 31,
+  "danger": {
+    "any_monster_attacking": true,
+    "hp_critical": false,
+    "incoming_lethal": false,
+    "level": "Caution",
+    "no_block_against_hit": false,
+    "wrath_stance": false
+  },
+  "deck_names": [
+    "战吼",
+    "战斗专注+",
+    "打击",
+    "打击",
+    "打击",
+    "打击",
+    "旋风斩",
+    "无惧疼痛+",
+    "武装+",
+    "残杀",
+    "活动肌肉",
+    "痛击+",
+    "盛怒+",
+    "耸肩无视",
+    "腐化",
+    "防御",
+    "防御",
+    "防御+",
+    "防御+",
+    "震荡波",
+    "顺劈斩",
+    "飞身踢",
+    "黑暗之拥"
+  ],
+  "discard_pile": [
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 7 点伤害。 \n 如果敌人有 易伤 状态 ， \n 获得 [E] 并且 \n 抽1张牌。",
+      "id": "Dropkick",
+      "name": "飞身踢",
+      "upgraded": false,
+      "uuid": "0e83b9ab-dabb-4fe7-a428-f8be29d99fef"
+    }
+  ],
+  "draw_pile": [],
+  "energy": 3,
+  "event_body": null,
+  "event_choices": [],
+  "event_id": null,
+  "event_name": null,
+  "exhaust_cards": [
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "给予所有敌人 3 层 虚弱 和 易伤 。 \n 消耗 。",
+      "id": "Shockwave",
+      "name": "震荡波",
+      "upgraded": false,
+      "uuid": "add341ff-5746-4a2e-a2da-8be589cec0dc"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "获得 5 点 格挡 。",
+      "id": "Defend_R",
+      "name": "防御",
+      "upgraded": false,
+      "uuid": "741175a7-3d66-4d0c-8bfd-2478ca60f708"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "获得 [E] [E] 。 \n 消耗 。",
+      "id": "Seeing Red",
+      "name": "盛怒+",
+      "upgraded": true,
+      "uuid": "dbb00926-a8d9-48ca-898b-323845b72ded"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "获得 5 点 格挡 。 \n 在本场战斗中 升级 手牌中的所有牌。",
+      "id": "Armaments",
+      "name": "武装+",
+      "upgraded": true,
+      "uuid": "0e9d6e17-62f2-4196-8561-bc99e4891b23"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "获得 8 点 格挡 。",
+      "id": "Defend_R",
+      "name": "防御+",
+      "upgraded": true,
+      "uuid": "81285594-199f-4924-9088-8788ea34e64e"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "获得 2 点 力量 。 \n 你的回合结束时，失去 2 点 力量 。",
+      "id": "Flex",
+      "name": "活动肌肉",
+      "upgraded": false,
+      "uuid": "269b4fa9-5aa5-4bb8-b512-1ec1b73559af"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "抽 1 张牌。 \n 将手牌中的一张牌放到你的抽牌堆顶部。 \n 消耗 。",
+      "id": "Warcry",
+      "name": "战吼",
+      "upgraded": false,
+      "uuid": "f21e7598-2162-4cd4-ac79-f9c1e2e2219b"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "获得 8 点 格挡 。 \n 抽1张牌。",
+      "id": "Shrug It Off",
+      "name": "耸肩无视",
+      "upgraded": false,
+      "uuid": "6f2c470d-97ab-457d-8094-eb29e7f9b504"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "获得 8 点 格挡 。",
+      "id": "Defend_R",
+      "name": "防御+",
+      "upgraded": true,
+      "uuid": "29c50781-4f9a-4e97-95b8-c1b0418853d5"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "获得 8 点 格挡 。",
+      "id": "Defend_R",
+      "name": "防御+",
+      "upgraded": true,
+      "uuid": "a8c8ee02-0d9a-4536-b16b-1b9993d73eba"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 2,
+      "description": " 虚无 。 \n 造成 20 点伤害。",
+      "id": "Carnage",
+      "name": "残杀",
+      "upgraded": false,
+      "uuid": "2b1bf80e-e599-47c5-9ae2-d9987c593686"
+    }
+  ],
+  "floor": 28,
+  "gold": 126,
+  "hand": [
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 9 点伤害。",
+      "id": "Strike_R",
+      "name": "打击+",
+      "upgraded": true,
+      "uuid": "d18169ba-efd4-4957-bcd7-b322b1ce17d8"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 9 点伤害。",
+      "id": "Strike_R",
+      "name": "打击+",
+      "upgraded": true,
+      "uuid": "a1333d1e-3398-4ee8-af87-aed3800a394e"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 9 点伤害。",
+      "id": "Strike_R",
+      "name": "打击+",
+      "upgraded": true,
+      "uuid": "c264b545-46f3-4e2e-be88-2c934cd17bd7"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 9 点伤害。",
+      "id": "Strike_R",
+      "name": "打击+",
+      "upgraded": true,
+      "uuid": "50a66f23-b1cb-43a7-946b-45af7ab6f998"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "对所有敌人造成 11 点伤害。",
+      "id": "Cleave",
+      "name": "顺劈斩+",
+      "upgraded": true,
+      "uuid": "3a9d6ef0-bf26-4a54-99d0-778ae62c62c9"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "抽 4 张牌。 \n 你在这个回合内不能再抽任何牌。",
+      "id": "Battle Trance",
+      "name": "战斗专注+",
+      "upgraded": true,
+      "uuid": "77d66748-c1a5-4927-8ac4-6c7dd62812db"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": -1,
+      "description": "对所有敌人造成 5 点伤害X次。",
+      "id": "Whirlwind",
+      "name": "旋风斩",
+      "upgraded": false,
+      "uuid": "05fa0ad3-3271-45ba-91de-b3550dd15b86"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 2,
+      "description": "造成 10 点伤害。 \n 给予 3 层 易伤 。",
+      "id": "Bash",
+      "name": "痛击+",
+      "upgraded": true,
+      "uuid": "99b160a3-3d20-4484-8ef4-91a9e0adebaf"
+    }
+  ],
+  "hand_cards": [
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 9 点伤害。",
+      "id": "Strike_R",
+      "name": "打击+",
+      "upgraded": true,
+      "uuid": "d18169ba-efd4-4957-bcd7-b322b1ce17d8"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 9 点伤害。",
+      "id": "Strike_R",
+      "name": "打击+",
+      "upgraded": true,
+      "uuid": "a1333d1e-3398-4ee8-af87-aed3800a394e"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 9 点伤害。",
+      "id": "Strike_R",
+      "name": "打击+",
+      "upgraded": true,
+      "uuid": "c264b545-46f3-4e2e-be88-2c934cd17bd7"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 9 点伤害。",
+      "id": "Strike_R",
+      "name": "打击+",
+      "upgraded": true,
+      "uuid": "50a66f23-b1cb-43a7-946b-45af7ab6f998"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "对所有敌人造成 11 点伤害。",
+      "id": "Cleave",
+      "name": "顺劈斩+",
+      "upgraded": true,
+      "uuid": "3a9d6ef0-bf26-4a54-99d0-778ae62c62c9"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "抽 4 张牌。 \n 你在这个回合内不能再抽任何牌。",
+      "id": "Battle Trance",
+      "name": "战斗专注+",
+      "upgraded": true,
+      "uuid": "77d66748-c1a5-4927-8ac4-6c7dd62812db"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": -1,
+      "description": "对所有敌人造成 5 点伤害X次。",
+      "id": "Whirlwind",
+      "name": "旋风斩",
+      "upgraded": false,
+      "uuid": "05fa0ad3-3271-45ba-91de-b3550dd15b86"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 2,
+      "description": "造成 10 点伤害。 \n 给予 3 层 易伤 。",
+      "id": "Bash",
+      "name": "痛击+",
+      "upgraded": true,
+      "uuid": "99b160a3-3d20-4484-8ef4-91a9e0adebaf"
+    }
+  ],
+  "incoming_damage": -1,
+  "map_current_x": null,
+  "map_current_y": null,
+  "map_first_node_chosen": null,
+  "map_nodes": [
+    {
+      "children": [
+        [
+          1,
+          1
+        ]
+      ],
+      "symbol": "M",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "children": [
+        [
+          4,
+          1
+        ]
+      ],
+      "symbol": "M",
+      "x": 3,
+      "y": 0
+    },
+    {
+      "children": [
+        [
+          5,
+          1
+        ]
+      ],
+      "symbol": "M",
+      "x": 5,
+      "y": 0
+    },
+    {
+      "children": [
+        [
+          6,
+          1
+        ]
+      ],
+      "symbol": "M",
+      "x": 6,
+      "y": 0
+    },
+    {
+      "children": [
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 1
+    },
+    {
+      "children": [
+        [
+          3,
+          2
+        ],
+        [
+          4,
+          2
+        ]
+      ],
+      "symbol": "?",
+      "x": 4,
+      "y": 1
+    },
+    {
+      "children": [
+        [
+          4,
+          2
+        ]
+      ],
+      "symbol": "?",
+      "x": 5,
+      "y": 1
+    },
+    {
+      "children": [
+        [
+          6,
+          2
+        ]
+      ],
+      "symbol": "?",
+      "x": 6,
+      "y": 1
+    },
+    {
+      "children": [
+        [
+          0,
+          3
+        ]
+      ],
+      "symbol": "M",
+      "x": 0,
+      "y": 2
+    },
+    {
+      "children": [
+        [
+          1,
+          3
+        ]
+      ],
+      "symbol": "$",
+      "x": 1,
+      "y": 2
+    },
+    {
+      "children": [
+        [
+          3,
+          3
+        ]
+      ],
+      "symbol": "M",
+      "x": 3,
+      "y": 2
+    },
+    {
+      "children": [
+        [
+          3,
+          3
+        ],
+        [
+          5,
+          3
+        ]
+      ],
+      "symbol": "$",
+      "x": 4,
+      "y": 2
+    },
+    {
+      "children": [
+        [
+          6,
+          3
+        ]
+      ],
+      "symbol": "?",
+      "x": 6,
+      "y": 2
+    },
+    {
+      "children": [
+        [
+          1,
+          4
+        ]
+      ],
+      "symbol": "M",
+      "x": 0,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          2,
+          4
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          2,
+          4
+        ],
+        [
+          4,
+          4
+        ]
+      ],
+      "symbol": "?",
+      "x": 3,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          5,
+          4
+        ]
+      ],
+      "symbol": "M",
+      "x": 5,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          6,
+          4
+        ]
+      ],
+      "symbol": "M",
+      "x": 6,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          1,
+          5
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 4
+    },
+    {
+      "children": [
+        [
+          2,
+          5
+        ],
+        [
+          3,
+          5
+        ]
+      ],
+      "symbol": "$",
+      "x": 2,
+      "y": 4
+    },
+    {
+      "children": [
+        [
+          5,
+          5
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 4
+    },
+    {
+      "children": [
+        [
+          5,
+          5
+        ]
+      ],
+      "symbol": "?",
+      "x": 5,
+      "y": 4
+    },
+    {
+      "children": [
+        [
+          5,
+          5
+        ]
+      ],
+      "symbol": "M",
+      "x": 6,
+      "y": 4
+    },
+    {
+      "children": [
+        [
+          2,
+          6
+        ]
+      ],
+      "symbol": "R",
+      "x": 1,
+      "y": 5
+    },
+    {
+      "children": [
+        [
+          2,
+          6
+        ]
+      ],
+      "symbol": "R",
+      "x": 2,
+      "y": 5
+    },
+    {
+      "children": [
+        [
+          3,
+          6
+        ]
+      ],
+      "symbol": "E",
+      "x": 3,
+      "y": 5
+    },
+    {
+      "children": [
+        [
+          4,
+          6
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          6
+        ]
+      ],
+      "symbol": "R",
+      "x": 5,
+      "y": 5
+    },
+    {
+      "children": [
+        [
+          1,
+          7
+        ],
+        [
+          3,
+          7
+        ]
+      ],
+      "symbol": "M",
+      "x": 2,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          3,
+          7
+        ]
+      ],
+      "symbol": "R",
+      "x": 3,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          5,
+          7
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          5,
+          7
+        ]
+      ],
+      "symbol": "?",
+      "x": 5,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          6,
+          7
+        ]
+      ],
+      "symbol": "E",
+      "x": 6,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          1,
+          8
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 7
+    },
+    {
+      "children": [
+        [
+          2,
+          8
+        ],
+        [
+          4,
+          8
+        ]
+      ],
+      "symbol": "E",
+      "x": 3,
+      "y": 7
+    },
+    {
+      "children": [
+        [
+          4,
+          8
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "symbol": "M",
+      "x": 5,
+      "y": 7
+    },
+    {
+      "children": [
+        [
+          6,
+          8
+        ]
+      ],
+      "symbol": "?",
+      "x": 6,
+      "y": 7
+    },
+    {
+      "children": [
+        [
+          1,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 1,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          3,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 2,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          5,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 4,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          5,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 5,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          6,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 6,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          2,
+          10
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 9
+    },
+    {
+      "children": [
+        [
+          2,
+          10
+        ]
+      ],
+      "symbol": "M",
+      "x": 3,
+      "y": 9
+    },
+    {
+      "children": [
+        [
+          5,
+          10
+        ]
+      ],
+      "symbol": "E",
+      "x": 5,
+      "y": 9
+    },
+    {
+      "children": [
+        [
+          6,
+          10
+        ]
+      ],
+      "symbol": "R",
+      "x": 6,
+      "y": 9
+    },
+    {
+      "children": [
+        [
+          1,
+          11
+        ],
+        [
+          3,
+          11
+        ]
+      ],
+      "symbol": "M",
+      "x": 2,
+      "y": 10
+    },
+    {
+      "children": [
+        [
+          4,
+          11
+        ],
+        [
+          5,
+          11
+        ]
+      ],
+      "symbol": "M",
+      "x": 5,
+      "y": 10
+    },
+    {
+      "children": [
+        [
+          5,
+          11
+        ]
+      ],
+      "symbol": "M",
+      "x": 6,
+      "y": 10
+    },
+    {
+      "children": [
+        [
+          1,
+          12
+        ]
+      ],
+      "symbol": "E",
+      "x": 1,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          2,
+          12
+        ]
+      ],
+      "symbol": "?",
+      "x": 3,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          3,
+          12
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          4,
+          12
+        ],
+        [
+          6,
+          12
+        ]
+      ],
+      "symbol": "?",
+      "x": 5,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          2,
+          13
+        ]
+      ],
+      "symbol": "?",
+      "x": 1,
+      "y": 12
+    },
+    {
+      "children": [
+        [
+          3,
+          13
+        ]
+      ],
+      "symbol": "M",
+      "x": 2,
+      "y": 12
+    },
+    {
+      "children": [
+        [
+          3,
+          13
+        ]
+      ],
+      "symbol": "M",
+      "x": 3,
+      "y": 12
+    },
+    {
+      "children": [
+        [
+          4,
+          13
+        ]
+      ],
+      "symbol": "R",
+      "x": 4,
+      "y": 12
+    },
+    {
+      "children": [
+        [
+          5,
+          13
+        ],
+        [
+          6,
+          13
+        ]
+      ],
+      "symbol": "?",
+      "x": 6,
+      "y": 12
+    },
+    {
+      "children": [
+        [
+          3,
+          14
+        ]
+      ],
+      "symbol": "M",
+      "x": 2,
+      "y": 13
+    },
+    {
+      "children": [
+        [
+          3,
+          14
+        ],
+        [
+          4,
+          14
+        ]
+      ],
+      "symbol": "?",
+      "x": 3,
+      "y": 13
+    },
+    {
+      "children": [
+        [
+          4,
+          14
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 13
+    },
+    {
+      "children": [
+        [
+          6,
+          14
+        ]
+      ],
+      "symbol": "M",
+      "x": 5,
+      "y": 13
+    },
+    {
+      "children": [
+        [
+          6,
+          14
+        ]
+      ],
+      "symbol": "M",
+      "x": 6,
+      "y": 13
+    },
+    {
+      "children": [
+        [
+          3,
+          16
+        ]
+      ],
+      "symbol": "R",
+      "x": 3,
+      "y": 14
+    },
+    {
+      "children": [
+        [
+          3,
+          16
+        ]
+      ],
+      "symbol": "R",
+      "x": 4,
+      "y": 14
+    },
+    {
+      "children": [
+        [
+          3,
+          16
+        ]
+      ],
+      "symbol": "R",
+      "x": 6,
+      "y": 14
+    }
+  ],
+  "master_cards": [
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_R",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "50a66f23-b1cb-43a7-946b-45af7ab6f998"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_R",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "a1333d1e-3398-4ee8-af87-aed3800a394e"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_R",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "d18169ba-efd4-4957-bcd7-b322b1ce17d8"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_R",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "c264b545-46f3-4e2e-be88-2c934cd17bd7"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 8 点 格挡 。",
+      "id": "Defend_R",
+      "name": "防御+",
+      "upgraded": true,
+      "uuid": "29c50781-4f9a-4e97-95b8-c1b0418853d5"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "id": "Defend_R",
+      "name": "防御",
+      "upgraded": false,
+      "uuid": "741175a7-3d66-4d0c-8bfd-2478ca60f708"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "id": "Defend_R",
+      "name": "防御",
+      "upgraded": false,
+      "uuid": "81285594-199f-4924-9088-8788ea34e64e"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 8 点 格挡 。",
+      "id": "Defend_R",
+      "name": "防御+",
+      "upgraded": true,
+      "uuid": "a8c8ee02-0d9a-4536-b16b-1b9993d73eba"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 2,
+      "description": "造成 10 点伤害。 \n 给予 3 层 易伤 。",
+      "id": "Bash",
+      "name": "痛击+",
+      "upgraded": true,
+      "uuid": "99b160a3-3d20-4484-8ef4-91a9e0adebaf"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "对所有敌人造成 8 点伤害。",
+      "id": "Cleave",
+      "name": "顺劈斩",
+      "upgraded": false,
+      "uuid": "3a9d6ef0-bf26-4a54-99d0-778ae62c62c9"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。 \n 在本场战斗中 升级 手牌中的所有牌。",
+      "id": "Armaments",
+      "name": "武装+",
+      "upgraded": true,
+      "uuid": "0e9d6e17-62f2-4196-8561-bc99e4891b23"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "获得 [E] [E] 。 \n 消耗 。",
+      "id": "Seeing Red",
+      "name": "盛怒+",
+      "upgraded": true,
+      "uuid": "dbb00926-a8d9-48ca-898b-323845b72ded"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 2,
+      "description": " 虚无 。 \n 造成 20 点伤害。",
+      "id": "Carnage",
+      "name": "残杀",
+      "upgraded": false,
+      "uuid": "2b1bf80e-e599-47c5-9ae2-d9987c593686"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 5 点伤害。 \n 如果敌人有 易伤 状态 ， \n 获得 [E] 并且 \n 抽1张牌。",
+      "id": "Dropkick",
+      "name": "飞身踢",
+      "upgraded": false,
+      "uuid": "0e83b9ab-dabb-4fe7-a428-f8be29d99fef"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "抽 4 张牌。 \n 你在这个回合内不能再抽任何牌。",
+      "id": "Battle Trance",
+      "name": "战斗专注+",
+      "upgraded": true,
+      "uuid": "77d66748-c1a5-4927-8ac4-6c7dd62812db"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": -1,
+      "description": "对所有敌人造成 5 点伤害X次。",
+      "id": "Whirlwind",
+      "name": "旋风斩",
+      "upgraded": false,
+      "uuid": "05fa0ad3-3271-45ba-91de-b3550dd15b86"
+    },
+    {
+      "card_type": "POWER",
+      "cost": 3,
+      "description": "所有技能牌耗能变为0。 \n 所有技能牌在被打出时被 消耗 。",
+      "id": "Corruption",
+      "name": "腐化",
+      "upgraded": false,
+      "uuid": "b4df6506-c72a-4e24-aebc-72fbe61473c4"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 8 点 格挡 。 \n 抽1张牌。",
+      "id": "Shrug It Off",
+      "name": "耸肩无视",
+      "upgraded": false,
+      "uuid": "6f2c470d-97ab-457d-8094-eb29e7f9b504"
+    },
+    {
+      "card_type": "POWER",
+      "cost": 1,
+      "description": "每当有一张牌被 消耗 时， 获得 4 点 格挡 。",
+      "id": "Feel No Pain",
+      "name": "无惧疼痛+",
+      "upgraded": true,
+      "uuid": "bea220a0-d01b-4b8c-9d1d-7b73f5dca03d"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "抽 1 张牌。 \n 将手牌中的一张牌放到你的抽牌堆顶部。 \n 消耗 。",
+      "id": "Warcry",
+      "name": "战吼",
+      "upgraded": false,
+      "uuid": "f21e7598-2162-4cd4-ac79-f9c1e2e2219b"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 2,
+      "description": "给予所有敌人 3 层 虚弱 和 易伤 。 \n 消耗 。",
+      "id": "Shockwave",
+      "name": "震荡波",
+      "upgraded": false,
+      "uuid": "add341ff-5746-4a2e-a2da-8be589cec0dc"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 0,
+      "description": "获得 2 点 力量 。 \n 你的回合结束时，失去 2 点 力量 。",
+      "id": "Flex",
+      "name": "活动肌肉",
+      "upgraded": false,
+      "uuid": "269b4fa9-5aa5-4bb8-b512-1ec1b73559af"
+    },
+    {
+      "card_type": "POWER",
+      "cost": 2,
+      "description": "每当有一张牌被 消耗 时， 抽1张牌。",
+      "id": "Dark Embrace",
+      "name": "黑暗之拥",
+      "upgraded": false,
+      "uuid": "ab1d7935-6c18-482d-9928-18e78a2f7808"
+    }
+  ],
+  "max_hp": 80,
+  "monsters": [
+    {
+      "block": 0,
+      "can_be_killed": true,
+      "current_hp": 12,
+      "damage": -1,
+      "hits": 1,
+      "index": 1,
+      "intent": "BUFF",
+      "is_scaling": true,
+      "max_hp": 54,
+      "monster_powers": [
+        {
+          "amount": 2,
+          "id": "Strength",
+          "name": "力量"
+        },
+        {
+          "amount": 1,
+          "id": "Vulnerable",
+          "name": "易伤"
+        }
+      ],
+      "name": "神秘术士"
+    }
+  ],
+  "potions": [
+    {
+      "description": "从 3 张随机技能牌中选择 1 张加入你的手牌。这张牌在本回合耗能变为 0 。",
+      "name": "技能药水"
+    },
+    {
+      "description": "从 3 张随机能力牌中选择 1 张加入你的手牌。这张牌在本回合耗能变为 0 。",
+      "name": "能力药水"
+    },
+    {
+      "description": "抽 3 张牌。",
+      "name": "迅捷药水"
+    }
+  ],
+  "powers": [
+    {
+      "amount": 1,
+      "id": "Dexterity",
+      "name": "敏捷"
+    },
+    {
+      "amount": -1,
+      "id": "Corruption",
+      "name": "腐化"
+    },
+    {
+      "amount": 1,
+      "id": "Dark Embrace",
+      "name": "黑暗之拥"
+    },
+    {
+      "amount": 4,
+      "id": "Feel No Pain",
+      "name": "无惧疼痛"
+    },
+    {
+      "amount": 2,
+      "id": "Frail",
+      "name": "脆弱"
+    }
+  ],
+  "relics": [
+    {
+      "counter": 6,
+      "description": "你每打出 10 张牌，抽 1 张牌。",
+      "id": "InkBottle",
+      "name": "墨水瓶"
+    },
+    {
+      "counter": null,
+      "description": "现在你可以在休息处移除你牌组中的牌。",
+      "id": "Peace Pipe",
+      "name": "宁静烟斗"
+    },
+    {
+      "counter": 0,
+      "description": "每 4 个 ？ 房间的最后一个必是 宝箱房 。",
+      "id": "Tiny Chest",
+      "name": "小宝箱"
+    },
+    {
+      "counter": null,
+      "description": "在每场战斗开始时，获得 1 点 敏捷 。",
+      "id": "Oddly Smooth Stone",
+      "name": "意外光滑的石头"
+    },
+    {
+      "counter": 0,
+      "description": "你的牌组中每有一张 诅咒 牌，你在战斗开始时就额外获得 1 点 力量 。 你没有 诅咒 牌。",
+      "id": "Du-Vu Doll",
+      "name": "毒巫娃娃"
+    },
+    {
+      "counter": null,
+      "description": "在你的回合开始时，对所有敌人造成 3 点伤害。",
+      "id": "Mercury Hourglass",
+      "name": "水银沙漏"
+    },
+    {
+      "counter": null,
+      "description": "这个祝福已经耗尽。",
+      "id": "NeowsBlessing",
+      "name": "涅奥的悲恸"
+    },
+    {
+      "counter": null,
+      "description": "在战斗结束时，回复 6 点生命。",
+      "id": "Burning Blood",
+      "name": "燃烧之血"
+    },
+    {
+      "counter": null,
+      "description": "在每场战斗开始时，将 腐化 放入你的手牌。",
+      "id": "Bottled Tornado",
+      "name": "瓶装旋风"
+    },
+    {
+      "counter": null,
+      "description": "你在回合结束时不再自动丢弃所有手牌。",
+      "id": "Runic Pyramid",
+      "name": "符文金字塔"
+    },
+    {
+      "counter": null,
+      "description": "敌人掉落的 金币 增加 25% 。",
+      "id": "Golden Idol",
+      "name": "金神像"
+    },
+    {
+      "counter": null,
+      "description": "每场战斗开始时，获得 1 层 人工制品 。",
+      "id": "ClockworkSouvenir",
+      "name": "齿轮工艺品"
+    }
+  ],
+  "rest_options": [],
+  "room_type": "MonsterRoom",
+  "screen_type": "NONE",
+  "seed": 6471626662756326299,
+  "skip_available": false,
+  "turn": 6
+}

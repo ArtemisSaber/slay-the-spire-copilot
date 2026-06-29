@@ -1,3 +1,8 @@
+#![allow(
+    dead_code,
+    reason = "WIP: effect_parser locale fields will be used by kill_scan in subsequent phases"
+)]
+
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -76,6 +81,15 @@ pub struct SectionLocale {
     pub next_nodes: String,
     pub combat_profile: String,
     pub turn_status: String,
+    pub shop: String,
+    pub shop_cards: String,
+    pub shop_relics: String,
+    pub shop_potions: String,
+    pub shop_purge: String,
+    pub hand_select: String,
+    pub grid_select: String,
+    pub hand_select_available: String,
+    pub selected_cards: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -154,6 +168,7 @@ pub struct SystemPromptLocale {
     pub combat_entry: String,
     pub boss_relic: String,
     pub event_choice: String,
+    pub shop: String,
     pub map_suggestion: String,
     pub map_crossroad: String,
     pub generic: String,
@@ -168,6 +183,7 @@ pub struct FewShotExampleLocale {
     pub combat_entry: String,
     pub boss_relic: String,
     pub event_choice: String,
+    pub shop: String,
     pub map_suggestion: String,
     pub map_crossroad: String,
     pub generic: String,
@@ -202,6 +218,7 @@ pub struct PostmortemLocale {
     pub label_combat_elite: String,
     pub label_combat_boss: String,
     pub label_death: String,
+    pub label_victory: String,
     pub label_combat_type_count: String,
     pub section_machine: String,
     pub ai_prompt: String,
@@ -211,6 +228,27 @@ pub struct PostmortemLocale {
     pub ai_req3: String,
     pub ai_req4: String,
     pub machine_summary: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(
+    dead_code,
+    reason = "WIP: effect parser locale fields will be used by effects.rs in subsequent phases"
+)]
+pub struct EffectParserLocale {
+    pub damage_keyword: String,
+    pub aoe_keywords: Vec<String>,
+    pub random_keywords: Vec<String>,
+    pub vulnerable_keyword: String,
+    pub strength_gain_keyword: String,
+    pub strength_lose_keyword: String,
+    pub enter_wrath_keywords: Vec<String>,
+    pub enter_calm_keywords: Vec<String>,
+    pub exit_stance_keywords: Vec<String>,
+    pub enter_divinity_keywords: Vec<String>,
+    pub mantra_keyword: String,
+    pub execute_keywords: Vec<String>,
+    pub exhaust_keyword: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -248,6 +286,10 @@ pub struct I18nLocale {
     pub rest_lift: String,
     pub rest_recall: String,
     pub rest_girya: String,
+    pub grid_upgrade: String,
+    pub grid_transform: String,
+    pub grid_purge: String,
+    pub grid_other: String,
 }
 
 impl I18nLocale {
@@ -278,6 +320,7 @@ pub struct Locale {
     pub few_shot_examples: FewShotExampleLocale,
     pub postmortem: PostmortemLocale,
     pub i18n: I18nLocale,
+    pub effect_parser: EffectParserLocale,
     pub language_name: String,
     #[serde(default)]
     pub lang_code: String,

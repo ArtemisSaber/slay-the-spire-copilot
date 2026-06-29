@@ -10,6 +10,7 @@ A local CLI copilot for Slay the Spire. It reads detailed game state from Commun
 - Slay the Spire
 - ModTheSpire
 - Communication Mod CJK
+- Optional: Copilot Overlay Mod for in-game advice and auto-play status
 
 ## Download Or Build / 下载或构建
 
@@ -144,6 +145,14 @@ LLM_TEMPERATURE=0.7
 LLM_DISABLE_FAST_THINKING=true  # DeepSeek: force non-thinking mode for combat/fast advice
 ```
 
+Auto-play is opt-in and off by default:
+
+自动出牌默认关闭，需要显式启用：
+
+```env
+AUTO_PLAY=true
+```
+
 ## Game Configuration / 游戏配置
 
 Install ModTheSpire and Communication Mod CJK first. The app relies on the detailed descriptions emitted by Communication Mod CJK.
@@ -266,6 +275,7 @@ output/overlay.json  (structured JSON, for overlay mod)
 
 - stdout is reserved for Communication Mod CJK protocol messages.
 - logs go to `logs/sts-ai.log`.
+- raw Communication Mod input is logged to `logs/comm-mod-raw.log`.
 - prompts and LLM responses are logged to `logs/prompts.log`.
 - latest advice is written to `output/advice.txt` (plain text) and `output/overlay.json` (structured JSON).
 - durable run history is written to `runs/<run_id>/events.jsonl`.
@@ -274,11 +284,13 @@ output/overlay.json  (structured JSON, for overlay mod)
 - map route advice is generated at act entry (full route analysis) and at mid-act crossroads (immediate next-node decisions).
 - advice uses tiered model routing: Heavy for card/boss rewards, Medium for rest/events/map routes, Fast for combat entry.
 - combat advice is intentionally entry-only to avoid high latency every turn.
+- **Auto-play** (`AUTO_PLAY=true`): the planner validates Communication Mod commands, acts on combat, rewards, rest, event, shop, map, chest, grid, and hand-select screens, and uses kill-scan plus pool-relative ranked combat suggestions before falling back to the LLM.
 
 运行行为：
 
 - stdout 专门用于 Communication Mod CJK 协议消息。
 - 普通日志写入 `logs/sts-ai.log`。
+- Communication Mod 原始输入写入 `logs/comm-mod-raw.log`。
 - prompt 和 LLM 回复写入 `logs/prompts.log`。
 - 最新建议写入 `output/advice.txt`（纯文本）和 `output/overlay.json`（结构化 JSON）。
 - 持久化运行记录写入 `runs/<run_id>/events.jsonl`。
@@ -287,6 +299,7 @@ output/overlay.json  (structured JSON, for overlay mod)
 - 地图路线建议会在每幕入口（完整路线分析）和路口分叉（即时下一节点决策）时触发。
 - 建议按场景分层使用不同模型：Heavy（选牌/Boss 选牌）、Medium（篝火/事件/地图路线）、Fast（进入战斗）。
 - 战斗建议只在进入战斗时生成一次，避免每回合 LLM 延迟影响游戏节奏。
+- **自动出牌** (`AUTO_PLAY=true`)：planner 会校验 Communication Mod 可用命令，可处理战斗、奖励、篝火、事件、商店、地图、宝箱、网格选择和手牌选择等界面；战斗中会优先使用 kill-scan 和池相对评分建议，再回退到 LLM。
 
 ## Copilot Overlay Mod / 游戏内悬浮窗
 
@@ -323,15 +336,19 @@ When used with Communication Mod CJK, the working directory is the Slay the Spir
 - The copilot controls visibility via the `overlay_visibility` field in `output/overlay.json`.
 - `status: "loading"` — the copilot is waiting for the LLM; overlay may show a spinner.
 - `status: "ok"` — fresh advice available with structured `advice` fields (`recommendation`, `reason`, `risk`, `commentary`).
+- `autoplay` — current auto-play mode/status (`mode`: `"off"` | `"auto"`, `status`: `"idle"` | `"planning"` | `"executing"` | `"error"`).
 - After 30 seconds, the copilot sets `overlay_visibility: false`; the overlay should hide.
-- Parsing Chinese labels (`推荐`/`理由`/`风险`/`吐槽`) from plain text is no longer needed — the JSON schema (`schemas/overlay.d.ts`) provides structured fields directly.
+- `output/overlay.json` is written only by the copilot. To control auto-play from the overlay, write `"begin"` or `"stop"` to `output/autoplay-control.json`.
+- The JSON schemas (`schemas/overlay.d.ts`) provide structured fields directly.
 
 行为：
 - copilot 通过 `output/overlay.json` 中的 `overlay_visibility` 字段控制悬浮窗显隐。
 - `status: "loading"` — copilot 正在等待 LLM 回复，悬浮窗可显示加载状态。
 - `status: "ok"` — 新建议已就绪，`advice` 对象包含结构化字段（`recommendation`、`reason`、`risk`、`commentary`）。
+- `autoplay` — 当前自动出牌模式/状态（`mode`: `"off"` | `"auto"`，`status`: `"idle"` | `"planning"` | `"executing"` | `"error"`）。
 - 30 秒后，copilot 会将 `overlay_visibility` 设为 `false`，悬浮窗应隐藏。
-- 不再需要从纯文本中解析中文标签（`推荐`/`理由`/`风险`/`吐槽`）——JSON schema（`schemas/overlay.d.ts`）直接提供结构化字段。
+- `output/overlay.json` 由 copilot 独占写入。控制自动出牌时，将 `"begin"` 或 `"stop"` 写入 `output/autoplay-control.json`。
+- JSON schema（`schemas/overlay.d.ts`）直接提供结构化字段。
 
 ## Postmortem / 复盘
 
@@ -397,8 +414,8 @@ GitHub Actions automatically creates a release when a tag matching `v*` is pushe
 
 ```bash
 # Update Cargo.toml version first if needed.
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 The release workflow builds and uploads downloadable archives for Linux, macOS, and Windows.
@@ -409,17 +426,46 @@ Release workflow 会构建并上传 Linux、macOS、Windows 的可下载压缩�
 
 ```text
 src/
-  main.rs          main loop, CLI modes, screen gating, MapGate (map crossroads/act-entry gating)
+  main.rs          main loop, CLI modes, advice gating, autoplay routing, run finalization
   config.rs        environment variable loading
   protocol.rs      Communication Mod CJK protocol messages
   state.rs         normalized game state, MapCoord, advice hash, observation hash, danger assessment
-  prompt.rs        LLM prompt builder — card, relic, rest, event, combat, map_suggestion, map_crossroad; describe_path risk analysis; path enumeration
+  prompt.rs        facade re-exporting prompt/builder.rs and prompt/routing.rs
+  prompt/
+    builder.rs     advice prompt construction, map path enumeration
+    routing.rs     scenario routing, describe_path risk analysis, path enumeration
+  combat/          combat context, effect parsing, damage math, lethal kill-scan
+    context.rs     CombatScanContext builder for kill-scan
+    effects.rs     zh/en description parsing → ParsedEffects
+    damage.rs      damage calculation helpers
+    kill_scan.rs   DFS-based lethal card play sequence search
+    mod.rs
+  ranker/          pool-relative combat action scoring engine (rules.json)
+    mod.rs         pub fn rank() → Vec<ScoredAction>
+    rules.rs       serde types for rules, conditions, predicates
+    rules.json     rule definitions (damage, block, heal, draw, etc.)
+    engine.rs      evaluate loop, override suppression, sorting
+    context.rs     ActionContext builder with @var resolution
+    formula.rs     expression parser/evaluator (@damage * @hits * @weight / ...)
+    parser.rs      zh/en description parsing → ParsedEffects
+    predicates.rs  Rust score_fn registry (hp_cost, weak_new, etc.)
+  autoplay/
+    action.rs          action candidates, action validation, protocol command execution
+    command_state.rs   Communication Mod command metadata extraction
+    control.rs         output/autoplay-control.json parsing and session state
+    planner.rs         deterministic, kill-scan, LLM, and fallback action planning
+    combat_adviser.rs  kill-scan shortcut + ranked suggestions for LLM prompt
+    status.rs          overlay-facing auto-play mode/status/action view
+    mod.rs
   llm.rs           LLM provider abstraction, effort routing, AdviceScenario (MapSuggestion, MapCrossroad, etc.)
   advice.rs        latest advice file output and cache, overlay JSON
   journal.rs       JSONL run journal with schema versioning
   postmortem.rs    postmortem report generation
   setup_wizard.rs  interactive API setup wizard
   startup.rs       Communication Mod CJK config validation, auto-fix, language detection
+  gate.rs          advice gating: screen types, combat turns, map crossroads/act-entry
+  runtime.rs       game-over detection, run finalization on exit
+  relic_counters.rs  relic counter display (pen nib, stone calendar, etc.)
   logging.rs       file logger
   test_utils.rs    test helpers and shared locale data
   locales/         locale data: JSON translations, system prompts, few-shot examples, i18n terms
@@ -435,6 +481,14 @@ tests/
 schemas/
   overlay.d.ts     TypeScript type definition for output/overlay.json
 docs/
+  auto-play-spec.md
+  auto-play-design.md
+  auto-play-module-plan.md
+  kill-scan.md
+  kill-scan-architecture.md
+  kill-scan-test-spec.ts
+  ranker-architecture.md
+  ranker-rules.md
   mvp-roadmap.md
 ```
 

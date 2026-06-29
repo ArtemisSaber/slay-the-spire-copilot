@@ -147,12 +147,14 @@ fn ai_postmortem_prompt_wraps_deterministic_report() {
     let prompt = build_ai_postmortem_prompt(
         "# Slay the Spire Postmortem\n- Floor: 5",
         &crate::test_utils::test_locale(),
+        "Victory",
     );
 
     assert!(prompt.contains("中文复盘报告"));
     assert!(prompt.contains("不要补充日志里没有的内容"));
     assert!(prompt.contains("# Slay the Spire Postmortem"));
     assert!(prompt.contains("Floor: 5"));
+    assert!(prompt.contains("Outcome: Victory"));
 }
 
 #[test]
@@ -355,4 +357,639 @@ fn postmortem_shows_per_combat_monsters_in_output() {
     let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("虱虫×2"));
+}
+
+#[test]
+fn postmortem_path_without_parent_falls_back_to_bare_name() {
+    let path = postmortem_path_for_journal(std::path::Path::new("events.jsonl"));
+    assert_eq!(path, std::path::PathBuf::from("postmortem.md"));
+}
+
+#[test]
+fn generate_report_from_file_missing_results_in_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("nonexistent.jsonl");
+    let err =
+        generate_report_from_journal_file(&path, &crate::test_utils::test_locale()).unwrap_err();
+    assert!(!err.is_empty());
+}
+
+#[test]
+fn postmortem_all_lines_malformed_gives_no_valid_events_error() {
+    let input = "not json\nstill not json\n";
+    let err = generate_report_from_jsonl(input, &crate::test_utils::test_locale()).unwrap_err();
+    assert!(err.contains("No valid journal events"));
+}
+
+#[test]
+fn postmortem_general_victory_shows_label_without_heart() {
+    let input = [
+        event_line(json!({"schema_version":1,"event":"run_started","ts_ms":123})),
+        state_event(json!({
+            "character": "IRONCLAD",
+            "current_hp": 72,
+            "max_hp": 75,
+            "gold": 99,
+            "floor": 50,
+            "screen_type": "NONE",
+            "room_type": "MonsterRoomBoss",
+            "monsters": [],
+            "master_cards": [],
+            "relics": [],
+            "potions": [],
+            "deck_names": []
+        })),
+        event_line(json!({"schema_version":1,"event":"run_ended","reason":"game_over"})),
+    ]
+    .join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    assert!(report.contains("本局胜利！"));
+    assert!(!report.contains("Heart defeated!"));
+}
+
+#[test]
+fn postmortem_heart_victory_shows_heart_defeated() {
+    let input = [
+        event_line(json!({"schema_version":1,"event":"run_started","ts_ms":123})),
+        state_event(json!({
+            "character": "IRONCLAD",
+            "current_hp": 72,
+            "max_hp": 75,
+            "gold": 99,
+            "floor": 50,
+            "screen_type": "NONE",
+            "room_type": "VictoryRoom",
+            "monsters": [],
+            "master_cards": [],
+            "relics": [],
+            "potions": [],
+            "deck_names": []
+        })),
+        event_line(json!({"schema_version":1,"event":"run_ended","reason":"game_over"})),
+    ]
+    .join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    assert!(report.contains("Heart defeated!"));
+}
+
+#[test]
+fn postmortem_fatal_combat_shows_skull_prefix() {
+    let mut combat = normalized_fixture("combat-state.json");
+    combat["room_type"] = json!("MonsterRoom");
+    combat["screen_type"] = json!("NONE");
+    combat["monsters"] = json!([
+        {"name": "邪教徒", "current_hp": 10, "max_hp": 10, "block": 0, "intent": "ATTACK", "damage": 6, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false}
+    ]);
+    combat["current_hp"] = json!(75);
+
+    let mut combat_end = combat.clone();
+    combat_end["screen_type"] = json!("COMBAT_REWARD");
+    combat_end["monsters"] = json!([]);
+    combat_end["current_hp"] = json!(0);
+
+    let input = [state_event(combat), state_event(combat_end)].join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+
+    assert!(report.contains("💀"));
+    assert!(report.contains("(-75)"));
+}
+
+#[test]
+fn postmortem_combat_with_healing_shows_positive_delta() {
+    let mut combat = normalized_fixture("combat-state.json");
+    combat["room_type"] = json!("MonsterRoom");
+    combat["screen_type"] = json!("NONE");
+    combat["monsters"] = json!([
+        {"name": "虱虫", "current_hp": 11, "max_hp": 11, "block": 0, "intent": "ATTACK", "damage": 6, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false}
+    ]);
+    combat["current_hp"] = json!(50);
+
+    let mut combat_end = combat.clone();
+    combat_end["screen_type"] = json!("COMBAT_REWARD");
+    combat_end["monsters"] = json!([]);
+    combat_end["current_hp"] = json!(62);
+
+    let input = [state_event(combat), state_event(combat_end)].join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+
+    assert!(report.contains("(+12)"));
+}
+
+#[test]
+fn postmortem_normal_combat_shows_normal_count() {
+    let mut combat = normalized_fixture("combat-state.json");
+    combat["room_type"] = json!("MonsterRoom");
+    combat["screen_type"] = json!("NONE");
+    combat["monsters"] = json!([
+        {"name": "虱虫", "current_hp": 11, "max_hp": 11, "block": 0, "intent": "ATTACK", "damage": 6, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false}
+    ]);
+    combat["current_hp"] = json!(68);
+
+    let mut combat_end = combat.clone();
+    combat_end["screen_type"] = json!("COMBAT_REWARD");
+    combat_end["monsters"] = json!([]);
+    combat_end["current_hp"] = json!(62);
+
+    let input = [state_event(combat), state_event(combat_end)].join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+
+    assert!(report.contains("(普通:1 精英:0 Boss:0)"));
+}
+
+#[test]
+fn postmortem_skips_state_changed_without_normalized_field() {
+    let input = event_line(json!({
+        "schema_version": 1,
+        "event": "state_changed",
+        "advice_hash": "hash",
+        "observation_hash": "obs"
+    }));
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    assert!(report.contains("# 本局复盘"));
+}
+
+#[test]
+fn postmortem_advice_without_hash_uses_question_mark() {
+    let input = event_line(json!({
+        "schema_version": 1,
+        "event": "advice",
+        "advice": "建议选A"
+    }));
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    assert!(report.contains("`?`:"));
+    assert!(report.contains("建议选A"));
+}
+
+#[test]
+fn postmortem_advice_with_state_hash_fallback() {
+    let input = event_line(json!({
+        "schema_version": 1,
+        "event": "advice",
+        "state_hash": "state-abc",
+        "advice": "建议选B"
+    }));
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    assert!(report.contains("`state-abc`:"));
+}
+
+#[test]
+fn postmortem_advice_with_empty_text_produces_entry_without_content() {
+    let input = event_line(json!({
+        "schema_version": 1,
+        "event": "advice",
+        "advice_hash": "empty-hash"
+    }));
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    assert!(report.contains("`empty-hash`:"));
+}
+
+#[test]
+fn postmortem_deck_with_duplicate_cards_shows_multiplied_count() {
+    let mut state = normalized_fixture("combat-state.json");
+    state["screen_type"] = json!("NONE");
+    state["deck_names"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!("Strike"));
+    if let Some(arr) = state["master_cards"].as_array_mut() {
+        arr.push(
+            json!({"id":"Strike_R","name":"Strike","cost":1,"card_type":"ATTACK","upgraded":false,"uuid":"extra"}),
+        );
+    }
+
+    let report =
+        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+    assert!(report.contains("Strike ×2"));
+}
+
+#[test]
+fn postmortem_omits_deck_section_when_deck_names_empty() {
+    let state = json!({
+        "character": "IRONCLAD",
+        "current_hp": 75,
+        "max_hp": 75,
+        "gold": 99,
+        "floor": 1,
+        "screen_type": "NONE",
+        "monsters": [],
+        "master_cards": [],
+        "relics": [],
+        "potions": [],
+        "deck_names": []
+    });
+    let report =
+        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+    assert!(!report.contains("## 卡组"));
+}
+
+#[test]
+fn postmortem_deck_section_absent_when_deck_names_missing() {
+    let state = json!({
+        "character": "IRONCLAD",
+        "current_hp": 75,
+        "max_hp": 75,
+        "gold": 99,
+        "floor": 1,
+        "screen_type": "NONE",
+        "monsters": [],
+        "master_cards": [],
+        "relics": [],
+        "potions": []
+    });
+    let report =
+        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+    assert!(!report.contains("## 卡组"));
+}
+
+#[test]
+fn postmortem_death_with_no_monsters_shows_question_mark() {
+    let state = json!({
+        "character": "IRONCLAD",
+        "current_hp": 0,
+        "max_hp": 75,
+        "gold": 99,
+        "floor": 10,
+        "screen_type": "GAME_OVER",
+        "room_type": "MonsterRoom",
+        "monsters": [],
+        "master_cards": [],
+        "relics": [],
+        "potions": [],
+        "deck_names": []
+    });
+    let input = [
+        event_line(json!({"schema_version":1,"event":"run_started","ts_ms":123})),
+        state_event(state),
+        event_line(json!({"schema_version":1,"event":"run_ended","reason":"game_over"})),
+    ]
+    .join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    assert!(report.contains("死于 ?"));
+}
+
+#[test]
+fn postmortem_run_ended_without_reason_produces_no_ended_label() {
+    let input = [
+        event_line(json!({"schema_version":1,"event":"run_started","ts_ms":123})),
+        event_line(json!({"schema_version":1,"event":"run_ended"})),
+    ]
+    .join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    assert!(!report.contains("结束原因"));
+}
+
+#[test]
+fn postmortem_monsters_without_name_or_index_are_filtered() {
+    let mut combat = normalized_fixture("combat-state.json");
+    combat["room_type"] = json!("MonsterRoom");
+    combat["screen_type"] = json!("NONE");
+    combat["monsters"] = json!([
+        {"current_hp": 10, "max_hp": 10, "block": 0},
+        {"name": "Named", "current_hp": 12, "max_hp": 12, "block": 0}
+    ]);
+    combat["current_hp"] = json!(75);
+
+    let mut combat_end = combat.clone();
+    combat_end["screen_type"] = json!("COMBAT_REWARD");
+    combat_end["monsters"] = json!([]);
+    combat_end["current_hp"] = json!(60);
+
+    let input = [state_event(combat), state_event(combat_end)].join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    assert!(report.contains("Named"));
+}
+
+#[test]
+fn postmortem_new_monster_mid_combat_is_tracked() {
+    let mut combat = normalized_fixture("combat-state.json");
+    combat["room_type"] = json!("MonsterRoom");
+    combat["screen_type"] = json!("BATTLE");
+    combat["monsters"] = json!([
+        {"name": "虫", "current_hp": 10, "max_hp": 10, "block": 0, "index": 0}
+    ]);
+    combat["current_hp"] = json!(75);
+
+    let mut combat_mid = combat.clone();
+    combat_mid["monsters"] = json!([
+        {"name": "虫", "current_hp": 10, "max_hp": 10, "block": 0, "index": 0},
+        {"name": "鼠", "current_hp": 8, "max_hp": 8, "block": 0, "index": 1}
+    ]);
+    combat_mid["current_hp"] = json!(65);
+
+    let mut combat_end = combat_mid.clone();
+    combat_end["screen_type"] = json!("COMBAT_REWARD");
+    combat_end["monsters"] = json!([]);
+    combat_end["current_hp"] = json!(55);
+
+    let input = [
+        state_event(combat),
+        state_event(combat_mid),
+        state_event(combat_end),
+    ]
+    .join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    assert!(report.contains("虫"));
+    assert!(report.contains("鼠"));
+}
+
+#[test]
+fn postmortem_duplicate_monster_name_is_only_added_once() {
+    let mut combat = normalized_fixture("combat-state.json");
+    combat["room_type"] = json!("MonsterRoom");
+    combat["screen_type"] = json!("NONE");
+    combat["monsters"] = json!([
+        {"name": "虱虫", "current_hp": 11, "max_hp": 11, "block": 0, "intent": "ATTACK", "damage": 6, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false},
+        {"name": "虱虫", "current_hp": 12, "max_hp": 12, "block": 0, "intent": "ATTACK", "damage": 6, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false}
+    ]);
+    combat["current_hp"] = json!(68);
+
+    let mut combat_end = combat.clone();
+    combat_end["screen_type"] = json!("COMBAT_REWARD");
+    combat_end["monsters"] = json!([]);
+    combat_end["current_hp"] = json!(62);
+
+    let input = [state_event(combat), state_event(combat_end)].join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    // "虱虫" should appear exactly once in global list (deduplicated)
+    let count = report.match_indices("虱虫").count();
+    // Appears in global monster list + combat entry = 2
+    assert_eq!(
+        count, 2,
+        "虱虫 should appear in global list once and in combat label"
+    );
+}
+
+#[test]
+fn postmortem_unrecognized_deck_change_produces_no_reward_line() {
+    let reward = normalized_fixture("card-reward-state.json");
+    let mut after = reward.clone();
+    after["screen_type"] = Value::String("NONE".into());
+    after["card_reward_choices"] = Value::Array(vec![]);
+    after["master_cards"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"id":"MysteryCard","name":"MysteryCard","cost":1,"card_type":"ATTACK","upgraded":false,"uuid":"unknown"}));
+
+    let input = [state_event(reward), state_event(after)].join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    assert!(!report.contains("已选:"));
+    assert!(!report.contains("可能跳过"));
+}
+
+#[test]
+fn postmortem_card_reward_without_choices_creates_no_snapshot() {
+    let state = json!({
+        "character": "IRONCLAD",
+        "current_hp": 75,
+        "max_hp": 75,
+        "gold": 99,
+        "floor": 1,
+        "screen_type": "CARD_REWARD",
+        "monsters": [],
+        "master_cards": [],
+        "relics": [],
+        "potions": [],
+        "deck_names": []
+    });
+    let report =
+        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+    assert!(!report.contains("## 选牌记录"));
+}
+
+#[test]
+fn postmortem_multiple_combats_across_types_count_correctly() {
+    let base = normalized_fixture("combat-state.json");
+
+    let mut normal_combat = base.clone();
+    normal_combat["room_type"] = json!("MonsterRoom");
+    normal_combat["screen_type"] = json!("NONE");
+    normal_combat["monsters"] = json!([
+        {"name": "虱虫", "current_hp": 11, "max_hp": 11, "block": 0, "intent": "ATTACK", "damage": 6, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false}
+    ]);
+    normal_combat["current_hp"] = json!(68);
+    let mut normal_end = normal_combat.clone();
+    normal_end["screen_type"] = json!("COMBAT_REWARD");
+    normal_end["monsters"] = json!([]);
+    normal_end["current_hp"] = json!(62);
+
+    let mut elite_combat = base.clone();
+    elite_combat["room_type"] = json!("MonsterRoomElite");
+    elite_combat["screen_type"] = json!("NONE");
+    elite_combat["monsters"] = json!([
+        {"name": "地精大法师", "current_hp": 60, "max_hp": 60, "block": 0, "intent": "ATTACK", "damage": 10, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false}
+    ]);
+    elite_combat["current_hp"] = json!(62);
+    let mut elite_end = elite_combat.clone();
+    elite_end["screen_type"] = json!("COMBAT_REWARD");
+    elite_end["monsters"] = json!([]);
+    elite_end["current_hp"] = json!(40);
+
+    let mut boss_combat = base.clone();
+    boss_combat["room_type"] = json!("MonsterRoomBoss");
+    boss_combat["screen_type"] = json!("NONE");
+    boss_combat["monsters"] = json!([
+        {"name": "六火亡魂", "current_hp": 250, "max_hp": 250, "block": 0, "intent": "ATTACK", "damage": 20, "hits": 1, "monster_powers": [], "can_be_killed": false, "is_scaling": false}
+    ]);
+    boss_combat["current_hp"] = json!(40);
+    let mut boss_end = boss_combat.clone();
+    boss_end["screen_type"] = json!("COMBAT_REWARD");
+    boss_end["monsters"] = json!([]);
+    boss_end["current_hp"] = json!(5);
+
+    let input = [
+        state_event(normal_combat),
+        state_event(normal_end),
+        state_event(elite_combat),
+        state_event(elite_end),
+        state_event(boss_combat),
+        state_event(boss_end),
+    ]
+    .join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+
+    assert!(report.contains("(普通:1 精英:1 Boss:1)"));
+    assert!(report.contains("(精英)"));
+    assert!(report.contains("(Boss)"));
+}
+
+#[test]
+fn combine_postmortem_report_combines_all_sections() {
+    let combined = combine_postmortem_report(
+        "# AI Report\nContent",
+        "## Deterministic\nMore content",
+        "## Machine Summary\nData",
+    );
+    assert!(combined.starts_with("# AI Report\nContent"));
+    assert!(combined.contains("\n\n---\n\n"));
+    assert!(combined.contains("## Machine Summary\nData"));
+    assert!(combined.contains("## Deterministic\nMore content"));
+}
+
+#[test]
+fn postmortem_display_i64_missing_shows_question_mark() {
+    let state = json!({"current_hp": 75});
+    let result = display_i64(&state, "gold");
+    assert_eq!(result, "?");
+}
+
+#[test]
+fn postmortem_deck_counts_absent_master_cards_returns_empty() {
+    let state = json!({"character": "IRONCLAD"});
+    let counts = deck_counts(&state);
+    assert!(counts.is_empty());
+}
+
+#[test]
+fn postmortem_deck_counts_skips_cards_without_id() {
+    let state = json!({
+        "master_cards": [
+            {"name": "Strike"},
+            {"id": "Strike_R", "name": "Strike"}
+        ]
+    });
+    let counts = deck_counts(&state);
+    assert_eq!(counts.len(), 1);
+    assert_eq!(counts.get("Strike_R").copied(), Some(1));
+}
+
+#[test]
+fn postmortem_reward_snapshot_none_when_no_choices() {
+    let state = json!({
+        "character": "IRONCLAD",
+        "master_cards": []
+    });
+    let snap = RewardSnapshot::from_state(&state);
+    assert!(snap.is_none());
+}
+
+#[test]
+fn postmortem_reward_snapshot_filters_choices_without_id() {
+    let state = json!({
+        "character": "IRONCLAD",
+        "master_cards": [],
+        "card_reward_choices": [
+            {"name": "BadCard"},
+            {"id": "GoodCard", "name": "GoodCard"}
+        ]
+    });
+    let snap = RewardSnapshot::from_state(&state).unwrap();
+    assert_eq!(snap.choices.len(), 1);
+    assert_eq!(snap.choices[0].0, "GoodCard");
+}
+
+#[test]
+fn postmortem_relic_without_name_is_filtered() {
+    let state = json!({
+        "character": "IRONCLAD",
+        "current_hp": 75,
+        "max_hp": 75,
+        "gold": 99,
+        "floor": 1,
+        "screen_type": "NONE",
+        "monsters": [],
+        "master_cards": [],
+        "potions": [],
+        "deck_names": [],
+        "relics": [
+            {"description": "no name relic"},
+            {"name": "Burning Blood", "description": "Heal after combat"}
+        ]
+    });
+    let report =
+        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+    assert!(report.contains("Burning Blood"));
+    assert!(!report.contains("no name relic"));
+}
+
+#[test]
+fn postmortem_potion_without_name_is_filtered() {
+    let state = json!({
+        "character": "IRONCLAD",
+        "current_hp": 75,
+        "max_hp": 75,
+        "gold": 99,
+        "floor": 1,
+        "screen_type": "NONE",
+        "monsters": [],
+        "master_cards": [],
+        "relics": [],
+        "deck_names": [],
+        "potions": [
+            {"description": "nameless potion"},
+            {"name": "Fear Potion", "description": "Apply 3 Vulnerable"}
+        ]
+    });
+    let report =
+        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+    assert!(report.contains("Fear Potion"));
+    assert!(!report.contains("nameless potion"));
+}
+
+#[test]
+fn postmortem_relics_section_absent_when_empty() {
+    let mut state = normalized_fixture("combat-state.json");
+    state["relics"] = json!([]);
+    let report =
+        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+    assert!(!report.contains("## 遗物"));
+}
+
+#[test]
+fn postmortem_run_ended_without_reason_with_victory_room() {
+    let state = json!({
+        "character": "IRONCLAD",
+        "current_hp": 1,
+        "max_hp": 75,
+        "gold": 99,
+        "floor": 50,
+        "screen_type": "NONE",
+        "room_type": "VictoryRoom",
+        "monsters": [],
+        "master_cards": [],
+        "relics": [],
+        "potions": [],
+        "deck_names": []
+    });
+    let input = [
+        event_line(json!({"schema_version":1,"event":"run_started","ts_ms":123})),
+        state_event(state),
+        event_line(json!({"schema_version":1,"event":"run_ended"})),
+    ]
+    .join("\n");
+    // hp > 0 but run_ended without reason — is_victory is false, no ended label
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    assert!(!report.contains("结束原因"));
+    assert!(!report.contains("胜利"));
+}
+
+#[test]
+fn postmortem_death_with_duplicate_monsters_counts_them() {
+    let state = json!({
+        "character": "IRONCLAD",
+        "current_hp": 0,
+        "max_hp": 75,
+        "gold": 99,
+        "floor": 22,
+        "screen_type": "GAME_OVER",
+        "room_type": "MonsterRoom",
+        "monsters": [
+            {"name": "邪教徒"},
+            {"name": "邪教徒"},
+            {"name": "虱虫"}
+        ],
+        "master_cards": [],
+        "relics": [],
+        "potions": [],
+        "deck_names": []
+    });
+    let input = [
+        event_line(json!({"schema_version":1,"event":"run_started","ts_ms":123})),
+        state_event(state),
+        event_line(json!({"schema_version":1,"event":"run_ended","reason":"game_over"})),
+    ]
+    .join("\n");
+    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    // Sorted by name: 虱虫, 邪教徒×2 → "虱虫、邪教徒×2"
+    assert!(report.contains("邪教徒×2"));
+    assert!(report.contains("虱虫"));
 }

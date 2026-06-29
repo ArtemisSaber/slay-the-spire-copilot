@@ -645,7 +645,7 @@ pub(crate) fn build_combat(state: &NormalizedState, locale: &Locale) -> String {
             } else if m
                 .monster_powers
                 .iter()
-                .any(|p| matches!(p.id.as_str(), "Enrage" | "Thorns" | "Curiosity"))
+                .any(|p| matches!(p.id.as_str(), "Enrage" | "Thorns" | "Curiosity" | "Anger"))
             {
                 locale.combat_types.prio_punish.replace("{name}", &m.name)
             } else if m.can_be_killed {
@@ -671,6 +671,18 @@ pub(crate) fn build_combat(state: &NormalizedState, locale: &Locale) -> String {
     lines.push(locale.sections.turn_status.clone());
     lines.push(turn_status_line(state, locale));
     lines.push(String::new());
+
+    if !state.potions.is_empty() {
+        lines.push(locale.sections.potions.clone());
+        for p in &state.potions {
+            lines.push(format!(
+                "{}：{}",
+                p.name,
+                clean_description(&p.description, locale)
+            ));
+        }
+        lines.push(String::new());
+    }
 
     if state.danger.wrath_stance {
         lines.push(locale.warnings.wrath_stance.clone());
@@ -835,6 +847,84 @@ pub(crate) fn build_boss_relic(state: &NormalizedState, locale: &Locale) -> Stri
                 clean_description(&relic.description, locale)
             ));
         }
+        lines.push(String::new());
+    }
+
+    lines.join("\n")
+}
+
+pub(crate) fn build_shop(state: &NormalizedState, locale: &Locale) -> String {
+    let mut lines: Vec<String> = vec![
+        "[mode: shop]\n".to_string(),
+        locale.sections.current_state.clone(),
+        status_line(state, locale),
+        String::new(),
+        build_relics_potions_section(state, locale),
+    ];
+
+    if !state.master_cards.is_empty() {
+        lines.push(format_deck_section(&state.master_cards, locale));
+    }
+
+    if !state.shop_cards.is_empty()
+        || !state.shop_relics.is_empty()
+        || !state.shop_potions.is_empty()
+        || state.purge_available
+    {
+        lines.push(locale.sections.shop.clone());
+    }
+
+    if !state.shop_cards.is_empty() {
+        lines.push(locale.sections.shop_cards.clone());
+        for (i, c) in state.shop_cards.iter().enumerate() {
+            let label = (b'A' + i as u8) as char;
+            let price = c.price.map_or("?".to_string(), |p| p.to_string());
+            lines.push(format!(
+                "{label}. {}  ({} gold)",
+                format_card(c, locale),
+                price
+            ));
+        }
+        lines.push(String::new());
+    }
+
+    if !state.shop_relics.is_empty() {
+        lines.push(locale.sections.shop_relics.clone());
+        for (i, r) in state.shop_relics.iter().enumerate() {
+            let label = (b'A' + i as u8) as char;
+            let price = r.price.map_or("?".to_string(), |p| p.to_string());
+            lines.push(format!(
+                "{label}. {} — {}  ({} gold)",
+                r.name,
+                clean_description(&r.description, locale),
+                price
+            ));
+        }
+        lines.push(String::new());
+    }
+
+    if !state.shop_potions.is_empty() {
+        lines.push(locale.sections.shop_potions.clone());
+        for (i, p) in state.shop_potions.iter().enumerate() {
+            let label = (b'A' + i as u8) as char;
+            let price = p.price.map_or("?".to_string(), |p| p.to_string());
+            lines.push(format!(
+                "{label}. {} — {}  ({} gold)",
+                p.name,
+                clean_description(&p.description, locale),
+                price
+            ));
+        }
+        lines.push(String::new());
+    }
+
+    if state.purge_available {
+        lines.push(locale.sections.shop_purge.clone());
+        let cost = state
+            .purge_cost
+            .map_or("unknown".to_string(), |c| c.to_string());
+        lines.push(format!("Remove a card for {} gold", cost));
+        lines.push(format!("Deck: {}", state.deck_names.join(", ")));
         lines.push(String::new());
     }
 
@@ -1223,16 +1313,115 @@ pub(crate) fn build_map_suggestion(state: &NormalizedState, locale: &Locale) -> 
     lines.join("\n")
 }
 
+pub(crate) fn build_hand_select(state: &NormalizedState, locale: &Locale) -> String {
+    let mut lines: Vec<String> = vec![
+        "[mode: hand_select]\n".to_string(),
+        locale.sections.hand_select.clone(),
+        status_line(state, locale),
+        String::new(),
+        build_relics_potions_section(state, locale),
+    ];
+
+    // Purpose: tell the LLM why cards are being selected
+    if let Some(ref action) = state.current_action {
+        let action_desc = match action.as_str() {
+            "ExhaustAction" => "Exhaust a card".to_string(),
+            "DiscardAction" => "Discard a card".to_string(),
+            "PutOnDeckAction" => "Put a card on top of your draw pile".to_string(),
+            _ => action.to_string(),
+        };
+        if let Some(ref card) = state.card_in_play {
+            lines.push(format!("Card playing: {}", format_card(card, locale)));
+        }
+        lines.push(format!("Purpose: {action_desc}"));
+    }
+    if let Some(max) = state.hand_select_max_cards {
+        lines.push(format!(
+            "Max: {max}  Can skip: {}",
+            if state.hand_select_can_pick_zero {
+                "yes"
+            } else {
+                "no"
+            }
+        ));
+    }
+
+    // Show already selected cards
+    if !state.hand_select_selected.is_empty() {
+        let selected: Vec<String> = state
+            .hand_select_selected
+            .iter()
+            .map(|c| c.name.clone())
+            .collect();
+        lines.push(format!(
+            "{} [{}]",
+            locale.sections.selected_cards,
+            selected.join(", ")
+        ));
+    }
+
+    // Available cards
+    lines.push(String::new());
+    lines.push(locale.sections.hand_select_available.clone());
+    for (i, card) in state.hand.iter().enumerate() {
+        lines.push(format!("  {i}. {}", format_card(card, locale)));
+    }
+
+    lines.join("\n")
+}
+
+pub(crate) fn build_grid_select(state: &NormalizedState, locale: &Locale) -> String {
+    let mut lines: Vec<String> = vec![
+        "[mode: grid_select]\n".to_string(),
+        locale.sections.grid_select.clone(),
+        status_line(state, locale),
+        String::new(),
+        build_relics_potions_section(state, locale),
+    ];
+
+    // Purpose
+    let purpose = if state.grid_for_upgrade {
+        locale.i18n.grid_upgrade.as_str()
+    } else if state.grid_for_transform {
+        locale.i18n.grid_transform.as_str()
+    } else if state.grid_for_purge {
+        locale.i18n.grid_purge.as_str()
+    } else {
+        locale.i18n.grid_other.as_str()
+    };
+    lines.push(purpose.to_string());
+    if let Some(num) = state.grid_num_cards {
+        lines.push(format!("Select {} card(s).", num));
+    }
+    lines.push(String::new());
+
+    // Available cards
+    lines.push(locale.sections.hand_select_available.clone());
+    let cards = if !state.grid_cards.is_empty() {
+        &state.grid_cards
+    } else {
+        &state.hand
+    };
+    for (i, card) in cards.iter().enumerate() {
+        lines.push(format!("  {i}. {}", format_card(card, locale)));
+    }
+
+    lines.join("\n")
+}
+
 pub fn build_prompt(state: &NormalizedState, locale: &Locale, shop_visited: bool) -> String {
     match state.screen_type.as_deref() {
         Some("CARD_REWARD") => build_card_reward(state, locale),
         Some("BOSS_REWARD") => build_boss_relic(state, locale),
         Some("REST") => build_rest(state, locale),
         Some("EVENT") => build_event_choice(state, locale),
+        Some("SHOP_SCREEN") => build_shop(state, locale),
         Some("MAP") if state.map_first_node_chosen == Some(true) => {
             build_map_crossroad(state, locale, shop_visited)
         }
         Some("MAP") => build_map_suggestion(state, locale),
+        Some("HAND_SELECT") => build_hand_select(state, locale),
+        Some("GRID") => build_grid_select(state, locale),
         _ if !state.monsters.is_empty() => build_combat(state, locale),
         _ => build_generic(state, locale),
     }

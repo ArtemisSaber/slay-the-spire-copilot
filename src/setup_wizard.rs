@@ -885,4 +885,638 @@ mod tests {
         assert!(content.contains("OTHER=value"));
         assert!(content.contains("LLM_PROVIDER=openai-compatible"));
     }
+
+    // ====================================================================
+    // Additional unit tests for helper functions
+    // ====================================================================
+
+    // --- parse_env_values ---
+
+    #[test]
+    fn parse_env_values_key_value() {
+        let result = parse_env_values("KEY=value\nOTHER=other\n");
+        assert_eq!(result.get("KEY").map(String::as_str), Some("value"));
+        assert_eq!(result.get("OTHER").map(String::as_str), Some("other"));
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn parse_env_values_with_spaces() {
+        let result = parse_env_values("  KEY = value with spaces  \n");
+        assert_eq!(
+            result.get("KEY").map(String::as_str),
+            Some("value with spaces")
+        );
+    }
+
+    #[test]
+    fn parse_env_values_comments_and_blanks() {
+        let result = parse_env_values("# comment\n\n  # indented\n\nKEY=val\n");
+        assert_eq!(result.get("KEY").map(String::as_str), Some("val"));
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn parse_env_values_double_quoted() {
+        let result = parse_env_values("KEY=\"hello world\"\n");
+        assert_eq!(result.get("KEY").map(String::as_str), Some("hello world"));
+    }
+
+    #[test]
+    fn parse_env_values_single_quoted() {
+        let result = parse_env_values("KEY='single quoted'\n");
+        assert_eq!(result.get("KEY").map(String::as_str), Some("single quoted"));
+    }
+
+    #[test]
+    fn parse_env_values_escaped_quote() {
+        let content = "KEY=\"escaped \\\"quote\\\"\"\n";
+        let result = parse_env_values(content);
+        assert_eq!(
+            result.get("KEY").map(String::as_str),
+            Some("escaped \"quote\"")
+        );
+    }
+
+    #[test]
+    fn parse_env_values_backslash_escapes() {
+        let content = "KEY=\"path\\\\to\\\\file\"\n";
+        let result = parse_env_values(content);
+        assert_eq!(
+            result.get("KEY").map(String::as_str),
+            Some("path\\to\\file")
+        );
+    }
+
+    #[test]
+    fn parse_env_values_no_equals_skipped() {
+        let result = parse_env_values("JUSTTEXT\nKEY=val\n");
+        assert_eq!(result.get("KEY").map(String::as_str), Some("val"));
+        assert!(result.get("JUSTTEXT").is_none());
+    }
+
+    #[test]
+    fn parse_env_values_empty_key_skipped() {
+        let result = parse_env_values("=value\nKEY=real\n");
+        assert_eq!(result.get("KEY").map(String::as_str), Some("real"));
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn parse_env_values_empty_value() {
+        let result = parse_env_values("KEY=\n");
+        assert_eq!(result.get("KEY").map(String::as_str), Some(""));
+    }
+
+    // --- parse_env_value ---
+
+    #[test]
+    fn parse_env_value_unquoted() {
+        assert_eq!(parse_env_value("hello"), "hello");
+        assert_eq!(parse_env_value("hello world"), "hello world");
+        assert_eq!(parse_env_value(""), "");
+    }
+
+    #[test]
+    fn parse_env_value_double_quoted_basic() {
+        assert_eq!(parse_env_value("\"hello\""), "hello");
+        assert_eq!(parse_env_value("\"hello world\""), "hello world");
+    }
+
+    #[test]
+    fn parse_env_value_double_quoted_escapes() {
+        assert_eq!(
+            parse_env_value("\"hello \\\"world\\\"\""),
+            "hello \"world\""
+        );
+        assert_eq!(parse_env_value("\"path\\\\to\""), "path\\to");
+        assert_eq!(parse_env_value("\"\\\\\\\"\""), "\\\"");
+    }
+
+    #[test]
+    fn parse_env_value_single_quoted_basic() {
+        assert_eq!(parse_env_value("'hello'"), "hello");
+        assert_eq!(parse_env_value("'hello world'"), "hello world");
+    }
+
+    #[test]
+    fn parse_env_value_single_quoted_no_escapes() {
+        assert_eq!(parse_env_value("'back\\slash'"), "back\\slash");
+        assert_eq!(parse_env_value("'quote\"inside'"), "quote\"inside");
+    }
+
+    // --- env_line_key ---
+
+    #[test]
+    fn env_line_key_simple() {
+        assert_eq!(env_line_key("KEY=value"), Some("KEY"));
+        assert_eq!(env_line_key("LLM_PROVIDER=mock"), Some("LLM_PROVIDER"));
+    }
+
+    #[test]
+    fn env_line_key_with_whitespace() {
+        assert_eq!(env_line_key("  KEY = value"), Some("KEY"));
+        assert_eq!(env_line_key("\tKEY=value"), Some("KEY"));
+    }
+
+    #[test]
+    fn env_line_key_comment_returns_none() {
+        assert_eq!(env_line_key("# comment"), None);
+        assert_eq!(env_line_key("  # indented"), None);
+    }
+
+    #[test]
+    fn env_line_key_no_equals() {
+        assert_eq!(env_line_key("JUSTTEXT"), None);
+        assert_eq!(env_line_key(""), None);
+    }
+
+    #[test]
+    fn env_line_key_empty_key() {
+        assert_eq!(env_line_key("=value"), None);
+        assert_eq!(env_line_key("  =value"), None);
+    }
+
+    // --- format_env_value ---
+
+    #[test]
+    fn format_env_value_empty() {
+        assert_eq!(format_env_value(""), "");
+    }
+
+    #[test]
+    fn format_env_value_safe_chars_no_quoting() {
+        assert_eq!(format_env_value("gpt-4o-mini"), "gpt-4o-mini");
+        assert_eq!(
+            format_env_value("https://api.openai.com/v1"),
+            "https://api.openai.com/v1"
+        );
+        assert_eq!(format_env_value("openai-fast"), "openai-fast");
+        assert_eq!(format_env_value("0.7"), "0.7");
+        assert_eq!(format_env_value("true"), "true");
+    }
+
+    #[test]
+    fn format_env_value_needs_quoting() {
+        assert_eq!(format_env_value("hello world"), "\"hello world\"");
+        assert_eq!(format_env_value("key=value"), "\"key=value\"");
+        assert_eq!(format_env_value("a@b"), "\"a@b\"");
+    }
+
+    #[test]
+    fn format_env_value_escapes_special_chars() {
+        assert_eq!(format_env_value("say \"hi\""), "\"say \\\"hi\\\"\"");
+        assert_eq!(format_env_value("a\\b"), "\"a\\\\b\"");
+    }
+
+    // --- existing_or_default ---
+
+    #[test]
+    fn existing_or_default_key_present() {
+        let mut map = HashMap::new();
+        map.insert("LLM_MODEL".to_string(), "gpt-5".to_string());
+        assert_eq!(existing_or_default(&map, "LLM_MODEL", "fallback"), "gpt-5");
+    }
+
+    #[test]
+    fn existing_or_default_key_missing() {
+        let map: HashMap<String, String> = HashMap::new();
+        assert_eq!(
+            existing_or_default(&map, "LLM_MODEL", "gpt-4o-mini"),
+            "gpt-4o-mini"
+        );
+    }
+
+    #[test]
+    fn existing_or_default_empty_value_falls_back() {
+        let mut map = HashMap::new();
+        map.insert("KEY".to_string(), "".to_string());
+        assert_eq!(existing_or_default(&map, "KEY", "default"), "default");
+    }
+
+    #[test]
+    fn existing_or_default_whitespace_value_falls_back() {
+        let mut map = HashMap::new();
+        map.insert("KEY".to_string(), "   ".to_string());
+        assert_eq!(existing_or_default(&map, "KEY", "default"), "default");
+    }
+
+    // --- assignment ---
+
+    #[test]
+    fn assignment_creates_correct_struct() {
+        let a = assignment("LLM_PROVIDER", "openai-compatible");
+        assert_eq!(a.key, "LLM_PROVIDER");
+        assert_eq!(a.value, "openai-compatible");
+    }
+
+    #[test]
+    fn assignment_accepts_into_string() {
+        let a = assignment("KEY", String::from("value"));
+        assert_eq!(a.key, "KEY");
+        assert_eq!(a.value, "value");
+    }
+
+    // --- missing_value ---
+
+    #[test]
+    fn missing_value_when_key_missing() {
+        let values = HashMap::new();
+        assert!(missing_value(&values, "LLM_API_KEY"));
+    }
+
+    #[test]
+    fn missing_value_when_empty_or_whitespace() {
+        let mut values = HashMap::new();
+        values.insert("LLM_API_KEY".to_string(), "".to_string());
+        assert!(missing_value(&values, "LLM_API_KEY"));
+        values.insert("LLM_API_KEY".to_string(), "  ".to_string());
+        assert!(missing_value(&values, "LLM_API_KEY"));
+    }
+
+    #[test]
+    fn missing_value_when_present() {
+        let mut values = HashMap::new();
+        values.insert("LLM_API_KEY".to_string(), "sk-real".to_string());
+        assert!(!missing_value(&values, "LLM_API_KEY"));
+    }
+
+    // --- missing_or_placeholder ---
+
+    #[test]
+    fn missing_or_placeholder_empty_or_whitespace() {
+        assert!(missing_or_placeholder(""));
+        assert!(missing_or_placeholder("   "));
+    }
+
+    #[test]
+    fn missing_or_placeholder_is_placeholder() {
+        assert!(missing_or_placeholder("sk-your-key-here"));
+        assert!(missing_or_placeholder("  sk-your-key-here  "));
+    }
+
+    #[test]
+    fn missing_or_placeholder_real_value() {
+        assert!(!missing_or_placeholder("sk-real-key-12345"));
+    }
+
+    // --- is_placeholder_api_key ---
+
+    #[test]
+    fn is_placeholder_api_key_matches() {
+        assert!(is_placeholder_api_key("sk-your-key-here"));
+        assert!(is_placeholder_api_key("  sk-your-key-here  "));
+    }
+
+    #[test]
+    fn is_placeholder_api_key_does_not_match() {
+        assert!(!is_placeholder_api_key("sk-real"));
+        assert!(!is_placeholder_api_key(""));
+        assert!(!is_placeholder_api_key("sk-your-key-here-real"));
+    }
+
+    // --- provider_value ---
+
+    #[test]
+    fn provider_value_present() {
+        let mut values = HashMap::new();
+        values.insert("LLM_PROVIDER".to_string(), "openai-compatible".to_string());
+        assert_eq!(provider_value(&values), Some("openai-compatible"));
+    }
+
+    #[test]
+    fn provider_value_missing() {
+        let values: HashMap<String, String> = HashMap::new();
+        assert_eq!(provider_value(&values), None);
+    }
+
+    // --- read_env_values ---
+
+    #[test]
+    fn read_env_values_file_exists() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(".env");
+        fs::write(&path, "LLM_PROVIDER=mock\nLLM_MODEL=gpt-5\n").unwrap();
+        let values = read_env_values(&path);
+        assert_eq!(values.get("LLM_PROVIDER").map(String::as_str), Some("mock"));
+        assert_eq!(values.get("LLM_MODEL").map(String::as_str), Some("gpt-5"));
+    }
+
+    #[test]
+    fn read_env_values_file_missing_returns_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(".env.nonexistent");
+        let values = read_env_values(&path);
+        assert!(values.is_empty());
+    }
+
+    // --- env_file_needs_setup more edge cases ---
+
+    #[test]
+    fn env_file_needs_setup_empty_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(".env");
+        fs::write(&path, "").unwrap();
+        assert!(env_file_needs_setup(&path));
+    }
+
+    #[test]
+    fn env_file_needs_setup_unknown_provider() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(".env");
+        fs::write(&path, "LLM_PROVIDER=some-unknown\n").unwrap();
+        assert!(env_file_needs_setup(&path));
+    }
+
+    #[test]
+    fn env_file_needs_setup_anthropic_missing_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(".env");
+        fs::write(
+            &path,
+            "LLM_PROVIDER=anthropic\nLLM_BASE_URL=https://api.anthropic.com\nLLM_API_KEY=\n",
+        )
+        .unwrap();
+        assert!(env_file_needs_setup(&path));
+    }
+
+    #[test]
+    fn env_file_needs_setup_anthropic_placeholder_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(".env");
+        fs::write(
+            &path,
+            "LLM_PROVIDER=anthropic\nLLM_BASE_URL=https://api.anthropic.com\nLLM_API_KEY=sk-your-key-here\n",
+        )
+        .unwrap();
+        assert!(env_file_needs_setup(&path));
+    }
+
+    #[test]
+    fn env_file_needs_setup_pollinations_missing_base_url() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(".env");
+        fs::write(&path, "LLM_PROVIDER=pollinations-free\n").unwrap();
+        assert!(env_file_needs_setup(&path));
+    }
+
+    #[test]
+    fn env_file_needs_setup_no_provider_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(".env");
+        fs::write(&path, "LLM_MODEL=gpt-5\n").unwrap();
+        assert!(env_file_needs_setup(&path));
+    }
+
+    // --- provider_assignments ---
+
+    #[test]
+    fn provider_assignments_has_all_13_keys() {
+        let setup = ProviderSetup {
+            provider: "test-provider",
+            base_url: "https://test.example.com".to_string(),
+            api_key: "sk-test".to_string(),
+            fast: "fast-model".to_string(),
+            medium: "medium-model".to_string(),
+            heavy: "heavy-model".to_string(),
+            disable_fast_thinking_default: Some("true"),
+        };
+        let existing = HashMap::new();
+        let assignments = provider_assignments(setup, &existing);
+        assert_eq!(assignments.len(), 13);
+
+        let keys: Vec<&str> = assignments.iter().map(|a| a.key).collect();
+        for expected_key in LLM_ENV_KEYS {
+            assert!(keys.contains(expected_key), "missing key: {expected_key}");
+        }
+
+        assert_eq!(find_value(&assignments, "LLM_PROVIDER"), "test-provider");
+        assert_eq!(
+            find_value(&assignments, "LLM_BASE_URL"),
+            "https://test.example.com"
+        );
+        assert_eq!(find_value(&assignments, "LLM_API_KEY"), "sk-test");
+        assert_eq!(find_value(&assignments, "LLM_MODEL"), "heavy-model");
+        assert_eq!(find_value(&assignments, "LLM_MODEL_FAST"), "fast-model");
+        assert_eq!(find_value(&assignments, "LLM_MODEL_MEDIUM"), "medium-model");
+        assert_eq!(find_value(&assignments, "LLM_MODEL_HEAVY"), "heavy-model");
+        assert_eq!(
+            find_value(&assignments, "LLM_MAX_TOKENS"),
+            DEFAULT_MAX_TOKENS
+        );
+        assert_eq!(
+            find_value(&assignments, "LLM_MAX_TOKENS_FAST"),
+            DEFAULT_MAX_TOKENS_FAST
+        );
+        assert_eq!(find_value(&assignments, "LLM_MAX_TOKENS_MEDIUM"), "");
+        assert_eq!(find_value(&assignments, "LLM_MAX_TOKENS_HEAVY"), "");
+        assert_eq!(
+            find_value(&assignments, "LLM_TEMPERATURE"),
+            DEFAULT_TEMPERATURE
+        );
+        assert_eq!(
+            find_value(&assignments, "LLM_DISABLE_FAST_THINKING"),
+            "true"
+        );
+    }
+
+    #[test]
+    fn provider_assignments_respects_existing_values() {
+        let setup = ProviderSetup {
+            provider: "test-provider",
+            base_url: "https://test.example.com".to_string(),
+            api_key: "sk-test".to_string(),
+            fast: "fast".to_string(),
+            medium: "medium".to_string(),
+            heavy: "heavy".to_string(),
+            disable_fast_thinking_default: None,
+        };
+        let mut existing = HashMap::new();
+        existing.insert("LLM_MAX_TOKENS".to_string(), "999".to_string());
+        existing.insert("LLM_MAX_TOKENS_HEAVY".to_string(), "888".to_string());
+        existing.insert("LLM_TEMPERATURE".to_string(), "0.3".to_string());
+
+        let assignments = provider_assignments(setup, &existing);
+        assert_eq!(find_value(&assignments, "LLM_MAX_TOKENS"), "999");
+        assert_eq!(find_value(&assignments, "LLM_MAX_TOKENS_HEAVY"), "888");
+        assert_eq!(find_value(&assignments, "LLM_TEMPERATURE"), "0.3");
+    }
+
+    #[test]
+    fn provider_assignments_disable_fast_thinking_none() {
+        let setup = ProviderSetup {
+            provider: "test-provider",
+            base_url: "https://test.example.com".to_string(),
+            api_key: "sk-test".to_string(),
+            fast: "fast".to_string(),
+            medium: "medium".to_string(),
+            heavy: "heavy".to_string(),
+            disable_fast_thinking_default: None,
+        };
+        let existing = HashMap::new();
+        let assignments = provider_assignments(setup, &existing);
+        assert_eq!(find_value(&assignments, "LLM_DISABLE_FAST_THINKING"), "");
+    }
+
+    // --- mock_assignments ---
+
+    #[test]
+    fn mock_assignments_has_all_13_keys() {
+        let existing = HashMap::new();
+        let assignments = mock_assignments(&existing);
+        assert_eq!(assignments.len(), 13);
+
+        let keys: Vec<&str> = assignments.iter().map(|a| a.key).collect();
+        for expected_key in LLM_ENV_KEYS {
+            assert!(keys.contains(expected_key), "missing key: {expected_key}");
+        }
+
+        assert_eq!(find_value(&assignments, "LLM_PROVIDER"), "mock");
+        assert_eq!(
+            find_value(&assignments, "LLM_BASE_URL"),
+            DEFAULT_OPENAI_BASE_URL
+        );
+        assert_eq!(find_value(&assignments, "LLM_API_KEY"), PLACEHOLDER_API_KEY);
+        assert_eq!(find_value(&assignments, "LLM_MODEL"), DEFAULT_MODEL);
+        assert_eq!(find_value(&assignments, "LLM_MODEL_FAST"), DEFAULT_MODEL);
+        assert_eq!(find_value(&assignments, "LLM_MODEL_MEDIUM"), "");
+        assert_eq!(find_value(&assignments, "LLM_MODEL_HEAVY"), "");
+        assert_eq!(
+            find_value(&assignments, "LLM_MAX_TOKENS"),
+            DEFAULT_MAX_TOKENS
+        );
+        assert_eq!(
+            find_value(&assignments, "LLM_MAX_TOKENS_FAST"),
+            DEFAULT_MAX_TOKENS_FAST
+        );
+        assert_eq!(find_value(&assignments, "LLM_MAX_TOKENS_MEDIUM"), "");
+        assert_eq!(find_value(&assignments, "LLM_MAX_TOKENS_HEAVY"), "");
+        assert_eq!(
+            find_value(&assignments, "LLM_TEMPERATURE"),
+            DEFAULT_TEMPERATURE
+        );
+        assert_eq!(find_value(&assignments, "LLM_DISABLE_FAST_THINKING"), "");
+    }
+
+    #[test]
+    fn mock_assignments_respects_existing_values() {
+        let mut existing = HashMap::new();
+        existing.insert("LLM_MODEL".to_string(), "custom-model".to_string());
+        existing.insert(
+            "LLM_BASE_URL".to_string(),
+            "https://custom.example.com".to_string(),
+        );
+        existing.insert("LLM_API_KEY".to_string(), "sk-custom".to_string());
+
+        let assignments = mock_assignments(&existing);
+        assert_eq!(find_value(&assignments, "LLM_MODEL"), "custom-model");
+        assert_eq!(
+            find_value(&assignments, "LLM_BASE_URL"),
+            "https://custom.example.com"
+        );
+        assert_eq!(find_value(&assignments, "LLM_API_KEY"), "sk-custom");
+    }
+
+    // --- EnvAssignment struct ---
+
+    #[test]
+    fn env_assignment_construction() {
+        let a = EnvAssignment {
+            key: "TEST",
+            value: "val".to_string(),
+        };
+        assert_eq!(a.key, "TEST");
+        assert_eq!(a.value, "val");
+    }
+
+    #[test]
+    fn env_assignment_equality() {
+        let a = EnvAssignment {
+            key: "KEY",
+            value: "val".to_string(),
+        };
+        let b = EnvAssignment {
+            key: "KEY",
+            value: "val".to_string(),
+        };
+        let c = EnvAssignment {
+            key: "KEY",
+            value: "other".to_string(),
+        };
+        let d = EnvAssignment {
+            key: "OTHER",
+            value: "val".to_string(),
+        };
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+        assert_ne!(a, d);
+    }
+
+    #[test]
+    fn env_assignment_debug_format() {
+        let a = assignment("LLM_PROVIDER", "mock");
+        let dbg = format!("{a:?}");
+        assert!(dbg.contains("LLM_PROVIDER"));
+        assert!(dbg.contains("mock"));
+    }
+
+    // --- ApiPreset ---
+
+    #[test]
+    fn all_api_presets_have_required_fields() {
+        assert!(!API_PRESETS.is_empty());
+        for (i, preset) in API_PRESETS.iter().enumerate() {
+            assert!(!preset.name.is_empty(), "preset {i}: name empty");
+            assert!(
+                !preset.description.is_empty(),
+                "preset {i}: description empty"
+            );
+            assert!(!preset.provider.is_empty(), "preset {i}: provider empty");
+            assert!(!preset.base_url.is_empty(), "preset {i}: base_url empty");
+            assert!(!preset.model.is_empty(), "preset {i}: model empty");
+        }
+    }
+
+    #[test]
+    fn pollinations_free_preset_no_api_key() {
+        let preset = &API_PRESETS[0];
+        assert_eq!(preset.name, "Pollinations Free");
+        assert!(!preset.requires_api_key);
+        assert_eq!(preset.disable_fast_thinking, "");
+    }
+
+    #[test]
+    fn deepseek_preset_disables_fast_thinking() {
+        let preset = API_PRESETS
+            .iter()
+            .find(|p| p.name == "DeepSeek")
+            .expect("DeepSeek preset not found");
+        assert_eq!(preset.disable_fast_thinking, "true");
+        assert_eq!(preset.provider, "openai-compatible");
+    }
+
+    #[test]
+    fn all_openai_compatible_presets_require_key() {
+        for preset in API_PRESETS
+            .iter()
+            .filter(|p| p.provider == "openai-compatible")
+        {
+            assert!(preset.requires_api_key);
+        }
+    }
+
+    #[test]
+    fn api_presets_count_is_9() {
+        assert_eq!(API_PRESETS.len(), 9);
+    }
+
+    // --- helper ---
+
+    fn find_value(assignments: &[EnvAssignment], key: &str) -> String {
+        assignments
+            .iter()
+            .find(|a| a.key == key)
+            .map(|a| a.value.clone())
+            .unwrap_or_default()
+    }
 }

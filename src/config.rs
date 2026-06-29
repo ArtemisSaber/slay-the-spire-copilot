@@ -15,6 +15,7 @@ pub struct Config {
     pub max_tokens_heavy: u32,
     pub temperature: f64,
     pub disable_fast_thinking: bool,
+    pub auto_play: bool,
 }
 
 impl Config {
@@ -73,6 +74,10 @@ impl Config {
                     .is_some_and(|url| url.contains("api.deepseek.com"))
             });
 
+        let auto_play = lookup_non_empty("AUTO_PLAY")
+            .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+            .unwrap_or(false);
+
         Config {
             provider,
             base_url,
@@ -85,6 +90,7 @@ impl Config {
             max_tokens_heavy,
             temperature,
             disable_fast_thinking,
+            auto_play,
         }
     }
 

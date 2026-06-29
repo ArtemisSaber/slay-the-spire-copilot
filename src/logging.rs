@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::layer::SubscriberExt;
@@ -15,10 +16,28 @@ pub fn advice_output_dir() -> PathBuf {
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
+pub(crate) fn rotate_log(log_dir: &std::path::Path, base_name: &str) {
+    let log2 = log_dir.join(format!("{base_name}.2"));
+    let log1 = log_dir.join(format!("{base_name}.1"));
+    let log0 = log_dir.join(base_name);
+
+    let _ = fs::remove_file(&log2);
+    if log1.exists() {
+        let _ = fs::rename(&log1, &log2);
+    }
+    if log0.exists() {
+        let _ = fs::rename(&log0, &log1);
+    }
+}
+
 pub fn init() -> WorkerGuard {
     let root = project_root();
     let log_dir = root.join("logs");
     fs::create_dir_all(&log_dir).expect("failed to create logs directory");
+
+    rotate_log(&log_dir, "sts-ai.log");
+    rotate_log(&log_dir, "comm-mod-raw.log");
+    rotate_log(&log_dir, "prompts.log");
 
     let file_appender = tracing_appender::rolling::never(&log_dir, "sts-ai.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
@@ -27,6 +46,7 @@ pub fn init() -> WorkerGuard {
         .with(
             tracing_subscriber::fmt::layer()
                 .with_writer(non_blocking)
+                .with_timer(tracing_subscriber::fmt::time::LocalTime::rfc_3339())
                 .with_ansi(false)
                 .with_target(false),
         )
@@ -37,6 +57,17 @@ pub fn init() -> WorkerGuard {
         .init();
 
     guard
+}
+
+pub fn log_raw_input(line: &str) {
+    log_raw_input_to(&project_root().join("logs"), line);
+}
+
+pub(crate) fn log_raw_input_to(log_dir: &std::path::Path, line: &str) {
+    let path = log_dir.join("comm-mod-raw.log");
+    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(file, "{line}");
+    }
 }
 
 #[cfg(test)]

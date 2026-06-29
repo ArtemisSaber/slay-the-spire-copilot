@@ -1,0 +1,1319 @@
+{
+  "ascension_level": 0,
+  "block": 0,
+  "boss_relic_choices": [],
+  "card_reward_choices": [],
+  "character": "DEFECT",
+  "current_hp": 44,
+  "danger": {
+    "any_monster_attacking": true,
+    "hp_critical": false,
+    "incoming_lethal": false,
+    "level": "Caution",
+    "no_block_against_hit": true,
+    "wrath_stance": false
+  },
+  "deck_names": [
+    "冷静头脑",
+    "刮削",
+    "双重释放",
+    "打击",
+    "打击",
+    "打击",
+    "打击",
+    "扩容",
+    "机器学习",
+    "电击",
+    "疑虑",
+    "防御",
+    "防御",
+    "防御",
+    "防御"
+  ],
+  "discard_pile": [
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "生成 1 个 冰霜 充能球。 \n 抽 1 张牌。",
+      "id": "Coolheaded",
+      "name": "冷静头脑",
+      "upgraded": false,
+      "uuid": "6c05c9bf-d56a-4cd7-baab-d64f260117a2"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "生成 1 个 闪电 充能球。",
+      "id": "Zap",
+      "name": "电击",
+      "upgraded": false,
+      "uuid": "e1979220-b8f4-4e83-87f2-43e5a6c22d08"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_B",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "d3b0e532-4431-4f79-a650-42d2bf7fd200"
+    }
+  ],
+  "draw_pile": [
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "a9ee969e-026c-4d38-a62f-5417e9765942"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "id": "Defend_B",
+      "name": "防御",
+      "upgraded": false,
+      "uuid": "da001125-ad73-453d-96bb-1f889fadbd91"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "eb1d346f-c169-418f-87e9-8f8eabfc7b3e"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "b57ac2b1-dd80-4f9b-ac6c-f49dcce17b10"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "id": "Defend_B",
+      "name": "防御",
+      "upgraded": false,
+      "uuid": "29b41486-4987-4c67-9d46-2044ddbcf259"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "99a8d8c3-2dc2-4afc-b60c-b0ff682e500d"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "f888cb9a-50af-4ad0-9c1a-84ccb753b7a4"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 7 伤害。 \n 抽 4 张牌。 \n 丢弃抽到的牌中耗能不为0的牌。",
+      "id": "Scrape",
+      "name": "刮削",
+      "upgraded": false,
+      "uuid": "9ba5cd4a-4fd9-4da9-8857-9ca6dc998fe1"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "id": "Defend_B",
+      "name": "防御",
+      "upgraded": false,
+      "uuid": "6bbad086-962d-4d8e-8f7d-83d37b5e2492"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_B",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "a4a70e28-c6cc-4616-a649-c70c8ee45c2c"
+    },
+    {
+      "card_type": "CURSE",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 在你的回合结束时，获得1层 虚弱 。",
+      "id": "Doubt",
+      "name": "疑虑",
+      "upgraded": false,
+      "uuid": "be5fc512-753f-4f9c-894b-500ebe3b3a7f"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "a00e89c4-f5cf-403f-b1be-ff3f0f98ba3a"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "722e277a-322a-47b7-8f0d-0d407e6f7397"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "id": "Defend_B",
+      "name": "防御",
+      "upgraded": false,
+      "uuid": "3629d4f0-a867-418b-9d86-f34f2150eb7c"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "激发 你最右侧的充能球2次。",
+      "id": "Dualcast",
+      "name": "双重释放",
+      "upgraded": false,
+      "uuid": "14da9625-3326-4024-8224-261b139b1380"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "63e101c1-2229-4dbe-ba17-5cbe8d246138"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_B",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "1ff0215a-591a-4bf0-be29-c9ebfca5edc2"
+    }
+  ],
+  "energy": 0,
+  "event_body": null,
+  "event_choices": [],
+  "event_id": null,
+  "event_name": null,
+  "exhaust_cards": [
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "a89c7630-6285-46e7-89eb-90d2d0f4f1c1"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "ce40b31d-f44e-4404-bd0a-b91e0c987024"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "8e538732-2136-44a3-b777-f82b830ff2a7"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "98a73013-be24-4120-b5e3-eb18bdeea804"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "e9c94ca8-1317-4391-b040-fc364de00d02"
+    }
+  ],
+  "floor": 6,
+  "gold": 220,
+  "hand": [
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_B",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "23d25f8e-2924-446d-a820-ebdae36df240"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "6895e234-e793-4837-a6b0-576016284bdd"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "9cb96fb0-9d1b-4e9b-b50c-7a664cee0bbc"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "c46de7ba-468e-4ed1-bb4b-760bb5e27d03"
+    }
+  ],
+  "hand_cards": [
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_B",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "23d25f8e-2924-446d-a820-ebdae36df240"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "6895e234-e793-4837-a6b0-576016284bdd"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "9cb96fb0-9d1b-4e9b-b50c-7a664cee0bbc"
+    },
+    {
+      "card_type": "STATUS",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 虚无 。",
+      "id": "Dazed",
+      "name": "晕眩",
+      "upgraded": false,
+      "uuid": "c46de7ba-468e-4ed1-bb4b-760bb5e27d03"
+    }
+  ],
+  "incoming_damage": 17,
+  "map_current_x": null,
+  "map_current_y": null,
+  "map_first_node_chosen": null,
+  "map_nodes": [
+    {
+      "children": [
+        [
+          0,
+          1
+        ]
+      ],
+      "symbol": "M",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "children": [
+        [
+          2,
+          1
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 0
+    },
+    {
+      "children": [
+        [
+          3,
+          1
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "symbol": "M",
+      "x": 3,
+      "y": 0
+    },
+    {
+      "children": [
+        [
+          1,
+          2
+        ]
+      ],
+      "symbol": "?",
+      "x": 0,
+      "y": 1
+    },
+    {
+      "children": [
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          2
+        ]
+      ],
+      "symbol": "M",
+      "x": 2,
+      "y": 1
+    },
+    {
+      "children": [
+        [
+          4,
+          2
+        ]
+      ],
+      "symbol": "?",
+      "x": 3,
+      "y": 1
+    },
+    {
+      "children": [
+        [
+          4,
+          2
+        ],
+        [
+          5,
+          2
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 1
+    },
+    {
+      "children": [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "symbol": "?",
+      "x": 1,
+      "y": 2
+    },
+    {
+      "children": [
+        [
+          2,
+          3
+        ]
+      ],
+      "symbol": "M",
+      "x": 2,
+      "y": 2
+    },
+    {
+      "children": [
+        [
+          3,
+          3
+        ],
+        [
+          5,
+          3
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 2
+    },
+    {
+      "children": [
+        [
+          5,
+          3
+        ]
+      ],
+      "symbol": "?",
+      "x": 5,
+      "y": 2
+    },
+    {
+      "children": [
+        [
+          0,
+          4
+        ]
+      ],
+      "symbol": "M",
+      "x": 0,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          1,
+          4
+        ]
+      ],
+      "symbol": "?",
+      "x": 1,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          1,
+          4
+        ]
+      ],
+      "symbol": "M",
+      "x": 2,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          4,
+          4
+        ]
+      ],
+      "symbol": "M",
+      "x": 3,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          5,
+          4
+        ]
+      ],
+      "symbol": "$",
+      "x": 5,
+      "y": 3
+    },
+    {
+      "children": [
+        [
+          0,
+          5
+        ]
+      ],
+      "symbol": "M",
+      "x": 0,
+      "y": 4
+    },
+    {
+      "children": [
+        [
+          0,
+          5
+        ],
+        [
+          1,
+          5
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 4
+    },
+    {
+      "children": [
+        [
+          3,
+          5
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 4
+    },
+    {
+      "children": [
+        [
+          4,
+          5
+        ],
+        [
+          6,
+          5
+        ]
+      ],
+      "symbol": "M",
+      "x": 5,
+      "y": 4
+    },
+    {
+      "children": [
+        [
+          0,
+          6
+        ],
+        [
+          1,
+          6
+        ]
+      ],
+      "symbol": "E",
+      "x": 0,
+      "y": 5
+    },
+    {
+      "children": [
+        [
+          2,
+          6
+        ]
+      ],
+      "symbol": "R",
+      "x": 1,
+      "y": 5
+    },
+    {
+      "children": [
+        [
+          4,
+          6
+        ]
+      ],
+      "symbol": "E",
+      "x": 3,
+      "y": 5
+    },
+    {
+      "children": [
+        [
+          4,
+          6
+        ]
+      ],
+      "symbol": "E",
+      "x": 4,
+      "y": 5
+    },
+    {
+      "children": [
+        [
+          6,
+          6
+        ]
+      ],
+      "symbol": "R",
+      "x": 6,
+      "y": 5
+    },
+    {
+      "children": [
+        [
+          0,
+          7
+        ]
+      ],
+      "symbol": "?",
+      "x": 0,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          1,
+          7
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          1,
+          7
+        ]
+      ],
+      "symbol": "M",
+      "x": 2,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          4,
+          7
+        ],
+        [
+          5,
+          7
+        ]
+      ],
+      "symbol": "?",
+      "x": 4,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          5,
+          7
+        ]
+      ],
+      "symbol": "?",
+      "x": 6,
+      "y": 6
+    },
+    {
+      "children": [
+        [
+          1,
+          8
+        ]
+      ],
+      "symbol": "R",
+      "x": 0,
+      "y": 7
+    },
+    {
+      "children": [
+        [
+          2,
+          8
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 7
+    },
+    {
+      "children": [
+        [
+          3,
+          8
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 7
+    },
+    {
+      "children": [
+        [
+          5,
+          8
+        ]
+      ],
+      "symbol": "R",
+      "x": 5,
+      "y": 7
+    },
+    {
+      "children": [
+        [
+          1,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 1,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          1,
+          9
+        ],
+        [
+          3,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 2,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          3,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 3,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          4,
+          9
+        ],
+        [
+          6,
+          9
+        ]
+      ],
+      "symbol": "T",
+      "x": 5,
+      "y": 8
+    },
+    {
+      "children": [
+        [
+          1,
+          10
+        ],
+        [
+          2,
+          10
+        ]
+      ],
+      "symbol": "?",
+      "x": 1,
+      "y": 9
+    },
+    {
+      "children": [
+        [
+          3,
+          10
+        ]
+      ],
+      "symbol": "$",
+      "x": 3,
+      "y": 9
+    },
+    {
+      "children": [
+        [
+          3,
+          10
+        ]
+      ],
+      "symbol": "E",
+      "x": 4,
+      "y": 9
+    },
+    {
+      "children": [
+        [
+          6,
+          10
+        ]
+      ],
+      "symbol": "?",
+      "x": 6,
+      "y": 9
+    },
+    {
+      "children": [
+        [
+          2,
+          11
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 10
+    },
+    {
+      "children": [
+        [
+          3,
+          11
+        ]
+      ],
+      "symbol": "?",
+      "x": 2,
+      "y": 10
+    },
+    {
+      "children": [
+        [
+          3,
+          11
+        ],
+        [
+          4,
+          11
+        ]
+      ],
+      "symbol": "M",
+      "x": 3,
+      "y": 10
+    },
+    {
+      "children": [
+        [
+          5,
+          11
+        ]
+      ],
+      "symbol": "?",
+      "x": 6,
+      "y": 10
+    },
+    {
+      "children": [
+        [
+          1,
+          12
+        ]
+      ],
+      "symbol": "$",
+      "x": 2,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          2,
+          12
+        ],
+        [
+          3,
+          12
+        ]
+      ],
+      "symbol": "E",
+      "x": 3,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          3,
+          12
+        ],
+        [
+          4,
+          12
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          4,
+          12
+        ]
+      ],
+      "symbol": "R",
+      "x": 5,
+      "y": 11
+    },
+    {
+      "children": [
+        [
+          2,
+          13
+        ]
+      ],
+      "symbol": "M",
+      "x": 1,
+      "y": 12
+    },
+    {
+      "children": [
+        [
+          2,
+          13
+        ]
+      ],
+      "symbol": "M",
+      "x": 2,
+      "y": 12
+    },
+    {
+      "children": [
+        [
+          2,
+          13
+        ],
+        [
+          3,
+          13
+        ]
+      ],
+      "symbol": "R",
+      "x": 3,
+      "y": 12
+    },
+    {
+      "children": [
+        [
+          4,
+          13
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 12
+    },
+    {
+      "children": [
+        [
+          2,
+          14
+        ],
+        [
+          3,
+          14
+        ]
+      ],
+      "symbol": "?",
+      "x": 2,
+      "y": 13
+    },
+    {
+      "children": [
+        [
+          3,
+          14
+        ]
+      ],
+      "symbol": "M",
+      "x": 3,
+      "y": 13
+    },
+    {
+      "children": [
+        [
+          4,
+          14
+        ],
+        [
+          5,
+          14
+        ]
+      ],
+      "symbol": "M",
+      "x": 4,
+      "y": 13
+    },
+    {
+      "children": [
+        [
+          3,
+          16
+        ]
+      ],
+      "symbol": "R",
+      "x": 2,
+      "y": 14
+    },
+    {
+      "children": [
+        [
+          3,
+          16
+        ]
+      ],
+      "symbol": "R",
+      "x": 3,
+      "y": 14
+    },
+    {
+      "children": [
+        [
+          3,
+          16
+        ]
+      ],
+      "symbol": "R",
+      "x": 4,
+      "y": 14
+    },
+    {
+      "children": [
+        [
+          3,
+          16
+        ]
+      ],
+      "symbol": "R",
+      "x": 5,
+      "y": 14
+    }
+  ],
+  "master_cards": [
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_B",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "a4a70e28-c6cc-4616-a649-c70c8ee45c2c"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_B",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "d3b0e532-4431-4f79-a650-42d2bf7fd200"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_B",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "23d25f8e-2924-446d-a820-ebdae36df240"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 6 点伤害。",
+      "id": "Strike_B",
+      "name": "打击",
+      "upgraded": false,
+      "uuid": "1ff0215a-591a-4bf0-be29-c9ebfca5edc2"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "id": "Defend_B",
+      "name": "防御",
+      "upgraded": false,
+      "uuid": "da001125-ad73-453d-96bb-1f889fadbd91"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "id": "Defend_B",
+      "name": "防御",
+      "upgraded": false,
+      "uuid": "6bbad086-962d-4d8e-8f7d-83d37b5e2492"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "id": "Defend_B",
+      "name": "防御",
+      "upgraded": false,
+      "uuid": "29b41486-4987-4c67-9d46-2044ddbcf259"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "获得 5 点 格挡 。",
+      "id": "Defend_B",
+      "name": "防御",
+      "upgraded": false,
+      "uuid": "3629d4f0-a867-418b-9d86-f34f2150eb7c"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "生成 1 个 闪电 充能球。",
+      "id": "Zap",
+      "name": "电击",
+      "upgraded": false,
+      "uuid": "e1979220-b8f4-4e83-87f2-43e5a6c22d08"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "激发 你最右侧的充能球2次。",
+      "id": "Dualcast",
+      "name": "双重释放",
+      "upgraded": false,
+      "uuid": "14da9625-3326-4024-8224-261b139b1380"
+    },
+    {
+      "card_type": "CURSE",
+      "cost": -2,
+      "description": " 不能被打出 。 \n 在你的回合结束时，获得1层 虚弱 。",
+      "id": "Doubt",
+      "name": "疑虑",
+      "upgraded": false,
+      "uuid": "be5fc512-753f-4f9c-894b-500ebe3b3a7f"
+    },
+    {
+      "card_type": "POWER",
+      "cost": 1,
+      "description": "在每回合开始时额外抽 1 张牌。",
+      "id": "Machine Learning",
+      "name": "机器学习",
+      "upgraded": false,
+      "uuid": "3e3ca62f-f436-4ca6-9acf-0db06e0f3851"
+    },
+    {
+      "card_type": "ATTACK",
+      "cost": 1,
+      "description": "造成 7 伤害。 \n 抽 4 张牌。 \n 丢弃抽到的牌中耗能不为0的牌。",
+      "id": "Scrape",
+      "name": "刮削",
+      "upgraded": false,
+      "uuid": "9ba5cd4a-4fd9-4da9-8857-9ca6dc998fe1"
+    },
+    {
+      "card_type": "POWER",
+      "cost": 1,
+      "description": "获得 2 个充能球栏位。",
+      "id": "Capacitor",
+      "name": "扩容",
+      "upgraded": false,
+      "uuid": "345cef35-77c0-44aa-8e76-cc2b03f4b419"
+    },
+    {
+      "card_type": "SKILL",
+      "cost": 1,
+      "description": "生成 1 个 冰霜 充能球。 \n 抽 1 张牌。",
+      "id": "Coolheaded",
+      "name": "冷静头脑",
+      "upgraded": false,
+      "uuid": "6c05c9bf-d56a-4cd7-baab-d64f260117a2"
+    }
+  ],
+  "max_hp": 75,
+  "monsters": [
+    {
+      "block": 0,
+      "can_be_killed": false,
+      "current_hp": 22,
+      "damage": 9,
+      "hits": 1,
+      "index": 0,
+      "intent": "ATTACK",
+      "is_scaling": false,
+      "max_hp": 42,
+      "monster_powers": [
+        {
+          "amount": 1,
+          "id": "Artifact",
+          "name": "人工制品"
+        }
+      ],
+      "name": "哨卫"
+    },
+    {
+      "block": 0,
+      "can_be_killed": false,
+      "current_hp": 26,
+      "damage": -1,
+      "hits": 1,
+      "index": 1,
+      "intent": "DEBUFF",
+      "is_scaling": false,
+      "max_hp": 41,
+      "monster_powers": [
+        {
+          "amount": 1,
+          "id": "Artifact",
+          "name": "人工制品"
+        }
+      ],
+      "name": "哨卫"
+    },
+    {
+      "block": 0,
+      "can_be_killed": false,
+      "current_hp": 27,
+      "damage": 9,
+      "hits": 1,
+      "index": 2,
+      "intent": "ATTACK",
+      "is_scaling": false,
+      "max_hp": 42,
+      "monster_powers": [
+        {
+          "amount": 1,
+          "id": "Artifact",
+          "name": "人工制品"
+        }
+      ],
+      "name": "哨卫"
+    }
+  ],
+  "potions": [
+    {
+      "description": "获得 2 点能量。",
+      "name": "能量药水"
+    }
+  ],
+  "powers": [
+    {
+      "amount": 1,
+      "id": "Draw",
+      "name": "抽牌"
+    }
+  ],
+  "relics": [
+    {
+      "counter": null,
+      "description": "在每场战斗开始时， 生成 1 个 闪电 充能球。",
+      "id": "Cracked Core",
+      "name": "破损核心"
+    }
+  ],
+  "rest_options": [],
+  "room_type": "MonsterRoomElite",
+  "screen_type": "NONE",
+  "seed": 1217387742284719121,
+  "skip_available": false
+}

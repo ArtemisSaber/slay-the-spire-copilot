@@ -1,0 +1,1699 @@
+{
+  "available_commands": [
+    "play",
+    "end",
+    "potion",
+    "key",
+    "click",
+    "wait",
+    "state"
+  ],
+  "ready_for_command": true,
+  "in_game": true,
+  "game_state": {
+    "screen_type": "NONE",
+    "screen_state": {},
+    "seed": 8043121388131939140,
+    "combat_state": {
+      "draw_pile": [
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "打击",
+          "description": "造成 6 点伤害。",
+          "id": "Strike_R",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "1aa01a04-e368-402c-9d4a-26540578b9ff",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": true
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "灼伤+",
+          "description": " 不能被打出 。 \n 在你的回合结束时，你受到4点伤害。",
+          "id": "Burn",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "ed6723cd-9077-42c9-9db1-38b38a38c2e3",
+          "upgrades": 1,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "打击",
+          "description": "造成 6 点伤害。",
+          "id": "Strike_R",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "3f41ec8f-2cd3-4835-b666-233081c33d86",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": true
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "打击",
+          "description": "造成 6 点伤害。",
+          "id": "Strike_R",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "042bacf6-467f-4a9f-a0cb-c83576063bc5",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": true
+        }
+      ],
+      "discard_pile": [
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "重振精神+",
+          "description": "消耗 手牌中所有非攻击牌，每张获得 7 点 格挡 。",
+          "id": "Second Wind",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "357327ac-1603-4c4f-bdb3-a80d2b26f409",
+          "upgrades": 1,
+          "rarity": "UNCOMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "双重打击",
+          "description": "造成 5 点伤害两次。",
+          "id": "Twin Strike",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "9215206e-34ca-402a-b4d7-dad19dad7b03",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": true
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "防御",
+          "description": "获得 5 点 格挡 。",
+          "id": "Defend_R",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "22f7c277-ff40-46fb-a7c9-354147e10a7d",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "打击",
+          "description": "造成 6 点伤害。",
+          "id": "Strike_R",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "860d759a-72fc-4fe0-8ef2-83fede232290",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": true
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "灼伤+",
+          "description": " 不能被打出 。 \n 在你的回合结束时，你受到4点伤害。",
+          "id": "Burn",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "3e6012b6-a435-48e7-81a8-63a10cecf3ed",
+          "upgrades": 1,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "伤口",
+          "description": " 不能被打出 。",
+          "id": "Wound",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "575d80ed-2a71-4f6b-8778-62ba20affb3a",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "灼伤+",
+          "description": " 不能被打出 。 \n 在你的回合结束时，你受到4点伤害。",
+          "id": "Burn",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "066dde48-36c5-4853-9dbd-2c5cbf0b77d4",
+          "upgrades": 1,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 2,
+          "name": "痛击",
+          "description": "造成 8 点伤害。 \n 给予 2 层 易伤 。",
+          "id": "Bash",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "6ed2aaa0-3a24-4e29-902f-bc5f8824c906",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": true
+        }
+      ],
+      "exhaust_pile": [
+        {
+          "exhausts": true,
+          "is_playable": true,
+          "cost": 1,
+          "name": "发掘",
+          "description": "选择一张已 消耗 的牌，将其放入你的手牌。 \n 消耗 。",
+          "id": "Exhume",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "e5e5b0a7-223e-4e0f-ac6b-094acbd8904a",
+          "upgrades": 0,
+          "rarity": "RARE",
+          "has_target": false
+        },
+        {
+          "exhausts": true,
+          "is_playable": true,
+          "cost": 0,
+          "name": "威吓",
+          "description": "给予所有敌人 1 层 虚弱 。 \n 消耗 。",
+          "id": "Intimidate",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "52e652e2-fde6-4189-aff5-a49051f99ed6",
+          "upgrades": 0,
+          "rarity": "UNCOMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "伤口",
+          "description": " 不能被打出 。",
+          "id": "Wound",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "cc55abd8-99b9-44aa-8730-3d5b00de7014",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "武装+",
+          "description": "获得 5 点 格挡 。 \n 在本场战斗中 升级 手牌中的所有牌。",
+          "id": "Armaments",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "555c62c0-6165-470d-87fd-603f1e33c377",
+          "upgrades": 1,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "防御",
+          "description": "获得 5 点 格挡 。",
+          "id": "Defend_R",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "2007d266-1576-4c66-9ffc-d18f38c995d6",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "防御",
+          "description": "获得 5 点 格挡 。",
+          "id": "Defend_R",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "c83347b6-765c-48f9-83b3-f56a4a56e48a",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "伤口",
+          "description": " 不能被打出 。",
+          "id": "Wound",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "a5854aa1-68ac-434e-aefd-4445cc7233ee",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "灼伤",
+          "description": " 不能被打出 。 \n 在你的回合结束时，你受到2点伤害。",
+          "id": "Burn",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "f6f26ffa-a1d6-40e6-a6f6-cd1932db05cc",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "硬撑",
+          "description": "增加2张 *伤口 到你的手牌。 \n 获得 15 点 格挡 。",
+          "id": "Power Through",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "c94e6119-46a6-49fc-a03a-54747836287e",
+          "upgrades": 0,
+          "rarity": "UNCOMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "耸肩无视",
+          "description": "获得 8 点 格挡 。 \n 抽1张牌。",
+          "id": "Shrug It Off",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "b1bbdff1-41d1-440c-9d0c-782a17a44cba",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "灼伤+",
+          "description": " 不能被打出 。 \n 在你的回合结束时，你受到4点伤害。",
+          "id": "Burn",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "1334d2e0-667d-4666-99ec-899ae23cee2d",
+          "upgrades": 1,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "灼伤+",
+          "description": " 不能被打出 。 \n 在你的回合结束时，你受到4点伤害。",
+          "id": "Burn",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "6ce3cb41-2ce0-4f0e-8aea-a691bc596464",
+          "upgrades": 1,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "灼伤+",
+          "description": " 不能被打出 。 \n 在你的回合结束时，你受到4点伤害。",
+          "id": "Burn",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "40d41437-e496-426d-a9a9-bb980a216a4d",
+          "upgrades": 1,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "伤口",
+          "description": " 不能被打出 。",
+          "id": "Wound",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "aee9cf92-2f11-4a22-9419-c869ced96880",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "灼伤+",
+          "description": " 不能被打出 。 \n 在你的回合结束时，你受到4点伤害。",
+          "id": "Burn",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "a510c940-2fc0-4d48-9c95-a3274db22f76",
+          "upgrades": 1,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "伤口",
+          "description": " 不能被打出 。",
+          "id": "Wound",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "14abab40-1182-4939-82b6-f21b792ab31b",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": false
+        }
+      ],
+      "cards_discarded_this_turn": 0,
+      "times_damaged": 16,
+      "monsters": [
+        {
+          "is_gone": false,
+          "move_hits": 6,
+          "move_base_damage": 2,
+          "last_move_id": 6,
+          "half_dead": false,
+          "move_adjusted_damage": 6,
+          "max_hp": 250,
+          "intent": "ATTACK_DEBUFF",
+          "second_last_move_id": 4,
+          "move_id": 6,
+          "name": "六火亡魂",
+          "current_hp": 41,
+          "block": 0,
+          "id": "Hexaghost",
+          "powers": [
+            {
+              "amount": 4,
+              "name": "力量",
+              "id": "Strength"
+            },
+            {
+              "amount": 2,
+              "just_applied": false,
+              "name": "易伤",
+              "id": "Vulnerable"
+            }
+          ]
+        }
+      ],
+      "turn": 16,
+      "limbo": [],
+      "hand": [
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "全身撞击",
+          "description": "造成你当前 格挡 值的伤害。 \n （造成 0 点伤害。）",
+          "id": "Body Slam",
+          "type": "ATTACK",
+          "ethereal": false,
+          "uuid": "bda3f2b4-ca73-4629-98c2-12aee9bfbe03",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": true
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "伤口",
+          "description": " 不能被打出 。",
+          "id": "Wound",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "be0cc602-261a-4386-a105-69cf5b919061",
+          "upgrades": 0,
+          "rarity": "COMMON",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": true,
+          "cost": 1,
+          "name": "防御",
+          "description": "获得 5 点 格挡 。",
+          "id": "Defend_R",
+          "type": "SKILL",
+          "ethereal": false,
+          "uuid": "9c4271d0-8091-4de4-8200-ce57af0c3c60",
+          "upgrades": 0,
+          "rarity": "BASIC",
+          "has_target": false
+        },
+        {
+          "exhausts": false,
+          "is_playable": false,
+          "cost": -2,
+          "name": "灼伤+",
+          "description": " 不能被打出 。 \n 在你的回合结束时，你受到4点伤害。",
+          "id": "Burn",
+          "type": "STATUS",
+          "ethereal": false,
+          "uuid": "546d9bff-5219-4856-bcc6-368d4c09557f",
+          "upgrades": 1,
+          "rarity": "COMMON",
+          "has_target": false
+        }
+      ],
+      "player": {
+        "orbs": [],
+        "current_hp": 16,
+        "block": 0,
+        "max_hp": 85,
+        "powers": [],
+        "energy": 2
+      }
+    },
+    "keys": {
+      "emerald": false,
+      "ruby": false,
+      "sapphire": false
+    },
+    "deck": [
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "打击",
+        "description": "造成 6 点伤害。",
+        "id": "Strike_R",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "860d759a-72fc-4fe0-8ef2-83fede232290",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": true
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "打击",
+        "description": "造成 6 点伤害。",
+        "id": "Strike_R",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "3f41ec8f-2cd3-4835-b666-233081c33d86",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": true
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "打击",
+        "description": "造成 6 点伤害。",
+        "id": "Strike_R",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "042bacf6-467f-4a9f-a0cb-c83576063bc5",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": true
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "打击",
+        "description": "造成 6 点伤害。",
+        "id": "Strike_R",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "1aa01a04-e368-402c-9d4a-26540578b9ff",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": true
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "防御",
+        "description": "获得 5 点 格挡 。",
+        "id": "Defend_R",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "2007d266-1576-4c66-9ffc-d18f38c995d6",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "防御",
+        "description": "获得 5 点 格挡 。",
+        "id": "Defend_R",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "9c4271d0-8091-4de4-8200-ce57af0c3c60",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "防御",
+        "description": "获得 5 点 格挡 。",
+        "id": "Defend_R",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "22f7c277-ff40-46fb-a7c9-354147e10a7d",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "防御",
+        "description": "获得 5 点 格挡 。",
+        "id": "Defend_R",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "c83347b6-765c-48f9-83b3-f56a4a56e48a",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 2,
+        "name": "痛击",
+        "description": "造成 8 点伤害。 \n 给予 2 层 易伤 。",
+        "id": "Bash",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "6ed2aaa0-3a24-4e29-902f-bc5f8824c906",
+        "upgrades": 0,
+        "rarity": "BASIC",
+        "has_target": true
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "耸肩无视",
+        "description": "获得 8 点 格挡 。 \n 抽1张牌。",
+        "id": "Shrug It Off",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "b1bbdff1-41d1-440c-9d0c-782a17a44cba",
+        "upgrades": 0,
+        "rarity": "COMMON",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "武装+",
+        "description": "获得 5 点 格挡 。 \n 在本场战斗中 升级 手牌中的所有牌。",
+        "id": "Armaments",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "555c62c0-6165-470d-87fd-603f1e33c377",
+        "upgrades": 1,
+        "rarity": "COMMON",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "重振精神+",
+        "description": "消耗 手牌中所有非攻击牌，每张获得 7 点 格挡 。",
+        "id": "Second Wind",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "357327ac-1603-4c4f-bdb3-a80d2b26f409",
+        "upgrades": 1,
+        "rarity": "UNCOMMON",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "全身撞击",
+        "description": "造成你当前 格挡 值的伤害。",
+        "id": "Body Slam",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "bda3f2b4-ca73-4629-98c2-12aee9bfbe03",
+        "upgrades": 0,
+        "rarity": "COMMON",
+        "has_target": true
+      },
+      {
+        "exhausts": true,
+        "is_playable": true,
+        "cost": 0,
+        "name": "威吓",
+        "description": "给予所有敌人 1 层 虚弱 。 \n 消耗 。",
+        "id": "Intimidate",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "52e652e2-fde6-4189-aff5-a49051f99ed6",
+        "upgrades": 0,
+        "rarity": "UNCOMMON",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "硬撑",
+        "description": "增加2张 *伤口 到你的手牌。 \n 获得 15 点 格挡 。",
+        "id": "Power Through",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "c94e6119-46a6-49fc-a03a-54747836287e",
+        "upgrades": 0,
+        "rarity": "UNCOMMON",
+        "has_target": false
+      },
+      {
+        "exhausts": false,
+        "is_playable": true,
+        "cost": 1,
+        "name": "双重打击",
+        "description": "造成 5 点伤害两次。",
+        "id": "Twin Strike",
+        "type": "ATTACK",
+        "ethereal": false,
+        "uuid": "9215206e-34ca-402a-b4d7-dad19dad7b03",
+        "upgrades": 0,
+        "rarity": "COMMON",
+        "has_target": true
+      },
+      {
+        "exhausts": true,
+        "is_playable": true,
+        "cost": 1,
+        "name": "发掘",
+        "description": "选择一张已 消耗 的牌，将其放入你的手牌。 \n 消耗 。",
+        "id": "Exhume",
+        "type": "SKILL",
+        "ethereal": false,
+        "uuid": "e5e5b0a7-223e-4e0f-ac6b-094acbd8904a",
+        "upgrades": 0,
+        "rarity": "RARE",
+        "has_target": false
+      }
+    ],
+    "relics": [
+      {
+        "name": "痛楚印记",
+        "description": "每回合开始获得 [E] 。在战斗开始时，将 2 张 伤口 放入你的抽牌堆。",
+        "used_up": false,
+        "id": "Mark of Pain",
+        "counter": -1
+      },
+      {
+        "name": "灯笼",
+        "description": "在每场战斗的第一回合获得 [E] 。",
+        "used_up": false,
+        "id": "Lantern",
+        "counter": -1
+      },
+      {
+        "name": "小血瓶",
+        "description": "在每场战斗开始时，回复 2 点生命。",
+        "used_up": false,
+        "id": "Blood Vial",
+        "counter": -1
+      },
+      {
+        "name": "瓶装火焰",
+        "description": "在每场战斗开始时，将 双重打击 放入你的手牌。",
+        "used_up": false,
+        "id": "Bottled Flame",
+        "counter": -1
+      }
+    ],
+    "max_hp": 85,
+    "act_boss": "Hexaghost",
+    "gold": 168,
+    "action_phase": "WAITING_ON_USER",
+    "act": 1,
+    "screen_name": "NONE",
+    "room_phase": "COMBAT",
+    "is_screen_up": false,
+    "potions": [
+      {
+        "requires_target": false,
+        "can_use": false,
+        "can_discard": false,
+        "name": "药水栏",
+        "description": "在战斗中使用药水来获得 增益 或 阻挠 敌人。",
+        "id": "Potion Slot"
+      },
+      {
+        "requires_target": false,
+        "can_use": true,
+        "can_discard": true,
+        "name": "精炼混沌",
+        "description": "打出你抽牌堆顶部的 3 张牌。",
+        "id": "DistilledChaos"
+      },
+      {
+        "requires_target": false,
+        "can_use": true,
+        "can_discard": true,
+        "name": "速度药水",
+        "description": "获得 5 点 敏捷 。在你的回合结束时，失去 5 点 敏捷 。",
+        "id": "SpeedPotion"
+      }
+    ],
+    "current_hp": 16,
+    "floor": 16,
+    "ascension_level": 0,
+    "class": "IRONCLAD",
+    "map": [
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 1,
+            "y": 1
+          }
+        ],
+        "x": 1,
+        "y": 0,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 1
+          }
+        ],
+        "x": 2,
+        "y": 0,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 4,
+            "y": 1
+          }
+        ],
+        "x": 4,
+        "y": 0,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 5,
+            "y": 1
+          },
+          {
+            "x": 6,
+            "y": 1
+          }
+        ],
+        "x": 6,
+        "y": 0,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 0,
+            "y": 2
+          },
+          {
+            "x": 1,
+            "y": 2
+          }
+        ],
+        "x": 1,
+        "y": 1,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 2
+          }
+        ],
+        "x": 3,
+        "y": 1,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 4,
+            "y": 2
+          }
+        ],
+        "x": 4,
+        "y": 1,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 4,
+            "y": 2
+          }
+        ],
+        "x": 5,
+        "y": 1,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 6,
+            "y": 2
+          }
+        ],
+        "x": 6,
+        "y": 1,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 0,
+            "y": 3
+          }
+        ],
+        "x": 0,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 2,
+            "y": 3
+          }
+        ],
+        "x": 1,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 2,
+            "y": 3
+          }
+        ],
+        "x": 3,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 3,
+            "y": 3
+          },
+          {
+            "x": 4,
+            "y": 3
+          }
+        ],
+        "x": 4,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 5,
+            "y": 3
+          }
+        ],
+        "x": 6,
+        "y": 2,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 0,
+            "y": 4
+          }
+        ],
+        "x": 0,
+        "y": 3,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 4
+          }
+        ],
+        "x": 2,
+        "y": 3,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 4
+          }
+        ],
+        "x": 3,
+        "y": 3,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 3,
+            "y": 4
+          }
+        ],
+        "x": 4,
+        "y": 3,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 6,
+            "y": 4
+          }
+        ],
+        "x": 5,
+        "y": 3,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 0,
+            "y": 5
+          }
+        ],
+        "x": 0,
+        "y": 4,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 2,
+            "y": 5
+          },
+          {
+            "x": 3,
+            "y": 5
+          },
+          {
+            "x": 4,
+            "y": 5
+          }
+        ],
+        "x": 3,
+        "y": 4,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 5,
+            "y": 5
+          }
+        ],
+        "x": 6,
+        "y": 4,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
+            "x": 1,
+            "y": 6
+          }
+        ],
+        "x": 0,
+        "y": 5,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 3,
+            "y": 6
+          }
+        ],
+        "x": 2,
+        "y": 5,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 4,
+            "y": 6
+          }
+        ],
+        "x": 3,
+        "y": 5,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 5,
+            "y": 6
+          }
+        ],
+        "x": 4,
+        "y": 5,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 6,
+            "y": 6
+          }
+        ],
+        "x": 5,
+        "y": 5,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 0,
+            "y": 7
+          }
+        ],
+        "x": 1,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 2,
+            "y": 7
+          }
+        ],
+        "x": 3,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 4,
+            "y": 7
+          }
+        ],
+        "x": 4,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 4,
+            "y": 7
+          },
+          {
+            "x": 6,
+            "y": 7
+          }
+        ],
+        "x": 5,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 6,
+            "y": 7
+          }
+        ],
+        "x": 6,
+        "y": 6,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 1,
+            "y": 8
+          }
+        ],
+        "x": 0,
+        "y": 7,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 1,
+            "y": 8
+          }
+        ],
+        "x": 2,
+        "y": 7,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 8
+          },
+          {
+            "x": 4,
+            "y": 8
+          }
+        ],
+        "x": 4,
+        "y": 7,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
+            "x": 6,
+            "y": 8
+          }
+        ],
+        "x": 6,
+        "y": 7,
+        "parents": []
+      },
+      {
+        "symbol": "T",
+        "children": [
+          {
+            "x": 1,
+            "y": 9
+          }
+        ],
+        "x": 1,
+        "y": 8,
+        "parents": []
+      },
+      {
+        "symbol": "T",
+        "children": [
+          {
+            "x": 2,
+            "y": 9
+          }
+        ],
+        "x": 3,
+        "y": 8,
+        "parents": []
+      },
+      {
+        "symbol": "T",
+        "children": [
+          {
+            "x": 4,
+            "y": 9
+          }
+        ],
+        "x": 4,
+        "y": 8,
+        "parents": []
+      },
+      {
+        "symbol": "T",
+        "children": [
+          {
+            "x": 5,
+            "y": 9
+          },
+          {
+            "x": 6,
+            "y": 9
+          }
+        ],
+        "x": 6,
+        "y": 8,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 0,
+            "y": 10
+          }
+        ],
+        "x": 1,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 10
+          }
+        ],
+        "x": 2,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "$",
+        "children": [
+          {
+            "x": 5,
+            "y": 10
+          }
+        ],
+        "x": 4,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 5,
+            "y": 10
+          }
+        ],
+        "x": 5,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 6,
+            "y": 10
+          }
+        ],
+        "x": 6,
+        "y": 9,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 1,
+            "y": 11
+          }
+        ],
+        "x": 0,
+        "y": 10,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
+            "x": 4,
+            "y": 11
+          }
+        ],
+        "x": 3,
+        "y": 10,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 4,
+            "y": 11
+          }
+        ],
+        "x": 5,
+        "y": 10,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 5,
+            "y": 11
+          }
+        ],
+        "x": 6,
+        "y": 10,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 1,
+            "y": 12
+          },
+          {
+            "x": 2,
+            "y": 12
+          }
+        ],
+        "x": 1,
+        "y": 11,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 3,
+            "y": 12
+          },
+          {
+            "x": 4,
+            "y": 12
+          },
+          {
+            "x": 5,
+            "y": 12
+          }
+        ],
+        "x": 4,
+        "y": 11,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 6,
+            "y": 12
+          }
+        ],
+        "x": 5,
+        "y": 11,
+        "parents": []
+      },
+      {
+        "symbol": "$",
+        "children": [
+          {
+            "x": 1,
+            "y": 13
+          }
+        ],
+        "x": 1,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
+            "x": 2,
+            "y": 13
+          }
+        ],
+        "x": 2,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 2,
+            "y": 13
+          }
+        ],
+        "x": 3,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 4,
+            "y": 13
+          }
+        ],
+        "x": 4,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "$",
+        "children": [
+          {
+            "x": 5,
+            "y": 13
+          }
+        ],
+        "x": 5,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "M",
+        "children": [
+          {
+            "x": 6,
+            "y": 13
+          }
+        ],
+        "x": 6,
+        "y": 12,
+        "parents": []
+      },
+      {
+        "symbol": "E",
+        "children": [
+          {
+            "x": 0,
+            "y": 14
+          }
+        ],
+        "x": 1,
+        "y": 13,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 1,
+            "y": 14
+          },
+          {
+            "x": 2,
+            "y": 14
+          }
+        ],
+        "x": 2,
+        "y": 13,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 3,
+            "y": 14
+          }
+        ],
+        "x": 4,
+        "y": 13,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 5,
+            "y": 14
+          }
+        ],
+        "x": 5,
+        "y": 13,
+        "parents": []
+      },
+      {
+        "symbol": "?",
+        "children": [
+          {
+            "x": 5,
+            "y": 14
+          }
+        ],
+        "x": 6,
+        "y": 13,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 3,
+            "y": 16
+          }
+        ],
+        "x": 0,
+        "y": 14,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 3,
+            "y": 16
+          }
+        ],
+        "x": 1,
+        "y": 14,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 3,
+            "y": 16
+          }
+        ],
+        "x": 2,
+        "y": 14,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 3,
+            "y": 16
+          }
+        ],
+        "x": 3,
+        "y": 14,
+        "parents": []
+      },
+      {
+        "symbol": "R",
+        "children": [
+          {
+            "x": 3,
+            "y": 16
+          }
+        ],
+        "x": 5,
+        "y": 14,
+        "parents": []
+      }
+    ],
+    "room_type": "MonsterRoomBoss"
+  }
+}

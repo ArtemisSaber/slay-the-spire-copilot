@@ -2,7 +2,7 @@ use crate::config::Config;
 use crate::llm::{AdviceScenario, Effort};
 use crate::locales::Locale;
 use crate::state::NormalizedState;
-use chrono::DateTime;
+use chrono::{DateTime, Local};
 use serde_json::json;
 use std::fs;
 use std::io::Write;
@@ -309,23 +309,22 @@ fn scan_for_existing_run(runs_root: &Path, seed: i64) -> Option<PathBuf> {
     None
 }
 
-fn format_utc_datetime(ts_ms: u128) -> String {
+pub(crate) fn format_datetime(ts_ms: u128) -> String {
     let secs = (ts_ms / 1000) as i64;
-    DateTime::from_timestamp(secs, 0)
-        .unwrap_or_default()
-        .format("%Y-%m-%d_%H-%M")
-        .to_string()
+    let utc = DateTime::from_timestamp(secs, 0).unwrap_or_default();
+    let local: DateTime<Local> = DateTime::from(utc);
+    local.format("%Y-%m-%d_%H-%M").to_string()
 }
 
 fn format_run_id(ts_ms: u128, character_display: &str, ascension: i64) -> String {
     format!(
         "{}_{}_A{ascension}",
-        format_utc_datetime(ts_ms),
+        format_datetime(ts_ms),
         character_display
     )
 }
 
-fn timestamp_ms() -> u128 {
+pub(crate) fn timestamp_ms() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis())

@@ -1,5 +1,7 @@
 #![deny(clippy::allow_attributes_without_reason)]
 mod advice;
+mod autoplay;
+mod combat;
 mod config;
 mod gate;
 mod journal;
@@ -9,6 +11,7 @@ mod logging;
 mod postmortem;
 mod prompt;
 mod protocol;
+mod ranker;
 mod relic_counters;
 mod runtime;
 mod setup_wizard;
@@ -23,21 +26,7 @@ use runtime::{
     should_end_run,
 };
 use std::io::{self, BufRead, IsTerminal, Write};
-
-async fn postmortem_report_text(
-    deterministic_report: &str,
-    provider: &llm::LlmProvider,
-    locale: &locales::Locale,
-) -> String {
-    let prompt = postmortem::build_ai_postmortem_prompt(deterministic_report, locale);
-    match provider.query_postmortem(&prompt, locale).await {
-        Ok(report) => report,
-        Err(e) => {
-            tracing::warn!("AI postmortem failed, saving deterministic report: {e}");
-            deterministic_report.to_string()
-        }
-    }
-}
+use std::path::Path;
 
 async fn finalize_run_once(
     journal: &journal::Journal,
@@ -66,16 +55,72 @@ async fn finalize_run_once(
                 return;
             }
         };
-    let report = postmortem_report_text(&deterministic_report, provider, locale).await;
-    let report = format!(
-        "{report}\n\n---\n\n{}\n\n{deterministic_report}",
-        locale.postmortem.section_machine,
+
+    if let Err(e) = postmortem::write_report_for_journal(journal_path, &deterministic_report) {
+        tracing::error!("failed to write deterministic postmortem: {e}");
+        return;
+    }
+    tracing::info!(
+        "wrote deterministic postmortem to {}",
+        postmortem::postmortem_path_for_journal(journal_path).display(),
     );
 
-    match postmortem::write_report_for_journal(journal_path, &report) {
-        Ok(path) => tracing::info!("wrote postmortem report to {}", path.display()),
-        Err(e) => tracing::error!("failed to write postmortem report: {e}"),
+    let outcome = if deterministic_report.contains(&locale.postmortem.label_victory) {
+        "Victory"
+    } else {
+        "Defeated"
+    };
+    let prompt = postmortem::build_ai_postmortem_prompt(&deterministic_report, locale, outcome);
+    match provider.query_postmortem(&prompt, locale).await {
+        Ok(ai_report) => {
+            let combined = postmortem::combine_postmortem_report(
+                &ai_report,
+                &deterministic_report,
+                &locale.postmortem.section_machine,
+            );
+            match postmortem::write_report_for_journal(journal_path, &combined) {
+                Ok(path) => tracing::info!("wrote AI postmortem report to {}", path.display()),
+                Err(e) => tracing::error!("failed to write combined postmortem: {e}"),
+            }
+        }
+        Err(e) => {
+            tracing::warn!("AI postmortem failed, deterministic report saved: {e}");
+        }
     }
+}
+
+fn refresh_autoplay_control(
+    control_path: &Path,
+    last_revision: &mut Option<u64>,
+    current_control: &mut Option<autoplay::control::AutoPlayControl>,
+) -> autoplay::control::ControlLoad {
+    let load = autoplay::control::load_control(control_path, *last_revision);
+    if let Some(control) = autoplay::action::active_control(&load) {
+        *last_revision = Some(control.revision);
+        *current_control = Some(control.clone());
+    } else if matches!(load, autoplay::control::ControlLoad::Malformed(_)) {
+        *current_control = None;
+    }
+    load
+}
+
+fn autoplay_load_status(load: &autoplay::control::ControlLoad) -> String {
+    match load {
+        autoplay::control::ControlLoad::Updated(_) => "updated".to_string(),
+        autoplay::control::ControlLoad::MissingDefault(_) => "missing_default".to_string(),
+        autoplay::control::ControlLoad::Stale => "stale".to_string(),
+        autoplay::control::ControlLoad::Malformed(error) => format!("malformed: {error}"),
+    }
+}
+
+fn autoplay_mode_name(control: Option<&autoplay::control::AutoPlayControl>) -> String {
+    control
+        .map(|control| format!("{:?}", control.mode))
+        .unwrap_or_else(|| "disabled".to_string())
+}
+
+fn autoplay_allows_execution(control: Option<&autoplay::control::AutoPlayControl>) -> bool {
+    control.is_some_and(|control| control.mode == autoplay::control::AutoPlayMode::Auto)
 }
 
 #[tokio::main]
@@ -108,7 +153,10 @@ async fn main() {
     }
 
     if let Some(path) = options.postmortem_path.as_deref() {
-        let postmortem_locale = locales::Locale::load("en");
+        let detected = startup::detect_game_language();
+        let lang = detected.as_ref().map(|d| d.value.as_str()).unwrap_or("en");
+        let locale_key = locales::lang_to_locale_key(lang);
+        let postmortem_locale = locales::Locale::load(locale_key);
 
         let deterministic_report = match std::fs::read_to_string(path)
             .map_err(|e| e.to_string())
@@ -130,12 +178,26 @@ async fn main() {
         let config = config::Config::from_env();
         match llm::LlmProvider::from_config(&config) {
             Ok(provider) => {
+                let outcome =
+                    if deterministic_report.contains(&postmortem_locale.postmortem.label_victory) {
+                        "Victory"
+                    } else {
+                        "Defeated"
+                    };
                 let prompt = postmortem::build_ai_postmortem_prompt(
                     &deterministic_report,
                     &postmortem_locale,
+                    outcome,
                 );
                 match provider.query_postmortem(&prompt, &postmortem_locale).await {
-                    Ok(report) => println!("{report}"),
+                    Ok(report) => {
+                        let combined = postmortem::combine_postmortem_report(
+                            &report,
+                            &deterministic_report,
+                            &postmortem_locale.postmortem.section_machine,
+                        );
+                        println!("{combined}");
+                    }
                     Err(e) => {
                         eprintln!("AI postmortem failed, falling back to plain report: {e}");
                         println!("{deterministic_report}");
@@ -196,6 +258,40 @@ async fn main() {
     let mut journal = journal::Journal::new(project_root.join("runs"));
     let mut combat_turn_gate = CombatTurnGate::new();
     let mut map_gate = MapGate::new();
+    let mut autoplay_last_revision: Option<u64> = None;
+    let mut current_autoplay_control = if config.auto_play {
+        Some(autoplay::control::AutoPlayControl::default_paused())
+    } else {
+        None
+    };
+    if config.auto_play {
+        let initial_overlay_path = logging::advice_output_dir()
+            .join("output")
+            .join("overlay.json");
+        autoplay::status::write_overlay_autoplay(
+            &initial_overlay_path,
+            &advice::OverlayMetadata {
+                screen_type: None,
+                scenario: String::new(),
+                in_combat: false,
+                state_hash: String::new(),
+                floor: None,
+                character: None,
+            },
+            &autoplay::status::AutoPlayState {
+                mode: "paused".into(),
+                status: "startup".into(),
+            },
+        );
+    }
+    let mut autoplay_session = autoplay::control::AutoPlaySession::default();
+    let mut autoplay_overlay_state = autoplay::status::AutoPlayState::default();
+    let mut last_autoplay_state: Option<(
+        serde_json::Value,
+        state::NormalizedState,
+        autoplay::command_state::CommandState,
+    )> = None;
+    let mut consecutive_errors: usize = 0;
     let mut saw_game_state = false;
     let mut run_finalized = false;
     let stdin = io::stdin();
@@ -214,6 +310,7 @@ async fn main() {
             continue;
         }
 
+        logging::log_raw_input(trimmed);
         tracing::debug!("received {} bytes", trimmed.len());
 
         let raw: serde_json::Value = match serde_json::from_str(trimmed) {
@@ -224,8 +321,94 @@ async fn main() {
             }
         };
 
+        let overlay_path = logging::advice_output_dir()
+            .join("output")
+            .join("overlay.json");
+        let autoplay_control_path = logging::advice_output_dir()
+            .join("output")
+            .join("autoplay-control.json");
+
         if is_error(&raw) {
             tracing::warn!("received error from CommunicationMod: {}", trimmed);
+            if let Some((saved_raw, saved_normalized, saved_command_state)) =
+                last_autoplay_state.as_ref()
+            {
+                consecutive_errors += 1;
+                if consecutive_errors > 5 {
+                    tracing::error!(
+                        "autoplay reached {} consecutive errors, blocking",
+                        consecutive_errors
+                    );
+                    current_autoplay_control = None;
+                    continue;
+                }
+                if let Some(control) = current_autoplay_control.as_mut() {
+                    tracing::info!("autoplay retrying after error #{}", consecutive_errors);
+                    match autoplay::planner::plan_action(
+                        &provider,
+                        control,
+                        &mut autoplay_session,
+                        saved_command_state,
+                        saved_normalized,
+                        &locale,
+                        map_gate.shop_visited,
+                    )
+                    .await
+                    {
+                        Ok(Some(action)) => {
+                            let control_load = refresh_autoplay_control(
+                                &autoplay_control_path,
+                                &mut autoplay_last_revision,
+                                &mut current_autoplay_control,
+                            );
+                            if autoplay_allows_execution(current_autoplay_control.as_ref()) {
+                                tracing::info!(
+                                    "autoplay retry executing {:?} screen={}",
+                                    action,
+                                    saved_normalized.screen_type.as_deref().unwrap_or("?"),
+                                );
+                                let mut stdout = io::stdout().lock();
+                                autoplay::action::execute_action_to(&mut stdout, &action);
+                            } else {
+                                let retry_scenario = AdviceScenario::from_state(saved_normalized);
+                                autoplay::status::write_overlay_autoplay(
+                                    &overlay_path,
+                                    &advice::OverlayMetadata {
+                                        screen_type: saved_normalized.screen_type.clone(),
+                                        scenario: retry_scenario.as_str().to_string(),
+                                        in_combat: has_monsters(saved_raw),
+                                        state_hash: saved_normalized.stable_hash(),
+                                        floor: saved_normalized.floor,
+                                        character: saved_normalized.character.clone(),
+                                    },
+                                    &autoplay::status::AutoPlayState {
+                                        mode: format!(
+                                            "{:?}",
+                                            current_autoplay_control
+                                                .as_ref()
+                                                .map(|control| control.mode)
+                                                .unwrap_or(autoplay::control::AutoPlayMode::Off)
+                                        )
+                                        .to_lowercase(),
+                                        status: "idle".into(),
+                                    },
+                                );
+                                tracing::info!(
+                                    "autoplay retry blocked before execution: control={} load={}",
+                                    autoplay_mode_name(current_autoplay_control.as_ref()),
+                                    autoplay_load_status(&control_load),
+                                );
+                            }
+                        }
+                        Ok(None) => {
+                            tracing::warn!("autoplay retry produced no action");
+                        }
+                        Err(e) => {
+                            tracing::warn!("autoplay retry planner failed: {e}");
+                        }
+                    }
+                }
+            }
             continue;
         }
 
@@ -233,6 +416,23 @@ async fn main() {
             if should_end_run(&raw, saw_game_state) {
                 let reason = run_end_reason(&raw, saw_game_state).unwrap_or("left_game");
                 finalize_run_once(&journal, &provider, reason, &mut run_finalized, &locale).await;
+                if config.auto_play {
+                    autoplay::status::write_overlay_autoplay(
+                        &overlay_path,
+                        &advice::OverlayMetadata {
+                            screen_type: None,
+                            scenario: String::new(),
+                            in_combat: false,
+                            state_hash: String::new(),
+                            floor: None,
+                            character: None,
+                        },
+                        &autoplay::status::AutoPlayState {
+                            mode: "off".into(),
+                            status: "stopped".into(),
+                        },
+                    );
+                }
                 break;
             }
             tracing::debug!("skipping non-game state");
@@ -240,6 +440,7 @@ async fn main() {
         }
 
         saw_game_state = true;
+        consecutive_errors = 0;
 
         let screen_type = raw
             .pointer("/game_state/screen_type")
@@ -252,6 +453,32 @@ async fn main() {
 
         let normalized = state::NormalizedState::from_raw(&raw, &locale);
         let hash = normalized.stable_hash();
+        let command_state = autoplay::command_state::CommandState::from_raw(&raw);
+        let scenario = AdviceScenario::from_state(&normalized);
+        let metadata = OverlayMetadata {
+            screen_type: Some(screen_type.to_string()),
+            scenario: scenario.as_str().to_string(),
+            in_combat: has_monsters(&raw),
+            state_hash: hash.clone(),
+            floor: normalized.floor,
+            character: normalized.character.clone(),
+        };
+
+        if config.auto_play {
+            let autoplay_control_load = refresh_autoplay_control(
+                &autoplay_control_path,
+                &mut autoplay_last_revision,
+                &mut current_autoplay_control,
+            );
+            let autoplay_load_status = autoplay_load_status(&autoplay_control_load);
+            let autoplay_mode = autoplay_mode_name(current_autoplay_control.as_ref());
+            tracing::debug!(
+                "autoplay control={autoplay_mode} load={autoplay_load_status} ready={} commands={} choose_available={}",
+                command_state.ready_for_command,
+                command_state.available_commands.len(),
+                command_state.has_command("choose"),
+            );
+        }
 
         if !journal.is_confirmed()
             && let (Some(seed), Some(character)) = (normalized.seed, normalized.character.as_ref())
@@ -269,6 +496,92 @@ async fn main() {
         }
 
         journal.log_state_change(&hash, &normalized);
+
+        if let Some(control) = current_autoplay_control.as_mut() {
+            autoplay_overlay_state.mode = format!("{:?}", control.mode).to_lowercase();
+            autoplay_overlay_state.status = "planning".into();
+            autoplay::status::write_overlay_autoplay(
+                &overlay_path,
+                &metadata,
+                &autoplay_overlay_state,
+            );
+
+            match autoplay::planner::plan_action(
+                &provider,
+                control,
+                &mut autoplay_session,
+                &command_state,
+                &normalized,
+                &locale,
+                map_gate.shop_visited,
+            )
+            .await
+            {
+                Ok(Some(action)) => {
+                    let control_load = refresh_autoplay_control(
+                        &autoplay_control_path,
+                        &mut autoplay_last_revision,
+                        &mut current_autoplay_control,
+                    );
+                    if autoplay_allows_execution(current_autoplay_control.as_ref()) {
+                        autoplay_overlay_state.status = "executing".into();
+                        autoplay::status::write_overlay_autoplay(
+                            &overlay_path,
+                            &metadata,
+                            &autoplay_overlay_state,
+                        );
+                        tracing::info!(
+                            "autoplay executing {:?} screen={} hash={}",
+                            action,
+                            screen_type,
+                            &hash[..16],
+                        );
+                        last_autoplay_state =
+                            Some((raw.clone(), normalized.clone(), command_state.clone()));
+                        let mut stdout = io::stdout().lock();
+                        autoplay::action::execute_action_to(&mut stdout, &action);
+                        continue;
+                    }
+
+                    autoplay_overlay_state.mode = format!(
+                        "{:?}",
+                        current_autoplay_control
+                            .as_ref()
+                            .map(|control| control.mode)
+                            .unwrap_or(autoplay::control::AutoPlayMode::Off)
+                    )
+                    .to_lowercase();
+                    autoplay_overlay_state.status = "idle".into();
+                    autoplay::status::write_overlay_autoplay(
+                        &overlay_path,
+                        &metadata,
+                        &autoplay_overlay_state,
+                    );
+                    tracing::info!(
+                        "autoplay blocked before execution: control={} load={}",
+                        autoplay_mode_name(current_autoplay_control.as_ref()),
+                        autoplay_load_status(&control_load),
+                    );
+                }
+                Ok(None) => {
+                    autoplay_overlay_state.status = "idle".into();
+                    autoplay::status::write_overlay_autoplay(
+                        &overlay_path,
+                        &metadata,
+                        &autoplay_overlay_state,
+                    );
+                }
+                Err(e) => {
+                    autoplay_overlay_state.status = "error".into();
+                    autoplay::status::write_overlay_autoplay(
+                        &overlay_path,
+                        &metadata,
+                        &autoplay_overlay_state,
+                    );
+                    tracing::warn!("autoplay planner did not produce an executable action: {e}");
+                }
+            }
+        }
 
         if screen_type == "MAP" {
             let rp = raw
@@ -358,11 +671,14 @@ async fn main() {
             map_gate = MapGate::new();
             saw_game_state = false;
             run_finalized = false;
+            last_autoplay_state = None;
+            autoplay_overlay_state = autoplay::status::AutoPlayState::default();
+            consecutive_errors = 0;
             tracing::info!("run ended, waiting for next run...");
             continue;
         }
 
-        if screen_type == "SHOP" {
+        if screen_type == "SHOP_ROOM" || screen_type == "SHOP_SCREEN" {
             map_gate.on_shop();
         }
         if screen_type == "MAP" && normalized.map_first_node_chosen == Some(false) {
@@ -396,8 +712,7 @@ async fn main() {
             normalized.danger.level,
         );
 
-        let effort = Effort::from_screen_type(screen_type);
-        let scenario = AdviceScenario::from_state(&normalized);
+        let effort = Effort::from_screen_type(screen_type, has_monsters(&raw));
 
         let prompt = prompt::build_prompt(&normalized, &locale, map_gate.shop_visited);
         tracing::debug!(
@@ -406,14 +721,6 @@ async fn main() {
             &prompt[..prompt.len().min(200)]
         );
 
-        let metadata = OverlayMetadata {
-            screen_type: Some(screen_type.to_string()),
-            scenario: scenario.as_str().to_string(),
-            in_combat: has_monsters(&raw),
-            state_hash: hash.clone(),
-            floor: normalized.floor,
-            character: normalized.character.clone(),
-        };
         cache.write_overlay_loading(&metadata);
 
         let advice = cache
@@ -456,3 +763,7 @@ mod test_utils;
 #[cfg(test)]
 #[path = "tests/main_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests/ranker_tests.rs"]
+mod ranker_integration_tests;
