@@ -414,7 +414,7 @@ fn try_fix_config_fills_empty_command() {
     let result = try_fix_config(&paths, &exe);
     assert!(result);
     let content = std::fs::read_to_string(&path).unwrap();
-    assert!(content.contains(&format!("command={exe}")));
+    assert!(content.contains(&format!("command={}", format_command_value(&exe))));
     assert!(content.contains("other=keep"));
 }
 
