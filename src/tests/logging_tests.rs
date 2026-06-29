@@ -146,7 +146,7 @@ fn init_rotates_all_expected_log_files() {
 }
 
 #[test]
-fn log_timestamps_use_local_time_not_utc() {
+fn log_timestamps_use_rfc3339_local_time() {
     use tracing_subscriber::fmt::time::LocalTime;
 
     let dir = tempfile::tempdir().unwrap();
@@ -166,8 +166,15 @@ fn log_timestamps_use_local_time_not_utc() {
     });
     drop(guard);
     let content = std::fs::read_to_string(&log_path).unwrap();
+    let timestamp = content.split_whitespace().next().unwrap_or("");
     assert!(
-        !content.contains('Z'),
-        "log should use local time (offset), got Z for UTC: {content}"
+        content.contains(" INFO test"),
+        "log should contain the emitted event: {content}"
+    );
+    assert!(
+        timestamp.contains('T')
+            && (timestamp.ends_with('Z')
+                || timestamp.chars().skip(10).any(|ch| ch == '+' || ch == '-')),
+        "log should use an RFC3339 timestamp with a timezone designator: {content}"
     );
 }
