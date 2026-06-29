@@ -1388,8 +1388,7 @@ fn resolve_play_x_cost_bonus_is_preserved_in_result() {
 fn generate_plays_x_cost_bonus_not_used_for_energy_check() {
     let monsters = vec![ms_with_index(0, 20, 0, vec![])];
     let cards = vec![card(4, "s1")];
-    let monsters_for_ctx = vec![ms_with_index(0, 20, 0, vec![])];
-    let mut ctx = ctx_with(3, monsters_for_ctx, cards);
+    let mut ctx = ctx_with(3, monsters, cards);
     ctx.x_cost_bonus = 2;
     let effect = effect_x_cost(5, HitCount::Fixed(1), TargetType::Targeted);
 
