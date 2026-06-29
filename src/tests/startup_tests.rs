@@ -2,6 +2,9 @@ use super::*;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn temp_config(content: &str) -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().unwrap();
@@ -723,7 +726,9 @@ fn read_steam_appmanifest_language_whitespace_only_value() {
 
 #[test]
 fn ensure_config_returns_true_when_valid_config_matches() {
+    let _env_guard = ENV_LOCK.lock().unwrap();
     let home = tempfile::tempdir().unwrap();
+    let localappdata = home.path().join("LocalAppData");
     let config_dir = home
         .path()
         .join(".config")
@@ -737,13 +742,18 @@ fn ensure_config_returns_true_when_valid_config_matches() {
         .to_string();
     std::fs::write(
         &config_path,
-        format!("command={exe}\nrunAtGameStart=true\n"),
+        format!(
+            "command={}\nrunAtGameStart=true\n",
+            format_command_value(&exe)
+        ),
     )
     .unwrap();
 
     let old_home = std::env::var("HOME").ok();
+    let old_localappdata = std::env::var("LOCALAPPDATA").ok();
     let old_lang = std::env::var("SLAY_THE_SPIRE_LANGUAGE").ok();
     unsafe { std::env::set_var("HOME", home.path().to_str().unwrap()) };
+    unsafe { std::env::set_var("LOCALAPPDATA", localappdata.to_str().unwrap()) };
     unsafe { std::env::set_var("SLAY_THE_SPIRE_LANGUAGE", "ENG") };
 
     let result = ensure_config();
@@ -752,6 +762,11 @@ fn ensure_config_returns_true_when_valid_config_matches() {
         unsafe { std::env::set_var("HOME", h) };
     } else {
         unsafe { std::env::remove_var("HOME") };
+    }
+    if let Some(v) = old_localappdata {
+        unsafe { std::env::set_var("LOCALAPPDATA", v) };
+    } else {
+        unsafe { std::env::remove_var("LOCALAPPDATA") };
     }
     if let Some(l) = old_lang {
         unsafe { std::env::set_var("SLAY_THE_SPIRE_LANGUAGE", l) };
@@ -764,7 +779,9 @@ fn ensure_config_returns_true_when_valid_config_matches() {
 
 #[test]
 fn ensure_config_cjk_warning_on_standard_mod() {
+    let _env_guard = ENV_LOCK.lock().unwrap();
     let home = tempfile::tempdir().unwrap();
+    let localappdata = home.path().join("LocalAppData");
     let config_dir = home
         .path()
         .join(".config")
@@ -778,13 +795,18 @@ fn ensure_config_cjk_warning_on_standard_mod() {
         .to_string();
     std::fs::write(
         &config_path,
-        format!("command={exe}\nrunAtGameStart=true\n"),
+        format!(
+            "command={}\nrunAtGameStart=true\n",
+            format_command_value(&exe)
+        ),
     )
     .unwrap();
 
     let old_home = std::env::var("HOME").ok();
+    let old_localappdata = std::env::var("LOCALAPPDATA").ok();
     let old_lang = std::env::var("SLAY_THE_SPIRE_LANGUAGE").ok();
     unsafe { std::env::set_var("HOME", home.path().to_str().unwrap()) };
+    unsafe { std::env::set_var("LOCALAPPDATA", localappdata.to_str().unwrap()) };
     unsafe { std::env::set_var("SLAY_THE_SPIRE_LANGUAGE", "ZHS") };
 
     let result = ensure_config();
@@ -793,6 +815,11 @@ fn ensure_config_cjk_warning_on_standard_mod() {
         unsafe { std::env::set_var("HOME", h) };
     } else {
         unsafe { std::env::remove_var("HOME") };
+    }
+    if let Some(v) = old_localappdata {
+        unsafe { std::env::set_var("LOCALAPPDATA", v) };
+    } else {
+        unsafe { std::env::remove_var("LOCALAPPDATA") };
     }
     if let Some(l) = old_lang {
         unsafe { std::env::set_var("SLAY_THE_SPIRE_LANGUAGE", l) };
@@ -1013,6 +1040,7 @@ fn show_cjk_mod_language_message_to_includes_source_and_paths() {
 
 #[test]
 fn detect_game_language_from_env_var() {
+    let _env_guard = ENV_LOCK.lock().unwrap();
     let old = std::env::var("SLAY_THE_SPIRE_LANGUAGE").ok();
     unsafe { std::env::set_var("SLAY_THE_SPIRE_LANGUAGE", "schinese") };
     let result = detect_game_language();
@@ -1032,6 +1060,7 @@ fn detect_game_language_from_env_var() {
 
 #[test]
 fn detect_game_language_env_var_trims_whitespace() {
+    let _env_guard = ENV_LOCK.lock().unwrap();
     let old = std::env::var("SLAY_THE_SPIRE_LANGUAGE").ok();
     // Set to whitespace-padded; detect_game_language trims and checks non-empty,
     // then falls through to file detection (may or may not find files depending on system).
@@ -1124,6 +1153,7 @@ fn try_fix_config_unknown_format_with_command() {
 
 #[test]
 fn communicate_mod_config_paths_with_localappdata() {
+    let _env_guard = ENV_LOCK.lock().unwrap();
     let old = std::env::var("LOCALAPPDATA").ok();
     unsafe { std::env::set_var("LOCALAPPDATA", "C:\\Users\\Test\\AppData\\Local") };
     let paths = communication_mod_config_paths();
