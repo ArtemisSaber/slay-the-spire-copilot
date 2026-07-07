@@ -22,15 +22,19 @@ fn log_prompt_into_dir(
     response: &str,
 ) {
     let log_dir = base.join("logs");
-    let _ = fs::create_dir_all(&log_dir);
+    if let Err(e) = fs::create_dir_all(&log_dir) {
+        tracing::warn!("failed to create logs dir: {e}");
+    }
     let path = log_dir.join("prompts.log");
 
     let entry = format!(
         "[system]\n{system_prompt}\n\n[user]\n{user_prompt}\n\n[assistant]\n{response}\n---\n",
     );
 
-    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&path) {
-        let _ = file.write_all(entry.as_bytes());
+    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&path)
+        && let Err(e) = file.write_all(entry.as_bytes())
+    {
+        tracing::warn!("failed to write prompts log: {e}");
     }
 }
 
