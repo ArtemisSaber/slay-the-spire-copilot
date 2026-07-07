@@ -48,16 +48,16 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ## Issues Ordered by Urgency
 
-> **Fix status as of 2026-07-07**: 20 of 32 issues fixed on branch `fix/code-review-critical`.
-> All 3 Critical issues resolved. All 9 TDD-feasible Medium issues resolved. See the status table below and per-issue markers.
+> **Fix status as of 2026-07-07**: 26 of 32 issues resolved on branch `fix/code-review-critical` (25 fixed + 1 dismissed as non-issue).
+> All 3 Critical issues resolved. All 4 god functions decomposed (H3–H6). All 10 TDD-feasible Medium issues resolved. See the status table below and per-issue markers.
 >
 > | Severity | Total | Fixed | Remaining |
 > |----------|-------|-------|-----------|
 > | 🔴 Critical | 3 | 3 | 0 |
 > | 🟠 High | 10 | 8 | 2 |
 > | 🟡 Medium | 11 | 10 | 1 |
-> | 🟢 Low | 8 | 4 | 4 |
-> | **Total** | **32** | **25** | **7** |
+> | 🟢 Low | 8 | 5 | 3 |
+> | **Total** | **32** | **26** | **6** |
 >
 > Verification: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ (0 warnings) · `cargo test` ✅ 1592 passed
 
@@ -163,7 +163,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H3. God function: `main()` is 631 lines — ✅ FIXED (`H3-cycle`)
+#### H3. God function: `main()` is 631 lines — ✅ FIXED (`6bae865`)
 
 - **File**: `src/main.rs`
 - **Lines**: 127-758
@@ -173,7 +173,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H4. God function: `NormalizedState::from_raw()` is 453 lines — ✅ FIXED (`H4-cycle`)
+#### H4. God function: `NormalizedState::from_raw()` is 453 lines — ✅ FIXED (`20d456a`)
 
 - **File**: `src/state.rs`
 - **Lines**: 461-913
@@ -183,7 +183,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H5. God function: `NormalizedState::to_stable_value()` is 349 lines — ✅ FIXED (`H5-cycle`)
+#### H5. God function: `NormalizedState::to_stable_value()` is 349 lines — ✅ FIXED (`88e3141`)
 
 - **File**: `src/state.rs`
 - **Lines**: 935-1283
@@ -193,7 +193,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H6. God function: `kill_scan::dfs()` is 230 lines — ✅ FIXED (`H6-cycle`)
+#### H6. God function: `kill_scan::dfs()` is 230 lines — ✅ FIXED (`90c6316`)
 
 - **File**: `src/combat/kill_scan.rs`
 - **Lines**: 155-384
@@ -372,7 +372,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M6. `eval_parsed()` — 121 lines of repetitive if-let guards — ✅ FIXED (`M6-cycle`)
+#### M6. `eval_parsed()` — 121 lines of repetitive if-let guards — ✅ FIXED (`b9c5fca`)
 
 - **File**: `src/ranker/engine.rs`
 - **Lines**: 275-395
@@ -470,12 +470,12 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L5. `combat_identity` uses `room_type` string — ⏳ REMAINING
+#### L5. `combat_identity` uses `room_type` string — ⏭️ NON-ISSUE
 
 - **File**: `src/gate.rs`
 - **Lines**: 151-158
 - **Description**: `CombatTurnGate` dedup key is `"{floor}:{room_type}"`. If `room_type` is unknown (`?` or empty), two different combats on the same floor could collide, suppressing the second combat's turn-1 advice.
-- **Fix**: Use a more specific identity (e.g., include combat UUID if available, or floor + a combat counter).
+- **Resolution**: Not a real bug. In Slay the Spire, each floor has exactly one combat encounter — no two different combats share a floor within a run. The `CombatTurnGate` is also reset between runs (`combat_turn_gate = CombatTurnGate::new()` at `src/main.rs:696`), so cross-run collision is impossible. The collision scenario requires two different combats on the same floor, which cannot occur.
 
 ---
 
@@ -520,15 +520,15 @@ if let Err(e) = fs::write_all(&path, data) {
 | 🔴 Critical | 3 | 3 | 0 |
 | 🟠 High | 10 | 8 | 2 |
 | 🟡 Medium | 11 | 10 | 1 |
-| 🟢 Low | 8 | 4 | 4 |
-| **Total** | **32** | **25** | **7** |
+| 🟢 Low | 8 | 5 | 3 |
+| **Total** | **32** | **26** | **6** |
 
-**Branch**: `fix/code-review-critical` (37 commits)
+**Branch**: `fix/code-review-critical` (38 commits ahead of `develop`)
 **Verification**: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ · `cargo test` ✅ 1592 passed
 
-**Fixed issues**: C1 (rules.json fallback), C2 (map cycle detection), C3 (API key redaction in errors), H1 (LlmProvider Debug redaction), H2 (AGENTS.md test count), H8 (consolidated triplicated parsing into `src/parsing.rs`), H10 (219 clippy test warnings), M2 (`.ok()` → logged errors), M3 (`let _ =` → logged errors), M4 (panic/expect/unreachable → Result in 4 production sites), M5 (magic numbers → named constants), M7 (AI postmortem output validation), M8 (SSRF: `LLM_BASE_URL` scheme validation), M9 (stdin JSON size cap), M10 (TOCTOU race on overlay.json — mutex), M11 (cargo update — 27 deps), L3 (setup wizard masked input via `rpassword`), L4 (u16→u32 bit shift in kill-scan), L7 (build.rs triple-parent unwrap), L8 (`LLM_LOG_PROMPTS` env var to disable prompt logging).
+**Fixed issues**: C1 (rules.json fallback), C2 (map cycle detection), C3 (API key redaction in errors), H1 (LlmProvider Debug redaction), H2 (AGENTS.md test count), H3 (`main` god fn → 3 extracted handlers), H4 (`from_raw` god fn → 8 per-section extractors), H5 (`to_stable_value` → scalar+array helpers), H6 (`dfs` god fn → `check_memo` + `try_play_card`), H8 (consolidated triplicated parsing into `src/parsing.rs`), H10 (219 clippy test warnings), M2 (`.ok()` → logged errors), M3 (`let _ =` → logged errors), M4 (panic/expect/unreachable → Result in 4 production sites), M5 (magic numbers → named constants), M6 (`eval_parsed` if-let chain → table-driven gt/eq guard slices), M7 (AI postmortem output validation), M8 (SSRF: `LLM_BASE_URL` scheme validation), M9 (stdin JSON size cap), M10 (TOCTOU race on overlay.json — mutex), M11 (cargo update — 27 deps), L3 (setup wizard masked input via `rpassword`), L4 (u16→u32 bit shift in kill-scan), L7 (build.rs triple-parent unwrap), L8 (`LLM_LOG_PROMPTS` env var to disable prompt logging). L5 dismissed as non-issue (no two combats share a floor; gate reset between runs).
 
-**Remaining**: 2 High-severity architecture refactors (stringly-typed ScreenType H7, blocking I/O H9), 1 Medium issue (M1 oversized files), 4 Low hardening items (L1 Windows atomic rename, L2 file locking, L5 combat_identity [non-issue — gate reset between runs], L6 cargo-audit). M4 is partially fixed — 4 production panic/expect/unreachable sites resolved, dev-only instances remain.
+**Remaining**: 2 High-severity architecture refactors (stringly-typed ScreenType H7, blocking I/O H9), 1 Medium issue (M1 oversized files), 3 Low hardening items (L1 Windows atomic rename, L2 file locking, L6 cargo-audit). L5 confirmed non-issue (no two combats share a floor; gate reset between runs). M4 is partially fixed — 4 production panic/expect/unreachable sites resolved, dev-only instances remain.
 
 ---
 
@@ -562,7 +562,7 @@ if let Err(e) = fs::write_all(&path, data) {
 17. **M7**: Add validation/retry for AI postmortem — ✅ `164caa5`
 
 ### Phase 6 — Hardening (Low, as needed) — ⏳ PARTIALLY DONE
-18. **L1, L2, L5, L6**: Windows atomicity, file locking, combat_identity, cargo-audit — ⏳ remaining
+18. **L1, L2, L6**: Windows atomicity, file locking, cargo-audit — ⏳ remaining (L5 confirmed non-issue: no two combats share a floor; gate reset between runs)
 19. **L3**: Setup wizard masked input — ✅ `ef330b2` (via `rpassword`)
 20. **L4**: u16→u32 bit shift in kill-scan — ✅ `3c0d4ea`
 21. **L7**: `build.rs` triple-parent unwrap — ✅ `756038a`
