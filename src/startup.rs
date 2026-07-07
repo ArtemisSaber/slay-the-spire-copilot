@@ -211,8 +211,12 @@ fn steam_appmanifest_paths() -> Vec<PathBuf> {
 }
 
 fn read_gameplay_settings_language(path: &Path) -> Option<String> {
-    let content = fs::read_to_string(path).ok()?;
-    let value: serde_json::Value = serde_json::from_str(&content).ok()?;
+    let content = fs::read_to_string(path)
+        .map_err(|e| tracing::warn!("failed to read {}: {e}", path.display()))
+        .ok()?;
+    let value: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| tracing::warn!("failed to parse gameplay settings JSON: {e}"))
+        .ok()?;
     value
         .get("LANGUAGE")
         .and_then(|v| v.as_str())
@@ -238,7 +242,9 @@ fn extract_vdf_value(content: &str, key: &str) -> Option<String> {
 }
 
 fn read_steam_appmanifest_language(path: &Path) -> Option<String> {
-    let content = fs::read_to_string(path).ok()?;
+    let content = fs::read_to_string(path)
+        .map_err(|e| tracing::warn!("failed to read {}: {e}", path.display()))
+        .ok()?;
     extract_vdf_value(&content, "language").filter(|v| !v.is_empty())
 }
 
@@ -334,7 +340,9 @@ fn parse_command_value(value: &str) -> Option<String> {
 }
 
 fn extract_command_value(path: &Path) -> Option<String> {
-    let content = fs::read_to_string(path).ok()?;
+    let content = fs::read_to_string(path)
+        .map_err(|e| tracing::warn!("failed to read {}: {e}", path.display()))
+        .ok()?;
     for line in content.lines() {
         if let Some(value) = line.strip_prefix("command=") {
             return parse_command_value(value);
@@ -344,7 +352,9 @@ fn extract_command_value(path: &Path) -> Option<String> {
 }
 
 fn extract_property_value(path: &Path, key: &str) -> Option<String> {
-    let content = fs::read_to_string(path).ok()?;
+    let content = fs::read_to_string(path)
+        .map_err(|e| tracing::warn!("failed to read {}: {e}", path.display()))
+        .ok()?;
     let prefix = format!("{key}=");
     for line in content.lines() {
         let trimmed = line.trim_start();
