@@ -21,12 +21,28 @@ pub(crate) fn rotate_log(log_dir: &std::path::Path, base_name: &str) {
     let log1 = log_dir.join(format!("{base_name}.1"));
     let log0 = log_dir.join(base_name);
 
-    let _ = fs::remove_file(&log2);
-    if log1.exists() {
-        let _ = fs::rename(&log1, &log2);
+    if let Err(e) = fs::remove_file(&log2)
+        && e.kind() != std::io::ErrorKind::NotFound
+    {
+        tracing::warn!("failed to remove {}: {e}", log2.display());
     }
-    if log0.exists() {
-        let _ = fs::rename(&log0, &log1);
+    if log1.exists()
+        && let Err(e) = fs::rename(&log1, &log2)
+    {
+        tracing::warn!(
+            "failed to rename {} -> {}: {e}",
+            log1.display(),
+            log2.display()
+        );
+    }
+    if log0.exists()
+        && let Err(e) = fs::rename(&log0, &log1)
+    {
+        tracing::warn!(
+            "failed to rename {} -> {}: {e}",
+            log0.display(),
+            log1.display()
+        );
     }
 }
 
