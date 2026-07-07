@@ -898,6 +898,58 @@ fn sanitize_err_body_preserves_short_body() {
 }
 
 #[test]
+fn validate_base_url_accepts_https() {
+    assert!(validate_base_url("https://api.openai.com/v1").is_ok());
+}
+
+#[test]
+fn validate_base_url_accepts_http_localhost() {
+    // Local LLM servers (Ollama, LM Studio) run on http://localhost — must be allowed.
+    assert!(validate_base_url("http://localhost:11434").is_ok());
+}
+
+#[test]
+fn validate_base_url_rejects_file_scheme() {
+    let result = validate_base_url("file:///etc/passwd");
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("http") || err.contains("scheme"),
+        "error: {err}"
+    );
+}
+
+#[test]
+fn validate_base_url_rejects_ftp_scheme() {
+    let result = validate_base_url("ftp://example.com");
+    assert!(result.is_err());
+}
+
+#[test]
+fn validate_base_url_rejects_data_scheme() {
+    let result = validate_base_url("data:text/plain,hello");
+    assert!(result.is_err());
+}
+
+#[test]
+fn validate_base_url_rejects_schemeless_url() {
+    let result = validate_base_url("api.openai.com");
+    assert!(result.is_err());
+}
+
+#[test]
+fn validate_base_url_strips_trailing_slash() {
+    let result = validate_base_url("https://api.openai.com/").unwrap();
+    assert_eq!(result, "https://api.openai.com");
+}
+
+#[test]
+fn validate_base_url_is_case_insensitive_for_scheme() {
+    assert!(validate_base_url("HTTPS://api.openai.com").is_ok());
+    assert!(validate_base_url("Http://localhost:8080").is_ok());
+}
+
+#[test]
 fn llm_provider_debug_does_not_leak_api_key() {
     let provider = LlmProvider::OpenAiCompatible {
         base_url: "https://api.example.com".into(),

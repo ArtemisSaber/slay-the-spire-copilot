@@ -47,6 +47,21 @@ fn sanitize_err_body(body: &str, api_key: Option<&str>) -> String {
     }
 }
 
+fn validate_base_url(raw: &str) -> anyhow::Result<String> {
+    let trimmed = raw.trim_end_matches('/');
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.starts_with("https://") || lower.starts_with("http://") {
+        Ok(trimmed.to_string())
+    } else if let Some(scheme) = lower.split("://").next() {
+        if scheme.contains(':') || scheme.is_empty() {
+            anyhow::bail!("LLM_BASE_URL must be a full http(s) URL, got '{raw}'");
+        }
+        anyhow::bail!("LLM_BASE_URL must use http or https scheme, got '{scheme}://'");
+    } else {
+        anyhow::bail!("LLM_BASE_URL must be a full http(s) URL, got '{raw}'");
+    }
+}
+
 #[cfg(test)]
 fn log_prompt_to(base: &std::path::Path, user_prompt: &str, response: &str) {
     let locale = crate::test_utils::test_locale();
@@ -473,18 +488,18 @@ impl LlmProvider {
         match config.provider.as_str() {
             "mock" => Ok(LlmProvider::Mock),
             "openai-compatible" => {
-                let base_url = config
+                let raw = config
                     .base_url
                     .as_ref()
-                    .context("LLM_BASE_URL is required for openai-compatible provider")?
-                    .clone();
+                    .context("LLM_BASE_URL is required for openai-compatible provider")?;
+                let base_url = validate_base_url(raw)?;
                 let api_key = config
                     .api_key
                     .as_ref()
                     .context("LLM_API_KEY is required for openai-compatible provider")?
                     .clone();
                 Ok(LlmProvider::OpenAiCompatible {
-                    base_url: base_url.trim_end_matches('/').to_string(),
+                    base_url,
                     api_key,
                     temperature: config.temperature,
                     client: reqwest::Client::new(),
@@ -506,12 +521,12 @@ impl LlmProvider {
                 })
             }
             "pollinations-free" => {
-                let base_url = config
-                    .base_url
-                    .as_deref()
-                    .unwrap_or("https://text.pollinations.ai/openai")
-                    .trim_end_matches('/')
-                    .to_string();
+                let base_url = validate_base_url(
+                    config
+                        .base_url
+                        .as_deref()
+                        .unwrap_or("https://text.pollinations.ai/openai"),
+                )?;
                 Ok(LlmProvider::PollinationsFree {
                     base_url,
                     temperature: config.temperature,
@@ -534,12 +549,12 @@ impl LlmProvider {
                 })
             }
             "anthropic" => {
-                let base_url = config
-                    .base_url
-                    .as_deref()
-                    .unwrap_or("https://api.anthropic.com")
-                    .trim_end_matches('/')
-                    .to_string();
+                let base_url = validate_base_url(
+                    config
+                        .base_url
+                        .as_deref()
+                        .unwrap_or("https://api.anthropic.com"),
+                )?;
                 let api_key = config
                     .api_key
                     .as_ref()
