@@ -116,7 +116,7 @@ pub fn build_context(state: &NormalizedState) -> Option<CombatScanContext> {
         tracing::debug!("kill_scan: skipping — empty hand");
         return None;
     }
-    if state.screen_type.as_deref() != Some("NONE") {
+    if state.screen_type.as_ref().map(|st| st.as_str()) != Some("NONE") {
         tracing::debug!("kill_scan: skipping — screen_type={:?}", state.screen_type);
         return None;
     }

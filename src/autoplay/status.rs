@@ -41,11 +41,8 @@ pub(crate) fn write_overlay_autoplay(
         });
 
     output["autoplay"] = serde_json::to_value(autoplay).unwrap_or(serde_json::Value::Null);
-    output["screen_type"] = metadata
-        .screen_type
-        .clone()
-        .map(serde_json::Value::String)
-        .unwrap_or(serde_json::Value::Null);
+    output["screen_type"] =
+        serde_json::to_value(&metadata.screen_type).unwrap_or(serde_json::Value::Null);
     output["scenario"] = serde_json::Value::String(metadata.scenario.clone());
     output["in_combat"] = serde_json::Value::Bool(metadata.in_combat);
     output["state_hash"] = serde_json::Value::String(metadata.state_hash.clone());
@@ -68,10 +65,11 @@ pub(crate) fn write_overlay_autoplay(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::ScreenType;
 
     fn metadata() -> OverlayMetadata {
         OverlayMetadata {
-            screen_type: Some("NONE".into()),
+            screen_type: Some(ScreenType::None),
             scenario: "combat".into(),
             in_combat: true,
             state_hash: "abc123".into(),

@@ -191,10 +191,58 @@ pub struct MapCoord {
     pub children: Vec<(i64, i64)>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ScreenType {
+    BossReward,
+    CardReward,
+    Chest,
+    CombatReward,
+    Complete,
+    Event,
+    GameOver,
+    Grid,
+    HandSelect,
+    Map,
+    None,
+    Rest,
+    ShopRoom,
+    ShopScreen,
+    Unknown,
+}
+
+impl std::fmt::Display for ScreenType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl ScreenType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::BossReward => "BOSS_REWARD",
+            Self::CardReward => "CARD_REWARD",
+            Self::Chest => "CHEST",
+            Self::CombatReward => "COMBAT_REWARD",
+            Self::Complete => "COMPLETE",
+            Self::Event => "EVENT",
+            Self::GameOver => "GAME_OVER",
+            Self::Grid => "GRID",
+            Self::HandSelect => "HAND_SELECT",
+            Self::Map => "MAP",
+            Self::None => "NONE",
+            Self::Rest => "REST",
+            Self::ShopRoom => "SHOP_ROOM",
+            Self::ShopScreen => "SHOP_SCREEN",
+            Self::Unknown => "UNKNOWN",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct NormalizedState {
-    pub screen_type: Option<String>,
+    pub screen_type: Option<ScreenType>,
     pub room_type: Option<String>,
     pub character: Option<String>,
     pub seed: Option<i64>,
@@ -744,9 +792,13 @@ fn extract_grid_fields(ss: Option<&Value>) -> GridFields {
     }
 }
 
-fn insert_opt_str(map: &mut serde_json::Map<String, Value>, key: &str, val: &Option<String>) {
+fn insert_opt_str<T: std::fmt::Display>(
+    map: &mut serde_json::Map<String, Value>,
+    key: &str,
+    val: &Option<T>,
+) {
     if let Some(v) = val {
-        map.insert(key.to_string(), Value::String(v.clone()));
+        map.insert(key.to_string(), Value::String(v.to_string()));
     }
 }
 
@@ -814,8 +866,7 @@ impl NormalizedState {
 
         let screen_type = gs
             .and_then(|g| g.get("screen_type"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+            .and_then(|v| serde_json::from_value::<ScreenType>(v.clone()).ok());
 
         let room_type = gs
             .and_then(|g| g.get("room_type"))
@@ -1077,7 +1128,7 @@ impl NormalizedState {
     }
 
     pub fn is_boss_card_reward(&self) -> bool {
-        self.screen_type.as_deref() == Some("CARD_REWARD")
+        self.screen_type.as_ref() == Some(&ScreenType::CardReward)
             && matches!(self.floor, Some(16 | 33 | 50))
     }
 

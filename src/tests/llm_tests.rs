@@ -1,6 +1,6 @@
 use super::*;
 use crate::locales::Locale;
-use crate::state::{DangerFlags, DangerLevel, MonsterInfo, NormalizedState, RelicInfo};
+use crate::state::{DangerFlags, DangerLevel, MonsterInfo, NormalizedState, RelicInfo, ScreenType};
 use crate::test_utils::test_locale;
 
 #[test]
@@ -166,7 +166,7 @@ fn all_scenarios_return_same_unified_prompt() {
 
 fn test_state() -> NormalizedState {
     NormalizedState {
-        screen_type: Some("NONE".into()),
+        screen_type: Some(ScreenType::None),
         room_type: Some("MonsterRoom".into()),
         character: Some("IRONCLAD".into()),
         seed: None,
@@ -251,7 +251,7 @@ fn monster() -> MonsterInfo {
 fn scenario_resolver_detects_boss_card_reward_floors() {
     for floor in [16, 33, 50] {
         let state = NormalizedState {
-            screen_type: Some("CARD_REWARD".into()),
+            screen_type: Some(ScreenType::CardReward),
             floor: Some(floor),
             ..test_state()
         };
@@ -265,7 +265,7 @@ fn scenario_resolver_detects_boss_card_reward_floors() {
 #[test]
 fn scenario_resolver_detects_ordinary_card_reward() {
     let state = NormalizedState {
-        screen_type: Some("CARD_REWARD".into()),
+        screen_type: Some(ScreenType::CardReward),
         floor: Some(14),
         ..test_state()
     };
@@ -278,7 +278,7 @@ fn scenario_resolver_detects_ordinary_card_reward() {
 #[test]
 fn scenario_resolver_detects_rest() {
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         ..test_state()
     };
     assert_eq!(AdviceScenario::from_state(&state), AdviceScenario::Rest);
@@ -287,7 +287,7 @@ fn scenario_resolver_detects_rest() {
 #[test]
 fn scenario_resolver_detects_boss_relic() {
     let state = NormalizedState {
-        screen_type: Some("BOSS_REWARD".into()),
+        screen_type: Some(ScreenType::BossReward),
         boss_relic_choices: vec![RelicInfo {
             id: "Runic Dome".into(),
             name: "符文圆顶".into(),
@@ -306,7 +306,7 @@ fn scenario_resolver_detects_boss_relic() {
 #[test]
 fn scenario_resolver_detects_event_choice() {
     let state = NormalizedState {
-        screen_type: Some("EVENT".into()),
+        screen_type: Some(ScreenType::Event),
         event_choices: vec!["获得遗物".into()],
         ..test_state()
     };
@@ -339,7 +339,7 @@ fn scenario_resolver_defaults_to_generic() {
 #[test]
 fn scenario_resolver_detects_map_suggestion() {
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         map_first_node_chosen: Some(false),
         ..test_state()
     };
@@ -352,7 +352,7 @@ fn scenario_resolver_detects_map_suggestion() {
 #[test]
 fn scenario_resolver_detects_map_crossroad() {
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         map_first_node_chosen: Some(true),
         ..test_state()
     };
@@ -869,7 +869,7 @@ fn prompt_logging_disabled_returns_false_for_enabled_or_unset() {
 #[test]
 fn scenario_resolver_detects_shop() {
     let state = NormalizedState {
-        screen_type: Some("SHOP_SCREEN".into()),
+        screen_type: Some(ScreenType::ShopScreen),
         ..test_state()
     };
     assert_eq!(AdviceScenario::from_state(&state), AdviceScenario::Shop);

@@ -1410,7 +1410,7 @@ pub(crate) fn build_grid_select(state: &NormalizedState, locale: &Locale) -> Str
 }
 
 pub fn build_prompt(state: &NormalizedState, locale: &Locale, shop_visited: bool) -> String {
-    match state.screen_type.as_deref() {
+    match state.screen_type.as_ref().map(|st| st.as_str()) {
         Some("CARD_REWARD") => build_card_reward(state, locale),
         Some("BOSS_REWARD") => build_boss_relic(state, locale),
         Some("REST") => build_rest(state, locale),

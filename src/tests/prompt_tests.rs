@@ -3,7 +3,7 @@ use super::routing::*;
 use crate::locales::Locale;
 use crate::state::{
     CardInfo, DangerFlags, DangerLevel, MapCoord, MonsterInfo, NormalizedState, PotionInfo,
-    PowerInfo, RelicInfo,
+    PowerInfo, RelicInfo, ScreenType,
 };
 use crate::test_utils::card;
 
@@ -13,7 +13,7 @@ fn test_locale() -> Locale {
 
 fn test_state() -> NormalizedState {
     NormalizedState {
-        screen_type: Some("NONE".to_string()),
+        screen_type: Some(ScreenType::None),
         room_type: Some("MonsterRoom".to_string()),
         character: Some("IRONCLAD".to_string()),
         seed: Some(-3047511808784702860),
@@ -262,7 +262,7 @@ fn monster_section_shows_scaling() {
 fn card_reward_shows_card_choices() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("CARD_REWARD".into()),
+        screen_type: Some(ScreenType::CardReward),
         character: Some("IRONCLAD".into()),
         floor: Some(3),
         current_hp: Some(62),
@@ -286,7 +286,7 @@ fn card_reward_shows_card_choices() {
 fn card_reward_prompt_marks_pick_or_skip_task() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("CARD_REWARD".into()),
+        screen_type: Some(ScreenType::CardReward),
         floor: Some(14),
         card_reward_choices: vec![card("Uppercut", "上勾拳", 2, "ATTACK")],
         skip_available: true,
@@ -302,7 +302,7 @@ fn card_reward_prompt_marks_pick_or_skip_task() {
 fn boss_card_reward_prompt_includes_full_heal_note() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("CARD_REWARD".into()),
+        screen_type: Some(ScreenType::CardReward),
         floor: Some(16),
         current_hp: Some(3),
         max_hp: Some(75),
@@ -325,7 +325,7 @@ fn boss_card_reward_prompt_includes_full_heal_note() {
 fn ordinary_card_reward_prompt_omits_full_heal_note() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("CARD_REWARD".into()),
+        screen_type: Some(ScreenType::CardReward),
         floor: Some(14),
         current_hp: Some(3),
         max_hp: Some(75),
@@ -346,7 +346,7 @@ fn ordinary_card_reward_prompt_omits_full_heal_note() {
 fn card_reward_shows_skip_when_available() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("CARD_REWARD".into()),
+        screen_type: Some(ScreenType::CardReward),
         card_reward_choices: vec![card("Uppercut", "Uppercut", 2, "ATTACK")],
         master_cards: vec![card("Strike_R", "Strike", 1, "ATTACK")],
         skip_available: true,
@@ -361,7 +361,7 @@ fn card_reward_shows_skip_when_available() {
 fn card_reward_no_skip_when_unavailable() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("CARD_REWARD".into()),
+        screen_type: Some(ScreenType::CardReward),
         card_reward_choices: vec![card("Uppercut", "Uppercut", 2, "ATTACK")],
         master_cards: vec![card("Strike_R", "Strike", 1, "ATTACK")],
         skip_available: false,
@@ -409,7 +409,7 @@ fn prompt_is_structured() {
 fn rest_prompt_has_translated_options() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         character: Some("IRONCLAD".into()),
         current_hp: Some(25),
         max_hp: Some(75),
@@ -432,7 +432,7 @@ fn rest_prompt_has_translated_options() {
 fn rest_prompt_marks_campfire_decision_task() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         rest_options: vec!["rest".into(), "smith".into()],
         ..test_state()
     };
@@ -447,7 +447,7 @@ fn rest_prompt_marks_campfire_decision_task() {
 fn rest_prompt_requires_smith_upgrade_target() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         rest_options: vec!["smith".into()],
         master_cards: vec![
             card("Bash", "痛击", 2, "ATTACK"),
@@ -466,7 +466,7 @@ fn rest_prompt_requires_smith_upgrade_target() {
 fn boss_relic_prompt_lists_choices() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("BOSS_REWARD".into()),
+        screen_type: Some(ScreenType::BossReward),
         boss_relic_choices: vec![
             RelicInfo {
                 id: "Snecko Eye".into(),
@@ -506,7 +506,7 @@ fn boss_relic_prompt_lists_choices() {
 fn event_prompt_lists_event_text_and_choices() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("EVENT".into()),
+        screen_type: Some(ScreenType::Event),
         event_id: None,
         event_name: Some("金神像".into()),
         event_body: Some("一个金色神像闪闪发光。".into()),
@@ -526,7 +526,7 @@ fn event_prompt_lists_event_text_and_choices() {
 fn event_prompt_does_not_emit_question_mark_garble() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("EVENT".into()),
+        screen_type: Some(ScreenType::Event),
         room_type: Some("NeowRoom".into()),
         event_id: None,
         event_name: None,
@@ -561,7 +561,7 @@ fn generic_prompt_shows_status_and_format() {
 fn rest_prompt_advises_rest_when_hp_low() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         current_hp: Some(15),
         max_hp: Some(75),
         rest_options: vec!["rest".into()],
@@ -576,7 +576,7 @@ fn rest_prompt_advises_rest_when_hp_low() {
 fn rest_prompt_suggests_smith_when_hp_high() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         current_hp: Some(60),
         max_hp: Some(75),
         rest_options: vec!["smith".into()],
@@ -737,7 +737,7 @@ fn format_card_shows_plus_for_upgraded() {
 fn build_prompt_routes_card_reward() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("CARD_REWARD".into()),
+        screen_type: Some(ScreenType::CardReward),
         card_reward_choices: vec![card("Strike_R", "Strike", 1, "ATTACK")],
         ..test_state()
     };
@@ -750,7 +750,7 @@ fn build_prompt_routes_card_reward() {
 fn build_prompt_routes_rest() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         rest_options: vec!["rest".into()],
         ..test_state()
     };
@@ -763,7 +763,7 @@ fn build_prompt_routes_rest() {
 fn build_prompt_routes_boss_relic() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("BOSS_REWARD".into()),
+        screen_type: Some(ScreenType::BossReward),
         boss_relic_choices: vec![RelicInfo {
             id: "Snecko Eye".into(),
             name: "蛇眼".into(),
@@ -781,7 +781,7 @@ fn build_prompt_routes_boss_relic() {
 fn build_prompt_routes_event_choice() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("EVENT".into()),
+        screen_type: Some(ScreenType::Event),
         event_choices: vec!["离开".into()],
         ..test_state()
     };
@@ -933,7 +933,7 @@ fn monster_with_block() {
 fn rest_shows_upgradeable_cards() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         current_hp: Some(45),
         max_hp: Some(75),
         rest_options: vec!["smith".into()],
@@ -954,7 +954,7 @@ fn rest_shows_upgradeable_cards() {
 fn rest_no_upgradeable_when_all_upgraded() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         current_hp: Some(45),
         max_hp: Some(75),
         rest_options: vec!["smith".into()],
@@ -1241,7 +1241,7 @@ fn evaluate_path_penalizes_double_elite_when_hp_is_low() {
 fn build_map_suggestion_includes_route_chains_and_counts() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![
             make_node("M", 0, 0, vec![(0, 1)]),
@@ -1266,7 +1266,7 @@ fn build_map_suggestion_includes_route_chains_and_counts() {
 fn build_map_suggestion_multiple_paths_labeled() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![
             make_node("M", 0, 0, vec![(0, 1), (1, 1)]),
@@ -1290,7 +1290,7 @@ fn build_map_suggestion_multiple_paths_labeled() {
 fn build_map_suggestion_limits_current_route_candidates() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![
             make_node(
@@ -1322,7 +1322,7 @@ fn build_map_suggestion_limits_current_route_candidates() {
 fn build_map_suggestion_root_selection() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(1),
         map_nodes: vec![
             make_node("M", 0, 0, vec![(0, 1)]),
@@ -1343,7 +1343,7 @@ fn build_map_suggestion_root_selection() {
 fn build_map_suggestion_limits_root_candidates() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(1),
         map_nodes: vec![
             make_node("M", 0, 0, vec![(0, 1)]),
@@ -1372,7 +1372,7 @@ fn build_map_suggestion_limits_root_candidates() {
 fn build_map_suggestion_includes_status_line() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         character: Some("IRONCLAD".into()),
         floor: Some(5),
         current_hp: Some(62),
@@ -1397,7 +1397,7 @@ fn build_map_suggestion_includes_status_line() {
 fn build_map_suggestion_empty_paths_graceful() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![],
         map_first_node_chosen: Some(true),
@@ -1415,7 +1415,7 @@ fn build_map_suggestion_empty_paths_graceful() {
 fn build_map_crossroad_shows_next_nodes() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![
             make_node("M", 1, 2, vec![(1, 3), (2, 3)]),
@@ -1439,7 +1439,7 @@ fn build_map_crossroad_shows_next_nodes() {
 fn build_map_crossroad_no_full_coordinate_routes() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![
             make_node("M", 1, 2, vec![(1, 3)]),
@@ -1461,7 +1461,7 @@ fn build_map_crossroad_no_full_coordinate_routes() {
 fn build_map_crossroad_includes_ahead_chain() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![
             make_node("M", 1, 2, vec![(1, 3)]),
@@ -1481,7 +1481,7 @@ fn build_map_crossroad_includes_ahead_chain() {
 fn build_map_crossroad_includes_annotations() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![
             make_node("M", 1, 2, vec![(1, 3)]),
@@ -1504,7 +1504,7 @@ fn build_map_crossroad_includes_annotations() {
 fn build_map_crossroad_softens_no_shop_when_shop_visited() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![
             make_node("M", 1, 2, vec![(1, 3)]),
@@ -1524,7 +1524,7 @@ fn build_map_crossroad_softens_no_shop_when_shop_visited() {
 fn build_map_crossroad_keeps_no_shop_when_not_visited() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![
             make_node("M", 1, 2, vec![(1, 3)]),
@@ -1721,7 +1721,7 @@ fn summarize_path_only_monsters() {
 fn shop_prompt_contains_mode_tag() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("SHOP_SCREEN".into()),
+        screen_type: Some(ScreenType::ShopScreen),
         gold: Some(190),
         shop_cards: vec![CardInfo {
             name: "断魂斩".into(),
@@ -1780,7 +1780,10 @@ fn shop_state_parses_from_fixture() {
     let locale = test_locale();
     let state = NormalizedState::from_raw(&raw, &locale);
 
-    assert_eq!(state.screen_type.as_deref(), Some("SHOP_SCREEN"));
+    assert_eq!(
+        state.screen_type.as_ref().map(|st| st.as_str()),
+        Some("SHOP_SCREEN")
+    );
     assert_eq!(state.gold, Some(190));
     assert_eq!(state.current_hp, Some(33));
     assert_eq!(state.max_hp, Some(80));
@@ -1854,7 +1857,7 @@ fn shop_prompt_from_fixture_includes_real_data() {
 fn shop_prompt_without_purge_omits_removal_section() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("SHOP_SCREEN".into()),
+        screen_type: Some(ScreenType::ShopScreen),
         gold: Some(100),
         shop_cards: vec![],
         shop_relics: vec![],
@@ -1877,7 +1880,7 @@ fn shop_prompt_without_purge_omits_removal_section() {
 fn build_hand_select_shows_purpose_with_card_in_play() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("HAND_SELECT".into()),
+        screen_type: Some(ScreenType::HandSelect),
         hand: vec![card("Strike_R", "打击", 1, "ATTACK")],
         current_action: Some("ExhaustAction".into()),
         card_in_play: Some(card("Burning Pact", "燃烧契约", 1, "SKILL")),
@@ -1894,7 +1897,7 @@ fn build_hand_select_shows_purpose_with_card_in_play() {
 fn build_hand_select_shows_selected_cards() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("HAND_SELECT".into()),
+        screen_type: Some(ScreenType::HandSelect),
         hand: vec![card("Strike_R", "打击", 1, "ATTACK")],
         hand_select_selected: vec![card("Defend_R", "防御", 1, "SKILL")],
         hand_select_max_cards: Some(2),
@@ -1911,7 +1914,7 @@ fn build_hand_select_shows_selected_cards() {
 fn build_grid_select_upgrade_shows_purpose() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("GRID".into()),
+        screen_type: Some(ScreenType::Grid),
         grid_cards: vec![
             card("Strike_R", "打击", 1, "ATTACK"),
             card("Defend_R", "防御", 1, "SKILL"),
@@ -1930,7 +1933,7 @@ fn build_grid_select_upgrade_shows_purpose() {
 fn build_grid_select_purge_shows_purpose() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("GRID".into()),
+        screen_type: Some(ScreenType::Grid),
         grid_cards: vec![card("Strike_R", "打击", 1, "ATTACK")],
         grid_for_purge: true,
         grid_num_cards: Some(1),
@@ -1947,7 +1950,7 @@ fn build_grid_select_purge_shows_purpose() {
 fn build_grid_select_transform_shows_purpose() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("GRID".into()),
+        screen_type: Some(ScreenType::Grid),
         grid_cards: vec![
             card("Strike_R", "打击", 1, "ATTACK"),
             card("Defend_R", "防御", 1, "SKILL"),
@@ -1965,7 +1968,7 @@ fn build_grid_select_transform_shows_purpose() {
 fn build_grid_select_default_shows_generic_purpose() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("GRID".into()),
+        screen_type: Some(ScreenType::Grid),
         grid_cards: vec![card("Strike_R", "打击", 1, "ATTACK")],
         grid_for_upgrade: false,
         grid_for_transform: false,
@@ -1982,7 +1985,7 @@ fn build_grid_select_default_shows_generic_purpose() {
 fn build_grid_select_falls_back_to_hand_when_grid_cards_empty() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("GRID".into()),
+        screen_type: Some(ScreenType::Grid),
         grid_cards: vec![],
         hand: vec![card("Bash", "痛击", 2, "ATTACK")],
         grid_for_upgrade: true,
@@ -1998,7 +2001,7 @@ fn build_grid_select_falls_back_to_hand_when_grid_cards_empty() {
 fn build_grid_select_no_num_cards() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("GRID".into()),
+        screen_type: Some(ScreenType::Grid),
         grid_cards: vec![card("Strike_R", "打击", 1, "ATTACK")],
         grid_for_purge: true,
         grid_num_cards: None,
@@ -2016,7 +2019,7 @@ fn build_grid_select_no_num_cards() {
 fn build_hand_select_without_card_in_play() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("HAND_SELECT".into()),
+        screen_type: Some(ScreenType::HandSelect),
         hand: vec![card("Strike_R", "打击", 1, "ATTACK")],
         current_action: Some("DiscardAction".into()),
         card_in_play: None,
@@ -2033,7 +2036,7 @@ fn build_hand_select_without_card_in_play() {
 fn build_hand_select_put_on_deck_action() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("HAND_SELECT".into()),
+        screen_type: Some(ScreenType::HandSelect),
         hand: vec![card("Defend_R", "防御", 1, "SKILL")],
         current_action: Some("PutOnDeckAction".into()),
         card_in_play: None,
@@ -2048,7 +2051,7 @@ fn build_hand_select_put_on_deck_action() {
 fn build_hand_select_unknown_action() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("HAND_SELECT".into()),
+        screen_type: Some(ScreenType::HandSelect),
         hand: vec![card("Strike_R", "打击", 1, "ATTACK")],
         current_action: Some("SomeUnknownAction".into()),
         card_in_play: None,
@@ -2063,7 +2066,7 @@ fn build_hand_select_unknown_action() {
 fn build_hand_select_cannot_skip() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("HAND_SELECT".into()),
+        screen_type: Some(ScreenType::HandSelect),
         hand: vec![card("Strike_R", "打击", 1, "ATTACK")],
         current_action: Some("ExhaustAction".into()),
         card_in_play: Some(card("Burning Pact", "燃烧契约", 1, "SKILL")),
@@ -3070,7 +3073,7 @@ fn rank_labeled_paths_sorts_by_score_descending() {
 fn shop_prompt_purge_not_available_omits_removal_but_shows_deck() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("SHOP_SCREEN".into()),
+        screen_type: Some(ScreenType::ShopScreen),
         gold: Some(100),
         shop_cards: vec![],
         shop_relics: vec![],
@@ -3164,7 +3167,7 @@ fn combat_prompt_shows_exhaust_pile() {
 fn build_map_crossroad_single_child_direct() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![
             make_node("M", 1, 2, vec![(1, 3)]),
@@ -3185,7 +3188,7 @@ fn build_map_crossroad_single_child_direct() {
 fn build_map_crossroad_unknown_symbol() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![
             make_node("M", 1, 2, vec![(1, 3)]),
@@ -3466,7 +3469,7 @@ fn build_combat_default_priority_shows_name() {
 fn build_rest_all_option_types() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         current_hp: Some(45),
         max_hp: Some(75),
         rest_options: vec![
@@ -3492,7 +3495,7 @@ fn build_rest_all_option_types() {
 fn build_rest_mid_hp_no_advice() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         current_hp: Some(45),
         max_hp: Some(75),
         rest_options: vec!["rest".into(), "smith".into()],
@@ -3507,7 +3510,7 @@ fn build_rest_mid_hp_no_advice() {
 fn build_rest_filters_curse_status_from_upgrade() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         current_hp: Some(45),
         max_hp: Some(75),
         rest_options: vec!["smith".into()],
@@ -3535,7 +3538,7 @@ fn build_rest_filters_curse_status_from_upgrade() {
 fn build_rest_dedup_same_card_id() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         current_hp: Some(45),
         max_hp: Some(75),
         rest_options: vec!["smith".into()],
@@ -3557,7 +3560,7 @@ fn build_rest_dedup_same_card_id() {
 fn build_boss_relic_floor_17_hp_note() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("BOSS_REWARD".into()),
+        screen_type: Some(ScreenType::BossReward),
         floor: Some(17),
         boss_relic_choices: vec![RelicInfo {
             id: "Snecko Eye".into(),
@@ -3576,7 +3579,7 @@ fn build_boss_relic_floor_17_hp_note() {
 fn build_boss_relic_floor_34_hp_note() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("BOSS_REWARD".into()),
+        screen_type: Some(ScreenType::BossReward),
         floor: Some(34),
         boss_relic_choices: vec![RelicInfo {
             id: "Snecko Eye".into(),
@@ -3597,7 +3600,7 @@ fn build_boss_relic_floor_34_hp_note() {
 fn build_event_choice_with_id_and_name() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("EVENT".into()),
+        screen_type: Some(ScreenType::Event),
         event_id: Some("Big Fish".into()),
         event_name: Some("大鲸".into()),
         event_body: Some("一个巨大的鲸鱼挡住了去路。".into()),
@@ -3616,7 +3619,7 @@ fn build_event_choice_with_id_and_name() {
 fn build_event_choice_body_only_no_event_info() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("EVENT".into()),
+        screen_type: Some(ScreenType::Event),
         event_id: None,
         event_name: None,
         room_type: None,
@@ -3636,7 +3639,7 @@ fn build_event_choice_body_only_no_event_info() {
 fn build_shop_items_price_none() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("SHOP_SCREEN".into()),
+        screen_type: Some(ScreenType::ShopScreen),
         gold: Some(200),
         shop_cards: vec![CardInfo {
             name: "打击".into(),
@@ -3670,7 +3673,7 @@ fn build_shop_items_price_none() {
 fn build_shop_purge_cost_none() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("SHOP_SCREEN".into()),
+        screen_type: Some(ScreenType::ShopScreen),
         gold: Some(200),
         purge_available: true,
         purge_cost: None,
@@ -3686,7 +3689,7 @@ fn build_shop_purge_cost_none() {
 fn build_shop_all_empty_no_section_header() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("SHOP_SCREEN".into()),
+        screen_type: Some(ScreenType::ShopScreen),
         gold: Some(100),
         shop_cards: vec![],
         shop_relics: vec![],
@@ -3708,7 +3711,7 @@ fn build_shop_all_empty_no_section_header() {
 fn build_map_crossroad_current_position_not_found() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![make_node("M", 0, 0, vec![])],
         map_first_node_chosen: Some(true),
@@ -3725,7 +3728,7 @@ fn build_map_crossroad_current_position_not_found() {
 fn build_map_crossroad_many_candidates_limited() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(5),
         map_nodes: vec![
             make_node(
@@ -3828,7 +3831,7 @@ fn format_monster_defend_buff_intent() {
 fn build_hand_select_no_current_action() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("HAND_SELECT".into()),
+        screen_type: Some(ScreenType::HandSelect),
         hand: vec![card("Strike_R", "打击", 1, "ATTACK")],
         current_action: None,
         card_in_play: None,
@@ -3845,7 +3848,7 @@ fn build_hand_select_no_current_action() {
 fn build_hand_select_no_max_cards() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("HAND_SELECT".into()),
+        screen_type: Some(ScreenType::HandSelect),
         hand: vec![card("Strike_R", "打击", 1, "ATTACK")],
         current_action: Some("DiscardAction".into()),
         card_in_play: None,
@@ -3943,7 +3946,7 @@ fn compact_route_chain_eleven_parts() {
 fn build_map_suggestion_root_with_branches() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("MAP".into()),
+        screen_type: Some(ScreenType::Map),
         floor: Some(1),
         map_nodes: vec![
             make_node("M", 0, 0, vec![(0, 1), (1, 1)]),
@@ -3966,7 +3969,7 @@ fn build_map_suggestion_root_with_branches() {
 fn build_rest_unknown_option_fallback() {
     let locale = test_locale();
     let state = NormalizedState {
-        screen_type: Some("REST".into()),
+        screen_type: Some(ScreenType::Rest),
         current_hp: Some(45),
         max_hp: Some(75),
         rest_options: vec!["custom_action".into()],

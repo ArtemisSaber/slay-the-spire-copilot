@@ -1,5 +1,7 @@
 use crate::ranker::context::{ActionContext, ActionType};
-use crate::state::{CardInfo, MonsterInfo, NormalizedState, PotionInfo, PowerInfo, RelicInfo};
+use crate::state::{
+    CardInfo, MonsterInfo, NormalizedState, PotionInfo, PowerInfo, RelicInfo, ScreenType,
+};
 
 fn make_state(hand: Vec<CardInfo>, monsters: Vec<MonsterInfo>) -> NormalizedState {
     NormalizedState {
@@ -10,7 +12,7 @@ fn make_state(hand: Vec<CardInfo>, monsters: Vec<MonsterInfo>) -> NormalizedStat
         current_hp: Some(60),
         max_hp: Some(75),
         incoming_damage: 6,
-        screen_type: Some("NONE".to_string()),
+        screen_type: Some(ScreenType::None),
         ..Default::default()
     }
 }

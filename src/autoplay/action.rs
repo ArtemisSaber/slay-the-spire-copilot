@@ -67,7 +67,7 @@ pub fn available_action_candidates(
         return vec![];
     }
 
-    match state.screen_type.as_deref() {
+    match state.screen_type.as_ref().map(|st| st.as_str()) {
         Some("COMBAT_REWARD") if control.allow_combat_rewards => {
             combat_reward_candidates(control, session, command_state, state)
         }
@@ -121,7 +121,7 @@ pub fn resolve_requested_action(
         return None;
     }
 
-    match state.screen_type.as_deref() {
+    match state.screen_type.as_ref().map(|st| st.as_str()) {
         Some("COMBAT_REWARD") => resolve_requested_combat_reward(command_state, request),
         Some("CARD_REWARD") => resolve_requested_card_reward(command_state, state, request),
         Some("BOSS_REWARD") => resolve_requested_boss_reward(state, request),
@@ -692,6 +692,7 @@ mod tests {
     use super::*;
     use crate::autoplay::control::{AutoPlayControl, ControlLoad};
     use crate::locales::Locale;
+    use crate::state::ScreenType;
     use serde_json::{Value, json};
 
     fn state(raw: Value) -> NormalizedState {
@@ -1529,7 +1530,7 @@ mod tests {
     fn potion_action_id_uses_raw_slot_with_gaps() {
         use crate::state::PotionInfo;
         let state = NormalizedState {
-            screen_type: Some("NONE".into()),
+            screen_type: Some(ScreenType::None),
             potions: vec![
                 PotionInfo {
                     slot: 1,
@@ -2334,7 +2335,7 @@ mod tests {
     fn combat_candidates_skip_unusable_potion() {
         use crate::state::PotionInfo;
         let s = NormalizedState {
-            screen_type: Some("NONE".into()),
+            screen_type: Some(ScreenType::None),
             potions: vec![PotionInfo {
                 slot: 0,
                 name: "Bad".into(),
@@ -3106,7 +3107,7 @@ mod tests {
     fn resolve_combat_drink_targetless_potion_returns_drink_without_target() {
         use crate::state::PotionInfo;
         let s = NormalizedState {
-            screen_type: Some("NONE".into()),
+            screen_type: Some(ScreenType::None),
             potions: vec![PotionInfo {
                 slot: 0,
                 name: "Heal".into(),
@@ -3686,7 +3687,7 @@ mod tests {
     fn combat_candidates_targeted_potion() {
         use crate::state::PotionInfo;
         let s = NormalizedState {
-            screen_type: Some("NONE".into()),
+            screen_type: Some(ScreenType::None),
             potions: vec![PotionInfo {
                 slot: 0,
                 name: "Fire Potion".into(),

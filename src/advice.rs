@@ -1,5 +1,6 @@
 use crate::llm::{AdviceScenario, Effort, LlmProvider};
 use crate::locales::Locale;
+use crate::state::ScreenType;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
@@ -21,7 +22,7 @@ pub struct OverlayOutput {
     pub status: String,
     pub overlay_visibility: bool,
     pub advice: AdviceFields,
-    pub screen_type: Option<String>,
+    pub screen_type: Option<ScreenType>,
     pub scenario: String,
     pub in_combat: bool,
     pub state_hash: String,
@@ -31,7 +32,7 @@ pub struct OverlayOutput {
 }
 
 pub struct OverlayMetadata {
-    pub screen_type: Option<String>,
+    pub screen_type: Option<ScreenType>,
     pub scenario: String,
     pub in_combat: bool,
     pub state_hash: String,

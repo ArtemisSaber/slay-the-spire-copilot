@@ -46,7 +46,7 @@ pub async fn plan_action(
     locale: &Locale,
     shop_visited: bool,
 ) -> anyhow::Result<Option<AutoPlayAction>> {
-    if state.screen_type.as_deref() == Some("COMBAT_REWARD")
+    if state.screen_type.as_ref().map(|st| st.as_str()) == Some("COMBAT_REWARD")
         && session.last_combat_reward_floor != state.floor
     {
         session.skipped_combat_reward_potion = false;
@@ -62,7 +62,9 @@ pub async fn plan_action(
         }
     }
     session.last_seen_relic_ids = current_relic_ids;
-    if session.pending_boss_relic_grid.is_some() && state.screen_type.as_deref() != Some("GRID") {
+    if session.pending_boss_relic_grid.is_some()
+        && state.screen_type.as_ref().map(|st| st.as_str()) != Some("GRID")
+    {
         session.pending_boss_relic_grid = None;
     }
 
@@ -80,7 +82,7 @@ pub async fn plan_action(
         return Ok(Some(action));
     }
 
-    if state.screen_type.as_deref() == Some("NONE")
+    if state.screen_type.as_ref().map(|st| st.as_str()) == Some("NONE")
         && let Some(action) = combat_adviser::try_kill_scan_action(state)
     {
         tracing::info!("autoplay kill_scan {:?}", action);
@@ -88,14 +90,14 @@ pub async fn plan_action(
         return Ok(Some(action));
     }
 
-    if state.screen_type.as_deref() == Some("SHOP_SCREEN") {
+    if state.screen_type.as_ref().map(|st| st.as_str()) == Some("SHOP_SCREEN") {
         session.last_shop_room_floor = state.floor;
     }
 
     let effort = state
         .screen_type
-        .as_deref()
-        .map(|st| Effort::from_screen_type(st, !state.monsters.is_empty()))
+        .as_ref()
+        .map(|st| Effort::from_screen_type(st.as_str(), !state.monsters.is_empty()))
         .unwrap_or(Effort::Medium);
 
     let mut rejections = vec![];
@@ -129,7 +131,7 @@ pub async fn plan_action(
                         {
                             session.skipped_combat_reward_potion = true;
                         }
-                        if state.screen_type.as_deref() == Some("CARD_REWARD")
+                        if state.screen_type.as_ref().map(|st| st.as_str()) == Some("CARD_REWARD")
                             && matches!(&action, Some(AutoPlayAction::Skip))
                         {
                             session.skipped_combat_reward_card = true;
@@ -179,7 +181,7 @@ fn potion_in_full_slots_was_rejected(
     state: &NormalizedState,
     action: &Option<AutoPlayAction>,
 ) -> Option<(usize, AutoPlayAction)> {
-    if state.screen_type.as_deref() != Some("COMBAT_REWARD") {
+    if state.screen_type.as_ref().map(|st| st.as_str()) != Some("COMBAT_REWARD") {
         return None;
     }
     if state.empty_potion_slots > 0 {
@@ -218,7 +220,7 @@ fn try_deterministic_action(
     }
 
     // COMBAT_REWARD: gold/relic/keys → deterministic; potion → empty=auto, full=LLM; card → always pick.
-    if state.screen_type.as_deref() == Some("COMBAT_REWARD") {
+    if state.screen_type.as_ref().map(|st| st.as_str()) == Some("COMBAT_REWARD") {
         let has_potion = command_state.choice_list.iter().any(|c| c == "potion");
         let has_card = command_state.choice_list.iter().any(|c| c == "card");
 
@@ -278,7 +280,9 @@ fn build_planner_prompt(
     let localized_status_context = prompt::build_prompt(state, locale, shop_visited);
 
     let mut annotated_actions: Vec<ActionCandidate> = candidates.to_vec();
-    if state.screen_type.as_deref() == Some("MAP") && !annotated_actions.is_empty() {
+    if state.screen_type.as_ref().map(|st| st.as_str()) == Some("MAP")
+        && !annotated_actions.is_empty()
+    {
         let total = annotated_actions.len();
         for (i, c) in annotated_actions.iter_mut().enumerate() {
             let pos = crate::prompt::builder::position_label(i, total, locale);
@@ -390,7 +394,7 @@ fn state_summary(session: &AutoPlaySession, state: &NormalizedState) -> serde_js
             "purge_available": state.purge_available,
             "purge_cost": state.purge_cost,
         },
-        "grid": if state.screen_type.as_deref() == Some("GRID") {
+        "grid": if state.screen_type.as_ref().map(|st| st.as_str()) == Some("GRID") {
             json!({
                 "purpose": grid_purpose,
                 "num_cards": state.grid_num_cards,
@@ -473,7 +477,7 @@ fn fallback_action(
     command_state: &CommandState,
     state: &NormalizedState,
 ) -> Option<AutoPlayAction> {
-    match state.screen_type.as_deref() {
+    match state.screen_type.as_ref().map(|st| st.as_str()) {
         Some("COMBAT_REWARD") if control.allow_combat_rewards => {
             fallback_combat_reward_action(control, command_state)
         }
@@ -1339,7 +1343,7 @@ mod tests {
 
         // plan_action triggers the floor-based reset (first call)
         // We simulate just the reset check inline
-        if state.screen_type.as_deref() == Some("COMBAT_REWARD")
+        if state.screen_type.as_ref().map(|st| st.as_str()) == Some("COMBAT_REWARD")
             && session.last_combat_reward_floor != state.floor
         {
             session.skipped_combat_reward_potion = false;
@@ -1371,7 +1375,7 @@ mod tests {
         let action = Some(AutoPlayAction::Skip);
 
         // Simulate the LLM response handling that sets the flag
-        if state.screen_type.as_deref() == Some("CARD_REWARD")
+        if state.screen_type.as_ref().map(|st| st.as_str()) == Some("CARD_REWARD")
             && matches!(&action, Some(AutoPlayAction::Skip))
         {
             session.skipped_combat_reward_card = true;

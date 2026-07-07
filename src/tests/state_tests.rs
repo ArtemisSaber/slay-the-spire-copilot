@@ -8,7 +8,10 @@ fn normalize_combat_state() {
     let raw = load_fixture("combat-state.json");
     let state = NormalizedState::from_raw(&raw, test_locale());
 
-    assert_eq!(state.screen_type.as_deref(), Some("NONE"));
+    assert_eq!(
+        state.screen_type.as_ref().map(|st| st.as_str()),
+        Some("NONE")
+    );
     assert_eq!(state.character.as_deref(), Some("IRONCLAD"));
     assert_eq!(state.seed, Some(-3047511808784702860));
     assert_eq!(state.ascension_level, Some(20));
@@ -47,7 +50,10 @@ fn normalize_card_reward_state() {
     let raw = load_fixture("card-reward-state.json");
     let state = NormalizedState::from_raw(&raw, test_locale());
 
-    assert_eq!(state.screen_type.as_deref(), Some("CARD_REWARD"));
+    assert_eq!(
+        state.screen_type.as_ref().map(|st| st.as_str()),
+        Some("CARD_REWARD")
+    );
     assert_eq!(state.card_reward_choices.len(), 3);
     assert!(state.card_reward_choices.iter().any(|c| c.id == "Uppercut"));
     assert!(state.card_reward_choices.iter().any(|c| c.id == "Anger"));
@@ -67,7 +73,10 @@ fn normalize_rest_state() {
     let raw = load_fixture("rest-state.json");
     let state = NormalizedState::from_raw(&raw, test_locale());
 
-    assert_eq!(state.screen_type.as_deref(), Some("REST"));
+    assert_eq!(
+        state.screen_type.as_ref().map(|st| st.as_str()),
+        Some("REST")
+    );
     assert_eq!(
         state.rest_options,
         vec!["rest".to_string(), "smith".to_string(), "toke".to_string()]
@@ -107,7 +116,10 @@ fn normalize_boss_relic_choices() {
     });
     let state = NormalizedState::from_raw(&raw, test_locale());
 
-    assert_eq!(state.screen_type.as_deref(), Some("BOSS_REWARD"));
+    assert_eq!(
+        state.screen_type.as_ref().map(|st| st.as_str()),
+        Some("BOSS_REWARD")
+    );
     assert_eq!(state.boss_relic_choices.len(), 3);
     assert!(
         state
@@ -154,7 +166,10 @@ fn normalize_event_choices() {
     });
     let state = NormalizedState::from_raw(&raw, test_locale());
 
-    assert_eq!(state.screen_type.as_deref(), Some("EVENT"));
+    assert_eq!(
+        state.screen_type.as_ref().map(|st| st.as_str()),
+        Some("EVENT")
+    );
     assert_eq!(state.event_name.as_deref(), Some("Golden Idol"));
     assert_eq!(
         state.event_body.as_deref(),
@@ -228,7 +243,10 @@ fn normalize_event_choices_replaces_unreadable_locale_garble() {
     });
     let state = NormalizedState::from_raw(&raw, test_locale());
 
-    assert_eq!(state.screen_type.as_deref(), Some("EVENT"));
+    assert_eq!(
+        state.screen_type.as_ref().map(|st| st.as_str()),
+        Some("EVENT")
+    );
     assert_eq!(state.room_type.as_deref(), Some("NeowRoom"));
     assert!(state.event_name.is_none());
     assert!(state.event_body.is_none());
@@ -1179,7 +1197,10 @@ fn normalize_shop_state() {
     let raw = load_fixture("shop-state.json");
     let state = NormalizedState::from_raw(&raw, test_locale());
 
-    assert_eq!(state.screen_type.as_deref(), Some("SHOP_SCREEN"));
+    assert_eq!(
+        state.screen_type.as_ref().map(|st| st.as_str()),
+        Some("SHOP_SCREEN")
+    );
     assert_eq!(state.floor, Some(5));
     assert_eq!(state.gold, Some(190));
     assert!(state.purge_available);
@@ -2803,4 +2824,96 @@ fn danger_no_wrath_without_stance_power() {
     let d = compute_danger(70, 80, 20, 0, false, &["ATTACK"]);
     assert!(!d.wrath_stance);
     assert_eq!(d.level, DangerLevel::Caution);
+}
+
+#[test]
+fn screen_type_deserializes_known_variants() {
+    let cases: &[(&str, ScreenType)] = &[
+        ("\"BOSS_REWARD\"", ScreenType::BossReward),
+        ("\"CARD_REWARD\"", ScreenType::CardReward),
+        ("\"CHEST\"", ScreenType::Chest),
+        ("\"COMBAT_REWARD\"", ScreenType::CombatReward),
+        ("\"COMPLETE\"", ScreenType::Complete),
+        ("\"EVENT\"", ScreenType::Event),
+        ("\"GAME_OVER\"", ScreenType::GameOver),
+        ("\"GRID\"", ScreenType::Grid),
+        ("\"HAND_SELECT\"", ScreenType::HandSelect),
+        ("\"MAP\"", ScreenType::Map),
+        ("\"NONE\"", ScreenType::None),
+        ("\"REST\"", ScreenType::Rest),
+        ("\"SHOP_ROOM\"", ScreenType::ShopRoom),
+        ("\"SHOP_SCREEN\"", ScreenType::ShopScreen),
+        ("\"UNKNOWN\"", ScreenType::Unknown),
+    ];
+    for (json, expected) in cases {
+        let parsed: ScreenType =
+            serde_json::from_str(json).unwrap_or_else(|e| panic!("failed to parse {json}: {e}"));
+        assert_eq!(parsed, *expected, "mismatch for {json}");
+    }
+}
+
+#[test]
+fn screen_type_rejects_unknown_strings() {
+    let result: Result<ScreenType, _> = serde_json::from_str("\"UNKNOWN_WEIRD_SCREEN\"");
+    assert!(
+        result.is_err(),
+        "unknown screen type should fail to deserialize"
+    );
+}
+
+#[test]
+fn screen_type_serializes_to_screaming_snake_case() {
+    assert_eq!(
+        serde_json::to_string(&ScreenType::CardReward).unwrap(),
+        "\"CARD_REWARD\""
+    );
+    assert_eq!(
+        serde_json::to_string(&ScreenType::BossReward).unwrap(),
+        "\"BOSS_REWARD\""
+    );
+    assert_eq!(
+        serde_json::to_string(&ScreenType::ShopScreen).unwrap(),
+        "\"SHOP_SCREEN\""
+    );
+    assert_eq!(
+        serde_json::to_string(&ScreenType::None).unwrap(),
+        "\"NONE\""
+    );
+}
+
+#[test]
+fn screen_type_display_matches_serialized_form() {
+    for variant in [
+        ScreenType::BossReward,
+        ScreenType::CardReward,
+        ScreenType::Chest,
+        ScreenType::CombatReward,
+        ScreenType::Complete,
+        ScreenType::Event,
+        ScreenType::GameOver,
+        ScreenType::Grid,
+        ScreenType::HandSelect,
+        ScreenType::Map,
+        ScreenType::None,
+        ScreenType::Rest,
+        ScreenType::ShopRoom,
+        ScreenType::ShopScreen,
+        ScreenType::Unknown,
+    ] {
+        let serialized = serde_json::to_string(&variant).unwrap();
+        let stripped = serialized.trim_matches('"');
+        assert_eq!(
+            variant.to_string(),
+            stripped,
+            "Display mismatch for {variant:?}"
+        );
+    }
+}
+
+#[test]
+fn screen_type_round_trips_through_serde() {
+    let original = ScreenType::HandSelect;
+    let json = serde_json::to_string(&original).unwrap();
+    let back: ScreenType = serde_json::from_str(&json).unwrap();
+    assert_eq!(original, back);
 }

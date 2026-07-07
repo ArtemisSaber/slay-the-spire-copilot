@@ -2,7 +2,7 @@ use crate::autoplay::action::AutoPlayAction;
 use crate::state::NormalizedState;
 
 pub fn try_kill_scan_action(state: &NormalizedState) -> Option<AutoPlayAction> {
-    if state.screen_type.as_deref() != Some("NONE") {
+    if state.screen_type.as_ref().map(|st| st.as_str()) != Some("NONE") {
         return None;
     }
     let sequence = crate::combat::find_kill_sequence(state)?;
@@ -72,7 +72,7 @@ fn action_entry(
 }
 
 pub fn top_ranked_context(state: &NormalizedState) -> Option<serde_json::Value> {
-    if state.screen_type.as_deref() != Some("NONE") {
+    if state.screen_type.as_ref().map(|st| st.as_str()) != Some("NONE") {
         return None;
     }
     let scored = crate::ranker::rank(state);
@@ -94,6 +94,7 @@ pub fn top_ranked_context(state: &NormalizedState) -> Option<serde_json::Value> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::ScreenType;
     use crate::test_utils;
 
     fn load_normalized_state(filename: &str) -> NormalizedState {
@@ -245,7 +246,7 @@ mod tests {
     #[test]
     fn kill_scan_non_combat_screen_returns_none() {
         let state = NormalizedState {
-            screen_type: Some("REST".into()),
+            screen_type: Some(ScreenType::Rest),
             ..NormalizedState::default()
         };
         assert_eq!(try_kill_scan_action(&state), None);
@@ -352,7 +353,7 @@ mod tests {
     #[test]
     fn top_ranked_returns_none_for_non_combat() {
         let state = NormalizedState {
-            screen_type: Some("REST".into()),
+            screen_type: Some(ScreenType::Rest),
             ..NormalizedState::default()
         };
         assert_eq!(top_ranked_context(&state), None);

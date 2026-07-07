@@ -490,7 +490,11 @@ async fn main() {
                                 tracing::info!(
                                     "autoplay retry executing {:?} screen={}",
                                     action,
-                                    saved_normalized.screen_type.as_deref().unwrap_or("?"),
+                                    saved_normalized
+                                        .screen_type
+                                        .as_ref()
+                                        .map(|st| st.as_str())
+                                        .unwrap_or("?"),
                                 );
                                 let mut stdout = io::stdout().lock();
                                 autoplay::action::execute_action_to(&mut stdout, &action);
@@ -581,7 +585,7 @@ async fn main() {
         let command_state = autoplay::command_state::CommandState::from_raw(&raw);
         let scenario = AdviceScenario::from_state(&normalized);
         let metadata = OverlayMetadata {
-            screen_type: Some(screen_type.to_string()),
+            screen_type: normalized.screen_type.clone(),
             scenario: scenario.as_str().to_string(),
             in_combat: has_monsters(&raw),
             state_hash: hash.clone(),

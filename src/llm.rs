@@ -134,7 +134,7 @@ pub enum AdviceScenario {
 
 impl AdviceScenario {
     pub fn from_state(state: &NormalizedState) -> Self {
-        match state.screen_type.as_deref() {
+        match state.screen_type.as_ref().map(|st| st.as_str()) {
             Some("CARD_REWARD") if state.is_boss_card_reward() => AdviceScenario::BossCardReward,
             Some("CARD_REWARD") => AdviceScenario::CardReward,
             Some("BOSS_REWARD") => AdviceScenario::BossRelic,

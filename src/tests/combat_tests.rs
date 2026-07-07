@@ -2,11 +2,12 @@ use crate::combat::context::build_context;
 use crate::combat::{Stance, can_end_fight};
 use crate::state::{
     CardInfo, DangerFlags, DangerLevel, MonsterInfo, NormalizedState, PowerInfo, RelicInfo,
+    ScreenType,
 };
 
 fn state() -> NormalizedState {
     NormalizedState {
-        screen_type: Some("NONE".to_string()),
+        screen_type: Some(ScreenType::None),
         room_type: Some("MonsterRoom".to_string()),
         character: Some("IRONCLAD".to_string()),
         seed: Some(-3047511808784702860),
@@ -154,7 +155,7 @@ fn context_builder_empty_hand_returns_none() {
 #[test]
 fn context_builder_non_none_screen_returns_none() {
     let mut s = state();
-    s.screen_type = Some("CARD_REWARD".to_string());
+    s.screen_type = Some(ScreenType::CardReward);
     s.hand = vec![strike("打击", "s1")];
     s.monsters = vec![monster("Jaw Worm", 20, 0, vec![], 0)];
     s.energy = Some(3);

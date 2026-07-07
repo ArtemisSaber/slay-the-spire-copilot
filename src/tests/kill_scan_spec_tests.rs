@@ -2,6 +2,7 @@ use crate::combat::damage::combat_ended;
 use crate::combat::effects::{HitCount, StanceEffect, TargetType};
 use crate::combat::kill_scan::{TestCard, random_target_guaranteed, test_scan};
 use crate::combat::{MonsterSnapshot, PowerState, Stance};
+use crate::state::ScreenType;
 
 fn ms(
     index: usize,
@@ -863,7 +864,11 @@ mod fixture_tests {
         for name in &names {
             let raw = load_fixture(name);
             let state = NormalizedState::from_raw(&raw, &Locale::load("zh"));
-            assert_eq!(state.screen_type.as_deref(), Some("NONE"), "{name}");
+            assert_eq!(
+                state.screen_type.as_ref().map(|st| st.as_str()),
+                Some("NONE"),
+                "{name}"
+            );
             assert!(!state.hand.is_empty(), "{name}");
             assert!(!state.monsters.is_empty(), "{name}");
         }
@@ -917,7 +922,7 @@ mod fixture_tests {
     fn non_combat_screen_returns_none() {
         let raw = load_fixture(&fixture_by_line("L52"));
         let mut state = NormalizedState::from_raw(&raw, &Locale::load("zh"));
-        state.screen_type = Some("CARD_REWARD".to_string());
+        state.screen_type = Some(crate::state::ScreenType::CardReward);
 
         assert!(!can_end_fight(&state));
         assert!(find_kill_sequence(&state).is_none());
@@ -1013,7 +1018,7 @@ mod fixture_tests {
         };
 
         let state = NormalizedState {
-            screen_type: Some("NONE".to_string()),
+            screen_type: Some(crate::state::ScreenType::None),
             room_type: None,
             character: None,
             seed: None,

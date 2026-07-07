@@ -1,5 +1,6 @@
 use super::*;
 use crate::llm::{AdviceScenario, Effort, LlmProvider};
+use crate::state::ScreenType;
 use crate::test_utils::test_locale;
 
 #[test]
@@ -117,7 +118,7 @@ fn overlay_output_serialization_structure() {
             risk: "卡手".to_string(),
             commentary: "还行".to_string(),
         },
-        screen_type: Some("CARD_REWARD".to_string()),
+        screen_type: Some(ScreenType::CardReward),
         scenario: "card_reward".to_string(),
         in_combat: false,
         state_hash: "deadbeef".to_string(),
@@ -152,7 +153,7 @@ fn overlay_output_loading_state_empty_advice() {
         status: "loading".to_string(),
         overlay_visibility: true,
         advice: AdviceFields::default(),
-        screen_type: Some("CARD_REWARD".to_string()),
+        screen_type: Some(ScreenType::CardReward),
         scenario: "card_reward".to_string(),
         in_combat: false,
         state_hash: "abc".to_string(),
@@ -229,7 +230,7 @@ fn overlay_output_hidden_state() {
 #[test]
 fn overlay_metadata_construction() {
     let metadata = OverlayMetadata {
-        screen_type: Some("CARD_REWARD".to_string()),
+        screen_type: Some(ScreenType::CardReward),
         scenario: "card_reward".to_string(),
         in_combat: false,
         state_hash: "hash123".to_string(),
@@ -237,7 +238,10 @@ fn overlay_metadata_construction() {
         character: Some("IRONCLAD".to_string()),
     };
 
-    assert_eq!(metadata.screen_type.as_deref(), Some("CARD_REWARD"));
+    assert_eq!(
+        metadata.screen_type.as_ref().map(|st| st.as_str()),
+        Some("CARD_REWARD")
+    );
     assert_eq!(metadata.scenario, "card_reward");
     assert!(!metadata.in_combat);
     assert_eq!(metadata.state_hash, "hash123");
@@ -462,7 +466,7 @@ fn write_overlay_loading_produces_valid_json() {
         status: "loading".to_string(),
         overlay_visibility: true,
         advice: AdviceFields::default(),
-        screen_type: Some("CARD_REWARD".to_string()),
+        screen_type: Some(ScreenType::CardReward),
         scenario: "card_reward".to_string(),
         in_combat: false,
         state_hash: "abc123".to_string(),
