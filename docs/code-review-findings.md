@@ -48,18 +48,18 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ## Issues Ordered by Urgency
 
-> **Fix status as of 2026-07-07**: 26 of 32 issues resolved on branch `fix/code-review-critical` (25 fixed + 1 dismissed as non-issue).
-> All 3 Critical issues resolved. All 4 god functions decomposed (H3–H6). All 10 TDD-feasible Medium issues resolved. See the status table below and per-issue markers.
+> **Fix status as of 2026-07-07**: 31 of 32 issues resolved on branch `fix/code-review-critical` (29 fixed + 2 dismissed).
+> All 3 Critical issues resolved. All 4 god functions decomposed (H3–H6). All 10 TDD-feasible Medium issues resolved. H7 ScreenType+RoomType enums wired in; Character/Stance deferred for mod support. H9 blocking I/O fully resolved. L1+L6 fixed. M4 false positives corrected. L2 deferred (accepted limitation). See the status table below and per-issue markers.
 >
 > | Severity | Total | Fixed | Remaining |
 > |----------|-------|-------|-----------|
 > | 🔴 Critical | 3 | 3 | 0 |
-> | 🟠 High | 10 | 8 | 2 |
-> | 🟡 Medium | 11 | 10 | 1 |
-> | 🟢 Low | 8 | 5 | 3 |
-> | **Total** | **32** | **26** | **6** |
+> | 🟠 High | 10 | 10 | 0 |
+> | 🟡 Medium | 11 | 10 | 1 (M1 oversized files — ongoing) |
+> | 🟢 Low | 8 | 6 | 2 (L2 file locking — deferred, L5 non-issue) |
+> | **Total** | **32** | **29** | **3** |
 >
-> Verification: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ (0 warnings) · `cargo test` ✅ 1592 passed
+> Verification: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ (0 warnings) · `cargo test` ✅ 1597 passed · `cargo audit` ✅ (0 advisories)
 
 ---
 
@@ -203,14 +203,14 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H7. `screen_type` is stringly-typed — 130+ comparisons across 18 files — ⏳ REMAINING
+#### H7. `screen_type` is stringly-typed — 130+ comparisons across 18 files — ✅ FIXED (`0519067`, `888c904`)
 
 - **File**: `src/state.rs`
 - **Line**: 197
 - **Code**: `pub screen_type: Option<String>`
 - **Description**: Compared as string literals (`== "MAP"`, `== "CARD_REWARD"`, `as_deref() == Some("COMBAT_REWARD")`, etc.) 130+ times across 18 files. No exhaustiveness checking, typo-prone, impossible to refactor safely. Same issue applies to `room_type` (line 198), `character` (line 199), `stance` (line 233), `current_action` (line 249).
 - **Impact**: A typo in a screen type string is a silent bug. Adding a new screen type requires finding all string comparisons manually. No compiler assistance.
-- **Fix**: Define `enum ScreenType { CardReward, BossReward, Rest, Event, ShopScreen, Map, HandSelect, Grid, CombatReward, None, ... }` with `serde` and `Display`. Replace all 130+ string comparisons. Large but mechanical refactor.
+- **Fix**: Defined `enum ScreenType` (15 variants, SCREAMING_SNAKE_CASE serde) and `enum RoomType` (8 variants, PascalCase serde) with `Display` + `as_str()`. Wired into `NormalizedState`, `OverlayOutput`, `OverlayMetadata`. `from_raw` parses via serde (unknown strings → `None`). `to_stable_value` serializes via `Display`. All `as_deref()` sites replaced with `as_ref().map(|st| st.as_str())`. All test fixtures updated to use enum variants. Character and Stance kept as `Option<String>` to preserve mod support (the `_ => c.as_str()` fallback in `prompt/builder.rs` displays unknown character names for modded STS; converting to enum would lose this).
 
 ---
 
@@ -226,7 +226,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H9. Blocking I/O in async context — ⏳ REMAINING
+#### H9. Blocking I/O in async context — ✅ FIXED (`cea4a24`, `a2d2774`, `1d5d044`, `7b3ff2a`)
 
 - **Files & Lines**:
   - `src/main.rs:127` — `async fn main()` uses:
@@ -338,7 +338,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M4. `panic!`/`expect`/`unreachable!` in non-test code — ✅ PARTIALLY FIXED (`baf8dde`–`d1b7cf5`)
+#### M4. `panic!`/`expect`/`unreachable!` in non-test code — ✅ FULLY RESOLVED (`baf8dde`–`d1b7cf5`)
 
 | File | Line | Code | Risk |
 |------|------|------|------|
@@ -353,6 +353,8 @@ if let Err(e) = fs::write_all(&path, data) {
 | `src/setup_wizard.rs` | 1493 | `.expect("DeepSeek preset not found")` | Crash if preset lookup fails (should be static) |
 
 **Description**: Mix of `anyhow::Result`, `io::Result`, `String` errors, `panic!`, `expect()`, `unwrap()`, and `.ok()`. No consistent error handling strategy.
+
+**Note**: The 3 "residual" sites listed above (`autoplay/control.rs:167/234/265`, `autoplay/planner.rs:963`, `setup_wizard.rs:1508`) were investigated and confirmed as FALSE POSITIVES — all are inside `#[cfg(test)] mod tests` blocks and use `let-else` + `panic!` / `.expect()` as idiomatic test assertions. The remaining dev-only `.expect()` calls (`ranker/mod.rs:47`, `locales/mod.rs:341`) are on `include_str!` compile-time embedded data and can only fail during development. All production panic/expect/unreachable sites from the original M4 entry have been resolved (C1 fixed rules.json, journal.rs/logging.rs/damage.rs/formula.rs converted to Result returns).
 
 ---
 
@@ -435,7 +437,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L1. Windows non-atomic file rename — ⏳ REMAINING
+#### L1. Windows non-atomic file rename — ✅ FIXED (`95e554c`)
 
 - **File**: `src/advice.rs`
 - **Lines**: 93-98
@@ -479,7 +481,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L6. `cargo-audit` not installed — ⏳ REMAINING
+#### L6. `cargo-audit` not installed — ✅ FIXED (`8af1ba9`)
 
 - **Description**: No known-vulnerability scanning for Rust dependencies. `cargo audit` command not found.
 - **Fix**: `cargo install cargo-audit`, then add `cargo audit` to CI workflow.
@@ -518,17 +520,17 @@ if let Err(e) = fs::write_all(&path, data) {
 | Severity | Total | Fixed | Remaining |
 |----------|-------|-------|-----------|
 | 🔴 Critical | 3 | 3 | 0 |
-| 🟠 High | 10 | 8 | 2 |
-| 🟡 Medium | 11 | 10 | 1 |
-| 🟢 Low | 8 | 5 | 3 |
-| **Total** | **32** | **26** | **6** |
+| 🟠 High | 10 | 10 | 0 |
+| 🟡 Medium | 11 | 10 | 1 (M1 — ongoing) |
+| 🟢 Low | 8 | 6 | 2 (L2 — deferred, L5 — non-issue) |
+| **Total** | **32** | **29** | **3** |
 
-**Branch**: `fix/code-review-critical` (38 commits ahead of `develop`)
-**Verification**: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ · `cargo test` ✅ 1592 passed
+**Branch**: `fix/code-review-critical` (45 commits ahead of `develop`)
+**Verification**: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ · `cargo test` ✅ 1597 passed · `cargo audit` ✅
 
-**Fixed issues**: C1 (rules.json fallback), C2 (map cycle detection), C3 (API key redaction in errors), H1 (LlmProvider Debug redaction), H2 (AGENTS.md test count), H3 (`main` god fn → 3 extracted handlers), H4 (`from_raw` god fn → 8 per-section extractors), H5 (`to_stable_value` → scalar+array helpers), H6 (`dfs` god fn → `check_memo` + `try_play_card`), H8 (consolidated triplicated parsing into `src/parsing.rs`), H10 (219 clippy test warnings), M2 (`.ok()` → logged errors), M3 (`let _ =` → logged errors), M4 (panic/expect/unreachable → Result in 4 production sites), M5 (magic numbers → named constants), M6 (`eval_parsed` if-let chain → table-driven gt/eq guard slices), M7 (AI postmortem output validation), M8 (SSRF: `LLM_BASE_URL` scheme validation), M9 (stdin JSON size cap), M10 (TOCTOU race on overlay.json — mutex), M11 (cargo update — 27 deps), L3 (setup wizard masked input via `rpassword`), L4 (u16→u32 bit shift in kill-scan), L7 (build.rs triple-parent unwrap), L8 (`LLM_LOG_PROMPTS` env var to disable prompt logging). L5 dismissed as non-issue (no two combats share a floor; gate reset between runs).
+**Fixed issues**: C1 (rules.json fallback), C2 (map cycle detection), C3 (API key redaction in errors), H1 (LlmProvider Debug redaction), H2 (AGENTS.md test count), H3 (`main` god fn → 3 extracted handlers), H4 (`from_raw` god fn → 8 per-section extractors), H5 (`to_stable_value` → scalar+array helpers), H6 (`dfs` god fn → `check_memo` + `try_play_card`), H7 (ScreenType + RoomType enums wired in; Character/Stance deferred for mod support), H8 (consolidated triplicated parsing into `src/parsing.rs`), H9 (blocking I/O → spawn_blocking + tokio::fs/io in 4 parts), H10 (219 clippy test warnings), M2 (`.ok()` → logged errors), M3 (`let _ =` → logged errors), M4 (panic/expect/unreachable → Result in production; false positives corrected — all 3 "residual" sites were test assertions), M5 (magic numbers → named constants), M6 (`eval_parsed` if-let chain → table-driven), M7 (AI postmortem output validation), M8 (SSRF: `LLM_BASE_URL` scheme validation), M9 (stdin JSON size cap), M10 (TOCTOU race on overlay.json — mutex), M11 (cargo update — 27 deps), L1 (atomic rename via tempfile::NamedTempFile::persist), L3 (setup wizard masked input via `rpassword`), L4 (u16→u32 bit shift in kill-scan), L6 (cargo-audit + CI step), L7 (build.rs triple-parent unwrap), L8 (`LLM_LOG_PROMPTS` env var). L5 dismissed as non-issue.
 
-**Remaining**: 2 High-severity architecture refactors (stringly-typed ScreenType H7, blocking I/O H9), 1 Medium issue (M1 oversized files), 3 Low hardening items (L1 Windows atomic rename, L2 file locking, L6 cargo-audit). L5 confirmed non-issue (no two combats share a floor; gate reset between runs). M4 is partially fixed — 4 production panic/expect/unreachable sites resolved, dev-only instances remain.
+**Remaining**: 1 Medium issue (M1 oversized files — ongoing modularization, not blocking). 1 Low deferred (L2 file locking — multi-instance copilot is unusual config, accepted limitation). 1 Low non-issue (L5). Character/Stance enums deferred from H7 to preserve mod support (unknown character/stance values displayed via `_` fallback in prompt builder).
 
 ---
 

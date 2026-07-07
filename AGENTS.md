@@ -10,7 +10,7 @@
 - **Version**: current release is `0.2.0`
 
 ## Build & Test
-- `cargo test` — runs 1592 tests (1590 unit + 2 integration)
+- `cargo test` — runs 1597 tests (1595 unit + 2 integration)
 - `cargo build --release` — Linux binary at `target/release/slay-the-spire-copilot`
 - Cross-compile Windows: `cargo build --release --target x86_64-pc-windows-gnu` (needs `mingw-w64-gcc` on Arch)
 - Project uses `rustls-tls` (not OpenSSL) — no C dependencies beyond mingw on cross-compile
@@ -106,7 +106,7 @@
 | `postmortem --plain <path>` | Same, but skip AI rewrite (deterministic only) |
 
 ## CI/CD
-- **`.github/workflows/ci.yml`** — on push to `develop` / `feat/mvp` branches (ubuntu + windows): fmt → clippy → test → build
+- **`.github/workflows/ci.yml`** — on push to `develop` / `feat/mvp` branches (ubuntu + windows): fmt → clippy → test → build + separate `audit` job runs `cargo audit` on ubuntu
 - **`.github/workflows/release.yml`** — on `v*` tags: builds linux, macOS, Windows binaries and uploads artifacts
 
 ## Other Directories
