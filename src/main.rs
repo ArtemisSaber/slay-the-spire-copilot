@@ -28,6 +28,8 @@ use runtime::{
 use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::Path;
 
+pub(crate) const MAX_STDIN_JSON_BYTES: usize = 10 * 1024 * 1024;
+
 async fn finalize_run_once(
     journal: &journal::Journal,
     provider: &llm::LlmProvider,
@@ -312,6 +314,15 @@ async fn main() {
 
         logging::log_raw_input(trimmed);
         tracing::debug!("received {} bytes", trimmed.len());
+
+        if trimmed.len() > MAX_STDIN_JSON_BYTES {
+            tracing::error!(
+                "stdin JSON too large: {} bytes (max {}), skipping",
+                trimmed.len(),
+                MAX_STDIN_JSON_BYTES
+            );
+            continue;
+        }
 
         let raw: serde_json::Value = match serde_json::from_str(trimmed) {
             Ok(v) => v,
