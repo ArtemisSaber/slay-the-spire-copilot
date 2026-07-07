@@ -1250,8 +1250,10 @@ mod tests {
         let mut control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
-        let mut session = AutoPlaySession::default();
-        session.skipped_combat_reward_card = true;
+        let mut session = AutoPlaySession {
+            skipped_combat_reward_card: true,
+            ..Default::default()
+        };
         let candidates = available_action_candidates(&control, &session, &command_state, &state);
         assert!(
             !candidates.iter().any(|c| c.label.contains("card")),
@@ -1287,8 +1289,10 @@ mod tests {
         let mut control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
-        let mut session = AutoPlaySession::default();
-        session.skipped_combat_reward_potion = true;
+        let mut session = AutoPlaySession {
+            skipped_combat_reward_potion: true,
+            ..Default::default()
+        };
         let candidates = available_action_candidates(&control, &session, &command_state, &state);
         assert!(
             !candidates.iter().any(|c| c.label.contains("potion")),
@@ -1390,8 +1394,10 @@ mod tests {
         let control = AutoPlayControl::default_enabled();
         let command_state = CommandState::from_raw(&raw);
         let state = state(raw);
-        let mut session = AutoPlaySession::default();
-        session.skipped_combat_reward_card = true;
+        let session = AutoPlaySession {
+            skipped_combat_reward_card: true,
+            ..Default::default()
+        };
         let candidates = available_action_candidates(&control, &session, &command_state, &state);
         assert!(
             !candidates.iter().any(|c| c.label.contains("card")),

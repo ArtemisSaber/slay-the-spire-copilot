@@ -267,7 +267,7 @@ async fn finalize_run_writes_postmortem_report() {
         "../../tests/fixtures/combat-state.json"
     ))
     .unwrap();
-    let state = crate::state::NormalizedState::from_raw(&raw, &crate::test_utils::test_locale());
+    let state = crate::state::NormalizedState::from_raw(&raw, crate::test_utils::test_locale());
     let provider = crate::llm::LlmProvider::Mock;
     let mut finalized = false;
 
@@ -278,7 +278,7 @@ async fn finalize_run_writes_postmortem_report() {
         &provider,
         "game_over",
         &mut finalized,
-        &crate::test_utils::test_locale(),
+        crate::test_utils::test_locale(),
     )
     .await;
 
@@ -304,7 +304,7 @@ async fn finalize_run_is_idempotent() {
         &provider,
         "game_over",
         &mut finalized,
-        &crate::test_utils::test_locale(),
+        crate::test_utils::test_locale(),
     )
     .await;
     finalize_run_once(
@@ -312,7 +312,7 @@ async fn finalize_run_is_idempotent() {
         &provider,
         "stdin_closed",
         &mut finalized,
-        &crate::test_utils::test_locale(),
+        crate::test_utils::test_locale(),
     )
     .await;
 

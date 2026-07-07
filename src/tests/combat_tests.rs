@@ -449,7 +449,7 @@ fn context_builder_monster_snapshot_fields() {
     assert_eq!(m0.command_index, 0);
     assert_eq!(m0.hp, 20);
     assert_eq!(m0.block, 5);
-    assert_eq!(m0.is_minion, false);
+    assert!(!m0.is_minion);
     assert_eq!(m0.powers.len(), 2);
     assert_eq!(m0.powers[0].id, "Vulnerable");
     assert_eq!(m0.powers[0].amount, 2);

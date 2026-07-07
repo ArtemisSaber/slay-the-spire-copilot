@@ -1681,8 +1681,11 @@ mod tests {
             "ready_for_command": true,
             "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["potion", "gold"]}
         });
-        let mut session = AutoPlaySession::default();
-        session.skipped_combat_reward_potion = true;
+        let session = AutoPlaySession {
+            skipped_combat_reward_potion: true,
+
+            ..Default::default()
+        };
         let mut s = state(raw.clone());
         s.empty_potion_slots = 0;
         let candidates = available_action_candidates(
@@ -1702,8 +1705,11 @@ mod tests {
             "ready_for_command": true,
             "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["card", "gold"]}
         });
-        let mut session = AutoPlaySession::default();
-        session.skipped_combat_reward_card = true;
+        let session = AutoPlaySession {
+            skipped_combat_reward_card: true,
+
+            ..Default::default()
+        };
         let candidates = available_action_candidates(
             &AutoPlayControl::default_enabled(),
             &session,
@@ -2049,8 +2055,11 @@ mod tests {
             "ready_for_command": true,
             "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5, "choice_list": ["purge"]}
         });
-        let mut session = AutoPlaySession::default();
-        session.last_shop_room_floor = Some(5);
+        let session = AutoPlaySession {
+            last_shop_room_floor: Some(5),
+
+            ..Default::default()
+        };
         let mut s = state(raw.clone());
         s.floor = Some(5);
         let candidates = available_action_candidates(
@@ -2071,8 +2080,11 @@ mod tests {
             "ready_for_command": true,
             "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5, "choice_list": ["purge", "Strike"]}
         });
-        let mut session = AutoPlaySession::default();
-        session.last_shop_room_floor = Some(3);
+        let session = AutoPlaySession {
+            last_shop_room_floor: Some(3),
+
+            ..Default::default()
+        };
         let mut s = state(raw.clone());
         s.floor = Some(5);
         let candidates = available_action_candidates(
@@ -2093,8 +2105,11 @@ mod tests {
             "ready_for_command": true,
             "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5, "choice_list": []}
         });
-        let mut session = AutoPlaySession::default();
-        session.last_shop_room_floor = Some(5);
+        let session = AutoPlaySession {
+            last_shop_room_floor: Some(5),
+
+            ..Default::default()
+        };
         let mut s = state(raw.clone());
         s.floor = Some(5);
         assert_eq!(
@@ -3190,8 +3205,11 @@ mod tests {
             "ready_for_command": true,
             "game_state": {"screen_type": "COMBAT_REWARD", "choice_list": ["potion", "gold"]}
         });
-        let mut session = AutoPlaySession::default();
-        session.skipped_combat_reward_potion = true;
+        let session = AutoPlaySession {
+            skipped_combat_reward_potion: true,
+
+            ..Default::default()
+        };
         let mut s = state(raw.clone());
         s.empty_potion_slots = 2;
         let candidates = available_action_candidates(
@@ -3534,8 +3552,11 @@ mod tests {
             "ready_for_command": true,
             "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5, "choice_list": []}
         });
-        let mut session = AutoPlaySession::default();
-        session.last_shop_room_floor = Some(5);
+        let session = AutoPlaySession {
+            last_shop_room_floor: Some(5),
+
+            ..Default::default()
+        };
         let mut s = state(raw.clone());
         s.floor = Some(5);
         let candidates = available_action_candidates(
@@ -3557,8 +3578,11 @@ mod tests {
             "ready_for_command": true,
             "game_state": {"screen_type": "SHOP_SCREEN", "choice_list": ["purge"]}
         });
-        let mut session = AutoPlaySession::default();
-        session.last_shop_room_floor = Some(5);
+        let session = AutoPlaySession {
+            last_shop_room_floor: Some(5),
+
+            ..Default::default()
+        };
         let s = state(raw.clone());
         let candidates = available_action_candidates(
             &AutoPlayControl::default_enabled(),

@@ -9,7 +9,7 @@ fn event_line(value: Value) -> String {
 fn normalized_fixture(name: &str) -> Value {
     let content = std::fs::read_to_string(format!("tests/fixtures/{name}")).unwrap();
     let raw: Value = serde_json::from_str(&content).unwrap();
-    let state = NormalizedState::from_raw(&raw, &crate::test_utils::test_locale());
+    let state = NormalizedState::from_raw(&raw, crate::test_utils::test_locale());
     serde_json::to_value(state).unwrap()
 }
 
@@ -41,8 +41,7 @@ fn write_report_for_journal_writes_markdown_file() {
     .unwrap();
 
     let report =
-        generate_report_from_journal_file(&journal_path, &crate::test_utils::test_locale())
-            .unwrap();
+        generate_report_from_journal_file(&journal_path, crate::test_utils::test_locale()).unwrap();
     let report_path = write_report_for_journal(&journal_path, &report).unwrap();
 
     assert_eq!(report_path, dir.path().join("postmortem.md"));
@@ -61,7 +60,7 @@ fn postmortem_summarizes_run_start_and_end() {
     ]
     .join("\n");
 
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("开始时间: 123"));
     assert!(report.contains("结束原因: stdin_closed"));
@@ -71,7 +70,7 @@ fn postmortem_summarizes_run_start_and_end() {
 fn postmortem_summarizes_last_observed_state() {
     let state = normalized_fixture("combat-state.json");
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("层数: 1"));
     assert!(report.contains("血量: 68/75"));
@@ -89,7 +88,7 @@ fn postmortem_lists_advice_events() {
         "advice": "推荐：选A\n理由：强"
     }));
 
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("## 关键决策"));
     assert!(report.contains("abc123"));
@@ -108,7 +107,7 @@ fn postmortem_infers_card_reward_pick_from_deck_diff() {
         .push(json!({"id":"Uppercut","name":"Uppercut","cost":2,"card_type":"ATTACK","upgraded":false,"uuid":"new-card"}));
 
     let input = [state_event(reward), state_event(after)].join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("已选: Uppercut"));
 }
@@ -121,7 +120,7 @@ fn postmortem_infers_skip_when_deck_unchanged() {
     after["card_reward_choices"] = Value::Array(vec![]);
 
     let input = [state_event(reward), state_event(after)].join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("可能跳过"));
 }
@@ -129,14 +128,14 @@ fn postmortem_infers_skip_when_deck_unchanged() {
 #[test]
 fn postmortem_handles_empty_or_partial_journal() {
     assert!(
-        generate_report_from_jsonl("", &crate::test_utils::test_locale())
+        generate_report_from_jsonl("", crate::test_utils::test_locale())
             .unwrap_err()
             .contains("No journal events")
     );
 
     let report = generate_report_from_jsonl(
         "not json\n{\"event\":\"run_started\",\"ts_ms\":1}",
-        &crate::test_utils::test_locale(),
+        crate::test_utils::test_locale(),
     )
     .unwrap();
     assert!(report.contains("忽略格式错误: 1行"));
@@ -146,7 +145,7 @@ fn postmortem_handles_empty_or_partial_journal() {
 fn ai_postmortem_prompt_wraps_deterministic_report() {
     let prompt = build_ai_postmortem_prompt(
         "# Slay the Spire Postmortem\n- Floor: 5",
-        &crate::test_utils::test_locale(),
+        crate::test_utils::test_locale(),
         "Victory",
     );
 
@@ -165,7 +164,7 @@ fn postmortem_includes_run_metadata_character_and_ascension() {
     ]
     .join("\n");
 
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("角色: DEFECT"));
     assert!(report.contains("进阶: A5"));
@@ -175,7 +174,7 @@ fn postmortem_includes_run_metadata_character_and_ascension() {
 fn postmortem_includes_character_from_final_state_when_no_metadata() {
     let state = normalized_fixture("combat-state.json");
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("角色: IRONCLAD"));
 }
@@ -184,7 +183,7 @@ fn postmortem_includes_character_from_final_state_when_no_metadata() {
 fn postmortem_lists_relics_with_descriptions() {
     let state = normalized_fixture("combat-state.json");
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("## 遗物"));
     assert!(report.contains("Burning Blood"));
@@ -195,7 +194,7 @@ fn postmortem_lists_relics_with_descriptions() {
 fn postmortem_lists_potions_when_present() {
     let state = normalized_fixture("combat-state.json");
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("## 药水"));
     assert!(report.contains("Fear Potion"));
@@ -207,7 +206,7 @@ fn postmortem_omits_potions_section_when_empty() {
     state["potions"] = json!([]);
 
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
 
     assert!(!report.contains("## 药水"));
 }
@@ -216,7 +215,7 @@ fn postmortem_omits_potions_section_when_empty() {
 fn postmortem_lists_deck_cards_with_duplicates_counted() {
     let state = normalized_fixture("combat-state.json");
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("## 卡组"));
     assert!(report.contains("Strike"));
@@ -238,7 +237,7 @@ fn postmortem_tracks_unique_monsters_and_combat_hp() {
     combat1_end["current_hp"] = json!(62);
 
     let input = [state_event(combat1), state_event(combat1_end)].join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("## 战斗记录"));
     assert!(report.contains("邪教徒"));
@@ -254,7 +253,7 @@ fn postmortem_advice_includes_full_multiline_text() {
         "advice": "推荐：选A\n理由：非常强\n风险：可能会卡手\n吐槽：勇敢的人才敢选"
     }));
 
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("abc123"));
     assert!(report.contains("推荐：选A"));
@@ -279,7 +278,7 @@ fn postmortem_uses_elite_label_for_elite_combats() {
     combat_end["current_hp"] = json!(42);
 
     let input = [state_event(combat), state_event(combat_end)].join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("(精英)"));
     assert!(report.contains("地精大法师"));
@@ -302,7 +301,7 @@ fn postmortem_uses_boss_label_for_boss_combats() {
     combat_end["current_hp"] = json!(0);
 
     let input = [state_event(combat), state_event(combat_end)].join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("(Boss)"));
     assert!(report.contains("六火亡魂"));
@@ -332,7 +331,7 @@ fn postmortem_derives_death_cause_from_final_state() {
         event_line(json!({"schema_version":1,"event":"run_ended","reason":"game_over"})),
     ]
     .join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("阵亡原因: 第22层 MonsterRoom — 死于 邪教徒×2"));
 }
@@ -354,7 +353,7 @@ fn postmortem_shows_per_combat_monsters_in_output() {
     combat_end["current_hp"] = json!(62);
 
     let input = [state_event(combat), state_event(combat_end)].join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("虱虫×2"));
 }
@@ -370,14 +369,14 @@ fn generate_report_from_file_missing_results_in_error() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("nonexistent.jsonl");
     let err =
-        generate_report_from_journal_file(&path, &crate::test_utils::test_locale()).unwrap_err();
+        generate_report_from_journal_file(&path, crate::test_utils::test_locale()).unwrap_err();
     assert!(!err.is_empty());
 }
 
 #[test]
 fn postmortem_all_lines_malformed_gives_no_valid_events_error() {
     let input = "not json\nstill not json\n";
-    let err = generate_report_from_jsonl(input, &crate::test_utils::test_locale()).unwrap_err();
+    let err = generate_report_from_jsonl(input, crate::test_utils::test_locale()).unwrap_err();
     assert!(err.contains("No valid journal events"));
 }
 
@@ -402,7 +401,7 @@ fn postmortem_general_victory_shows_label_without_heart() {
         event_line(json!({"schema_version":1,"event":"run_ended","reason":"game_over"})),
     ]
     .join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     assert!(report.contains("本局胜利！"));
     assert!(!report.contains("Heart defeated!"));
 }
@@ -428,7 +427,7 @@ fn postmortem_heart_victory_shows_heart_defeated() {
         event_line(json!({"schema_version":1,"event":"run_ended","reason":"game_over"})),
     ]
     .join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     assert!(report.contains("Heart defeated!"));
 }
 
@@ -448,7 +447,7 @@ fn postmortem_fatal_combat_shows_skull_prefix() {
     combat_end["current_hp"] = json!(0);
 
     let input = [state_event(combat), state_event(combat_end)].join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("💀"));
     assert!(report.contains("(-75)"));
@@ -470,7 +469,7 @@ fn postmortem_combat_with_healing_shows_positive_delta() {
     combat_end["current_hp"] = json!(62);
 
     let input = [state_event(combat), state_event(combat_end)].join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("(+12)"));
 }
@@ -491,7 +490,7 @@ fn postmortem_normal_combat_shows_normal_count() {
     combat_end["current_hp"] = json!(62);
 
     let input = [state_event(combat), state_event(combat_end)].join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("(普通:1 精英:0 Boss:0)"));
 }
@@ -504,7 +503,7 @@ fn postmortem_skips_state_changed_without_normalized_field() {
         "advice_hash": "hash",
         "observation_hash": "obs"
     }));
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     assert!(report.contains("# 本局复盘"));
 }
 
@@ -515,7 +514,7 @@ fn postmortem_advice_without_hash_uses_question_mark() {
         "event": "advice",
         "advice": "建议选A"
     }));
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     assert!(report.contains("`?`:"));
     assert!(report.contains("建议选A"));
 }
@@ -528,7 +527,7 @@ fn postmortem_advice_with_state_hash_fallback() {
         "state_hash": "state-abc",
         "advice": "建议选B"
     }));
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     assert!(report.contains("`state-abc`:"));
 }
 
@@ -539,7 +538,7 @@ fn postmortem_advice_with_empty_text_produces_entry_without_content() {
         "event": "advice",
         "advice_hash": "empty-hash"
     }));
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     assert!(report.contains("`empty-hash`:"));
 }
 
@@ -558,7 +557,7 @@ fn postmortem_deck_with_duplicate_cards_shows_multiplied_count() {
     }
 
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
     assert!(report.contains("Strike ×2"));
 }
 
@@ -578,7 +577,7 @@ fn postmortem_omits_deck_section_when_deck_names_empty() {
         "deck_names": []
     });
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
     assert!(!report.contains("## 卡组"));
 }
 
@@ -597,7 +596,7 @@ fn postmortem_deck_section_absent_when_deck_names_missing() {
         "potions": []
     });
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
     assert!(!report.contains("## 卡组"));
 }
 
@@ -623,7 +622,7 @@ fn postmortem_death_with_no_monsters_shows_question_mark() {
         event_line(json!({"schema_version":1,"event":"run_ended","reason":"game_over"})),
     ]
     .join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     assert!(report.contains("死于 ?"));
 }
 
@@ -634,7 +633,7 @@ fn postmortem_run_ended_without_reason_produces_no_ended_label() {
         event_line(json!({"schema_version":1,"event":"run_ended"})),
     ]
     .join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     assert!(!report.contains("结束原因"));
 }
 
@@ -655,7 +654,7 @@ fn postmortem_monsters_without_name_or_index_are_filtered() {
     combat_end["current_hp"] = json!(60);
 
     let input = [state_event(combat), state_event(combat_end)].join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     assert!(report.contains("Named"));
 }
 
@@ -687,7 +686,7 @@ fn postmortem_new_monster_mid_combat_is_tracked() {
         state_event(combat_end),
     ]
     .join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     assert!(report.contains("虫"));
     assert!(report.contains("鼠"));
 }
@@ -709,7 +708,7 @@ fn postmortem_duplicate_monster_name_is_only_added_once() {
     combat_end["current_hp"] = json!(62);
 
     let input = [state_event(combat), state_event(combat_end)].join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     // "虱虫" should appear exactly once in global list (deduplicated)
     let count = report.match_indices("虱虫").count();
     // Appears in global monster list + combat entry = 2
@@ -731,7 +730,7 @@ fn postmortem_unrecognized_deck_change_produces_no_reward_line() {
         .push(json!({"id":"MysteryCard","name":"MysteryCard","cost":1,"card_type":"ATTACK","upgraded":false,"uuid":"unknown"}));
 
     let input = [state_event(reward), state_event(after)].join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     assert!(!report.contains("已选:"));
     assert!(!report.contains("可能跳过"));
 }
@@ -752,7 +751,7 @@ fn postmortem_card_reward_without_choices_creates_no_snapshot() {
         "deck_names": []
     });
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
     assert!(!report.contains("## 选牌记录"));
 }
 
@@ -805,7 +804,7 @@ fn postmortem_multiple_combats_across_types_count_correctly() {
         state_event(boss_end),
     ]
     .join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
 
     assert!(report.contains("(普通:1 精英:1 Boss:1)"));
     assert!(report.contains("(精英)"));
@@ -896,7 +895,7 @@ fn postmortem_relic_without_name_is_filtered() {
         ]
     });
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
     assert!(report.contains("Burning Blood"));
     assert!(!report.contains("no name relic"));
 }
@@ -920,7 +919,7 @@ fn postmortem_potion_without_name_is_filtered() {
         ]
     });
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
     assert!(report.contains("Fear Potion"));
     assert!(!report.contains("nameless potion"));
 }
@@ -930,7 +929,7 @@ fn postmortem_relics_section_absent_when_empty() {
     let mut state = normalized_fixture("combat-state.json");
     state["relics"] = json!([]);
     let report =
-        generate_report_from_jsonl(&state_event(state), &crate::test_utils::test_locale()).unwrap();
+        generate_report_from_jsonl(&state_event(state), crate::test_utils::test_locale()).unwrap();
     assert!(!report.contains("## 遗物"));
 }
 
@@ -957,7 +956,7 @@ fn postmortem_run_ended_without_reason_with_victory_room() {
     ]
     .join("\n");
     // hp > 0 but run_ended without reason — is_victory is false, no ended label
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     assert!(!report.contains("结束原因"));
     assert!(!report.contains("胜利"));
 }
@@ -988,7 +987,7 @@ fn postmortem_death_with_duplicate_monsters_counts_them() {
         event_line(json!({"schema_version":1,"event":"run_ended","reason":"game_over"})),
     ]
     .join("\n");
-    let report = generate_report_from_jsonl(&input, &crate::test_utils::test_locale()).unwrap();
+    let report = generate_report_from_jsonl(&input, crate::test_utils::test_locale()).unwrap();
     // Sorted by name: 虱虫, 邪教徒×2 → "虱虫、邪教徒×2"
     assert!(report.contains("邪教徒×2"));
     assert!(report.contains("虱虫"));

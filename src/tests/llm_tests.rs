@@ -16,7 +16,7 @@ fn scenario_system_prompts_are_defined() {
         AdviceScenario::MapSuggestion,
         AdviceScenario::MapCrossroad,
     ] {
-        let prompt = scenario.system_prompt(&test_locale());
+        let prompt = scenario.system_prompt(test_locale());
         assert!(!prompt.is_empty());
         assert!(prompt.contains("杀戮尖塔"));
         assert!(prompt.contains("推荐："));
@@ -39,7 +39,7 @@ fn scenario_system_prompts_include_few_shot_examples() {
         AdviceScenario::Generic,
         AdviceScenario::Postmortem,
     ] {
-        let prompt = scenario.system_prompt(&test_locale());
+        let prompt = scenario.system_prompt(test_locale());
         assert!(
             prompt.contains("示例：") || prompt.contains("例：") || prompt.contains("Example:"),
             "{scenario:?} should include a few-shot example"
@@ -82,7 +82,7 @@ fn map_system_prompt_warns_against_candidate_number_only() {
 
 #[test]
 fn boss_reward_system_prompt_ignores_current_hp() {
-    let prompt = AdviceScenario::BossCardReward.system_prompt(&test_locale());
+    let prompt = AdviceScenario::BossCardReward.system_prompt(test_locale());
     assert!(prompt.contains("血量"));
     assert!(prompt.contains("回满血"));
     assert!(prompt.contains("下一幕"));
@@ -90,7 +90,7 @@ fn boss_reward_system_prompt_ignores_current_hp() {
 
 #[test]
 fn normal_card_reward_prompt_supports_skip() {
-    let prompt = AdviceScenario::CardReward.system_prompt(&test_locale());
+    let prompt = AdviceScenario::CardReward.system_prompt(test_locale());
     assert!(prompt.contains("跳过"));
 }
 
@@ -106,7 +106,7 @@ fn postmortem_system_prompt_is_defined() {
 
 #[test]
 fn unified_system_prompt_contains_preamble() {
-    let prompt = AdviceScenario::CombatEntry.system_prompt(&test_locale());
+    let prompt = AdviceScenario::CombatEntry.system_prompt(test_locale());
     assert!(prompt.contains("策略助手"));
     assert!(prompt.contains("游戏事实"));
     assert!(prompt.contains("易伤"));
@@ -116,7 +116,7 @@ fn unified_system_prompt_contains_preamble() {
 
 #[test]
 fn unified_system_prompt_contains_all_modes() {
-    let prompt = AdviceScenario::CombatEntry.system_prompt(&test_locale());
+    let prompt = AdviceScenario::CombatEntry.system_prompt(test_locale());
     for mode in [
         "combat",
         "card_reward",
@@ -137,21 +137,21 @@ fn unified_system_prompt_contains_all_modes() {
 
 #[test]
 fn unified_system_prompt_excludes_postmortem() {
-    let prompt = AdviceScenario::CombatEntry.system_prompt(&test_locale());
+    let prompt = AdviceScenario::CombatEntry.system_prompt(test_locale());
     assert!(!prompt.contains("[mode: postmortem]"));
     assert!(!prompt.contains("复盘"));
 }
 
 #[test]
 fn postmortem_uses_standalone_system_prompt() {
-    let prompt = AdviceScenario::Postmortem.system_prompt(&test_locale());
+    let prompt = AdviceScenario::Postmortem.system_prompt(test_locale());
     assert!(prompt.contains("复盘"));
     assert!(!prompt.contains("[mode: "));
 }
 
 #[test]
 fn unified_system_prompt_modes_separated() {
-    let prompt = AdviceScenario::CombatEntry.system_prompt(&test_locale());
+    let prompt = AdviceScenario::CombatEntry.system_prompt(test_locale());
     let sections: Vec<_> = prompt.matches("[mode:").collect();
     assert_eq!(sections.len(), 10);
     assert!(prompt.contains("\n---\n\n[mode:"));
@@ -159,8 +159,8 @@ fn unified_system_prompt_modes_separated() {
 
 #[test]
 fn all_scenarios_return_same_unified_prompt() {
-    let combat = AdviceScenario::CombatEntry.system_prompt(&test_locale());
-    let card = AdviceScenario::CardReward.system_prompt(&test_locale());
+    let combat = AdviceScenario::CombatEntry.system_prompt(test_locale());
+    let card = AdviceScenario::CardReward.system_prompt(test_locale());
     assert_eq!(combat, card);
 }
 
@@ -462,7 +462,7 @@ async fn mock_provider_returns_structured_response() {
             "test prompt",
             Effort::Fast,
             AdviceScenario::Generic,
-            &test_locale(),
+            test_locale(),
         )
         .await;
     assert!(result.is_ok());
@@ -478,7 +478,7 @@ async fn mock_provider_returns_structured_response() {
 async fn mock_provider_returns_postmortem_report() {
     let provider = LlmProvider::Mock;
     let result = provider
-        .query_postmortem("deterministic summary", &test_locale())
+        .query_postmortem("deterministic summary", test_locale())
         .await;
     assert!(result.is_ok());
     let text = result.unwrap();
@@ -685,13 +685,13 @@ fn effort_as_str_returns_correct_strings() {
 
 #[test]
 fn unified_system_prompt_contains_shop_mode() {
-    let prompt = unified_system_prompt(&test_locale());
+    let prompt = unified_system_prompt(test_locale());
     assert!(prompt.contains("[mode: shop]"));
 }
 
 #[test]
 fn unified_system_prompt_contains_all_ten_modes() {
-    let prompt = unified_system_prompt(&test_locale());
+    let prompt = unified_system_prompt(test_locale());
     for mode in [
         "combat",
         "card_reward",
@@ -714,7 +714,7 @@ fn unified_system_prompt_contains_all_ten_modes() {
 
 #[test]
 fn autoplay_action_system_prompt_contains_planner_header() {
-    let prompt = autoplay_action_system_prompt(&test_locale());
+    let prompt = autoplay_action_system_prompt(test_locale());
     assert!(prompt.contains("AUTO_PLAY_ACTION_PLANNER"));
     assert!(!prompt.is_empty());
 }
@@ -813,7 +813,7 @@ async fn mock_provider_query_autoplay_action_returns_json() {
     let provider = LlmProvider::Mock;
     let prompt = r#"{"available_actions":[{"kind":"play","action_id":"card:strike","label":"Strike"}],"localized_status_context":""}"#;
     let result = provider
-        .query_autoplay_action(prompt, Effort::Fast, &test_locale())
+        .query_autoplay_action(prompt, Effort::Fast, test_locale())
         .await;
     assert!(result.is_ok());
     let text = result.unwrap();
@@ -830,7 +830,7 @@ async fn mock_provider_query_advice_error_path() {
             "TRIGGER_LLM_ERROR",
             Effort::Fast,
             AdviceScenario::Generic,
-            &test_locale(),
+            test_locale(),
         )
         .await;
     assert!(result.is_err());

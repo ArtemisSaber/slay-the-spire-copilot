@@ -36,10 +36,7 @@ fn load_rules_from(path: &std::path::Path, embedded: &str) -> RuleSet {
             rule_set
         }
         Err(e) => {
-            tracing::warn!(
-                "invalid {}: {e}, using embedded rules.json",
-                path.display()
-            );
+            tracing::warn!("invalid {}: {e}, using embedded rules.json", path.display());
             parse_embedded(embedded)
         }
     }
@@ -233,7 +230,12 @@ mod tests {
 
         assert_eq!(rule_set.version, "1.0");
         assert!(!rule_set.rules.is_empty());
-        assert!(rule_set.rules.iter().any(|r| r.rule_id == "base_cost_penalty"));
+        assert!(
+            rule_set
+                .rules
+                .iter()
+                .any(|r| r.rule_id == "base_cost_penalty")
+        );
     }
 
     #[test]
@@ -258,6 +260,11 @@ mod tests {
 
         assert_eq!(rule_set.version, "1.0");
         assert!(!rule_set.rules.is_empty());
-        assert!(rule_set.rules.iter().any(|r| r.rule_id == "base_cost_penalty"));
+        assert!(
+            rule_set
+                .rules
+                .iter()
+                .any(|r| r.rule_id == "base_cost_penalty")
+        );
     }
 }

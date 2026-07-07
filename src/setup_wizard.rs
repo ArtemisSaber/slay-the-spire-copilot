@@ -952,7 +952,7 @@ mod tests {
     fn parse_env_values_no_equals_skipped() {
         let result = parse_env_values("JUSTTEXT\nKEY=val\n");
         assert_eq!(result.get("KEY").map(String::as_str), Some("val"));
-        assert!(result.get("JUSTTEXT").is_none());
+        assert!(!result.contains_key("JUSTTEXT"));
     }
 
     #[test]

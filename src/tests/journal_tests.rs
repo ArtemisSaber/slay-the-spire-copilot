@@ -17,7 +17,7 @@ fn state_changes_are_logged_as_jsonl() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = Journal::new_at(dir.path(), "test-run");
     let raw = load_fixture("card-reward-state.json");
-    let state = crate::state::NormalizedState::from_raw(&raw, &test_locale());
+    let state = crate::state::NormalizedState::from_raw(&raw, test_locale());
     let hash = state.stable_hash();
     let observation_hash = state.observation_hash();
 
@@ -40,7 +40,7 @@ fn repeated_state_hashes_are_deduplicated() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = Journal::new_at(dir.path(), "test-run");
     let raw = load_fixture("combat-state.json");
-    let state = crate::state::NormalizedState::from_raw(&raw, &test_locale());
+    let state = crate::state::NormalizedState::from_raw(&raw, test_locale());
     let hash = state.stable_hash();
 
     journal.log_state_change(&hash, &state);
@@ -113,7 +113,7 @@ fn journal_events_include_schema_version() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = Journal::new_at(dir.path(), "test-run");
     let raw = load_fixture("combat-state.json");
-    let state = crate::state::NormalizedState::from_raw(&raw, &test_locale());
+    let state = crate::state::NormalizedState::from_raw(&raw, test_locale());
 
     journal.log_run_started();
     journal.log_state_change(&state.stable_hash(), &state);
@@ -139,8 +139,8 @@ fn journal_dedupes_by_observation_hash_not_advice_hash() {
     raw2["game_state"]["combat_state"]["draw_pile"][0]["uuid"] =
         Value::String("changed-draw".into());
 
-    let state1 = crate::state::NormalizedState::from_raw(&raw1, &test_locale());
-    let state2 = crate::state::NormalizedState::from_raw(&raw2, &test_locale());
+    let state1 = crate::state::NormalizedState::from_raw(&raw1, test_locale());
+    let state2 = crate::state::NormalizedState::from_raw(&raw2, test_locale());
     let advice_hash = state1.stable_hash();
     assert_eq!(advice_hash, state2.stable_hash());
     assert_ne!(state1.observation_hash(), state2.observation_hash());
@@ -191,7 +191,7 @@ fn first_observed_state_can_update_run_metadata() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = Journal::new_at(dir.path(), "test-run");
     let raw = load_fixture("combat-state.json");
-    let state = crate::state::NormalizedState::from_raw(&raw, &test_locale());
+    let state = crate::state::NormalizedState::from_raw(&raw, test_locale());
 
     journal.log_state_change(&state.stable_hash(), &state);
 
@@ -208,7 +208,7 @@ fn metadata_fields_are_null_when_missing() {
     let dir = tempfile::tempdir().unwrap();
     let mut journal = Journal::new_at(dir.path(), "test-run");
     let raw = serde_json::json!({"in_game": true, "game_state": {"screen_type": "NONE"}});
-    let state = crate::state::NormalizedState::from_raw(&raw, &test_locale());
+    let state = crate::state::NormalizedState::from_raw(&raw, test_locale());
 
     journal.log_state_change(&state.stable_hash(), &state);
 
@@ -258,7 +258,7 @@ fn confirm_creates_readable_folder_name() {
     let config = crate::config::Config::from_env();
     let locale = test_locale();
 
-    journal.confirm(42, "IRONCLAD", 20, &config, &locale);
+    journal.confirm(42, "IRONCLAD", 20, &config, locale);
     assert!(journal.is_confirmed());
 
     let path = journal.path().unwrap();
@@ -288,12 +288,12 @@ fn confirm_finds_existing_unfinished_run() {
 
     let mut existing = Journal::new_at(dir.path(), "existing-run");
     let raw = load_fixture("combat-state.json");
-    let state = crate::state::NormalizedState::from_raw(&raw, &locale);
+    let state = crate::state::NormalizedState::from_raw(&raw, locale);
     existing.log_state_change(&state.stable_hash(), &state);
 
     let config = crate::config::Config::from_env();
     let mut journal = Journal::new(dir.path().to_path_buf());
-    journal.confirm(seed, "IRONCLAD", 20, &config, &locale);
+    journal.confirm(seed, "IRONCLAD", 20, &config, locale);
 
     assert!(journal.is_confirmed());
     assert!(journal.is_continued_run());
@@ -326,13 +326,13 @@ fn confirm_skips_ended_run() {
 
     let mut existing = Journal::new_at(dir.path(), "ended-run");
     let raw = load_fixture("combat-state.json");
-    let state = crate::state::NormalizedState::from_raw(&raw, &locale);
+    let state = crate::state::NormalizedState::from_raw(&raw, locale);
     existing.log_state_change(&state.stable_hash(), &state);
     existing.log_run_ended("game_over");
 
     let config = crate::config::Config::from_env();
     let mut journal = Journal::new(dir.path().to_path_buf());
-    journal.confirm(seed, "IRONCLAD", 20, &config, &locale);
+    journal.confirm(seed, "IRONCLAD", 20, &config, locale);
 
     assert!(!journal.is_continued_run());
     assert_ne!(
@@ -354,11 +354,11 @@ fn confirm_is_idempotent() {
     let config = crate::config::Config::from_env();
     let locale = test_locale();
 
-    journal.confirm(99, "DEFECT", 5, &config, &locale);
+    journal.confirm(99, "DEFECT", 5, &config, locale);
     let path1 = journal.path().unwrap().to_path_buf();
     let count1 = read_events(&path1).len();
 
-    journal.confirm(99, "DEFECT", 5, &config, &locale);
+    journal.confirm(99, "DEFECT", 5, &config, locale);
     let path2 = journal.path().unwrap().to_path_buf();
     let count2 = read_events(&path2).len();
 
@@ -374,12 +374,12 @@ fn run_continued_includes_metadata() {
 
     let mut existing = Journal::new_at(dir.path(), "existing-run");
     let raw = load_fixture("combat-state.json");
-    let state = crate::state::NormalizedState::from_raw(&raw, &locale);
+    let state = crate::state::NormalizedState::from_raw(&raw, locale);
     existing.log_state_change(&state.stable_hash(), &state);
 
     let config = crate::config::Config::from_env();
     let mut journal = Journal::new(dir.path().to_path_buf());
-    journal.confirm(seed, "IRONCLAD", 20, &config, &locale);
+    journal.confirm(seed, "IRONCLAD", 20, &config, locale);
 
     let events = read_events(journal.path().unwrap());
     let continued = events

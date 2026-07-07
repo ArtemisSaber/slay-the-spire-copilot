@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 #[test]
 fn normalize_combat_state() {
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("NONE"));
     assert_eq!(state.character.as_deref(), Some("IRONCLAD"));
@@ -45,7 +45,7 @@ fn normalize_combat_state() {
 #[test]
 fn normalize_card_reward_state() {
     let raw = load_fixture("card-reward-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("CARD_REWARD"));
     assert_eq!(state.card_reward_choices.len(), 3);
@@ -65,7 +65,7 @@ fn normalize_card_reward_state() {
 #[test]
 fn normalize_rest_state() {
     let raw = load_fixture("rest-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("REST"));
     assert_eq!(
@@ -105,7 +105,7 @@ fn normalize_boss_relic_choices() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("BOSS_REWARD"));
     assert_eq!(state.boss_relic_choices.len(), 3);
@@ -152,7 +152,7 @@ fn normalize_event_choices() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("EVENT"));
     assert_eq!(state.event_name.as_deref(), Some("Golden Idol"));
@@ -189,7 +189,7 @@ fn normalize_event_choices_prefer_option_text_for_full_description() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
 
     assert_eq!(
         state.event_body.as_deref(),
@@ -226,7 +226,7 @@ fn normalize_event_choices_replaces_unreadable_locale_garble() {
             "class": "WATCHER"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("EVENT"));
     assert_eq!(state.room_type.as_deref(), Some("NeowRoom"));
@@ -280,7 +280,7 @@ fn normalize_event_payload_from_communication_mod_log() {
             "class": "WATCHER"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
 
     assert_eq!(state.event_id.as_deref(), Some("Neow Event"));
     assert!(state.event_name.is_none());
@@ -414,8 +414,8 @@ fn compute_danger(
 #[test]
 fn stable_hash_same_state_same_hash() {
     let raw = load_fixture("combat-state.json");
-    let state1 = NormalizedState::from_raw(&raw, &test_locale());
-    let state2 = NormalizedState::from_raw(&raw, &test_locale());
+    let state1 = NormalizedState::from_raw(&raw, test_locale());
+    let state2 = NormalizedState::from_raw(&raw, test_locale());
 
     assert_eq!(state1.stable_hash(), state2.stable_hash());
 }
@@ -425,8 +425,8 @@ fn stable_hash_different_state_different_hash() {
     let combat = load_fixture("combat-state.json");
     let reward = load_fixture("card-reward-state.json");
 
-    let state1 = NormalizedState::from_raw(&combat, &test_locale());
-    let state2 = NormalizedState::from_raw(&reward, &test_locale());
+    let state1 = NormalizedState::from_raw(&combat, test_locale());
+    let state2 = NormalizedState::from_raw(&reward, test_locale());
 
     assert_ne!(state1.stable_hash(), state2.stable_hash());
 }
@@ -434,7 +434,7 @@ fn stable_hash_different_state_different_hash() {
 #[test]
 fn stable_hash_produces_hex() {
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     let hash = state.stable_hash();
 
     assert_eq!(hash.len(), 64);
@@ -448,8 +448,8 @@ fn observation_hash_changes_when_draw_pile_changes() {
     raw2["game_state"]["combat_state"]["draw_pile"][0]["uuid"] =
         Value::String("changed-draw".into());
 
-    let state1 = NormalizedState::from_raw(&raw1, &test_locale());
-    let state2 = NormalizedState::from_raw(&raw2, &test_locale());
+    let state1 = NormalizedState::from_raw(&raw1, test_locale());
+    let state2 = NormalizedState::from_raw(&raw2, test_locale());
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
@@ -462,8 +462,8 @@ fn observation_hash_changes_when_discard_pile_changes() {
         {"id":"Strike_R","name":"Strike","cost":1,"type":"ATTACK","uuid":"discarded-card","upgrades":0}
     ]);
 
-    let state1 = NormalizedState::from_raw(&raw1, &test_locale());
-    let state2 = NormalizedState::from_raw(&raw2, &test_locale());
+    let state1 = NormalizedState::from_raw(&raw1, test_locale());
+    let state2 = NormalizedState::from_raw(&raw2, test_locale());
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
@@ -474,8 +474,8 @@ fn observation_hash_changes_when_monster_block_changes() {
     let mut raw2 = raw1.clone();
     raw2["game_state"]["combat_state"]["monsters"][0]["block"] = Value::Number(7.into());
 
-    let state1 = NormalizedState::from_raw(&raw1, &test_locale());
-    let state2 = NormalizedState::from_raw(&raw2, &test_locale());
+    let state1 = NormalizedState::from_raw(&raw1, test_locale());
+    let state2 = NormalizedState::from_raw(&raw2, test_locale());
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
@@ -487,8 +487,8 @@ fn observation_hash_changes_when_monster_power_changes() {
     raw2["game_state"]["combat_state"]["monsters"][0]["powers"][0]["amount"] =
         Value::Number(9.into());
 
-    let state1 = NormalizedState::from_raw(&raw1, &test_locale());
-    let state2 = NormalizedState::from_raw(&raw2, &test_locale());
+    let state1 = NormalizedState::from_raw(&raw1, test_locale());
+    let state2 = NormalizedState::from_raw(&raw2, test_locale());
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
@@ -500,8 +500,8 @@ fn observation_hash_changes_when_card_uuid_changes() {
     raw2["game_state"]["combat_state"]["hand"][0]["uuid"] =
         Value::String("changed-hand-card".into());
 
-    let state1 = NormalizedState::from_raw(&raw1, &test_locale());
-    let state2 = NormalizedState::from_raw(&raw2, &test_locale());
+    let state1 = NormalizedState::from_raw(&raw1, test_locale());
+    let state2 = NormalizedState::from_raw(&raw2, test_locale());
 
     assert_ne!(state1.observation_hash(), state2.observation_hash());
 }
@@ -509,7 +509,7 @@ fn observation_hash_changes_when_card_uuid_changes() {
 #[test]
 fn card_reward_filters_potion_slot() {
     let raw = load_fixture("card-reward-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     assert!(
         !state
             .potions
@@ -580,7 +580,7 @@ fn map_nodes_parsed_from_state() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.map_nodes.len(), 2);
     assert_eq!(state.map_nodes[0].symbol, "M");
@@ -613,7 +613,7 @@ fn map_screen_state_parsed() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert_eq!(state.map_first_node_chosen, Some(true));
     assert_eq!(state.map_current_x, Some(3));
     assert_eq!(state.map_current_y, Some(7));
@@ -632,7 +632,7 @@ fn map_screen_state_defaults_to_none() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert_eq!(state.map_first_node_chosen, None);
     assert_eq!(state.map_current_x, None);
     assert_eq!(state.map_current_y, None);
@@ -643,7 +643,7 @@ fn map_screen_state_defaults_to_none() {
 #[test]
 fn monster_id_from_combat_fixture() {
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     let jaw_worm = &state.monsters[0];
     assert_eq!(jaw_worm.monster_id.as_deref(), Some("JawWorm"));
 }
@@ -679,7 +679,7 @@ fn monster_id_defaults_to_none_when_missing() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert_eq!(state.monsters[0].monster_id, None);
 }
 
@@ -688,7 +688,7 @@ fn monster_id_defaults_to_none_when_missing() {
 #[test]
 fn turn_number_from_combat_fixture() {
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     assert_eq!(state.turn_number, Some(1));
 }
 
@@ -724,7 +724,7 @@ fn turn_number_defaults_to_none_when_missing() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert_eq!(state.turn_number, None);
 }
 
@@ -765,7 +765,7 @@ fn orbs_from_raw_json() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert_eq!(state.orbs.len(), 2);
     assert_eq!(state.orbs[0].id, "Lightning");
     assert_eq!(state.orbs[0].amount, 2);
@@ -776,7 +776,7 @@ fn orbs_from_raw_json() {
 #[test]
 fn orbs_empty_when_missing() {
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     assert!(state.orbs.is_empty());
 }
 
@@ -816,7 +816,7 @@ fn stance_from_powers_wrath() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert_eq!(state.stance.as_deref(), Some("Wrath"));
 }
 
@@ -854,7 +854,7 @@ fn stance_from_powers_calm() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert_eq!(state.stance.as_deref(), Some("Calm"));
 }
 
@@ -892,14 +892,14 @@ fn stance_from_powers_divinity() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert_eq!(state.stance.as_deref(), Some("Divinity"));
 }
 
 #[test]
 fn stance_none_when_no_stance_powers() {
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     assert_eq!(state.stance, None);
 }
 
@@ -937,7 +937,7 @@ fn stance_none_when_stance_amount_zero() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert_eq!(state.stance, None);
 }
 
@@ -1024,7 +1024,7 @@ fn is_boss_card_reward_true_for_floors_16_33_50() {
                 "class": "IRONCLAD"
             }
         });
-        let state = NormalizedState::from_raw(&raw, &test_locale());
+        let state = NormalizedState::from_raw(&raw, test_locale());
         assert!(
             state.is_boss_card_reward(),
             "floor {floor} should be boss card reward"
@@ -1050,7 +1050,7 @@ fn is_boss_card_reward_false_for_other_floors() {
                 "class": "IRONCLAD"
             }
         });
-        let state = NormalizedState::from_raw(&raw, &test_locale());
+        let state = NormalizedState::from_raw(&raw, test_locale());
         assert!(
             !state.is_boss_card_reward(),
             "floor {floor} should not be boss card reward"
@@ -1075,7 +1075,7 @@ fn is_boss_card_reward_false_non_card_reward_screen() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     assert!(!state.is_boss_card_reward());
 }
 
@@ -1084,14 +1084,14 @@ fn is_boss_card_reward_false_non_card_reward_screen() {
 #[test]
 fn has_active_monsters_true_with_monsters() {
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     assert!(state.has_active_monsters());
 }
 
 #[test]
 fn has_active_monsters_false_without_monsters() {
     let raw = load_fixture("card-reward-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     assert!(!state.has_active_monsters());
 }
 
@@ -1177,7 +1177,7 @@ fn card_info_not_playable() {
 #[test]
 fn normalize_shop_state() {
     let raw = load_fixture("shop-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
 
     assert_eq!(state.screen_type.as_deref(), Some("SHOP_SCREEN"));
     assert_eq!(state.floor, Some(5));
@@ -1200,7 +1200,7 @@ fn normalize_shop_state() {
         );
     }
 
-    assert!(state.master_cards.len() > 0);
+    assert!(!state.master_cards.is_empty());
     assert!(state.hand.is_empty());
     assert!(state.monsters.is_empty());
 }
@@ -1230,7 +1230,7 @@ fn grid_for_upgrade_parsed() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert!(state.grid_for_upgrade);
     assert!(!state.grid_for_transform);
@@ -1261,7 +1261,7 @@ fn grid_for_transform_parsed() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert!(!state.grid_for_upgrade);
     assert!(state.grid_for_transform);
@@ -1297,7 +1297,7 @@ fn grid_for_purge_parsed() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert!(!state.grid_for_upgrade);
     assert!(!state.grid_for_transform);
@@ -1326,7 +1326,7 @@ fn grid_all_flags_false_by_default() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert!(!state.grid_for_upgrade);
     assert!(!state.grid_for_transform);
@@ -1355,7 +1355,7 @@ fn hand_select_can_pick_zero_parsed() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.hand_select_max_cards, Some(1));
     assert!(state.hand_select_can_pick_zero);
@@ -1381,7 +1381,7 @@ fn hand_select_can_pick_zero_defaults_to_false() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.hand_select_max_cards, Some(2));
     assert!(!state.hand_select_can_pick_zero);
@@ -1430,7 +1430,7 @@ fn card_in_play_parsed_from_combat() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert!(state.card_in_play.is_some());
     let card = state.card_in_play.unwrap();
@@ -1443,7 +1443,7 @@ fn card_in_play_parsed_from_combat() {
 #[test]
 fn card_in_play_none_when_not_present() {
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     assert!(state.card_in_play.is_none());
 }
 
@@ -1470,7 +1470,7 @@ fn event_choices_prefer_choice_text_field() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(
         state.event_choices,
@@ -1502,7 +1502,7 @@ fn event_choices_fallback_to_label_when_text_unreadable() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(
         state.event_choices,
@@ -1531,7 +1531,7 @@ fn event_choices_extract_from_string_array() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(
         state.event_choices,
@@ -1554,7 +1554,7 @@ fn event_choices_from_choice_list_fallback() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(
         state.event_choices,
@@ -1609,7 +1609,7 @@ fn monster_is_gone_filtered_out() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.monsters.len(), 1);
     assert_eq!(state.monsters[0].name, "Active Enemy");
@@ -1648,7 +1648,7 @@ fn monster_is_gone_defaults_to_false() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert_eq!(state.monsters.len(), 1);
 }
 
@@ -1688,7 +1688,7 @@ fn monster_is_scaling_detects_strength() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert!(state.monsters[0].is_scaling);
 }
 
@@ -1728,7 +1728,7 @@ fn monster_is_scaling_detects_metallicize() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert!(state.monsters[0].is_scaling);
 }
 
@@ -1768,7 +1768,7 @@ fn monster_is_scaling_detects_regeneration() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert!(state.monsters[0].is_scaling);
 }
 
@@ -1808,7 +1808,7 @@ fn monster_is_scaling_detects_plated_armor() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert!(state.monsters[0].is_scaling);
 }
 
@@ -1848,7 +1848,7 @@ fn monster_not_scaling_without_scaling_powers() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert!(!state.monsters[0].is_scaling);
 }
 
@@ -1887,7 +1887,7 @@ fn monster_can_be_killed_with_enough_hand_attack() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert!(state.monsters[0].can_be_killed);
 }
 
@@ -1926,7 +1926,7 @@ fn monster_cannot_be_killed_with_insufficient_hand_attack() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert!(!state.monsters[0].can_be_killed);
 }
 
@@ -1964,7 +1964,7 @@ fn monster_cannot_be_killed_when_hp_missing() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert!(!state.monsters[0].can_be_killed);
 }
 
@@ -2003,7 +2003,7 @@ fn monster_intent_parsed() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.monsters[0].intent.as_deref(), Some("ATTACK_BUFF"));
     assert_eq!(state.monsters[0].damage, Some(15));
@@ -2015,7 +2015,7 @@ fn monster_intent_parsed() {
 #[test]
 fn potion_slot_counting_with_gaps() {
     let raw = load_fixture("comm-gapped-potions.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
 
     assert_eq!(state.potions.len(), 2);
     assert_eq!(state.empty_potion_slots, 1);
@@ -2044,7 +2044,7 @@ fn potion_slot_counting_with_no_empty_slots() {
             ]
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.potions.len(), 3);
     assert_eq!(state.empty_potion_slots, 0);
@@ -2064,7 +2064,7 @@ fn potions_empty_array_produces_no_slots() {
             "potions": []
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert!(state.potions.is_empty());
     assert_eq!(state.empty_potion_slots, 0);
@@ -2126,7 +2126,7 @@ fn incoming_damage_excludes_none_intent() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.incoming_damage, 12);
 }
@@ -2176,7 +2176,7 @@ fn incoming_damage_excludes_zero_damage() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.incoming_damage, 15);
 }
@@ -2226,7 +2226,7 @@ fn incoming_damage_sums_multiple_monsters() {
             "max_hp": 75
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.incoming_damage, 20);
 }
@@ -2282,7 +2282,7 @@ fn map_nodes_missing_children_defaults_to_empty() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.map_nodes.len(), 1);
     assert_eq!(state.map_nodes[0].symbol, "M");
@@ -2308,7 +2308,7 @@ fn map_nodes_missing_coords_default_to_zero() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.map_nodes.len(), 1);
     assert_eq!(state.map_nodes[0].x, 0);
@@ -2333,7 +2333,7 @@ fn map_nodes_missing_symbol_defaults_to_question() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.map_nodes[0].symbol, "?");
 }
@@ -2364,7 +2364,7 @@ fn map_nodes_child_missing_coords_filtered_out() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.map_nodes.len(), 1);
     assert_eq!(state.map_nodes[0].children, vec![(1, 1)]);
@@ -2386,7 +2386,7 @@ fn relic_info_from_string_array() {
             "relics": ["Burning Blood", "Neow's Lament"]
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.relics.len(), 2);
     assert_eq!(state.relics[0].name, "Burning Blood");
@@ -2412,7 +2412,7 @@ fn relic_info_counter_filtered_when_negative() {
             ]
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     let burning = state
         .relics
@@ -2452,7 +2452,7 @@ fn relic_info_defaults_for_missing_fields() {
             ]
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.relics.len(), 1);
     assert_eq!(state.relics[0].id, "TestRelic");
@@ -2482,7 +2482,7 @@ fn relic_info_with_description() {
             ]
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(
         state.relics[0].description,
@@ -2522,7 +2522,7 @@ fn relic_info_shop_relic_with_price() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
 
     assert_eq!(state.shop_relics.len(), 2);
     assert_eq!(state.shop_relics[0].name, "Bronze Scales");
@@ -2552,7 +2552,7 @@ fn stable_hash_includes_boss_relic_fields() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     let hash = state.stable_hash();
     assert_eq!(hash.len(), 64);
 }
@@ -2560,7 +2560,7 @@ fn stable_hash_includes_boss_relic_fields() {
 #[test]
 fn stable_hash_includes_shop_fields() {
     let raw = load_fixture("shop-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     let hash = state.stable_hash();
     assert_eq!(hash.len(), 64);
 }
@@ -2587,7 +2587,7 @@ fn stable_hash_includes_grid_fields() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     let hash = state.stable_hash();
     assert_eq!(hash.len(), 64);
 }
@@ -2632,7 +2632,7 @@ fn stable_hash_includes_hand_select_fields() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     let hash = state.stable_hash();
     assert_eq!(hash.len(), 64);
 }
@@ -2659,7 +2659,7 @@ fn stable_hash_includes_event_fields() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     let hash = state.stable_hash();
     assert_eq!(hash.len(), 64);
 }
@@ -2684,7 +2684,7 @@ fn stable_hash_includes_map_fields() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     let hash = state.stable_hash();
     assert_eq!(hash.len(), 64);
 }
@@ -2692,7 +2692,7 @@ fn stable_hash_includes_map_fields() {
 #[test]
 fn stable_hash_includes_empty_potion_slots() {
     let raw = load_fixture("comm-gapped-potions.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     let hash = state.stable_hash();
     assert_eq!(hash.len(), 64);
     assert!(state.empty_potion_slots > 0);
@@ -2714,7 +2714,7 @@ fn stable_hash_empty_potion_slots_zero_not_included() {
             ]
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert_eq!(state.empty_potion_slots, 0);
     let hash = state.stable_hash();
     assert_eq!(hash.len(), 64);
@@ -2735,7 +2735,7 @@ fn stable_hash_includes_current_action() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     let hash = state.stable_hash();
     assert_eq!(hash.len(), 64);
     assert_eq!(state.current_action.as_deref(), Some("PlayCard"));
@@ -2754,7 +2754,7 @@ fn stable_hash_excludes_current_action_when_none() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert!(state.current_action.is_none());
     let hash = state.stable_hash();
     assert_eq!(hash.len(), 64);
@@ -2779,14 +2779,14 @@ fn current_action_parsed_from_game_state() {
             "class": "IRONCLAD"
         }
     });
-    let state = NormalizedState::from_raw(&raw, &locale);
+    let state = NormalizedState::from_raw(&raw, locale);
     assert_eq!(state.current_action.as_deref(), Some("PlayCard"));
 }
 
 #[test]
 fn current_action_none_when_missing() {
     let raw = load_fixture("combat-state.json");
-    let state = NormalizedState::from_raw(&raw, &test_locale());
+    let state = NormalizedState::from_raw(&raw, test_locale());
     assert!(state.current_action.is_none());
 }
 

@@ -62,7 +62,7 @@ fn jaw_worm() -> MonsterInfo {
     }
 }
 
-fn find_play_context<'a>(contexts: &'a [ActionContext]) -> &'a ActionContext {
+fn find_play_context(contexts: &[ActionContext]) -> &ActionContext {
     contexts
         .iter()
         .find(|c| matches!(c.action_type, ActionType::PlayCard { .. }))
@@ -687,17 +687,17 @@ fn aoe_resolves_per_monster_vulnerable() {
     let ctx_vuln = play_ctx.iter().find(|c| c.target_index == Some(0)).unwrap();
     let ctx_norm = play_ctx.iter().find(|c| c.target_index == Some(1)).unwrap();
     assert!(
-        ctx_vuln.target.as_ref().map_or(false, |t| t
-            .monster_powers
-            .iter()
-            .any(|p| p.id == "Vulnerable")),
+        ctx_vuln
+            .target
+            .as_ref()
+            .is_some_and(|t| t.monster_powers.iter().any(|p| p.id == "Vulnerable")),
         "context for Vulnerable monster should carry its Vulnerable power"
     );
     assert!(
-        ctx_norm.target.as_ref().map_or(true, |t| !t
-            .monster_powers
-            .iter()
-            .any(|p| p.id == "Vulnerable")),
+        ctx_norm
+            .target
+            .as_ref()
+            .is_none_or(|t| !t.monster_powers.iter().any(|p| p.id == "Vulnerable")),
         "context for normal monster should NOT carry Vulnerable"
     );
 }
