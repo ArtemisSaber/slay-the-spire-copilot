@@ -1,6 +1,9 @@
 use crate::locales::EffectParserLocale;
 use crate::state::CardInfo;
 
+/// Sanity cap for parsed damage values — valid STS card damage never exceeds this.
+const MAX_PARSED_DAMAGE: i16 = 1000;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TargetType {
     Targeted,
@@ -138,7 +141,7 @@ fn parse_damage_multiplier_hits(desc: &str) -> Option<(i16, HitCount)> {
         let Some(dmg) = extract_first_integer(segment) else {
             continue;
         };
-        if dmg <= 0 || dmg > 1000 {
+        if dmg <= 0 || dmg > MAX_PARSED_DAMAGE {
             continue;
         }
 
@@ -156,7 +159,7 @@ fn parse_damage_multiplier_hits(desc: &str) -> Option<(i16, HitCount)> {
         let Some(dmg) = extract_first_integer(segment) else {
             continue;
         };
-        if dmg <= 0 || dmg > 1000 {
+        if dmg <= 0 || dmg > MAX_PARSED_DAMAGE {
             continue;
         }
         if let Some(hits) = parse_hits_suffix(segment) {

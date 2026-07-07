@@ -29,6 +29,8 @@ use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::Path;
 
 pub(crate) const MAX_STDIN_JSON_BYTES: usize = 10 * 1024 * 1024;
+/// Truncation length for prompt previews in debug logs.
+const PROMPT_LOG_PREVIEW_CHARS: usize = 200;
 
 async fn finalize_run_once(
     journal: &journal::Journal,
@@ -729,7 +731,7 @@ async fn main() {
         tracing::debug!(
             "prompt ({} chars): {}",
             prompt.len(),
-            &prompt[..prompt.len().min(200)]
+            &prompt[..prompt.len().min(PROMPT_LOG_PREVIEW_CHARS)]
         );
 
         cache.write_overlay_loading(&metadata);

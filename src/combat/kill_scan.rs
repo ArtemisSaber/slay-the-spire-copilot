@@ -9,6 +9,9 @@ use crate::combat::{
 };
 use crate::state::{CardInfo, NormalizedState};
 
+/// Check the DFS deadline every this many expanded states (amortizes Instant::now() cost).
+const DEADLINE_CHECK_INTERVAL: usize = 1000;
+
 pub(crate) fn find_kill_sequence_inner(
     state: &NormalizedState,
     options: &KillScanOptions,
@@ -172,7 +175,7 @@ fn dfs(
         return None;
     }
 
-    if ctx.expanded.is_multiple_of(1000) && Instant::now() > ctx.deadline {
+    if ctx.expanded.is_multiple_of(DEADLINE_CHECK_INTERVAL) && Instant::now() > ctx.deadline {
         tracing::debug!(
             "kill_scan DFS deadline expired at {} expanded states",
             ctx.expanded
