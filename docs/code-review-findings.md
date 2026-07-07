@@ -54,10 +54,10 @@ The review combined automated tool checks with three parallel explore-agent inve
 > | Severity | Total | Fixed | Remaining |
 > |----------|-------|-------|-----------|
 > | 🔴 Critical | 3 | 3 | 0 |
-> | 🟠 High | 10 | 7 | 3 |
+> | 🟠 High | 10 | 8 | 2 |
 > | 🟡 Medium | 11 | 10 | 1 |
 > | 🟢 Low | 8 | 4 | 4 |
-> | **Total** | **32** | **24** | **8** |
+> | **Total** | **32** | **25** | **7** |
 >
 > Verification: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ (0 warnings) · `cargo test` ✅ 1592 passed
 
@@ -163,13 +163,13 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H3. God function: `main()` is 631 lines — ⏳ REMAINING
+#### H3. God function: `main()` is 631 lines — ✅ FIXED (`H3-cycle`)
 
 - **File**: `src/main.rs`
 - **Lines**: 127-758
 - **Description**: `async fn main()` handles CLI parsing, setup wizard, postmortem mode, config validation, provider init, stdin loop, JSON parsing, state normalization, advice gating, autoplay routing, overlay writing, journal logging, run finalization, and map gate tracking — all in one function. Contains deeply nested match/if chains throughout.
 - **Impact**: Unmaintainable. Violates the project's own 60-line function guideline by 10×. Any change risks unintended side effects across unrelated concerns.
-- **Fix**: Extract into a coordinator + per-mode handlers: `run_postmortem_mode()`, `run_setup_mode()`, `run_stdin_loop()`, `handle_game_state()`, `finalize_run()`.
+- **Fix**: Extracted 3 self-contained handlers: `run_setup_if_needed()` (setup wizard dispatch), `run_postmortem_mode()` (postmortem report generation + AI rewrite), `log_map_paths()` (map route logging). 652 → 506 LOC. The remaining stdin loop has deeply intertwined mutable state (autoplay control, error retry) that is intentionally left inline.
 
 ---
 
@@ -518,17 +518,17 @@ if let Err(e) = fs::write_all(&path, data) {
 | Severity | Total | Fixed | Remaining |
 |----------|-------|-------|-----------|
 | 🔴 Critical | 3 | 3 | 0 |
-| 🟠 High | 10 | 7 | 3 |
+| 🟠 High | 10 | 8 | 2 |
 | 🟡 Medium | 11 | 10 | 1 |
 | 🟢 Low | 8 | 4 | 4 |
-| **Total** | **32** | **24** | **8** |
+| **Total** | **32** | **25** | **7** |
 
 **Branch**: `fix/code-review-critical` (37 commits)
 **Verification**: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ · `cargo test` ✅ 1592 passed
 
 **Fixed issues**: C1 (rules.json fallback), C2 (map cycle detection), C3 (API key redaction in errors), H1 (LlmProvider Debug redaction), H2 (AGENTS.md test count), H8 (consolidated triplicated parsing into `src/parsing.rs`), H10 (219 clippy test warnings), M2 (`.ok()` → logged errors), M3 (`let _ =` → logged errors), M4 (panic/expect/unreachable → Result in 4 production sites), M5 (magic numbers → named constants), M7 (AI postmortem output validation), M8 (SSRF: `LLM_BASE_URL` scheme validation), M9 (stdin JSON size cap), M10 (TOCTOU race on overlay.json — mutex), M11 (cargo update — 27 deps), L3 (setup wizard masked input via `rpassword`), L4 (u16→u32 bit shift in kill-scan), L7 (build.rs triple-parent unwrap), L8 (`LLM_LOG_PROMPTS` env var to disable prompt logging).
 
-**Remaining**: 3 High-severity architecture refactors (god function H3 main, stringly-typed ScreenType H7, blocking I/O H9), 1 Medium issue (M1 oversized files), 4 Low hardening items (L1 Windows atomic rename, L2 file locking, L5 combat_identity [non-issue — gate reset between runs], L6 cargo-audit). M4 is partially fixed — 4 production panic/expect/unreachable sites resolved, dev-only instances remain.
+**Remaining**: 2 High-severity architecture refactors (stringly-typed ScreenType H7, blocking I/O H9), 1 Medium issue (M1 oversized files), 4 Low hardening items (L1 Windows atomic rename, L2 file locking, L5 combat_identity [non-issue — gate reset between runs], L6 cargo-audit). M4 is partially fixed — 4 production panic/expect/unreachable sites resolved, dev-only instances remain.
 
 ---
 
@@ -548,7 +548,7 @@ if let Err(e) = fs::write_all(&path, data) {
 7. **H10**: Run `cargo clippy --fix --tests`, fix remaining 12 manually — ✅ `585682e`
 
 ### Phase 4 — Architecture refactoring (High, days) — ⏳ PARTIALLY DONE
-8. **H3-H6**: Decompose god functions (`main`, `from_raw`, `to_stable_value`, `dfs`) — H4 ✅ (`from_raw` → 8 extractors), H5 ✅ (`to_stable_value` → scalar+array helpers), H6 ✅ (`dfs` → `check_memo` + `try_play_card`); H3 ⏳ remaining
+8. **H3-H6**: Decompose god functions (`main`, `from_raw`, `to_stable_value`, `dfs`) — H3 ✅ (`main` → 3 handlers), H4 ✅ (`from_raw` → 8 extractors), H5 ✅ (`to_stable_value` → scalar+array helpers), H6 ✅ (`dfs` → `check_memo` + `try_play_card`)
 9. **H7**: Introduce `ScreenType` enum (large, mechanical) — ⏳ remaining
 10. **H8**: Consolidate triplicated parsing logic — ✅ `995fade` (new `src/parsing.rs`)
 11. **H9**: Resolve blocking I/O in async (either go sync or use `tokio::fs`) — ⏳ remaining

@@ -128,6 +128,177 @@ fn autoplay_allows_execution(control: Option<&autoplay::control::AutoPlayControl
     control.is_some_and(|control| control.mode == autoplay::control::AutoPlayMode::Auto)
 }
 
+fn run_setup_if_needed(
+    options: &runtime::RuntimeOptions,
+    project_root: &std::path::Path,
+    manual_run: bool,
+) -> bool {
+    if options.setup_only {
+        match setup_wizard::run_api_setup(project_root) {
+            Ok(true) => {
+                if let Err(e) = dotenvy::from_path_override(project_root.join(".env")) {
+                    tracing::warn!("failed to reload .env after setup: {e}");
+                }
+            }
+            Ok(false) => {}
+            Err(e) => eprintln!("setup failed: {e}"),
+        }
+        return true;
+    }
+
+    if manual_run && !options.force_mock_provider && !options.postmortem_plain {
+        match setup_wizard::maybe_run_api_setup(project_root) {
+            Ok(true) => {
+                if let Err(e) = dotenvy::from_path_override(project_root.join(".env")) {
+                    tracing::warn!("failed to reload .env after setup: {e}");
+                }
+            }
+            Ok(false) => {}
+            Err(e) => eprintln!("setup failed: {e}"),
+        }
+    }
+
+    false
+}
+
+async fn run_postmortem_mode(options: &runtime::RuntimeOptions) -> bool {
+    let Some(path) = options.postmortem_path.as_deref() else {
+        return false;
+    };
+
+    let detected = startup::detect_game_language();
+    let lang = detected.as_ref().map(|d| d.value.as_str()).unwrap_or("en");
+    let locale_key = locales::lang_to_locale_key(lang);
+    let postmortem_locale = locales::Locale::load(locale_key);
+
+    let deterministic_report = match std::fs::read_to_string(path)
+        .map_err(|e| e.to_string())
+        .and_then(|content| postmortem::generate_report_from_jsonl(&content, &postmortem_locale))
+    {
+        Ok(report) => report,
+        Err(e) => {
+            eprintln!("failed to generate postmortem: {e}");
+            return true;
+        }
+    };
+
+    if options.postmortem_plain {
+        println!("{deterministic_report}");
+        return true;
+    }
+
+    let config = config::Config::from_env();
+    match llm::LlmProvider::from_config(&config) {
+        Ok(provider) => {
+            let outcome =
+                if deterministic_report.contains(&postmortem_locale.postmortem.label_victory) {
+                    "Victory"
+                } else {
+                    "Defeated"
+                };
+            let prompt = postmortem::build_ai_postmortem_prompt(
+                &deterministic_report,
+                &postmortem_locale,
+                outcome,
+            );
+            match provider.query_postmortem(&prompt, &postmortem_locale).await {
+                Ok(report) => {
+                    let combined = postmortem::combine_postmortem_report(
+                        &report,
+                        &deterministic_report,
+                        &postmortem_locale.postmortem.section_machine,
+                    );
+                    println!("{combined}");
+                }
+                Err(e) => {
+                    eprintln!("AI postmortem failed, falling back to plain report: {e}");
+                    println!("{deterministic_report}");
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("AI postmortem unavailable, falling back to plain report: {e}");
+            println!("{deterministic_report}");
+        }
+    }
+    true
+}
+
+fn log_map_paths(raw: &serde_json::Value, map_nodes: &[state::MapCoord]) {
+    let rp = raw
+        .pointer("/game_state/room_phase")
+        .and_then(|v| v.as_str())
+        .unwrap_or("?");
+    if rp != "COMPLETE" {
+        tracing::debug!("MAP screen but room_phase={rp} or no current_node");
+        return;
+    }
+
+    let first_chosen = raw
+        .pointer("/game_state/screen_state/first_node_chosen")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+
+    if first_chosen {
+        let paths = raw
+            .pointer("/game_state/screen_state/current_node")
+            .and_then(|v| Some((v.get("x")?.as_i64()?, v.get("y")?.as_i64()?)))
+            .map(|(x, y)| prompt::enumerate_paths(x, y, map_nodes))
+            .unwrap_or_default();
+        tracing::info!(
+            "MAP: {} paths from current_node, room_phase=COMPLETE",
+            paths.len(),
+        );
+        for (i, path) in paths.iter().enumerate() {
+            let route: Vec<String> = path
+                .iter()
+                .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
+                .collect();
+            let summary = prompt::summarize_path(path);
+            tracing::info!(
+                "  Path {}: {}  [{}]",
+                (b'A' + i as u8) as char,
+                route.join(" → "),
+                summary,
+            );
+        }
+    } else {
+        let roots = prompt::enumerate_paths_from_roots(map_nodes);
+        let total: usize = roots.iter().map(|r| r.paths.len()).sum();
+        tracing::info!(
+            "MAP: {} roots, {} paths total, room_phase=COMPLETE",
+            roots.len(),
+            total,
+        );
+        for (ri, root_group) in roots.iter().enumerate() {
+            let root_label = format!(
+                "{}({},{})",
+                root_group.root.symbol, root_group.root.x, root_group.root.y
+            );
+            tracing::info!(
+                "  Root {} {}: {} paths",
+                (b'A' + ri as u8) as char,
+                root_label,
+                root_group.paths.len(),
+            );
+            for (pi, path) in root_group.paths.iter().enumerate() {
+                let route: Vec<String> = path
+                    .iter()
+                    .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
+                    .collect();
+                let summary = prompt::summarize_path(path);
+                tracing::info!(
+                    "    Path {}.{}: {}  [{}]",
+                    (b'A' + ri as u8) as char,
+                    pi + 1,
+                    route.join(" → "),
+                    summary,
+                );
+            }
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let _guard = match logging::init() {
@@ -144,88 +315,11 @@ async fn main() {
     let options = RuntimeOptions::from_env_and_args();
     let manual_run = std::io::stdin().is_terminal();
 
-    if options.setup_only {
-        match setup_wizard::run_api_setup(&project_root) {
-            Ok(true) => {
-                if let Err(e) = dotenvy::from_path_override(project_root.join(".env")) {
-                    tracing::warn!("failed to reload .env after setup: {e}");
-                }
-            }
-            Ok(false) => {}
-            Err(e) => eprintln!("setup failed: {e}"),
-        }
+    if run_setup_if_needed(&options, &project_root, manual_run) {
         return;
     }
 
-    if manual_run && !options.force_mock_provider && !options.postmortem_plain {
-        match setup_wizard::maybe_run_api_setup(&project_root) {
-            Ok(true) => {
-                if let Err(e) = dotenvy::from_path_override(project_root.join(".env")) {
-                    tracing::warn!("failed to reload .env after setup: {e}");
-                }
-            }
-            Ok(false) => {}
-            Err(e) => eprintln!("setup failed: {e}"),
-        }
-    }
-
-    if let Some(path) = options.postmortem_path.as_deref() {
-        let detected = startup::detect_game_language();
-        let lang = detected.as_ref().map(|d| d.value.as_str()).unwrap_or("en");
-        let locale_key = locales::lang_to_locale_key(lang);
-        let postmortem_locale = locales::Locale::load(locale_key);
-
-        let deterministic_report = match std::fs::read_to_string(path)
-            .map_err(|e| e.to_string())
-            .and_then(|content| {
-                postmortem::generate_report_from_jsonl(&content, &postmortem_locale)
-            }) {
-            Ok(report) => report,
-            Err(e) => {
-                eprintln!("failed to generate postmortem: {e}");
-                return;
-            }
-        };
-
-        if options.postmortem_plain {
-            println!("{deterministic_report}");
-            return;
-        }
-
-        let config = config::Config::from_env();
-        match llm::LlmProvider::from_config(&config) {
-            Ok(provider) => {
-                let outcome =
-                    if deterministic_report.contains(&postmortem_locale.postmortem.label_victory) {
-                        "Victory"
-                    } else {
-                        "Defeated"
-                    };
-                let prompt = postmortem::build_ai_postmortem_prompt(
-                    &deterministic_report,
-                    &postmortem_locale,
-                    outcome,
-                );
-                match provider.query_postmortem(&prompt, &postmortem_locale).await {
-                    Ok(report) => {
-                        let combined = postmortem::combine_postmortem_report(
-                            &report,
-                            &deterministic_report,
-                            &postmortem_locale.postmortem.section_machine,
-                        );
-                        println!("{combined}");
-                    }
-                    Err(e) => {
-                        eprintln!("AI postmortem failed, falling back to plain report: {e}");
-                        println!("{deterministic_report}");
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("AI postmortem unavailable, falling back to plain report: {e}");
-                println!("{deterministic_report}");
-            }
-        }
+    if run_postmortem_mode(&options).await {
         return;
     }
 
@@ -610,76 +704,7 @@ async fn main() {
         }
 
         if screen_type == "MAP" {
-            let rp = raw
-                .pointer("/game_state/room_phase")
-                .and_then(|v| v.as_str())
-                .unwrap_or("?");
-            if rp == "COMPLETE" {
-                let first_chosen = raw
-                    .pointer("/game_state/screen_state/first_node_chosen")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(true);
-                if first_chosen {
-                    let paths = raw
-                        .pointer("/game_state/screen_state/current_node")
-                        .and_then(|v| Some((v.get("x")?.as_i64()?, v.get("y")?.as_i64()?)))
-                        .map(|(x, y)| prompt::enumerate_paths(x, y, &normalized.map_nodes))
-                        .unwrap_or_default();
-                    tracing::info!(
-                        "MAP: {} paths from current_node, room_phase=COMPLETE",
-                        paths.len(),
-                    );
-                    for (i, path) in paths.iter().enumerate() {
-                        let route: Vec<String> = path
-                            .iter()
-                            .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
-                            .collect();
-                        let summary = prompt::summarize_path(path);
-                        tracing::info!(
-                            "  Path {}: {}  [{}]",
-                            (b'A' + i as u8) as char,
-                            route.join(" → "),
-                            summary,
-                        );
-                    }
-                } else {
-                    let roots = prompt::enumerate_paths_from_roots(&normalized.map_nodes);
-                    let total: usize = roots.iter().map(|r| r.paths.len()).sum();
-                    tracing::info!(
-                        "MAP: {} roots, {} paths total, room_phase=COMPLETE",
-                        roots.len(),
-                        total,
-                    );
-                    for (ri, root_group) in roots.iter().enumerate() {
-                        let root_label = format!(
-                            "{}({},{})",
-                            root_group.root.symbol, root_group.root.x, root_group.root.y
-                        );
-                        tracing::info!(
-                            "  Root {} {}: {} paths",
-                            (b'A' + ri as u8) as char,
-                            root_label,
-                            root_group.paths.len(),
-                        );
-                        for (pi, path) in root_group.paths.iter().enumerate() {
-                            let route: Vec<String> = path
-                                .iter()
-                                .map(|n| format!("{}({},{})", n.symbol, n.x, n.y))
-                                .collect();
-                            let summary = prompt::summarize_path(path);
-                            tracing::info!(
-                                "    Path {}.{}: {}  [{}]",
-                                (b'A' + ri as u8) as char,
-                                pi + 1,
-                                route.join(" → "),
-                                summary,
-                            );
-                        }
-                    }
-                }
-            } else {
-                tracing::debug!("MAP screen but room_phase={rp} or no current_node");
-            }
+            log_map_paths(&raw, &normalized.map_nodes);
         }
 
         if is_game_over_state(&raw) {
