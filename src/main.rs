@@ -129,7 +129,13 @@ fn autoplay_allows_execution(control: Option<&autoplay::control::AutoPlayControl
 
 #[tokio::main]
 async fn main() {
-    let _guard = logging::init();
+    let _guard = match logging::init() {
+        Ok(guard) => guard,
+        Err(e) => {
+            eprintln!("failed to initialize logging: {e}");
+            std::process::exit(1);
+        }
+    };
     let project_root = logging::project_root();
     if let Err(e) = dotenvy::from_path(project_root.join(".env")) {
         tracing::debug!(".env not loaded: {e}");

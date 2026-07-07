@@ -46,10 +46,10 @@ pub(crate) fn rotate_log(log_dir: &std::path::Path, base_name: &str) {
     }
 }
 
-pub fn init() -> WorkerGuard {
+pub fn init() -> std::io::Result<WorkerGuard> {
     let root = project_root();
     let log_dir = root.join("logs");
-    fs::create_dir_all(&log_dir).expect("failed to create logs directory");
+    fs::create_dir_all(&log_dir)?;
 
     rotate_log(&log_dir, "sts-ai.log");
     rotate_log(&log_dir, "comm-mod-raw.log");
@@ -72,7 +72,7 @@ pub fn init() -> WorkerGuard {
         )
         .init();
 
-    guard
+    Ok(guard)
 }
 
 pub fn log_raw_input(line: &str) {
