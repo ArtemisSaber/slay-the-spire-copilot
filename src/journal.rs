@@ -271,15 +271,22 @@ impl Journal {
 }
 
 fn scan_for_existing_run(runs_root: &Path, seed: i64) -> Option<PathBuf> {
-    let entries = fs::read_dir(runs_root).ok()?;
+    let entries = fs::read_dir(runs_root)
+        .map_err(|e| tracing::warn!("failed to read runs dir {}: {e}", runs_root.display()))
+        .ok()?;
 
-    for entry in entries.filter_map(|e| e.ok()) {
+    for entry in entries.filter_map(|e| {
+        e.map_err(|err| tracing::warn!("dir entry error: {err}"))
+            .ok()
+    }) {
         let dir = entry.path();
         if !dir.is_dir() {
             continue;
         }
         let journal_path = dir.join("events.jsonl");
-        let content = fs::read_to_string(&journal_path).ok()?;
+        let content = fs::read_to_string(&journal_path)
+            .map_err(|e| tracing::warn!("failed to read {}: {e}", journal_path.display()))
+            .ok()?;
 
         let mut found_seed = false;
         let mut has_ended = false;
