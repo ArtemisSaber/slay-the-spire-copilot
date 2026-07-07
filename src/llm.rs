@@ -15,12 +15,25 @@ fn log_prompt_with_system(system_prompt: &str, user_prompt: &str, response: &str
     );
 }
 
+fn prompt_logging_disabled(env_val: Option<String>) -> bool {
+    match env_val {
+        Some(v) => matches!(
+            v.to_ascii_lowercase().as_str(),
+            "0" | "false" | "no" | "off"
+        ),
+        None => false,
+    }
+}
+
 fn log_prompt_into_dir(
     base: &std::path::Path,
     system_prompt: &str,
     user_prompt: &str,
     response: &str,
 ) {
+    if prompt_logging_disabled(std::env::var("LLM_LOG_PROMPTS").ok()) {
+        return;
+    }
     let log_dir = base.join("logs");
     if let Err(e) = fs::create_dir_all(&log_dir) {
         tracing::warn!("failed to create logs dir: {e}");

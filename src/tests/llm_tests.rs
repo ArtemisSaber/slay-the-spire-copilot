@@ -850,6 +850,23 @@ fn log_prompt_into_dir_writes_formatted_entry() {
 }
 
 #[test]
+fn prompt_logging_disabled_returns_true_for_disabled_values() {
+    assert!(prompt_logging_disabled(Some("false".into())));
+    assert!(prompt_logging_disabled(Some("0".into())));
+    assert!(prompt_logging_disabled(Some("no".into())));
+    assert!(prompt_logging_disabled(Some("off".into())));
+    assert!(prompt_logging_disabled(Some("FALSE".into())));
+}
+
+#[test]
+fn prompt_logging_disabled_returns_false_for_enabled_or_unset() {
+    assert!(!prompt_logging_disabled(Some("true".into())));
+    assert!(!prompt_logging_disabled(Some("1".into())));
+    assert!(!prompt_logging_disabled(Some("yes".into())));
+    assert!(!prompt_logging_disabled(None));
+}
+
+#[test]
 fn scenario_resolver_detects_shop() {
     let state = NormalizedState {
         screen_type: Some("SHOP_SCREEN".into()),
