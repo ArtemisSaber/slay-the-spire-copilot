@@ -8,6 +8,7 @@ mod journal;
 mod llm;
 mod locales;
 mod logging;
+mod parsing;
 mod postmortem;
 mod prompt;
 mod protocol;

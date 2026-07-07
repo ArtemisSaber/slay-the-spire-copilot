@@ -1,3 +1,5 @@
+use crate::parsing::extract_first_integer;
+
 #[derive(Debug, Clone, Default)]
 pub struct ParsedEffects {
     pub damage: Option<i64>,
@@ -24,26 +26,6 @@ pub struct ParsedEffects {
     pub exits_stance: bool,
     pub enters_wrath: bool,
     pub enters_calm: bool,
-}
-
-fn extract_first_integer(s: &str) -> Option<i64> {
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i].is_ascii_digit() {
-            let start = i;
-            while i < bytes.len() && bytes[i].is_ascii_digit() {
-                i += 1;
-            }
-            return std::str::from_utf8(&bytes[start..i]).ok().and_then(|n| {
-                n.parse::<i64>()
-                    .map_err(|e| tracing::warn!("integer parse failed: {e}"))
-                    .ok()
-            });
-        }
-        i += 1;
-    }
-    None
 }
 
 fn extract_last_integer(s: &str) -> Option<i64> {

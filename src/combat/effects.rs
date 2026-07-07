@@ -1,4 +1,5 @@
 use crate::locales::EffectParserLocale;
+use crate::parsing::extract_first_integer;
 use crate::state::CardInfo;
 
 /// Sanity cap for parsed damage values — valid STS card damage never exceeds this.
@@ -57,15 +58,6 @@ pub enum StanceEffect {
     EnterCalm,
     ExitStance,
     EnterDivinity,
-}
-
-fn extract_first_integer(s: &str) -> Option<i16> {
-    let digits: String = s
-        .chars()
-        .skip_while(|c| !c.is_ascii_digit())
-        .take_while(|c| c.is_ascii_digit())
-        .collect();
-    digits.parse().ok()
 }
 
 fn parse_hits_suffix(segment: &str) -> Option<HitCount> {
@@ -685,12 +677,12 @@ mod tests {
 
     #[test]
     fn extract_first_integer_no_digits() {
-        assert_eq!(extract_first_integer("no numbers here"), None);
+        assert_eq!(extract_first_integer::<i16>("no numbers here"), None);
     }
 
     #[test]
     fn extract_first_integer_with_digits() {
-        assert_eq!(extract_first_integer("deal 42 damage"), Some(42));
+        assert_eq!(extract_first_integer::<i16>("deal 42 damage"), Some(42));
     }
 
     #[test]

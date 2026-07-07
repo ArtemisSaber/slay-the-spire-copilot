@@ -1,4 +1,5 @@
 use crate::locales::Locale;
+use crate::parsing::extract_first_integer;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CounterType {
@@ -17,15 +18,6 @@ fn counter_type_for(id: &str) -> Option<CounterType> {
         }
         _ => None,
     }
-}
-
-fn extract_first_integer(s: &str) -> Option<i64> {
-    let digits: String = s
-        .chars()
-        .skip_while(|c| !c.is_ascii_digit())
-        .take_while(|c| c.is_ascii_digit())
-        .collect();
-    digits.parse().ok()
 }
 
 fn replace_first_integer(s: &str, new_val: i64) -> String {
