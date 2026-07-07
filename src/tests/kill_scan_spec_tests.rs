@@ -2,7 +2,6 @@ use crate::combat::damage::combat_ended;
 use crate::combat::effects::{HitCount, StanceEffect, TargetType};
 use crate::combat::kill_scan::{TestCard, random_target_guaranteed, test_scan};
 use crate::combat::{MonsterSnapshot, PowerState, Stance};
-use crate::state::ScreenType;
 
 fn ms(
     index: usize,
