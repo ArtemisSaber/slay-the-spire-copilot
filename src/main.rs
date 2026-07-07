@@ -28,6 +28,7 @@ use runtime::{
 };
 use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::Path;
+use tokio::io::AsyncBufReadExt;
 
 pub(crate) const MAX_STDIN_JSON_BYTES: usize = 10 * 1024 * 1024;
 /// Truncation length for prompt previews in debug logs.
@@ -405,11 +406,13 @@ async fn main() {
     let mut consecutive_errors: usize = 0;
     let mut saw_game_state = false;
     let mut run_finalized = false;
-    let stdin = io::stdin();
+    let stdin = tokio::io::stdin();
+    let mut lines = tokio::io::BufReader::new(stdin).lines();
 
-    for line in stdin.lock().lines() {
-        let line = match line {
-            Ok(l) => l,
+    loop {
+        let line = match lines.next_line().await {
+            Ok(Some(l)) => l,
+            Ok(None) => break,
             Err(e) => {
                 tracing::error!("failed to read stdin: {e}");
                 continue;
