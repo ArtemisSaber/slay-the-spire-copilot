@@ -55,9 +55,9 @@ The review combined automated tool checks with three parallel explore-agent inve
 > |----------|-------|-------|-----------|
 > | 🔴 Critical | 3 | 3 | 0 |
 > | 🟠 High | 10 | 4 | 6 |
-> | 🟡 Medium | 11 | 9 | 2 |
+> | 🟡 Medium | 11 | 10 | 1 |
 > | 🟢 Low | 8 | 4 | 4 |
-> | **Total** | **32** | **20** | **12** |
+> | **Total** | **32** | **21** | **11** |
 >
 > Verification: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ (0 warnings) · `cargo test` ✅ 1592 passed
 
@@ -372,12 +372,12 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M6. `eval_parsed()` — 121 lines of repetitive if-let guards — ⏳ REMAINING
+#### M6. `eval_parsed()` — 121 lines of repetitive if-let guards — ✅ FIXED (`M6-cycle`)
 
 - **File**: `src/ranker/engine.rs`
 - **Lines**: 275-395
 - **Description**: 20+ sequential `if let Some(v) = p.field_gt && parsed.field.unwrap_or(0) <= v { return false; }` blocks. Classic excessive-complexity (if/elif variant chain) pattern.
-- **Fix**: Use a table-driven approach or macro to generate the guard checks.
+- **Fix**: Collapsed 17 i64-threshold guards (15 gt + 2 eq) into two table-driven slices iterated by a single loop each. Bool-equality and special-case guards (exhausts_status_curse, channel_orb) kept explicit. 121 → 77 LOC.
 
 ---
 
@@ -519,16 +519,16 @@ if let Err(e) = fs::write_all(&path, data) {
 |----------|-------|-------|-----------|
 | 🔴 Critical | 3 | 3 | 0 |
 | 🟠 High | 10 | 4 | 6 |
-| 🟡 Medium | 11 | 9 | 2 |
+| 🟡 Medium | 11 | 10 | 1 |
 | 🟢 Low | 8 | 4 | 4 |
-| **Total** | **32** | **20** | **12** |
+| **Total** | **32** | **21** | **11** |
 
 **Branch**: `fix/code-review-critical` (37 commits)
 **Verification**: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ · `cargo test` ✅ 1592 passed
 
 **Fixed issues**: C1 (rules.json fallback), C2 (map cycle detection), C3 (API key redaction in errors), H1 (LlmProvider Debug redaction), H2 (AGENTS.md test count), H8 (consolidated triplicated parsing into `src/parsing.rs`), H10 (219 clippy test warnings), M2 (`.ok()` → logged errors), M3 (`let _ =` → logged errors), M4 (panic/expect/unreachable → Result in 4 production sites), M5 (magic numbers → named constants), M7 (AI postmortem output validation), M8 (SSRF: `LLM_BASE_URL` scheme validation), M9 (stdin JSON size cap), M10 (TOCTOU race on overlay.json — mutex), M11 (cargo update — 27 deps), L3 (setup wizard masked input via `rpassword`), L4 (u16→u32 bit shift in kill-scan), L7 (build.rs triple-parent unwrap), L8 (`LLM_LOG_PROMPTS` env var to disable prompt logging).
 
-**Remaining**: 6 High-severity architecture refactors (god functions H3–H6, stringly-typed ScreenType H7, blocking I/O H9), 2 Medium issues (M1 oversized files, M6 eval_parsed table-driven refactor), 4 Low hardening items (L1 Windows atomic rename, L2 file locking, L5 combat_identity, L6 cargo-audit). M4 is partially fixed — 4 production panic/expect/unreachable sites resolved, dev-only instances remain.
+**Remaining**: 6 High-severity architecture refactors (god functions H3–H6, stringly-typed ScreenType H7, blocking I/O H9), 1 Medium issue (M1 oversized files), 4 Low hardening items (L1 Windows atomic rename, L2 file locking, L5 combat_identity [non-issue — gate reset between runs], L6 cargo-audit). M4 is partially fixed — 4 production panic/expect/unreachable sites resolved, dev-only instances remain.
 
 ---
 
@@ -558,7 +558,7 @@ if let Err(e) = fs::write_all(&path, data) {
 13. **M2-M3**: Replace `.ok()?` and `let _ =` with logged error handling — ✅ `8066438`–`a2c2a0f`
 14. **M4**: Replace `panic!`/`expect`/`unreachable!` with `Result` returns — ✅ partially (`baf8dde`–`d1b7cf5`, 4 production sites; dev-only instances remain)
 15. **M5**: Extract magic numbers into named constants — ✅ `1ccc96e`, `52aa2d4`
-16. **M6**: Refactor `eval_parsed()` to table-driven — ⏳ remaining
+16. **M6**: Refactor `eval_parsed()` to table-driven — ✅ table-driven (gt/eq guard slices)
 17. **M7**: Add validation/retry for AI postmortem — ✅ `164caa5`
 
 ### Phase 6 — Hardening (Low, as needed) — ⏳ PARTIALLY DONE

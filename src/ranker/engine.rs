@@ -276,88 +276,46 @@ fn eval_parsed(cond: &super::rules::ParsedCondition, ctx: &ActionContext) -> boo
     let parsed = &ctx.parsed;
     let p = &cond.parsed;
 
-    if let Some(v) = p.damage_gt
-        && parsed.damage.unwrap_or(0) <= v
-    {
-        return false;
+    // gt guards fail when actual <= threshold; eq guards fail when actual != threshold.
+    let gt_guards: &[(&Option<i64>, i64)] = &[
+        (&p.damage_gt, parsed.damage.unwrap_or(0)),
+        (&p.block_gt, parsed.block.unwrap_or(0)),
+        (&p.heal_gt, parsed.heal.unwrap_or(0)),
+        (&p.draw_gt, parsed.draw.unwrap_or(0)),
+        (&p.self_damage_gt, parsed.self_damage.unwrap_or(0)),
+        (&p.str_gain_gt, parsed.str_gain.unwrap_or(0)),
+        (&p.dex_gain_gt, parsed.dex_gain.unwrap_or(0)),
+        (&p.poison_gt, parsed.poison.unwrap_or(0)),
+        (&p.vulnerable_gt, parsed.vulnerable.unwrap_or(0)),
+        (&p.weak_gt, parsed.weak.unwrap_or(0)),
+        (&p.energy_gain_gt, parsed.energy_gain.unwrap_or(0)),
+        (&p.focus_gain_gt, parsed.focus_gain.unwrap_or(0)),
+        (&p.str_loss_gt, parsed.str_loss.unwrap_or(0)),
+        (&p.mantra_gt, parsed.mantra.unwrap_or(0)),
+        (&p.orb_slot_expand_gt, parsed.orb_slot_expand),
+    ];
+    for (threshold, actual) in gt_guards {
+        if let Some(v) = threshold
+            && *actual <= *v
+        {
+            return false;
+        }
     }
-    if let Some(v) = p.damage_eq
-        && parsed.damage.unwrap_or(0) != v
-    {
-        return false;
+
+    let eq_guards: &[(&Option<i64>, i64)] = &[
+        (&p.damage_eq, parsed.damage.unwrap_or(0)),
+        (&p.block_eq, parsed.block.unwrap_or(0)),
+    ];
+    for (threshold, actual) in eq_guards {
+        if let Some(v) = threshold
+            && *actual != *v
+        {
+            return false;
+        }
     }
-    if let Some(v) = p.block_gt
-        && parsed.block.unwrap_or(0) <= v
-    {
-        return false;
-    }
-    if let Some(v) = p.block_eq
-        && parsed.block.unwrap_or(0) != v
-    {
-        return false;
-    }
-    if let Some(v) = p.heal_gt
-        && parsed.heal.unwrap_or(0) <= v
-    {
-        return false;
-    }
-    if let Some(v) = p.draw_gt
-        && parsed.draw.unwrap_or(0) <= v
-    {
-        return false;
-    }
-    if let Some(v) = p.self_damage_gt
-        && parsed.self_damage.unwrap_or(0) <= v
-    {
-        return false;
-    }
-    if let Some(v) = p.str_gain_gt
-        && parsed.str_gain.unwrap_or(0) <= v
-    {
-        return false;
-    }
-    if let Some(v) = p.dex_gain_gt
-        && parsed.dex_gain.unwrap_or(0) <= v
-    {
-        return false;
-    }
-    if let Some(v) = p.poison_gt
-        && parsed.poison.unwrap_or(0) <= v
-    {
-        return false;
-    }
-    if let Some(v) = p.vulnerable_gt
-        && parsed.vulnerable.unwrap_or(0) <= v
-    {
-        return false;
-    }
-    if let Some(v) = p.weak_gt
-        && parsed.weak.unwrap_or(0) <= v
-    {
-        return false;
-    }
-    if let Some(v) = p.energy_gain_gt
-        && parsed.energy_gain.unwrap_or(0) <= v
-    {
-        return false;
-    }
-    if let Some(v) = p.focus_gain_gt
-        && parsed.focus_gain.unwrap_or(0) <= v
-    {
-        return false;
-    }
-    if let Some(v) = p.str_loss_gt
-        && parsed.str_loss.unwrap_or(0) <= v
-    {
-        return false;
-    }
+
     if let Some(v) = p.str_loss_temp
         && parsed.str_loss_temp != v
-    {
-        return false;
-    }
-    if let Some(v) = p.mantra_gt
-        && parsed.mantra.unwrap_or(0) <= v
     {
         return false;
     }
@@ -366,6 +324,12 @@ fn eval_parsed(cond: &super::rules::ParsedCondition, ctx: &ActionContext) -> boo
     {
         return false;
     }
+    if let Some(v) = p.exits_stance
+        && parsed.exits_stance != v
+    {
+        return false;
+    }
+
     if let Some(v) = p.exhausts_status_curse {
         let exhausts_bad_card = parsed.exhaust_count > 0
             && ctx
@@ -376,21 +340,13 @@ fn eval_parsed(cond: &super::rules::ParsedCondition, ctx: &ActionContext) -> boo
             return false;
         }
     }
+
     if let Some(ref orb_type) = p.channel_orb
         && parsed.channel_orb.as_deref() != Some(orb_type.as_str())
     {
         return false;
     }
-    if let Some(v) = p.orb_slot_expand_gt
-        && parsed.orb_slot_expand <= v
-    {
-        return false;
-    }
-    if let Some(v) = p.exits_stance
-        && parsed.exits_stance != v
-    {
-        return false;
-    }
+
     true
 }
 
