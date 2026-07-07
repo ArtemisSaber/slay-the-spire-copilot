@@ -299,7 +299,7 @@ impl Parser {
                         Err(format!("{name} requires 2 arguments"))
                     }
                 } else {
-                    unreachable!()
+                    Err("internal parser error: expected function token after peek".to_string())
                 }
             }
             Some(Token::Minus) => {
