@@ -65,7 +65,10 @@ impl Journal {
 
         let runs_root = match &self.state {
             JournalState::Pending { runs_root } => runs_root.clone(),
-            JournalState::Confirmed { .. } => unreachable!(),
+            JournalState::Confirmed { .. } => {
+                tracing::warn!("confirm_run called on already-confirmed journal, skipping");
+                return;
+            }
         };
 
         if let Some(existing_dir) = scan_for_existing_run(&runs_root, seed) {
