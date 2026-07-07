@@ -457,7 +457,9 @@ fn parse_planner_response(
 }
 
 fn rejected_action_from_response(response: &str) -> Option<ActionRequestSummary> {
-    let parsed = serde_json::from_str::<PlannerResponse>(response.trim()).ok()?;
+    let parsed = serde_json::from_str::<PlannerResponse>(response.trim())
+        .map_err(|e| tracing::warn!("failed to parse planner response: {e}"))
+        .ok()?;
     let request = parsed.actions.first()?;
     Some(ActionRequestSummary {
         kind: request.kind.clone(),

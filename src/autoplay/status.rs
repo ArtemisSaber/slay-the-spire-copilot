@@ -16,8 +16,13 @@ pub(crate) fn write_overlay_autoplay(
     autoplay: &AutoPlayState,
 ) {
     let mut output = std::fs::read_to_string(overlay_path)
+        .map_err(|e| tracing::warn!("failed to read {}: {e}", overlay_path.display()))
         .ok()
-        .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+        .and_then(|content| {
+            serde_json::from_str::<serde_json::Value>(&content)
+                .map_err(|e| tracing::warn!("failed to parse {}: {e}", overlay_path.display()))
+                .ok()
+        })
         .unwrap_or_else(|| {
             serde_json::json!({
                 "schema_version": 1,
