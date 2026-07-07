@@ -172,7 +172,8 @@ async fn run_postmortem_mode(options: &runtime::RuntimeOptions) -> bool {
     let locale_key = locales::lang_to_locale_key(lang);
     let postmortem_locale = locales::Locale::load(locale_key);
 
-    let deterministic_report = match std::fs::read_to_string(path)
+    let deterministic_report = match tokio::fs::read_to_string(path)
+        .await
         .map_err(|e| e.to_string())
         .and_then(|content| postmortem::generate_report_from_jsonl(&content, &postmortem_locale))
     {
@@ -310,7 +311,8 @@ async fn main() {
         }
     };
     let project_root = logging::project_root();
-    if let Err(e) = dotenvy::from_path(project_root.join(".env")) {
+    let env_path = project_root.join(".env");
+    if let Ok(Err(e)) = tokio::task::spawn_blocking(move || dotenvy::from_path(&env_path)).await {
         tracing::debug!(".env not loaded: {e}");
     }
     let options = RuntimeOptions::from_env_and_args();
