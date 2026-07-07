@@ -172,7 +172,10 @@ pub(crate) fn apply_damage(
             apply_pending_curl_up_blocks(monsters);
         }
         TargetType::Targeted => {
-            let ti = target_idx.expect("targeted damage requires target");
+            let Some(ti) = target_idx else {
+                tracing::warn!("targeted damage called without target_idx, skipping");
+                return;
+            };
             for _ in 0..hits {
                 if monsters[ti].hp <= 0 {
                     break;

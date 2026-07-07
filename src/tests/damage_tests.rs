@@ -605,6 +605,21 @@ fn apply_damage_targeted_stops_when_target_dies_mid_hit() {
 }
 
 #[test]
+fn apply_damage_targeted_without_target_does_not_panic() {
+    let mut monsters = vec![ms(5, 0, vec![])];
+    let dmg = DamageEffect {
+        amount: 6,
+        hits: HitCount::Fixed(3),
+        target_type: TargetType::Targeted,
+    };
+    apply_damage(&dmg, None, None, &mut monsters, Stance::Neutral, 0);
+    assert_eq!(
+        monsters[0].hp, 5,
+        "monster HP should be unchanged when no target is provided"
+    );
+}
+
+#[test]
 fn apply_damage_random_target_stops_when_all_dead() {
     let mut monsters = vec![ms(6, 0, vec![])];
     let dmg = DamageEffect {
