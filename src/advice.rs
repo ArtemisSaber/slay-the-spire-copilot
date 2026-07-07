@@ -39,6 +39,11 @@ pub struct OverlayMetadata {
     pub character: Option<String>,
 }
 
+/// Serializes all overlay.json writes to prevent TOCTOU races between
+/// the advice write path (write_overlay_json_to) and the autoplay status
+/// path (write_overlay_autoplay, which does read-modify-write).
+pub(crate) static OVERLAY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 pub(crate) fn timestamp_ms() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -114,6 +119,7 @@ pub(crate) fn atomic_write_json(path: &std::path::Path, json: &str) {
 
 fn write_overlay_json_to(path: &std::path::Path, output: &OverlayOutput) {
     if let Ok(json) = serde_json::to_string_pretty(output) {
+        let _lock = OVERLAY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         atomic_write_json(path, &json);
     }
 }

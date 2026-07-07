@@ -15,6 +15,9 @@ pub(crate) fn write_overlay_autoplay(
     metadata: &OverlayMetadata,
     autoplay: &AutoPlayState,
 ) {
+    let _lock = crate::advice::OVERLAY_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let mut output = std::fs::read_to_string(overlay_path)
         .map_err(|e| tracing::warn!("failed to read {}: {e}", overlay_path.display()))
         .ok()
