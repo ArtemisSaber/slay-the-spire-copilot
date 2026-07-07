@@ -5,6 +5,16 @@ use std::path::{Path, PathBuf};
 
 pub const POSTMORTEM_FILE_NAME: &str = "postmortem.md";
 
+/// Minimum trimmed length (in chars) for an AI postmortem report to be
+/// considered valid. Below this the LLM output is treated as garbage and
+/// the deterministic report is used alone.
+const MIN_AI_POSTMORTEM_LEN: usize = 50;
+
+fn is_valid_ai_report(ai_report: &str) -> bool {
+    let trimmed = ai_report.trim();
+    !trimmed.is_empty() && trimmed.chars().count() >= MIN_AI_POSTMORTEM_LEN
+}
+
 pub fn postmortem_path_for_journal(journal_path: &Path) -> PathBuf {
     journal_path
         .parent()
@@ -25,6 +35,13 @@ pub fn combine_postmortem_report(
     deterministic_report: &str,
     section_machine: &str,
 ) -> String {
+    if !is_valid_ai_report(ai_report) {
+        tracing::warn!(
+            "AI postmortem report empty or too short ({} chars), using deterministic report only",
+            ai_report.trim().chars().count()
+        );
+        return format!("{section_machine}\n\n{deterministic_report}");
+    }
     format!("{ai_report}\n\n---\n\n{section_machine}\n\n{deterministic_report}")
 }
 

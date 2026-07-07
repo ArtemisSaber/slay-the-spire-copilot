@@ -813,15 +813,52 @@ fn postmortem_multiple_combats_across_types_count_correctly() {
 
 #[test]
 fn combine_postmortem_report_combines_all_sections() {
+    let ai = "# AI Report\nA sufficiently long AI-generated postmortem body for the test.";
     let combined = combine_postmortem_report(
-        "# AI Report\nContent",
+        ai,
         "## Deterministic\nMore content",
         "## Machine Summary\nData",
     );
-    assert!(combined.starts_with("# AI Report\nContent"));
+    assert!(combined.starts_with("# AI Report"));
     assert!(combined.contains("\n\n---\n\n"));
     assert!(combined.contains("## Machine Summary\nData"));
     assert!(combined.contains("## Deterministic\nMore content"));
+}
+
+#[test]
+fn combine_postmortem_report_drops_empty_ai_report() {
+    let combined = combine_postmortem_report(
+        "   \n  ",
+        "## Deterministic\nMore content",
+        "## Machine Summary\nData",
+    );
+    assert!(!combined.contains("---"));
+    assert!(combined.contains("## Machine Summary\nData"));
+    assert!(combined.contains("## Deterministic\nMore content"));
+}
+
+#[test]
+fn combine_postmortem_report_drops_too_short_ai_report() {
+    let combined = combine_postmortem_report(
+        "ok",
+        "## Deterministic\nMore content",
+        "## Machine Summary\nData",
+    );
+    assert!(!combined.contains("---"));
+    assert!(!combined.contains("ok"));
+    assert!(combined.contains("## Deterministic\nMore content"));
+}
+
+#[test]
+fn combine_postmortem_report_keeps_valid_long_ai_report() {
+    let ai = "# 本局复盘\n\n这是一段足够长的 AI 复盘内容，用于验证长度阈值不会误杀正常报告输出，此处补充更多正文以超过阈值。";
+    let combined = combine_postmortem_report(
+        ai,
+        "## Deterministic\nMore content",
+        "## Machine Summary\nData",
+    );
+    assert!(combined.starts_with("# 本局复盘"));
+    assert!(combined.contains("---"));
 }
 
 #[test]
