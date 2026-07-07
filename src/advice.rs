@@ -86,17 +86,29 @@ pub fn parse_advice_response(raw: &str, locale: &Locale) -> AdviceFields {
 }
 
 pub(crate) fn atomic_write_json(path: &std::path::Path, json: &str) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
+    if let Some(parent) = path.parent()
+        && let Err(e) = fs::create_dir_all(parent)
+    {
+        tracing::warn!("failed to create dir {}: {e}", parent.display());
     }
     let tmp = path.with_extension("json.tmp");
     if fs::write(&tmp, json).is_ok() {
         if fs::rename(&tmp, path).is_err() {
             // Windows: rename fails if target exists (Unix atomically replaces)
-            let _ = fs::remove_file(path);
-            let _ = fs::rename(&tmp, path);
+            if let Err(e) = fs::remove_file(path) {
+                tracing::warn!("failed to remove old {}: {e}", path.display());
+            }
+            if let Err(e) = fs::rename(&tmp, path) {
+                tracing::warn!(
+                    "failed to rename {} -> {}: {e}",
+                    tmp.display(),
+                    path.display()
+                );
+            }
         }
-        let _ = fs::remove_file(&tmp);
+        if let Err(e) = fs::remove_file(&tmp) {
+            tracing::warn!("failed to clean up tmp {}: {e}", tmp.display());
+        }
     }
 }
 
@@ -153,7 +165,9 @@ impl AdviceCache {
 
     pub fn write_advice(&self, advice: &str) {
         let output_dir = crate::logging::advice_output_dir().join("output");
-        let _ = fs::create_dir_all(&output_dir);
+        if let Err(e) = fs::create_dir_all(&output_dir) {
+            tracing::warn!("failed to create output dir {}: {e}", output_dir.display());
+        }
 
         let path = output_dir.join("advice.txt");
         let latest = format!("{advice}\n");
@@ -163,8 +177,9 @@ impl AdviceCache {
             .write(true)
             .truncate(true)
             .open(&path)
+            && let Err(e) = file.write_all(latest.as_bytes())
         {
-            let _ = file.write_all(latest.as_bytes());
+            tracing::warn!("failed to write {}: {e}", path.display());
         }
     }
 
