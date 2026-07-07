@@ -34,6 +34,19 @@ fn log_prompt_into_dir(
     }
 }
 
+fn sanitize_err_body(body: &str, api_key: Option<&str>) -> String {
+    let redacted = match api_key {
+        Some(key) if !key.is_empty() => body.replace(key, "<REDACTED>"),
+        _ => body.to_string(),
+    };
+    let truncated: String = redacted.chars().take(500).collect();
+    if redacted.len() > truncated.len() {
+        format!("{truncated}...(truncated)")
+    } else {
+        truncated
+    }
+}
+
 #[cfg(test)]
 fn log_prompt_to(base: &std::path::Path, user_prompt: &str, response: &str) {
     let locale = crate::test_utils::test_locale();
@@ -368,7 +381,6 @@ fn mock_autoplay_action_response(prompt: &str) -> String {
     .to_string()
 }
 
-#[derive(Debug)]
 pub enum LlmProvider {
     Mock,
     OpenAiCompatible {
@@ -396,6 +408,64 @@ pub enum LlmProvider {
         medium: OpenAiConfig,
         heavy: OpenAiConfig,
     },
+}
+
+impl std::fmt::Debug for LlmProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Mock => f.debug_struct("Mock").finish(),
+            Self::OpenAiCompatible {
+                base_url,
+                api_key: _,
+                temperature,
+                client,
+                fast,
+                medium,
+                heavy,
+            } => f
+                .debug_struct("OpenAiCompatible")
+                .field("base_url", base_url)
+                .field("api_key", &"<REDACTED>")
+                .field("temperature", temperature)
+                .field("client", client)
+                .field("fast", fast)
+                .field("medium", medium)
+                .field("heavy", heavy)
+                .finish(),
+            Self::PollinationsFree {
+                base_url,
+                temperature,
+                client,
+                fast,
+                medium,
+                heavy,
+            } => f
+                .debug_struct("PollinationsFree")
+                .field("base_url", base_url)
+                .field("temperature", temperature)
+                .field("client", client)
+                .field("fast", fast)
+                .field("medium", medium)
+                .field("heavy", heavy)
+                .finish(),
+            Self::Anthropic {
+                base_url,
+                api_key: _,
+                client,
+                fast,
+                medium,
+                heavy,
+            } => f
+                .debug_struct("Anthropic")
+                .field("base_url", base_url)
+                .field("api_key", &"<REDACTED>")
+                .field("client", client)
+                .field("fast", fast)
+                .field("medium", medium)
+                .field("heavy", heavy)
+                .finish(),
+        }
+    }
 }
 
 impl LlmProvider {
@@ -590,6 +660,7 @@ impl LlmProvider {
                 let status = response.status();
                 if !status.is_success() {
                     let err_body = response.text().await.unwrap_or_default();
+                    let err_body = sanitize_err_body(&err_body, Some(api_key));
                     anyhow::bail!("LLM API error {status}: {err_body}");
                 }
 
@@ -644,6 +715,7 @@ impl LlmProvider {
                 let status = response.status();
                 if !status.is_success() {
                     let err_body = response.text().await.unwrap_or_default();
+                    let err_body = sanitize_err_body(&err_body, None);
                     anyhow::bail!("Pollinations free API error {status}: {err_body}");
                 }
 
@@ -700,6 +772,7 @@ impl LlmProvider {
                 let status = response.status();
                 if !status.is_success() {
                     let err_body = response.text().await.unwrap_or_default();
+                    let err_body = sanitize_err_body(&err_body, Some(api_key));
                     anyhow::bail!("Anthropic API error {status}: {err_body}");
                 }
 
