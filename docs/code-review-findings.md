@@ -48,13 +48,26 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ## Issues Ordered by Urgency
 
+> **Fix status as of 2026-07-07**: 8 of 32 issues fixed on branch `fix/code-review-critical`.
+> All 3 Critical issues resolved. See the status table below and per-issue markers.
+>
+> | Severity | Total | Fixed | Remaining |
+> |----------|-------|-------|-----------|
+> | 🔴 Critical | 3 | 3 | 0 |
+> | 🟠 High | 10 | 3 | 7 |
+> | 🟡 Medium | 11 | 1 | 10 |
+> | 🟢 Low | 8 | 0 | 8 |
+> | **Total** | **32** | **7** | **25** |
+>
+> Verification: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ (0 warnings) · `cargo test` ✅ 1570 passed
+
 ---
 
 ### CRITICAL — Fix immediately
 
 ---
 
-#### C1. `rules.json` parse failure crashes the app
+#### C1. `rules.json` parse failure crashes the app — ✅ FIXED (`3bb0d10`)
 
 - **File**: `src/ranker/mod.rs`
 - **Line**: 31
@@ -75,7 +88,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### C2. Map path enumeration has no cycle detection
+#### C2. Map path enumeration has no cycle detection — ✅ FIXED (`bef1fe2`)
 
 - **File**: `src/prompt/routing.rs`
 - **Lines**: 4-50 (`enumerate_paths`), 468-481 (`enumerate_paths_from_roots`)
@@ -86,7 +99,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### C3. API key leakage via LLM error response bodies
+#### C3. API key leakage via LLM error response bodies — ✅ FIXED (`d9a3e2d`)
 
 - **Files**: `src/llm.rs`
 - **Lines**: 592-593 (OpenAI-compatible), 646-647 (Anthropic), 702-703 (Pollinations)
@@ -110,7 +123,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H1. `LlmProvider` derives `Debug` — API key exposed
+#### H1. `LlmProvider` derives `Debug` — API key exposed — ✅ FIXED (`d9a3e2d`)
 
 - **File**: `src/llm.rs`
 - **Line**: 371
@@ -139,7 +152,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H2. `AGENTS.md` test count is 2× stale
+#### H2. `AGENTS.md` test count is 2× stale — ✅ FIXED (`43b673d`, `82da39f`)
 
 - **File**: `AGENTS.md`
 - **Line**: 12
@@ -150,7 +163,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H3. God function: `main()` is 631 lines
+#### H3. God function: `main()` is 631 lines — ⏳ REMAINING
 
 - **File**: `src/main.rs`
 - **Lines**: 127-758
@@ -160,7 +173,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H4. God function: `NormalizedState::from_raw()` is 453 lines
+#### H4. God function: `NormalizedState::from_raw()` is 453 lines — ⏳ REMAINING
 
 - **File**: `src/state.rs`
 - **Lines**: 461-913
@@ -170,7 +183,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H5. God function: `NormalizedState::to_stable_value()` is 349 lines
+#### H5. God function: `NormalizedState::to_stable_value()` is 349 lines — ⏳ REMAINING
 
 - **File**: `src/state.rs`
 - **Lines**: 935-1283
@@ -180,7 +193,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H6. God function: `kill_scan::dfs()` is 230 lines
+#### H6. God function: `kill_scan::dfs()` is 230 lines — ⏳ REMAINING
 
 - **File**: `src/combat/kill_scan.rs`
 - **Lines**: 155-384
@@ -190,7 +203,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H7. `screen_type` is stringly-typed — 130+ comparisons across 18 files
+#### H7. `screen_type` is stringly-typed — 130+ comparisons across 18 files — ⏳ REMAINING
 
 - **File**: `src/state.rs`
 - **Line**: 197
@@ -201,7 +214,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H8. Triplicated parsing logic
+#### H8. Triplicated parsing logic — ⏳ REMAINING
 
 - **Files**:
   - `src/combat/effects.rs:59` — `extract_first_integer` returns `Option<i16>`, char-based iteration
@@ -213,7 +226,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H9. Blocking I/O in async context
+#### H9. Blocking I/O in async context — ⏳ REMAINING
 
 - **Files & Lines**:
   - `src/main.rs:127` — `async fn main()` uses:
@@ -229,7 +242,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H10. 219 clippy errors in test code
+#### H10. 219 clippy errors in test code — ✅ FIXED (`585682e`)
 
 - **Command**: `cargo clippy --all-targets -- -D warnings`
 - **Breakdown**:
@@ -252,7 +265,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### M1. 23 source files exceed 250 pure LOC
+#### M1. 23 source files exceed 250 pure LOC — ⏳ REMAINING
 
 The project's own rule (from `AGENTS.md` / remove-ai-slops skill): "250+ pure LOC with mandatory modular refactoring."
 
@@ -284,7 +297,7 @@ The project's own rule (from `AGENTS.md` / remove-ai-slops skill): "250+ pure LO
 
 ---
 
-#### M2. Error swallowing via `.ok()` — 39 instances across 13 files
+#### M2. Error swallowing via `.ok()` — 39 instances across 13 files — ⏳ REMAINING
 
 `.ok()` converts `Result<T, E>` to `Option<T>`, silently discarding the error context.
 
@@ -306,7 +319,7 @@ match fs::read_to_string(path) {
 
 ---
 
-#### M3. Error swallowing via `let _ =` — 55 instances across 9 files
+#### M3. Error swallowing via `let _ =` — 55 instances across 9 files — ⏳ REMAINING
 
 `let _ =` discards a `Result` without any logging.
 
@@ -325,7 +338,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M4. `panic!`/`expect`/`unreachable!` in non-test code
+#### M4. `panic!`/`expect`/`unreachable!` in non-test code — ⏳ REMAINING (partially mitigated by C1 fix)
 
 | File | Line | Code | Risk |
 |------|------|------|------|
@@ -343,7 +356,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M5. Magic numbers in path scoring
+#### M5. Magic numbers in path scoring — ⏳ REMAINING
 
 - **File**: `src/prompt/routing.rs`
 - **Lines**: 296-334 (`score_shop`), 349-379 (`evaluate_path`)
@@ -359,7 +372,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M6. `eval_parsed()` — 121 lines of repetitive if-let guards
+#### M6. `eval_parsed()` — 121 lines of repetitive if-let guards — ⏳ REMAINING
 
 - **File**: `src/ranker/engine.rs`
 - **Lines**: 275-395
@@ -368,7 +381,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M7. No validation of AI postmortem output
+#### M7. No validation of AI postmortem output — ⏳ REMAINING
 
 - **File**: `src/postmortem.rs`
 - **Lines**: 23-29
@@ -378,7 +391,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M8. SSRF — unvalidated `LLM_BASE_URL`
+#### M8. SSRF — unvalidated `LLM_BASE_URL` — ⏳ REMAINING
 
 - **File**: `src/llm.rs`
 - **Lines**: 582, 637, 691
@@ -388,7 +401,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M9. Unbounded stdin JSON deserialization
+#### M9. Unbounded stdin JSON deserialization — ✅ FIXED (`d812b2c`)
 
 - **File**: `src/main.rs`
 - **Line**: 316
@@ -399,7 +412,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M10. TOCTOU file race on `overlay.json`
+#### M10. TOCTOU file race on `overlay.json` — ⏳ REMAINING
 
 - **File**: `src/autoplay/status.rs`
 - **Lines**: 18-33
@@ -409,7 +422,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M11. 27 outdated transitive dependencies
+#### M11. 27 outdated transitive dependencies — ⏳ REMAINING
 
 - **Command**: `cargo update --dry-run`
 - **Notable updates**: `rand` 0.9.4 → 0.10.2 (major version jump), `anyhow` 1.0.102 → 1.0.103, `rustls` 0.23.40 → 0.23.41, `time` 0.3.49 → 0.3.53, `quinn` 0.11.9 → 0.11.11
@@ -422,7 +435,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L1. Windows non-atomic file rename
+#### L1. Windows non-atomic file rename — ⏳ REMAINING
 
 - **File**: `src/advice.rs`
 - **Lines**: 93-98
@@ -431,7 +444,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L2. No file locking on journal/log append
+#### L2. No file locking on journal/log append — ⏳ REMAINING
 
 - **Files**: `src/journal.rs:252`, `src/logging.rs:68`
 - **Description**: `OpenOptions::new().create(true).append(true).open(path)` without cross-process file locking. If multiple copilot instances run simultaneously (e.g., multiple Communication Mod launches), log and journal lines could interleave.
@@ -439,7 +452,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L3. API key visible during setup wizard input
+#### L3. API key visible during setup wizard input — ⏳ REMAINING
 
 - **File**: `src/setup_wizard.rs`
 - **Lines**: 368-369
@@ -448,7 +461,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L4. `u16` bit shift overflow in kill-scan
+#### L4. `u16` bit shift overflow in kill-scan — ⏳ REMAINING
 
 - **File**: `src/combat/kill_scan.rs`
 - **Lines**: 201-215
@@ -457,7 +470,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L5. `combat_identity` uses `room_type` string
+#### L5. `combat_identity` uses `room_type` string — ⏳ REMAINING
 
 - **File**: `src/gate.rs`
 - **Lines**: 151-158
@@ -466,14 +479,14 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L6. `cargo-audit` not installed
+#### L6. `cargo-audit` not installed — ⏳ REMAINING
 
 - **Description**: No known-vulnerability scanning for Rust dependencies. `cargo audit` command not found.
 - **Fix**: `cargo install cargo-audit`, then add `cargo audit` to CI workflow.
 
 ---
 
-#### L7. `build.rs` fragile triple-parent unwrap
+#### L7. `build.rs` fragile triple-parent unwrap — ⏳ REMAINING
 
 - **File**: `build.rs`
 - **Lines**: 5-12
@@ -491,7 +504,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L8. `prompts.log` contains full game state
+#### L8. `prompts.log` contains full game state — ⏳ REMAINING
 
 - **File**: `src/llm.rs`
 - **Lines**: 28-34, 721
@@ -502,39 +515,45 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ## Summary
 
-| Severity | Count | Key themes |
-|----------|-------|-----------|
-| 🔴 Critical | 3 | Panic on bad config, infinite loop on bad input, API key in logs |
-| 🟠 High | 10 | God functions, stringly-typed data, duplicated logic, blocking I/O in async, stale docs, clippy test failures |
-| 🟡 Medium | 11 | Oversized files, error swallowing, panic/expect in prod, magic numbers, SSRF, TOCTOU, stale deps |
-| 🟢 Low | 8 | Windows atomicity, file locking, terminal echo, bit overflow, cargo-audit missing |
+| Severity | Total | Fixed | Remaining |
+|----------|-------|-------|-----------|
+| 🔴 Critical | 3 | 3 | 0 |
+| 🟠 High | 10 | 3 | 7 |
+| 🟡 Medium | 11 | 1 | 10 |
+| 🟢 Low | 8 | 0 | 8 |
+| **Total** | **32** | **7** | **25** |
 
-**Total**: 32 issues identified.
+**Branch**: `fix/code-review-critical` (7 commits)
+**Verification**: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ · `cargo test` ✅ 1570 passed
+
+**Fixed issues**: C1 (rules.json fallback), C2 (map cycle detection), C3 (API key redaction in errors), H1 (LlmProvider Debug redaction), H2 (AGENTS.md test count), H10 (219 clippy test warnings), M9 (stdin JSON size cap).
+
+**Remaining**: 7 High-severity architecture refactors (god functions, stringly-typed enums, duplicated parsing, blocking I/O), 10 Medium code-quality issues, 8 Low hardening items. M4 (panic/expect cleanup) is partially mitigated — the ranker panic was fixed as C1, but 7 other panic/expect/unreachable instances remain.
 
 ---
 
 ## Recommended Fix Order
 
-### Phase 1 — Quick wins (Critical, <1 hour each)
-1. **C1**: Fix `rules.json` fallback (1 line in `src/ranker/mod.rs:31`)
-2. **C3**: Strip API key from LLM error bodies (3 locations in `src/llm.rs`)
-3. **H2**: Update `AGENTS.md` test count (1 line)
-4. **H1**: Implement manual `Debug` for `LlmProvider` (redact `api_key`)
+### Phase 1 — Quick wins (Critical, <1 hour each) — ✅ DONE
+1. **C1**: Fix `rules.json` fallback (1 line in `src/ranker/mod.rs:31`) — ✅ `3bb0d10`
+2. **C3**: Strip API key from LLM error bodies (3 locations in `src/llm.rs`) — ✅ `d9a3e2d`
+3. **H2**: Update `AGENTS.md` test count (1 line) — ✅ `43b673d`
+4. **H1**: Implement manual `Debug` for `LlmProvider` (redact `api_key`) — ✅ `d9a3e2d`
 
-### Phase 2 — Input safety (Critical/High, 1-2 hours)
-5. **C2**: Add cycle detection to map path enumeration (`src/prompt/routing.rs`)
-6. **M9**: Add size/depth cap to stdin JSON deserialization (`src/main.rs:316`)
+### Phase 2 — Input safety (Critical/High, 1-2 hours) — ✅ DONE
+5. **C2**: Add cycle detection to map path enumeration (`src/prompt/routing.rs`) — ✅ `bef1fe2`
+6. **M9**: Add size/depth cap to stdin JSON deserialization (`src/main.rs:316`) — ✅ `d812b2c`
 
-### Phase 3 — Clippy cleanup (High, 30 min)
-7. **H10**: Run `cargo clippy --fix --tests`, fix remaining 12 manually
+### Phase 3 — Clippy cleanup (High, 30 min) — ✅ DONE
+7. **H10**: Run `cargo clippy --fix --tests`, fix remaining 12 manually — ✅ `585682e`
 
-### Phase 4 — Architecture refactoring (High, days)
+### Phase 4 — Architecture refactoring (High, days) — ⏳ NOT STARTED
 8. **H3-H6**: Decompose god functions (`main`, `from_raw`, `to_stable_value`, `dfs`)
 9. **H7**: Introduce `ScreenType` enum (large, mechanical)
 10. **H8**: Consolidate triplicated parsing logic
 11. **H9**: Resolve blocking I/O in async (either go sync or use `tokio::fs`)
 
-### Phase 5 — Code quality (Medium, ongoing)
+### Phase 5 — Code quality (Medium, ongoing) — ⏳ NOT STARTED
 12. **M1**: Modularize oversized files (23 files over 250 LOC)
 13. **M2-M3**: Replace `.ok()?` and `let _ =` with logged error handling
 14. **M4**: Replace `panic!`/`expect`/`unreachable!` with `Result` returns
@@ -542,7 +561,7 @@ if let Err(e) = fs::write_all(&path, data) {
 16. **M6**: Refactor `eval_parsed()` to table-driven
 17. **M7**: Add validation/retry for AI postmortem
 
-### Phase 6 — Hardening (Low, as needed)
+### Phase 6 — Hardening (Low, as needed) — ⏳ NOT STARTED
 18. **L1-L8**: Windows atomicity, file locking, terminal echo, bit overflow, cargo-audit, etc.
 19. **M8**: Validate `LLM_BASE_URL` (HTTPS-only, reject internal IPs)
 20. **M10-M11**: Fix TOCTOU races, update dependencies

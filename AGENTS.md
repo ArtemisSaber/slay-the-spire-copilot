@@ -4,6 +4,7 @@
 - **Rust 1.85+** minimum
 - **Git hooks**: `git config core.hooksPath .githooks` (once per clone)
 - **Pre-commit** runs: `cargo fmt --check` → `cargo clippy -- -D warnings` → `cargo test` → `cargo build --release`
+- **Clippy** is clean on both binary and tests: `cargo clippy --all-targets -- -D warnings` passes with zero warnings
 - **Rust edition 2024** — all source uses edition 2024 syntax
 - **`.env`**: copy `.env.example` to `.env` and place next to the binary (or in CWD for `cargo run`)
 - **Version**: current release is `0.2.0`
@@ -81,7 +82,7 @@
 ## Ranker
 - `src/ranker/` — JSON-rule-driven combat action scoring engine
 - **Pool-relative scoring**: damage scored as fraction of enemy HP pool (`damage / monsters_total_hp_pool`), block scored as fraction of self HP saved (`min(block, incoming) / current_hp`)
-- Loads `rules.json` from binary directory at runtime, falls back to embedded copy
+- Loads `rules.json` from binary directory at runtime, falls back to embedded copy on **both** file-not-found and parse error (via `load_rules_from()`)
 - `build.rs` copies `src/ranker/rules.json` to `target/release/rules.json`
 - `top_ranked_context()` in `src/autoplay/combat_adviser.rs` returns flat array of all non-avoided actions with `score` and `tags` (no rule breakdown in prompt)
 - `include_str!("rules.json")` embeds the file at compile time as fallback
@@ -108,5 +109,12 @@
 - **`.github/workflows/release.yml`** — on `v*` tags: builds linux, macOS, Windows binaries and uploads artifacts
 
 ## Other Directories
-- **`docs/`** — 8 design docs covering auto-play, kill-scan, MVP roadmap, and ranker rules
+- **`docs/`** — 9 design docs covering auto-play, kill-scan, MVP roadmap, ranker rules, and code review findings
 - **`schemas/overlay.d.ts`** — TypeScript type definition for `output/overlay.json`
+
+## Security Hardening
+- **API key redaction**: `LlmProvider` has a manual `Debug` impl that redacts `api_key` as `<REDACTED>`. LLM error response bodies are sanitized via `sanitize_err_body()` (redacts key, truncates to 500 chars) before inclusion in error messages.
+- **Stdin size cap**: `MAX_STDIN_JSON_BYTES` (10 MB) in `main.rs` rejects oversized stdin input before JSON parsing to prevent stack overflow / OOM.
+- **Map cycle detection**: `enumerate_paths()` in `prompt/routing.rs` skips children already in the current path to prevent infinite loops on malformed map data.
+- **rules.json fallback**: `load_rules_from()` in `ranker/mod.rs` falls back to the embedded copy on both file-not-found and parse error (no panic on malformed user file).
+- See `docs/code-review-findings.md` for the full security audit and issue tracking.
