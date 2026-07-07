@@ -131,14 +131,18 @@ fn autoplay_allows_execution(control: Option<&autoplay::control::AutoPlayControl
 async fn main() {
     let _guard = logging::init();
     let project_root = logging::project_root();
-    let _ = dotenvy::from_path(project_root.join(".env"));
+    if let Err(e) = dotenvy::from_path(project_root.join(".env")) {
+        tracing::debug!(".env not loaded: {e}");
+    }
     let options = RuntimeOptions::from_env_and_args();
     let manual_run = std::io::stdin().is_terminal();
 
     if options.setup_only {
         match setup_wizard::run_api_setup(&project_root) {
             Ok(true) => {
-                let _ = dotenvy::from_path_override(project_root.join(".env"));
+                if let Err(e) = dotenvy::from_path_override(project_root.join(".env")) {
+                    tracing::warn!("failed to reload .env after setup: {e}");
+                }
             }
             Ok(false) => {}
             Err(e) => eprintln!("setup failed: {e}"),
@@ -149,7 +153,9 @@ async fn main() {
     if manual_run && !options.force_mock_provider && !options.postmortem_plain {
         match setup_wizard::maybe_run_api_setup(&project_root) {
             Ok(true) => {
-                let _ = dotenvy::from_path_override(project_root.join(".env"));
+                if let Err(e) = dotenvy::from_path_override(project_root.join(".env")) {
+                    tracing::warn!("failed to reload .env after setup: {e}");
+                }
             }
             Ok(false) => {}
             Err(e) => eprintln!("setup failed: {e}"),
