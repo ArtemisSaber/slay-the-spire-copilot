@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 
 const ENV_FILE_NAME: &str = ".env";
@@ -365,8 +365,23 @@ fn prompt_api_key(
     }
 
     loop {
-        writeln!(output, "API key input is visible in this terminal.")?;
-        let value = prompt_line(input, output, "API key", None)?;
+        let value = if std::io::stdin().is_terminal() {
+            write!(output, "API key (input hidden): ")?;
+            output.flush()?;
+            match rpassword::read_password() {
+                Ok(pw) => pw,
+                Err(_) => {
+                    writeln!(
+                        output,
+                        "\nFailed to hide input, falling back to visible mode."
+                    )?;
+                    prompt_line(input, output, "API key", None)?
+                }
+            }
+        } else {
+            writeln!(output, "API key input is visible in this terminal.")?;
+            prompt_line(input, output, "API key", None)?
+        };
         if !value.is_empty() && !is_placeholder_api_key(&value) {
             return Ok(value);
         }
