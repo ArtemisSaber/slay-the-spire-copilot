@@ -818,6 +818,20 @@ fn random_target_empty_monsters() {
     assert!(random_target_guaranteed(3, 4, &[dm(0, 0)]));
 }
 
+#[test]
+fn kill_scan_supports_more_than_sixteen_cards_in_hand() {
+    // Modded games may exceed the vanilla 10-card hand limit. The bit mask
+    // tracking remaining cards must not overflow at index >= 16 (u16 wraps).
+    let mut hand: Vec<TestCard> = (0..16).map(|_| skill("filler", "filler", 99)).collect();
+    // Index 16 — the only playable card, lethal to a 10hp monster.
+    hand.push(atk("lethal", "strike", 1, 10, 1, TargetType::AoE));
+    let monsters = vec![ms(0, 10, 0, false, vec![])];
+    assert!(
+        test_scan(&hand, 1, &monsters, Stance::Neutral, 0, 0, 1, 10_000_000).is_some(),
+        "expected lethal sequence with 17-card hand (index 16 mask bit)"
+    );
+}
+
 mod fixture_tests {
 
     use crate::combat::{can_end_fight, find_kill_sequence};

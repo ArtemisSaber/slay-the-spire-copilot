@@ -34,7 +34,7 @@ pub(crate) fn find_kill_sequence_inner(
         return None;
     }
 
-    let initial_mask: u16 = relevant.iter().fold(0, |m, (i, _, _)| m | (1u16 << i));
+    let initial_mask: u32 = relevant.iter().fold(0, |m, (i, _, _)| m | (1u32 << i));
     let max_depth = relevant.len().min(ctx.remaining_card_plays);
 
     tracing::info!(
@@ -107,7 +107,7 @@ struct PlayStep {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct MemoKey {
-    remaining_mask: u16,
+    remaining_mask: u32,
     energy: i16,
     stance: u8,
     strength_delta: i16,
@@ -153,7 +153,7 @@ struct DfsContext<'a> {
     reason = "DFS state params form a natural group"
 )]
 fn dfs(
-    remaining_mask: u16,
+    remaining_mask: u32,
     energy: i16,
     depth: usize,
     stance: Stance,
@@ -301,7 +301,7 @@ fn dfs(
                 new_energy += 3;
             }
 
-            let new_mask = remaining_mask & !(1u16 << card_idx);
+            let new_mask = remaining_mask & !(1u32 << card_idx);
 
             if combat_ended(&resolved.monsters) {
                 let cmd_target = target_idx.map(|ti| resolved.monsters[ti].command_index);
@@ -510,7 +510,7 @@ pub(crate) fn test_scan(
         })
         .collect();
 
-    let initial_mask: u16 = (0..hand_cards.len()).fold(0, |m, i| m | (1u16 << i));
+    let initial_mask: u32 = (0..hand_cards.len()).fold(0, |m, i| m | (1u32 << i));
     let max_depth = hand_cards.len().min(remaining_plays);
 
     let mut dfs_ctx = DfsContext {
