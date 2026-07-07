@@ -239,11 +239,45 @@ impl ScreenType {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum RoomType {
+    EventRoom,
+    MonsterRoom,
+    MonsterRoomBoss,
+    MonsterRoomElite,
+    NeowRoom,
+    RestRoom,
+    ShopRoom,
+    VictoryRoom,
+}
+
+impl std::fmt::Display for RoomType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl RoomType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::EventRoom => "EventRoom",
+            Self::MonsterRoom => "MonsterRoom",
+            Self::MonsterRoomBoss => "MonsterRoomBoss",
+            Self::MonsterRoomElite => "MonsterRoomElite",
+            Self::NeowRoom => "NeowRoom",
+            Self::RestRoom => "RestRoom",
+            Self::ShopRoom => "ShopRoom",
+            Self::VictoryRoom => "VictoryRoom",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct NormalizedState {
     pub screen_type: Option<ScreenType>,
-    pub room_type: Option<String>,
+    pub room_type: Option<RoomType>,
     pub character: Option<String>,
     pub seed: Option<i64>,
     pub ascension_level: Option<i64>,
@@ -870,8 +904,7 @@ impl NormalizedState {
 
         let room_type = gs
             .and_then(|g| g.get("room_type"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+            .and_then(|v| serde_json::from_value::<RoomType>(v.clone()).ok());
 
         let character = gs
             .and_then(|g| g.get("class"))

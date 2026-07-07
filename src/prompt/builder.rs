@@ -598,7 +598,7 @@ pub(crate) fn build_combat(state: &NormalizedState, locale: &Locale) -> String {
     // === 战斗类型 ===
     lines.push(locale.combat_types.header.clone());
 
-    let room = state.room_type.as_deref();
+    let room = state.room_type.as_ref().map(|rt| rt.as_str());
     let type_name = match room {
         Some("MonsterRoomElite") => &locale.combat_types.type_elite,
         Some("MonsterRoomBoss") => &locale.combat_types.type_boss,
@@ -956,7 +956,7 @@ pub(crate) fn build_event_choice(state: &NormalizedState, locale: &Locale) -> St
                 locale
                     .warnings
                     .event_unreadable
-                    .replace("{room_type}", room_type),
+                    .replace("{room_type}", room_type.as_str()),
             );
         }
     }

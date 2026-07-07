@@ -247,7 +247,10 @@ fn normalize_event_choices_replaces_unreadable_locale_garble() {
         state.screen_type.as_ref().map(|st| st.as_str()),
         Some("EVENT")
     );
-    assert_eq!(state.room_type.as_deref(), Some("NeowRoom"));
+    assert_eq!(
+        state.room_type.as_ref().map(|rt| rt.as_str()),
+        Some("NeowRoom")
+    );
     assert!(state.event_name.is_none());
     assert!(state.event_body.is_none());
     assert_eq!(

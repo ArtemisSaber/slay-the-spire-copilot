@@ -3,7 +3,7 @@ use super::routing::*;
 use crate::locales::Locale;
 use crate::state::{
     CardInfo, DangerFlags, DangerLevel, MapCoord, MonsterInfo, NormalizedState, PotionInfo,
-    PowerInfo, RelicInfo, ScreenType,
+    PowerInfo, RelicInfo, RoomType, ScreenType,
 };
 use crate::test_utils::card;
 
@@ -14,7 +14,7 @@ fn test_locale() -> Locale {
 fn test_state() -> NormalizedState {
     NormalizedState {
         screen_type: Some(ScreenType::None),
-        room_type: Some("MonsterRoom".to_string()),
+        room_type: Some(RoomType::MonsterRoom),
         character: Some("IRONCLAD".to_string()),
         seed: Some(-3047511808784702860),
         ascension_level: Some(20),
@@ -527,7 +527,7 @@ fn event_prompt_does_not_emit_question_mark_garble() {
     let locale = test_locale();
     let state = NormalizedState {
         screen_type: Some(ScreenType::Event),
-        room_type: Some("NeowRoom".into()),
+        room_type: Some(RoomType::NeowRoom),
         event_id: None,
         event_name: None,
         event_body: None,
@@ -3338,7 +3338,7 @@ fn format_card_skill_type() {
 fn build_combat_elite_room() {
     let locale = test_locale();
     let state = NormalizedState {
-        room_type: Some("MonsterRoomElite".into()),
+        room_type: Some(RoomType::MonsterRoomElite),
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
             monster_id: None,
@@ -3363,7 +3363,7 @@ fn build_combat_elite_room() {
 fn build_combat_boss_room() {
     let locale = test_locale();
     let state = NormalizedState {
-        room_type: Some("MonsterRoomBoss".into()),
+        room_type: Some(RoomType::MonsterRoomBoss),
         monsters: vec![MonsterInfo {
             name: "六火亡魂".into(),
             monster_id: None,
@@ -3388,7 +3388,7 @@ fn build_combat_boss_room() {
 fn build_combat_high_incoming_damage_normal() {
     let locale = test_locale();
     let state = NormalizedState {
-        room_type: Some("MonsterRoom".into()),
+        room_type: Some(RoomType::MonsterRoom),
         max_hp: Some(75),
         incoming_damage: 20,
         monsters: vec![MonsterInfo {
@@ -3985,7 +3985,7 @@ fn build_rest_unknown_option_fallback() {
 fn build_combat_elite_tradeoff() {
     let locale = test_locale();
     let state = NormalizedState {
-        room_type: Some("MonsterRoomElite".into()),
+        room_type: Some(RoomType::MonsterRoomElite),
         monsters: vec![MonsterInfo {
             name: "大颚虫".into(),
             monster_id: None,
@@ -4010,7 +4010,7 @@ fn build_combat_elite_tradeoff() {
 fn build_combat_goal_boss() {
     let locale = test_locale();
     let state = NormalizedState {
-        room_type: Some("MonsterRoomBoss".into()),
+        room_type: Some(RoomType::MonsterRoomBoss),
         monsters: vec![MonsterInfo {
             name: "六火亡魂".into(),
             monster_id: None,

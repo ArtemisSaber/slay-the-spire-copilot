@@ -1,6 +1,8 @@
 use super::*;
 use crate::locales::Locale;
-use crate::state::{DangerFlags, DangerLevel, MonsterInfo, NormalizedState, RelicInfo, ScreenType};
+use crate::state::{
+    DangerFlags, DangerLevel, MonsterInfo, NormalizedState, RelicInfo, RoomType, ScreenType,
+};
 use crate::test_utils::test_locale;
 
 #[test]
@@ -167,7 +169,7 @@ fn all_scenarios_return_same_unified_prompt() {
 fn test_state() -> NormalizedState {
     NormalizedState {
         screen_type: Some(ScreenType::None),
-        room_type: Some("MonsterRoom".into()),
+        room_type: Some(RoomType::MonsterRoom),
         character: Some("IRONCLAD".into()),
         seed: None,
         ascension_level: None,

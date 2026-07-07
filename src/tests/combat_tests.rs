@@ -2,13 +2,13 @@ use crate::combat::context::build_context;
 use crate::combat::{Stance, can_end_fight};
 use crate::state::{
     CardInfo, DangerFlags, DangerLevel, MonsterInfo, NormalizedState, PowerInfo, RelicInfo,
-    ScreenType,
+    RoomType, ScreenType,
 };
 
 fn state() -> NormalizedState {
     NormalizedState {
         screen_type: Some(ScreenType::None),
-        room_type: Some("MonsterRoom".to_string()),
+        room_type: Some(RoomType::MonsterRoom),
         character: Some("IRONCLAD".to_string()),
         seed: Some(-3047511808784702860),
         ascension_level: Some(20),
