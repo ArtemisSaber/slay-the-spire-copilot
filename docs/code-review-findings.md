@@ -48,18 +48,18 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ## Issues Ordered by Urgency
 
-> **Fix status as of 2026-07-07**: 8 of 32 issues fixed on branch `fix/code-review-critical`.
-> All 3 Critical issues resolved. See the status table below and per-issue markers.
+> **Fix status as of 2026-07-07**: 20 of 32 issues fixed on branch `fix/code-review-critical`.
+> All 3 Critical issues resolved. All 9 TDD-feasible Medium issues resolved. See the status table below and per-issue markers.
 >
 > | Severity | Total | Fixed | Remaining |
 > |----------|-------|-------|-----------|
 > | 🔴 Critical | 3 | 3 | 0 |
-> | 🟠 High | 10 | 3 | 7 |
-> | 🟡 Medium | 11 | 1 | 10 |
-> | 🟢 Low | 8 | 0 | 8 |
-> | **Total** | **32** | **7** | **25** |
+> | 🟠 High | 10 | 4 | 6 |
+> | 🟡 Medium | 11 | 9 | 2 |
+> | 🟢 Low | 8 | 4 | 4 |
+> | **Total** | **32** | **20** | **12** |
 >
-> Verification: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ (0 warnings) · `cargo test` ✅ 1570 passed
+> Verification: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ (0 warnings) · `cargo test` ✅ 1592 passed
 
 ---
 
@@ -214,7 +214,7 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H8. Triplicated parsing logic — ⏳ REMAINING
+#### H8. Triplicated parsing logic — ✅ FIXED (`995fade`)
 
 - **Files**:
   - `src/combat/effects.rs:59` — `extract_first_integer` returns `Option<i16>`, char-based iteration
@@ -297,7 +297,7 @@ The project's own rule (from `AGENTS.md` / remove-ai-slops skill): "250+ pure LO
 
 ---
 
-#### M2. Error swallowing via `.ok()` — 39 instances across 13 files — ⏳ REMAINING
+#### M2. Error swallowing via `.ok()` — 39 instances across 13 files — ✅ FIXED (`8066438`–`1f1ccb4`)
 
 `.ok()` converts `Result<T, E>` to `Option<T>`, silently discarding the error context.
 
@@ -319,7 +319,7 @@ match fs::read_to_string(path) {
 
 ---
 
-#### M3. Error swallowing via `let _ =` — 55 instances across 9 files — ⏳ REMAINING
+#### M3. Error swallowing via `let _ =` — 55 instances across 9 files — ✅ FIXED (`686918e`–`a2c2a0f`)
 
 `let _ =` discards a `Result` without any logging.
 
@@ -338,7 +338,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M4. `panic!`/`expect`/`unreachable!` in non-test code — ⏳ REMAINING (partially mitigated by C1 fix)
+#### M4. `panic!`/`expect`/`unreachable!` in non-test code — ✅ PARTIALLY FIXED (`baf8dde`–`d1b7cf5`)
 
 | File | Line | Code | Risk |
 |------|------|------|------|
@@ -356,7 +356,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M5. Magic numbers in path scoring — ⏳ REMAINING
+#### M5. Magic numbers in path scoring — ✅ FIXED (`1ccc96e`, `52aa2d4`)
 
 - **File**: `src/prompt/routing.rs`
 - **Lines**: 296-334 (`score_shop`), 349-379 (`evaluate_path`)
@@ -381,7 +381,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M7. No validation of AI postmortem output — ⏳ REMAINING
+#### M7. No validation of AI postmortem output — ✅ FIXED (`164caa5`)
 
 - **File**: `src/postmortem.rs`
 - **Lines**: 23-29
@@ -391,7 +391,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M8. SSRF — unvalidated `LLM_BASE_URL` — ⏳ REMAINING
+#### M8. SSRF — unvalidated `LLM_BASE_URL` — ✅ FIXED (`72a3a83`)
 
 - **File**: `src/llm.rs`
 - **Lines**: 582, 637, 691
@@ -412,7 +412,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M10. TOCTOU file race on `overlay.json` — ⏳ REMAINING
+#### M10. TOCTOU file race on `overlay.json` — ✅ FIXED (`bd6a9ba`)
 
 - **File**: `src/autoplay/status.rs`
 - **Lines**: 18-33
@@ -422,7 +422,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### M11. 27 outdated transitive dependencies — ⏳ REMAINING
+#### M11. 27 outdated transitive dependencies — ✅ FIXED (`4a29a8d`)
 
 - **Command**: `cargo update --dry-run`
 - **Notable updates**: `rand` 0.9.4 → 0.10.2 (major version jump), `anyhow` 1.0.102 → 1.0.103, `rustls` 0.23.40 → 0.23.41, `time` 0.3.49 → 0.3.53, `quinn` 0.11.9 → 0.11.11
@@ -452,7 +452,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L3. API key visible during setup wizard input — ⏳ REMAINING
+#### L3. API key visible during setup wizard input — ✅ FIXED (`ef330b2`)
 
 - **File**: `src/setup_wizard.rs`
 - **Lines**: 368-369
@@ -461,7 +461,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L4. `u16` bit shift overflow in kill-scan — ⏳ REMAINING
+#### L4. `u16` bit shift overflow in kill-scan — ✅ FIXED (`3c0d4ea`)
 
 - **File**: `src/combat/kill_scan.rs`
 - **Lines**: 201-215
@@ -486,7 +486,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L7. `build.rs` fragile triple-parent unwrap — ⏳ REMAINING
+#### L7. `build.rs` fragile triple-parent unwrap — ✅ FIXED (`756038a`)
 
 - **File**: `build.rs`
 - **Lines**: 5-12
@@ -504,7 +504,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L8. `prompts.log` contains full game state — ⏳ REMAINING
+#### L8. `prompts.log` contains full game state — ✅ FIXED (`b3762ab`)
 
 - **File**: `src/llm.rs`
 - **Lines**: 28-34, 721
@@ -518,17 +518,17 @@ if let Err(e) = fs::write_all(&path, data) {
 | Severity | Total | Fixed | Remaining |
 |----------|-------|-------|-----------|
 | 🔴 Critical | 3 | 3 | 0 |
-| 🟠 High | 10 | 3 | 7 |
-| 🟡 Medium | 11 | 1 | 10 |
-| 🟢 Low | 8 | 0 | 8 |
-| **Total** | **32** | **7** | **25** |
+| 🟠 High | 10 | 4 | 6 |
+| 🟡 Medium | 11 | 9 | 2 |
+| 🟢 Low | 8 | 4 | 4 |
+| **Total** | **32** | **20** | **12** |
 
-**Branch**: `fix/code-review-critical` (7 commits)
-**Verification**: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ · `cargo test` ✅ 1570 passed
+**Branch**: `fix/code-review-critical` (37 commits)
+**Verification**: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ · `cargo test` ✅ 1592 passed
 
-**Fixed issues**: C1 (rules.json fallback), C2 (map cycle detection), C3 (API key redaction in errors), H1 (LlmProvider Debug redaction), H2 (AGENTS.md test count), H10 (219 clippy test warnings), M9 (stdin JSON size cap).
+**Fixed issues**: C1 (rules.json fallback), C2 (map cycle detection), C3 (API key redaction in errors), H1 (LlmProvider Debug redaction), H2 (AGENTS.md test count), H8 (consolidated triplicated parsing into `src/parsing.rs`), H10 (219 clippy test warnings), M2 (`.ok()` → logged errors), M3 (`let _ =` → logged errors), M4 (panic/expect/unreachable → Result in 4 production sites), M5 (magic numbers → named constants), M7 (AI postmortem output validation), M8 (SSRF: `LLM_BASE_URL` scheme validation), M9 (stdin JSON size cap), M10 (TOCTOU race on overlay.json — mutex), M11 (cargo update — 27 deps), L3 (setup wizard masked input via `rpassword`), L4 (u16→u32 bit shift in kill-scan), L7 (build.rs triple-parent unwrap), L8 (`LLM_LOG_PROMPTS` env var to disable prompt logging).
 
-**Remaining**: 7 High-severity architecture refactors (god functions, stringly-typed enums, duplicated parsing, blocking I/O), 10 Medium code-quality issues, 8 Low hardening items. M4 (panic/expect cleanup) is partially mitigated — the ranker panic was fixed as C1, but 7 other panic/expect/unreachable instances remain.
+**Remaining**: 6 High-severity architecture refactors (god functions H3–H6, stringly-typed ScreenType H7, blocking I/O H9), 2 Medium issues (M1 oversized files, M6 eval_parsed table-driven refactor), 4 Low hardening items (L1 Windows atomic rename, L2 file locking, L5 combat_identity, L6 cargo-audit). M4 is partially fixed — 4 production panic/expect/unreachable sites resolved, dev-only instances remain.
 
 ---
 
@@ -547,24 +547,28 @@ if let Err(e) = fs::write_all(&path, data) {
 ### Phase 3 — Clippy cleanup (High, 30 min) — ✅ DONE
 7. **H10**: Run `cargo clippy --fix --tests`, fix remaining 12 manually — ✅ `585682e`
 
-### Phase 4 — Architecture refactoring (High, days) — ⏳ NOT STARTED
-8. **H3-H6**: Decompose god functions (`main`, `from_raw`, `to_stable_value`, `dfs`)
-9. **H7**: Introduce `ScreenType` enum (large, mechanical)
-10. **H8**: Consolidate triplicated parsing logic
-11. **H9**: Resolve blocking I/O in async (either go sync or use `tokio::fs`)
+### Phase 4 — Architecture refactoring (High, days) — ⏳ PARTIALLY DONE
+8. **H3-H6**: Decompose god functions (`main`, `from_raw`, `to_stable_value`, `dfs`) — ⏳ remaining
+9. **H7**: Introduce `ScreenType` enum (large, mechanical) — ⏳ remaining
+10. **H8**: Consolidate triplicated parsing logic — ✅ `995fade` (new `src/parsing.rs`)
+11. **H9**: Resolve blocking I/O in async (either go sync or use `tokio::fs`) — ⏳ remaining
 
-### Phase 5 — Code quality (Medium, ongoing) — ⏳ NOT STARTED
-12. **M1**: Modularize oversized files (23 files over 250 LOC)
-13. **M2-M3**: Replace `.ok()?` and `let _ =` with logged error handling
-14. **M4**: Replace `panic!`/`expect`/`unreachable!` with `Result` returns
-15. **M5**: Extract magic numbers into named constants
-16. **M6**: Refactor `eval_parsed()` to table-driven
-17. **M7**: Add validation/retry for AI postmortem
+### Phase 5 — Code quality (Medium, ongoing) — ⏳ PARTIALLY DONE
+12. **M1**: Modularize oversized files (23 files over 250 LOC) — ⏳ remaining
+13. **M2-M3**: Replace `.ok()?` and `let _ =` with logged error handling — ✅ `8066438`–`a2c2a0f`
+14. **M4**: Replace `panic!`/`expect`/`unreachable!` with `Result` returns — ✅ partially (`baf8dde`–`d1b7cf5`, 4 production sites; dev-only instances remain)
+15. **M5**: Extract magic numbers into named constants — ✅ `1ccc96e`, `52aa2d4`
+16. **M6**: Refactor `eval_parsed()` to table-driven — ⏳ remaining
+17. **M7**: Add validation/retry for AI postmortem — ✅ `164caa5`
 
-### Phase 6 — Hardening (Low, as needed) — ⏳ NOT STARTED
-18. **L1-L8**: Windows atomicity, file locking, terminal echo, bit overflow, cargo-audit, etc.
-19. **M8**: Validate `LLM_BASE_URL` (HTTPS-only, reject internal IPs)
-20. **M10-M11**: Fix TOCTOU races, update dependencies
+### Phase 6 — Hardening (Low, as needed) — ⏳ PARTIALLY DONE
+18. **L1, L2, L5, L6**: Windows atomicity, file locking, combat_identity, cargo-audit — ⏳ remaining
+19. **L3**: Setup wizard masked input — ✅ `ef330b2` (via `rpassword`)
+20. **L4**: u16→u32 bit shift in kill-scan — ✅ `3c0d4ea`
+21. **L7**: `build.rs` triple-parent unwrap — ✅ `756038a`
+22. **L8**: `LLM_LOG_PROMPTS` env var — ✅ `b3762ab`
+23. **M8**: Validate `LLM_BASE_URL` (scheme allowlist, reject non-HTTP) — ✅ `72a3a83`
+24. **M10-M11**: Fix TOCTOU races, update dependencies — ✅ `bd6a9ba`, `4a29a8d`
 
 ---
 
@@ -572,7 +576,7 @@ if let Err(e) = fs::write_all(&path, data) {
 
 The codebase has several strengths worth noting:
 
-- **Test coverage**: 1553 passing tests with 21 fixture files — comprehensive
+- **Test coverage**: 1592 passing tests with 21 fixture files — comprehensive
 - **No secrets in git**: `.env` properly gitignored, `.env.example` has placeholders only
 - **No `unsafe` in production code**: Only in test files for `env::set_var`
 - **No TODO/FIXME markers**: Clean codebase without debt markers

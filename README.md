@@ -143,6 +143,7 @@ LLM_MAX_TOKENS_MEDIUM=10000
 LLM_MAX_TOKENS_HEAVY=50000
 LLM_TEMPERATURE=0.7
 LLM_DISABLE_FAST_THINKING=true  # DeepSeek: force non-thinking mode for combat/fast advice
+LLM_LOG_PROMPTS=false            # Set false to disable prompt/response logging to logs/prompts.log
 ```
 
 Auto-play is opt-in and off by default:
@@ -460,6 +461,7 @@ src/
   llm.rs           LLM provider abstraction, effort routing, AdviceScenario (MapSuggestion, MapCrossroad, etc.)
   advice.rs        latest advice file output and cache, overlay JSON
   journal.rs       JSONL run journal with schema versioning
+  parsing.rs       generic extract_first_integer<T> helper shared by combat/ranker/relic_counters
   postmortem.rs    postmortem report generation
   setup_wizard.rs  interactive API setup wizard
   startup.rs       Communication Mod CJK config validation, auto-fix, language detection

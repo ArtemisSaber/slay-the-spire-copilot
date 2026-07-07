@@ -10,7 +10,7 @@
 - **Version**: current release is `0.2.0`
 
 ## Build & Test
-- `cargo test` — runs 1570 tests (1568 unit + 2 integration)
+- `cargo test` — runs 1592 tests (1590 unit + 2 integration)
 - `cargo build --release` — Linux binary at `target/release/slay-the-spire-copilot`
 - Cross-compile Windows: `cargo build --release --target x86_64-pc-windows-gnu` (needs `mingw-w64-gcc` on Arch)
 - Project uses `rustls-tls` (not OpenSSL) — no C dependencies beyond mingw on cross-compile
@@ -19,7 +19,7 @@
 ## Architecture
 - **Single binary** — `main.rs` is the entrypoint. Modules are declared at the top.
 - **Module map**:
-  - `advice`, `config`, `gate`, `journal`, `llm`, `logging`, `postmortem`, `protocol`, `relic_counters`, `runtime`, `setup_wizard`, `startup`, `state` — top-level modules
+  - `advice`, `config`, `gate`, `journal`, `llm`, `logging`, `parsing`, `postmortem`, `protocol`, `relic_counters`, `runtime`, `setup_wizard`, `startup`, `state` — top-level modules
   - `autoplay/` — action, command_state, control, planner (auto-play feature)
   - `combat/` — adviser, context, damage, effects, kill_scan (combat analysis and lethal-finding)
   - `ranker/` — mod, rules, engine, context, formula, parser, predicates, rules.json (pool-relative combat action scoring)
@@ -64,6 +64,7 @@
 | `LLM_MAX_TOKENS_MEDIUM` | — | Medium-tier max tokens |
 | `LLM_MAX_TOKENS_HEAVY` | — | Heavy-tier max tokens |
 | `LLM_TEMPERATURE` | `0.7` | Sampling temperature |
+| `LLM_LOG_PROMPTS` | — | Set `false` to disable prompt/response logging to `logs/prompts.log` |
 | `LLM_DISABLE_FAST_THINKING` | — | Disable fast-thinking (reasoning) for compatible models |
 | `AUTO_PLAY` | `false` | Enable auto-play mode |
 
