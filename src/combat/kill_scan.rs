@@ -191,156 +191,171 @@ fn dfs(
         mantra,
         monsters_hash: monsters_hash(monsters),
     };
-    if let Some(result) = ctx.memo.get(&key) {
-        return result.clone();
+    if let Some(cached) = check_memo(ctx, &key) {
+        return cached;
     }
-    ctx.memo.insert(key.clone(), None);
-
     ctx.expanded += 1;
 
     let mut mask = remaining_mask;
     let mut card_idx = 0;
-
     while mask > 0 {
-        if mask & 1 == 0 {
-            card_idx += 1;
-            mask >>= 1;
-            continue;
-        }
-
-        let effect = match ctx.effects.get(card_idx).and_then(|e| e.as_ref()) {
-            Some(e) => e,
-            None => {
-                card_idx += 1;
-                mask >>= 1;
-                continue;
-            }
-        };
-
-        let cost = if effect.x_cost {
-            energy
-        } else {
-            ctx.cards[card_idx].cost as i16
-        };
-
-        if !effect.x_cost && cost > energy {
-            card_idx += 1;
-            mask >>= 1;
-            continue;
-        }
-
-        let play_ctx = CombatScanContext {
-            cards: ctx.cards.to_vec(),
-            energy,
-            initial_stance: stance,
-            current_stance: stance,
-            strength_delta,
-            x_cost_bonus: ctx.x_cost_bonus,
-            monsters: monsters.to_vec(),
-            remaining_card_plays: 1,
-        };
-
-        let is_targeted = effect
-            .damage
-            .as_ref()
-            .map(|d| matches!(d.target_type, crate::combat::effects::TargetType::Targeted))
-            .unwrap_or(false)
-            || effect.vulnerable.is_some()
-            || effect.execute.is_some();
-
-        let is_random = effect
-            .damage
-            .as_ref()
-            .map(|d| {
-                matches!(
-                    d.target_type,
-                    crate::combat::effects::TargetType::RandomTarget
-                )
-            })
-            .unwrap_or(false);
-
-        if is_random && let Some(dmg) = &effect.damage {
-            let hits = match &dmg.hits {
-                crate::combat::effects::HitCount::Fixed(n) => *n,
-                _ => {
-                    card_idx += 1;
-                    mask >>= 1;
-                    continue;
-                }
-            };
-            if !random_target_guaranteed(dmg.amount, hits, monsters) {
-                card_idx += 1;
-                mask >>= 1;
-                continue;
-            }
-        }
-
-        let living: Vec<usize> = monsters
-            .iter()
-            .enumerate()
-            .filter(|(_, m)| m.hp > 0)
-            .map(|(i, _)| i)
-            .collect();
-
-        let targets: Vec<Option<usize>> = if is_targeted {
-            living.iter().map(|&mi| Some(mi)).collect()
-        } else {
-            vec![None]
-        };
-
-        for target_idx in &targets {
-            let resolved = resolve_play(card_idx, *target_idx, effect, &play_ctx);
-
-            let mut new_energy = resolved.energy;
-            let mut new_stance = resolved.current_stance;
-            let mut new_mantra = mantra + effect.mantra_gain;
-
-            if new_mantra >= 10 {
-                new_mantra = 0;
-                if new_stance == Stance::Calm {
-                    new_energy += 2;
-                }
-                new_stance = Stance::Divinity;
-                new_energy += 3;
-            }
-
-            let new_mask = remaining_mask & !(1u32 << card_idx);
-
-            if combat_ended(&resolved.monsters) {
-                let cmd_target = target_idx.map(|ti| resolved.monsters[ti].command_index);
-                let seq = vec![PlayStep {
-                    card_index: card_idx,
-                    target: cmd_target,
-                }];
-                ctx.memo.insert(key, Some(seq.clone()));
-                return Some(seq);
-            }
-
-            if let Some(mut suffix) = dfs(
-                new_mask,
-                new_energy,
-                depth + 1,
-                new_stance,
-                resolved.strength_delta,
-                new_mantra,
-                &resolved.monsters,
+        if mask & 1 != 0
+            && let Some(seq) = try_play_card(
+                card_idx,
+                remaining_mask,
+                energy,
+                depth,
+                stance,
+                strength_delta,
+                mantra,
+                monsters,
                 ctx,
-            ) {
-                let cmd_target = target_idx.map(|ti| resolved.monsters[ti].command_index);
-                suffix.insert(
-                    0,
-                    PlayStep {
-                        card_index: card_idx,
-                        target: cmd_target,
-                    },
-                );
-                ctx.memo.insert(key, Some(suffix.clone()));
-                return Some(suffix);
-            }
+            )
+        {
+            ctx.memo.insert(key, Some(seq.clone()));
+            return Some(seq);
         }
-
         card_idx += 1;
         mask >>= 1;
+    }
+
+    None
+}
+
+fn check_memo(ctx: &mut DfsContext<'_>, key: &MemoKey) -> Option<Option<Vec<PlayStep>>> {
+    if let Some(result) = ctx.memo.get(key) {
+        return Some(result.clone());
+    }
+    ctx.memo.insert(key.clone(), None);
+    None
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "card exploration needs the full DFS state to recurse"
+)]
+fn try_play_card(
+    card_idx: usize,
+    remaining_mask: u32,
+    energy: i16,
+    depth: usize,
+    stance: Stance,
+    strength_delta: i16,
+    mantra: i16,
+    monsters: &[MonsterSnapshot],
+    ctx: &mut DfsContext<'_>,
+) -> Option<Vec<PlayStep>> {
+    let effect = ctx.effects.get(card_idx).and_then(|e| e.as_ref())?;
+
+    let cost = if effect.x_cost {
+        energy
+    } else {
+        ctx.cards[card_idx].cost as i16
+    };
+
+    if !effect.x_cost && cost > energy {
+        return None;
+    }
+
+    let play_ctx = CombatScanContext {
+        cards: ctx.cards.to_vec(),
+        energy,
+        initial_stance: stance,
+        current_stance: stance,
+        strength_delta,
+        x_cost_bonus: ctx.x_cost_bonus,
+        monsters: monsters.to_vec(),
+        remaining_card_plays: 1,
+    };
+
+    let is_targeted = effect
+        .damage
+        .as_ref()
+        .map(|d| matches!(d.target_type, crate::combat::effects::TargetType::Targeted))
+        .unwrap_or(false)
+        || effect.vulnerable.is_some()
+        || effect.execute.is_some();
+
+    let is_random = effect
+        .damage
+        .as_ref()
+        .map(|d| {
+            matches!(
+                d.target_type,
+                crate::combat::effects::TargetType::RandomTarget
+            )
+        })
+        .unwrap_or(false);
+
+    if is_random && let Some(dmg) = &effect.damage {
+        let hits = match &dmg.hits {
+            crate::combat::effects::HitCount::Fixed(n) => *n,
+            _ => return None,
+        };
+        if !random_target_guaranteed(dmg.amount, hits, monsters) {
+            return None;
+        }
+    }
+
+    let living: Vec<usize> = monsters
+        .iter()
+        .enumerate()
+        .filter(|(_, m)| m.hp > 0)
+        .map(|(i, _)| i)
+        .collect();
+
+    let targets: Vec<Option<usize>> = if is_targeted {
+        living.iter().map(|&mi| Some(mi)).collect()
+    } else {
+        vec![None]
+    };
+
+    for target_idx in &targets {
+        let resolved = resolve_play(card_idx, *target_idx, effect, &play_ctx);
+
+        let mut new_energy = resolved.energy;
+        let mut new_stance = resolved.current_stance;
+        let mut new_mantra = mantra + effect.mantra_gain;
+
+        if new_mantra >= 10 {
+            new_mantra = 0;
+            if new_stance == Stance::Calm {
+                new_energy += 2;
+            }
+            new_stance = Stance::Divinity;
+            new_energy += 3;
+        }
+
+        let new_mask = remaining_mask & !(1u32 << card_idx);
+
+        if combat_ended(&resolved.monsters) {
+            let cmd_target = target_idx.map(|ti| resolved.monsters[ti].command_index);
+            return Some(vec![PlayStep {
+                card_index: card_idx,
+                target: cmd_target,
+            }]);
+        }
+
+        if let Some(mut suffix) = dfs(
+            new_mask,
+            new_energy,
+            depth + 1,
+            new_stance,
+            resolved.strength_delta,
+            new_mantra,
+            &resolved.monsters,
+            ctx,
+        ) {
+            let cmd_target = target_idx.map(|ti| resolved.monsters[ti].command_index);
+            suffix.insert(
+                0,
+                PlayStep {
+                    card_index: card_idx,
+                    target: cmd_target,
+                },
+            );
+            return Some(suffix);
+        }
     }
 
     None

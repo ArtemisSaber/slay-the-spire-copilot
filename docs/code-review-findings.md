@@ -54,10 +54,10 @@ The review combined automated tool checks with three parallel explore-agent inve
 > | Severity | Total | Fixed | Remaining |
 > |----------|-------|-------|-----------|
 > | 🔴 Critical | 3 | 3 | 0 |
-> | 🟠 High | 10 | 4 | 6 |
+> | 🟠 High | 10 | 5 | 5 |
 > | 🟡 Medium | 11 | 10 | 1 |
 > | 🟢 Low | 8 | 4 | 4 |
-> | **Total** | **32** | **21** | **11** |
+> | **Total** | **32** | **22** | **10** |
 >
 > Verification: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ (0 warnings) · `cargo test` ✅ 1592 passed
 
@@ -193,13 +193,13 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H6. God function: `kill_scan::dfs()` is 230 lines — ⏳ REMAINING
+#### H6. God function: `kill_scan::dfs()` is 230 lines — ✅ FIXED (`H6-cycle`)
 
 - **File**: `src/combat/kill_scan.rs`
 - **Lines**: 155-384
 - **Description**: Deeply recursive DFS function with complex branching for card effects, memoization, deadline checks, and monster state mutations.
 - **Impact**: Hard to reason about correctness; high cognitive load for reviewers.
-- **Fix**: Extract into sub-functions: `check_memo()`, `iterate_cards()`, `apply_effect()`, `restore_state()`.
+- **Fix**: Extracted `check_memo()` (memo lookup + placeholder insert) and `try_play_card()` (single-card exploration: effect lookup, cost/target validation, target loop, recursion). `dfs` now holds base cases + memo key + iteration skeleton. 190 → ~55 LOC for `dfs`, with a focused ~95-line `try_play_card`.
 
 ---
 
@@ -518,17 +518,17 @@ if let Err(e) = fs::write_all(&path, data) {
 | Severity | Total | Fixed | Remaining |
 |----------|-------|-------|-----------|
 | 🔴 Critical | 3 | 3 | 0 |
-| 🟠 High | 10 | 4 | 6 |
+| 🟠 High | 10 | 5 | 5 |
 | 🟡 Medium | 11 | 10 | 1 |
 | 🟢 Low | 8 | 4 | 4 |
-| **Total** | **32** | **21** | **11** |
+| **Total** | **32** | **22** | **10** |
 
 **Branch**: `fix/code-review-critical` (37 commits)
 **Verification**: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ · `cargo test` ✅ 1592 passed
 
 **Fixed issues**: C1 (rules.json fallback), C2 (map cycle detection), C3 (API key redaction in errors), H1 (LlmProvider Debug redaction), H2 (AGENTS.md test count), H8 (consolidated triplicated parsing into `src/parsing.rs`), H10 (219 clippy test warnings), M2 (`.ok()` → logged errors), M3 (`let _ =` → logged errors), M4 (panic/expect/unreachable → Result in 4 production sites), M5 (magic numbers → named constants), M7 (AI postmortem output validation), M8 (SSRF: `LLM_BASE_URL` scheme validation), M9 (stdin JSON size cap), M10 (TOCTOU race on overlay.json — mutex), M11 (cargo update — 27 deps), L3 (setup wizard masked input via `rpassword`), L4 (u16→u32 bit shift in kill-scan), L7 (build.rs triple-parent unwrap), L8 (`LLM_LOG_PROMPTS` env var to disable prompt logging).
 
-**Remaining**: 6 High-severity architecture refactors (god functions H3–H6, stringly-typed ScreenType H7, blocking I/O H9), 1 Medium issue (M1 oversized files), 4 Low hardening items (L1 Windows atomic rename, L2 file locking, L5 combat_identity [non-issue — gate reset between runs], L6 cargo-audit). M4 is partially fixed — 4 production panic/expect/unreachable sites resolved, dev-only instances remain.
+**Remaining**: 5 High-severity architecture refactors (god functions H3–H5, stringly-typed ScreenType H7, blocking I/O H9), 1 Medium issue (M1 oversized files), 4 Low hardening items (L1 Windows atomic rename, L2 file locking, L5 combat_identity [non-issue — gate reset between runs], L6 cargo-audit). M4 is partially fixed — 4 production panic/expect/unreachable sites resolved, dev-only instances remain.
 
 ---
 
@@ -548,7 +548,7 @@ if let Err(e) = fs::write_all(&path, data) {
 7. **H10**: Run `cargo clippy --fix --tests`, fix remaining 12 manually — ✅ `585682e`
 
 ### Phase 4 — Architecture refactoring (High, days) — ⏳ PARTIALLY DONE
-8. **H3-H6**: Decompose god functions (`main`, `from_raw`, `to_stable_value`, `dfs`) — ⏳ remaining
+8. **H3-H6**: Decompose god functions (`main`, `from_raw`, `to_stable_value`, `dfs`) — H6 ✅ (`dfs` → `check_memo` + `try_play_card`); H3/H4/H5 ⏳ remaining
 9. **H7**: Introduce `ScreenType` enum (large, mechanical) — ⏳ remaining
 10. **H8**: Consolidate triplicated parsing logic — ✅ `995fade` (new `src/parsing.rs`)
 11. **H9**: Resolve blocking I/O in async (either go sync or use `tokio::fs`) — ⏳ remaining
