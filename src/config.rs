@@ -21,7 +21,9 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Self {
         #[cfg(not(test))]
-        dotenvy::dotenv().ok();
+        dotenvy::dotenv()
+            .map_err(|e| tracing::debug!(".env not loaded: {e}"))
+            .ok();
 
         Self::from_lookup(|key| env::var(key).ok())
     }
@@ -48,23 +50,27 @@ impl Config {
         let model_heavy =
             lookup_non_empty("LLM_MODEL_HEAVY").unwrap_or_else(|| fallback_model.clone());
 
-        let ceiling = lookup_non_empty("LLM_MAX_TOKENS")
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(50000);
+        let ceiling =
+            parse_env(lookup_non_empty("LLM_MAX_TOKENS"), "LLM_MAX_TOKENS").unwrap_or(50000);
 
-        let max_tokens_heavy = lookup_non_empty("LLM_MAX_TOKENS_HEAVY")
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(ceiling);
-        let max_tokens_medium = lookup_non_empty("LLM_MAX_TOKENS_MEDIUM")
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(max_tokens_heavy.min(10000));
-        let max_tokens_fast = lookup_non_empty("LLM_MAX_TOKENS_FAST")
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(max_tokens_heavy.min(300));
+        let max_tokens_heavy = parse_env(
+            lookup_non_empty("LLM_MAX_TOKENS_HEAVY"),
+            "LLM_MAX_TOKENS_HEAVY",
+        )
+        .unwrap_or(ceiling);
+        let max_tokens_medium = parse_env(
+            lookup_non_empty("LLM_MAX_TOKENS_MEDIUM"),
+            "LLM_MAX_TOKENS_MEDIUM",
+        )
+        .unwrap_or(max_tokens_heavy.min(10000));
+        let max_tokens_fast = parse_env(
+            lookup_non_empty("LLM_MAX_TOKENS_FAST"),
+            "LLM_MAX_TOKENS_FAST",
+        )
+        .unwrap_or(max_tokens_heavy.min(300));
 
-        let temperature = lookup_non_empty("LLM_TEMPERATURE")
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(0.7);
+        let temperature =
+            parse_env(lookup_non_empty("LLM_TEMPERATURE"), "LLM_TEMPERATURE").unwrap_or(0.7);
 
         let disable_fast_thinking = lookup_non_empty("LLM_DISABLE_FAST_THINKING")
             .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
@@ -99,6 +105,19 @@ impl Config {
         let lookup = |key: &str| vars.get(key).map(|v| v.to_string());
         Self::from_lookup(lookup)
     }
+}
+
+fn parse_env<T: std::str::FromStr>(value: Option<String>, key: &str) -> Option<T>
+where
+    T::Err: std::fmt::Display,
+{
+    value.and_then(|v| match v.parse() {
+        Ok(val) => Some(val),
+        Err(e) => {
+            tracing::warn!("invalid {key} value, using default: {e}");
+            None
+        }
+    })
 }
 
 #[cfg(test)]
