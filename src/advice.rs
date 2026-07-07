@@ -265,7 +265,7 @@ impl AdviceCache {
                 return;
             }
 
-            {
+            tokio::task::spawn_blocking(move || {
                 if let Ok(content) = fs::read_to_string(&path)
                     && let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&content)
                 {
@@ -274,7 +274,9 @@ impl AdviceCache {
                         atomic_write_json(&path, &json);
                     }
                 }
-            }
+            })
+            .await
+            .ok();
         });
 
         self.hide_timer = Some(handle);
