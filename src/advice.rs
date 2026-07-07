@@ -91,29 +91,36 @@ pub fn parse_advice_response(raw: &str, locale: &Locale) -> AdviceFields {
 }
 
 pub(crate) fn atomic_write_json(path: &std::path::Path, json: &str) {
-    if let Some(parent) = path.parent()
-        && let Err(e) = fs::create_dir_all(parent)
-    {
+    let parent = match path.parent() {
+        Some(p) => p,
+        None => {
+            tracing::warn!("cannot write {}: path has no parent", path.display());
+            return;
+        }
+    };
+    if let Err(e) = fs::create_dir_all(parent) {
         tracing::warn!("failed to create dir {}: {e}", parent.display());
     }
-    let tmp = path.with_extension("json.tmp");
-    if fs::write(&tmp, json).is_ok() {
-        if fs::rename(&tmp, path).is_err() {
-            // Windows: rename fails if target exists (Unix atomically replaces)
-            if let Err(e) = fs::remove_file(path) {
-                tracing::warn!("failed to remove old {}: {e}", path.display());
-            }
-            if let Err(e) = fs::rename(&tmp, path) {
-                tracing::warn!(
-                    "failed to rename {} -> {}: {e}",
-                    tmp.display(),
-                    path.display()
-                );
-            }
+
+    let mut tmp = match tempfile::NamedTempFile::new_in(parent) {
+        Ok(f) => f,
+        Err(e) => {
+            tracing::warn!("failed to create temp file in {}: {e}", parent.display());
+            return;
         }
-        if let Err(e) = fs::remove_file(&tmp) {
-            tracing::warn!("failed to clean up tmp {}: {e}", tmp.display());
-        }
+    };
+
+    if let Err(e) = tmp.write_all(json.as_bytes()) {
+        tracing::warn!("failed to write temp file: {e}");
+        return;
+    }
+
+    // persist() atomically replaces the target on both Unix (rename(2)) and
+    // Windows (MoveFileExW with MOVEFILE_REPLACE_EXISTING). On any error the
+    // NamedTempFile is consumed into PersistError and dropped, cleaning up the
+    // temp file automatically.
+    if let Err(e) = tmp.persist(path) {
+        tracing::warn!("failed to persist temp file -> {}: {e}", path.display());
     }
 }
 
