@@ -744,6 +744,70 @@ fn extract_grid_fields(ss: Option<&Value>) -> GridFields {
     }
 }
 
+fn insert_opt_str(map: &mut serde_json::Map<String, Value>, key: &str, val: &Option<String>) {
+    if let Some(v) = val {
+        map.insert(key.to_string(), Value::String(v.clone()));
+    }
+}
+
+fn insert_opt_i64(map: &mut serde_json::Map<String, Value>, key: &str, val: Option<i64>) {
+    if let Some(v) = val {
+        map.insert(key.to_string(), Value::Number(v.into()));
+    }
+}
+
+fn insert_opt_bool(map: &mut serde_json::Map<String, Value>, key: &str, val: Option<bool>) {
+    if let Some(v) = val {
+        map.insert(key.to_string(), Value::Bool(v));
+    }
+}
+
+fn insert_bool_if_true(map: &mut serde_json::Map<String, Value>, key: &str, val: bool) {
+    if val {
+        map.insert(key.to_string(), Value::Bool(true));
+    }
+}
+
+fn sorted_string_array(arr: &[String]) -> Value {
+    let mut sorted = arr.to_vec();
+    sorted.sort();
+    Value::Array(sorted.into_iter().map(Value::String).collect())
+}
+
+fn sorted_id_only_array(arr: &[CardInfo]) -> Value {
+    let mut sorted = arr.to_vec();
+    sorted.sort_by(|a, b| a.id.cmp(&b.id));
+    Value::Array(
+        sorted
+            .iter()
+            .map(|c| {
+                let mut cm = serde_json::Map::new();
+                cm.insert("id".to_string(), Value::String(c.id.clone()));
+                Value::Object(cm)
+            })
+            .collect(),
+    )
+}
+
+fn sorted_relic_name_desc_array(arr: &[RelicInfo]) -> Value {
+    let mut sorted = arr.to_vec();
+    sorted.sort_by(|a, b| a.name.cmp(&b.name));
+    Value::Array(
+        sorted
+            .into_iter()
+            .map(|r| {
+                let mut rm = serde_json::Map::new();
+                rm.insert("name".to_string(), Value::String(r.name.clone()));
+                rm.insert(
+                    "description".to_string(),
+                    Value::String(r.description.clone()),
+                );
+                Value::Object(rm)
+            })
+            .collect(),
+    )
+}
+
 impl NormalizedState {
     pub fn from_raw(raw: &Value, locale: &Locale) -> Self {
         let gs = raw.get("game_state");
@@ -1020,34 +1084,15 @@ impl NormalizedState {
     fn to_stable_value(&self) -> Value {
         let mut map = serde_json::Map::new();
 
-        if let Some(ref v) = self.screen_type {
-            map.insert("screen_type".to_string(), Value::String(v.clone()));
-        }
-        if let Some(ref v) = self.room_type {
-            map.insert("room_type".to_string(), Value::String(v.clone()));
-        }
-        if let Some(ref v) = self.character {
-            map.insert("character".to_string(), Value::String(v.clone()));
-        }
-        if let Some(v) = self.floor {
-            map.insert("floor".to_string(), Value::Number(v.into()));
-        }
-        if let Some(v) = self.current_hp {
-            map.insert("current_hp".to_string(), Value::Number(v.into()));
-        }
-        if let Some(v) = self.max_hp {
-            map.insert("max_hp".to_string(), Value::Number(v.into()));
-        }
-        if let Some(v) = self.gold {
-            map.insert("gold".to_string(), Value::Number(v.into()));
-        }
-        if let Some(v) = self.energy {
-            map.insert("energy".to_string(), Value::Number(v.into()));
-        }
-        if let Some(v) = self.block {
-            map.insert("block".to_string(), Value::Number(v.into()));
-        }
-
+        insert_opt_str(&mut map, "screen_type", &self.screen_type);
+        insert_opt_str(&mut map, "room_type", &self.room_type);
+        insert_opt_str(&mut map, "character", &self.character);
+        insert_opt_i64(&mut map, "floor", self.floor);
+        insert_opt_i64(&mut map, "current_hp", self.current_hp);
+        insert_opt_i64(&mut map, "max_hp", self.max_hp);
+        insert_opt_i64(&mut map, "gold", self.gold);
+        insert_opt_i64(&mut map, "energy", self.energy);
+        insert_opt_i64(&mut map, "block", self.block);
         map.insert(
             "incoming_damage".to_string(),
             Value::Number(self.incoming_damage.into()),
@@ -1055,127 +1100,80 @@ impl NormalizedState {
 
         let mut sorted_powers = self.powers.clone();
         sorted_powers.sort_by(|a, b| a.name.cmp(&b.name));
-        let powers_arr: Vec<Value> = sorted_powers
-            .iter()
-            .map(|p| {
-                let mut pm = serde_json::Map::new();
-                pm.insert("name".to_string(), Value::String(p.name.clone()));
-                pm.insert("amount".to_string(), Value::Number(p.amount.into()));
-                Value::Object(pm)
-            })
-            .collect();
-        map.insert("powers".to_string(), Value::Array(powers_arr));
+        map.insert(
+            "powers".to_string(),
+            Value::Array(
+                sorted_powers
+                    .iter()
+                    .map(|p| {
+                        let mut pm = serde_json::Map::new();
+                        pm.insert("name".to_string(), Value::String(p.name.clone()));
+                        pm.insert("amount".to_string(), Value::Number(p.amount.into()));
+                        Value::Object(pm)
+                    })
+                    .collect(),
+            ),
+        );
 
         let mut sorted_hand = self.hand.clone();
         sorted_hand.sort_by(|a, b| a.id.cmp(&b.id));
-        let hand_arr: Vec<Value> = sorted_hand
-            .iter()
-            .map(|c| {
-                let mut cm = serde_json::Map::new();
-                cm.insert("id".to_string(), Value::String(c.id.clone()));
-                cm.insert("cost".to_string(), Value::Number(c.cost.into()));
-                cm.insert("type".to_string(), Value::String(c.card_type.clone()));
-                cm.insert("upgraded".to_string(), Value::Bool(c.upgraded));
-                Value::Object(cm)
-            })
-            .collect();
-        map.insert("hand".to_string(), Value::Array(hand_arr));
+        map.insert(
+            "hand".to_string(),
+            Value::Array(
+                sorted_hand
+                    .iter()
+                    .map(|c| {
+                        let mut cm = serde_json::Map::new();
+                        cm.insert("id".to_string(), Value::String(c.id.clone()));
+                        cm.insert("cost".to_string(), Value::Number(c.cost.into()));
+                        cm.insert("type".to_string(), Value::String(c.card_type.clone()));
+                        cm.insert("upgraded".to_string(), Value::Bool(c.upgraded));
+                        Value::Object(cm)
+                    })
+                    .collect(),
+            ),
+        );
 
         let mut sorted_monsters = self.monsters.clone();
         sorted_monsters.sort_by(|a, b| a.name.cmp(&b.name));
-        let monster_arr: Vec<Value> = sorted_monsters
-            .iter()
-            .map(|m| {
-                let mut mm = serde_json::Map::new();
-                mm.insert("name".to_string(), Value::String(m.name.clone()));
-                if let Some(v) = m.current_hp {
-                    mm.insert("current_hp".to_string(), Value::Number(v.into()));
-                }
-                if let Some(v) = m.max_hp {
-                    mm.insert("max_hp".to_string(), Value::Number(v.into()));
-                }
-                if let Some(ref v) = m.intent {
-                    mm.insert("intent".to_string(), Value::String(v.clone()));
-                }
-                if let Some(v) = m.damage {
-                    mm.insert("damage".to_string(), Value::Number(v.into()));
-                }
-                Value::Object(mm)
-            })
-            .collect();
-        map.insert("monsters".to_string(), Value::Array(monster_arr));
+        map.insert(
+            "monsters".to_string(),
+            Value::Array(
+                sorted_monsters
+                    .iter()
+                    .map(|m| {
+                        let mut mm = serde_json::Map::new();
+                        mm.insert("name".to_string(), Value::String(m.name.clone()));
+                        insert_opt_i64(&mut mm, "current_hp", m.current_hp);
+                        insert_opt_i64(&mut mm, "max_hp", m.max_hp);
+                        insert_opt_str(&mut mm, "intent", &m.intent);
+                        insert_opt_i64(&mut mm, "damage", m.damage);
+                        Value::Object(mm)
+                    })
+                    .collect(),
+            ),
+        );
 
-        let mut sorted_choices = self.card_reward_choices.clone();
-        sorted_choices.sort_by(|a, b| a.id.cmp(&b.id));
-        let choices_arr: Vec<Value> = sorted_choices
-            .iter()
-            .map(|c| {
-                let mut cm = serde_json::Map::new();
-                cm.insert("id".to_string(), Value::String(c.id.clone()));
-                Value::Object(cm)
-            })
-            .collect();
-        map.insert("card_reward_choices".to_string(), Value::Array(choices_arr));
-
-        let mut sorted_boss_relics = self.boss_relic_choices.clone();
-        sorted_boss_relics.sort_by(|a, b| a.name.cmp(&b.name));
+        map.insert(
+            "card_reward_choices".to_string(),
+            sorted_id_only_array(&self.card_reward_choices),
+        );
         map.insert(
             "boss_relic_choices".to_string(),
-            Value::Array(
-                sorted_boss_relics
-                    .into_iter()
-                    .map(|r| {
-                        let mut rm = serde_json::Map::new();
-                        rm.insert("name".to_string(), Value::String(r.name.clone()));
-                        rm.insert(
-                            "description".to_string(),
-                            Value::String(r.description.clone()),
-                        );
-                        Value::Object(rm)
-                    })
-                    .collect(),
-            ),
+            sorted_relic_name_desc_array(&self.boss_relic_choices),
         );
 
-        if let Some(ref v) = self.event_name {
-            map.insert("event_name".to_string(), Value::String(v.clone()));
-        }
-        if let Some(ref v) = self.event_id {
-            map.insert("event_id".to_string(), Value::String(v.clone()));
-        }
-        if let Some(ref v) = self.event_body {
-            map.insert("event_body".to_string(), Value::String(v.clone()));
-        }
-        let mut sorted_event_choices = self.event_choices.clone();
-        sorted_event_choices.sort();
+        insert_opt_str(&mut map, "event_name", &self.event_name);
+        insert_opt_str(&mut map, "event_id", &self.event_id);
+        insert_opt_str(&mut map, "event_body", &self.event_body);
         map.insert(
             "event_choices".to_string(),
-            Value::Array(
-                sorted_event_choices
-                    .into_iter()
-                    .map(Value::String)
-                    .collect(),
-            ),
+            sorted_string_array(&self.event_choices),
         );
 
-        let mut sorted_relics = self.relics.clone();
-        sorted_relics.sort_by(|a, b| a.name.cmp(&b.name));
         map.insert(
             "relics".to_string(),
-            Value::Array(
-                sorted_relics
-                    .into_iter()
-                    .map(|r| {
-                        let mut rm = serde_json::Map::new();
-                        rm.insert("name".to_string(), Value::String(r.name.clone()));
-                        rm.insert(
-                            "description".to_string(),
-                            Value::String(r.description.clone()),
-                        );
-                        Value::Object(rm)
-                    })
-                    .collect(),
-            ),
+            sorted_relic_name_desc_array(&self.relics),
         );
 
         let mut sorted_potions = self.potions.clone();
@@ -1198,18 +1196,13 @@ impl NormalizedState {
             ),
         );
 
-        let mut sorted_deck = self.deck_names.clone();
-        sorted_deck.sort();
         map.insert(
             "deck_names".to_string(),
-            Value::Array(sorted_deck.into_iter().map(Value::String).collect()),
+            sorted_string_array(&self.deck_names),
         );
-
-        let mut sorted_rest = self.rest_options.clone();
-        sorted_rest.sort();
         map.insert(
             "rest_options".to_string(),
-            Value::Array(sorted_rest.into_iter().map(Value::String).collect()),
+            sorted_string_array(&self.rest_options),
         );
 
         map.insert(
@@ -1260,47 +1253,34 @@ impl NormalizedState {
 
         if self.purge_available {
             map.insert("purge_available".to_string(), Value::Bool(true));
-            if let Some(c) = self.purge_cost {
-                map.insert("purge_cost".to_string(), Value::Number(c.into()));
-            }
+            insert_opt_i64(&mut map, "purge_cost", self.purge_cost);
         }
 
-        if let Some(v) = self.map_first_node_chosen {
-            map.insert("map_first_node_chosen".to_string(), Value::Bool(v));
-        }
-        if let Some(v) = self.map_current_x {
-            map.insert("map_current_x".to_string(), Value::Number(v.into()));
-        }
-        if let Some(v) = self.map_current_y {
-            map.insert("map_current_y".to_string(), Value::Number(v.into()));
-        }
+        insert_opt_bool(
+            &mut map,
+            "map_first_node_chosen",
+            self.map_first_node_chosen,
+        );
+        insert_opt_i64(&mut map, "map_current_x", self.map_current_x);
+        insert_opt_i64(&mut map, "map_current_y", self.map_current_y);
 
-        if let Some(v) = self.hand_select_max_cards {
-            map.insert("hand_select_max_cards".to_string(), Value::Number(v.into()));
-        }
-        if self.hand_select_can_pick_zero {
-            map.insert("hand_select_can_pick_zero".to_string(), Value::Bool(true));
-        }
-        let mut sorted_hand_select_selected = self.hand_select_selected.clone();
-        sorted_hand_select_selected.sort_by(|a, b| a.id.cmp(&b.id));
-        if !sorted_hand_select_selected.is_empty() {
+        insert_opt_i64(
+            &mut map,
+            "hand_select_max_cards",
+            self.hand_select_max_cards,
+        );
+        insert_bool_if_true(
+            &mut map,
+            "hand_select_can_pick_zero",
+            self.hand_select_can_pick_zero,
+        );
+        if !self.hand_select_selected.is_empty() {
             map.insert(
                 "hand_select_selected".to_string(),
-                Value::Array(
-                    sorted_hand_select_selected
-                        .into_iter()
-                        .map(|c| {
-                            let mut cm = serde_json::Map::new();
-                            cm.insert("id".to_string(), Value::String(c.id.clone()));
-                            Value::Object(cm)
-                        })
-                        .collect(),
-                ),
+                sorted_id_only_array(&self.hand_select_selected),
             );
         }
-        if let Some(ref v) = self.current_action {
-            map.insert("current_action".to_string(), Value::String(v.clone()));
-        }
+        insert_opt_str(&mut map, "current_action", &self.current_action);
         if let Some(ref c) = self.card_in_play {
             let mut cm = serde_json::Map::new();
             cm.insert("id".to_string(), Value::String(c.id.clone()));
@@ -1309,52 +1289,22 @@ impl NormalizedState {
             cm.insert("upgraded".to_string(), Value::Bool(c.upgraded));
             map.insert("card_in_play".to_string(), Value::Object(cm));
         }
-        let mut sorted_grid_cards = self.grid_cards.clone();
-        sorted_grid_cards.sort_by(|a, b| a.id.cmp(&b.id));
-        if !sorted_grid_cards.is_empty() {
+        if !self.grid_cards.is_empty() {
             map.insert(
                 "grid_cards".to_string(),
-                Value::Array(
-                    sorted_grid_cards
-                        .into_iter()
-                        .map(|c| {
-                            let mut cm = serde_json::Map::new();
-                            cm.insert("id".to_string(), Value::String(c.id.clone()));
-                            Value::Object(cm)
-                        })
-                        .collect(),
-                ),
+                sorted_id_only_array(&self.grid_cards),
             );
         }
-        let mut sorted_grid_selected = self.grid_selected_cards.clone();
-        sorted_grid_selected.sort_by(|a, b| a.id.cmp(&b.id));
-        if !sorted_grid_selected.is_empty() {
+        if !self.grid_selected_cards.is_empty() {
             map.insert(
                 "grid_selected_cards".to_string(),
-                Value::Array(
-                    sorted_grid_selected
-                        .into_iter()
-                        .map(|c| {
-                            let mut cm = serde_json::Map::new();
-                            cm.insert("id".to_string(), Value::String(c.id.clone()));
-                            Value::Object(cm)
-                        })
-                        .collect(),
-                ),
+                sorted_id_only_array(&self.grid_selected_cards),
             );
         }
-        if self.grid_for_upgrade {
-            map.insert("grid_for_upgrade".to_string(), Value::Bool(true));
-        }
-        if self.grid_for_transform {
-            map.insert("grid_for_transform".to_string(), Value::Bool(true));
-        }
-        if self.grid_for_purge {
-            map.insert("grid_for_purge".to_string(), Value::Bool(true));
-        }
-        if let Some(v) = self.grid_num_cards {
-            map.insert("grid_num_cards".to_string(), Value::Number(v.into()));
-        }
+        insert_bool_if_true(&mut map, "grid_for_upgrade", self.grid_for_upgrade);
+        insert_bool_if_true(&mut map, "grid_for_transform", self.grid_for_transform);
+        insert_bool_if_true(&mut map, "grid_for_purge", self.grid_for_purge);
+        insert_opt_i64(&mut map, "grid_num_cards", self.grid_num_cards);
         if self.empty_potion_slots > 0 {
             map.insert(
                 "empty_potion_slots".to_string(),

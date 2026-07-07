@@ -54,10 +54,10 @@ The review combined automated tool checks with three parallel explore-agent inve
 > | Severity | Total | Fixed | Remaining |
 > |----------|-------|-------|-----------|
 > | 🔴 Critical | 3 | 3 | 0 |
-> | 🟠 High | 10 | 6 | 4 |
+> | 🟠 High | 10 | 7 | 3 |
 > | 🟡 Medium | 11 | 10 | 1 |
 > | 🟢 Low | 8 | 4 | 4 |
-> | **Total** | **32** | **23** | **9** |
+> | **Total** | **32** | **24** | **8** |
 >
 > Verification: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ (0 warnings) · `cargo test` ✅ 1592 passed
 
@@ -183,13 +183,13 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ---
 
-#### H5. God function: `NormalizedState::to_stable_value()` is 349 lines — ⏳ REMAINING
+#### H5. God function: `NormalizedState::to_stable_value()` is 349 lines — ✅ FIXED (`H5-cycle`)
 
 - **File**: `src/state.rs`
 - **Lines**: 935-1283
 - **Description**: 349 lines of repetitive `if let Some(v) = self.field { map.insert("field", ...) }` blocks. This is the mirror of `from_raw` and should use serde or a macro.
 - **Impact**: Maintenance burden; any new field requires changes in both `from_raw` and `to_stable_value`.
-- **Fix**: Use `#[derive(Serialize)]` on `NormalizedState` with a custom serializer, or a macro to generate the boilerplate.
+- **Fix**: Extracted 5 scalar insertion helpers (`insert_opt_str`, `insert_opt_i64`, `insert_opt_bool`, `insert_bool_if_true`) and 3 sorted-array helpers (`sorted_string_array`, `sorted_id_only_array`, `sorted_relic_name_desc_array`). 24 repetitive if-let blocks → one-liner calls; 9 sorted-array conversions → reusable helpers. 349 → 233 LOC.
 
 ---
 
@@ -518,17 +518,17 @@ if let Err(e) = fs::write_all(&path, data) {
 | Severity | Total | Fixed | Remaining |
 |----------|-------|-------|-----------|
 | 🔴 Critical | 3 | 3 | 0 |
-| 🟠 High | 10 | 6 | 4 |
+| 🟠 High | 10 | 7 | 3 |
 | 🟡 Medium | 11 | 10 | 1 |
 | 🟢 Low | 8 | 4 | 4 |
-| **Total** | **32** | **23** | **9** |
+| **Total** | **32** | **24** | **8** |
 
 **Branch**: `fix/code-review-critical` (37 commits)
 **Verification**: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ · `cargo test` ✅ 1592 passed
 
 **Fixed issues**: C1 (rules.json fallback), C2 (map cycle detection), C3 (API key redaction in errors), H1 (LlmProvider Debug redaction), H2 (AGENTS.md test count), H8 (consolidated triplicated parsing into `src/parsing.rs`), H10 (219 clippy test warnings), M2 (`.ok()` → logged errors), M3 (`let _ =` → logged errors), M4 (panic/expect/unreachable → Result in 4 production sites), M5 (magic numbers → named constants), M7 (AI postmortem output validation), M8 (SSRF: `LLM_BASE_URL` scheme validation), M9 (stdin JSON size cap), M10 (TOCTOU race on overlay.json — mutex), M11 (cargo update — 27 deps), L3 (setup wizard masked input via `rpassword`), L4 (u16→u32 bit shift in kill-scan), L7 (build.rs triple-parent unwrap), L8 (`LLM_LOG_PROMPTS` env var to disable prompt logging).
 
-**Remaining**: 4 High-severity architecture refactors (god function H3 main, H5 to_stable_value, stringly-typed ScreenType H7, blocking I/O H9), 1 Medium issue (M1 oversized files), 4 Low hardening items (L1 Windows atomic rename, L2 file locking, L5 combat_identity [non-issue — gate reset between runs], L6 cargo-audit). M4 is partially fixed — 4 production panic/expect/unreachable sites resolved, dev-only instances remain.
+**Remaining**: 3 High-severity architecture refactors (god function H3 main, stringly-typed ScreenType H7, blocking I/O H9), 1 Medium issue (M1 oversized files), 4 Low hardening items (L1 Windows atomic rename, L2 file locking, L5 combat_identity [non-issue — gate reset between runs], L6 cargo-audit). M4 is partially fixed — 4 production panic/expect/unreachable sites resolved, dev-only instances remain.
 
 ---
 
@@ -548,7 +548,7 @@ if let Err(e) = fs::write_all(&path, data) {
 7. **H10**: Run `cargo clippy --fix --tests`, fix remaining 12 manually — ✅ `585682e`
 
 ### Phase 4 — Architecture refactoring (High, days) — ⏳ PARTIALLY DONE
-8. **H3-H6**: Decompose god functions (`main`, `from_raw`, `to_stable_value`, `dfs`) — H4 ✅ (`from_raw` → 8 extractors), H6 ✅ (`dfs` → `check_memo` + `try_play_card`); H3/H5 ⏳ remaining
+8. **H3-H6**: Decompose god functions (`main`, `from_raw`, `to_stable_value`, `dfs`) — H4 ✅ (`from_raw` → 8 extractors), H5 ✅ (`to_stable_value` → scalar+array helpers), H6 ✅ (`dfs` → `check_memo` + `try_play_card`); H3 ⏳ remaining
 9. **H7**: Introduce `ScreenType` enum (large, mechanical) — ⏳ remaining
 10. **H8**: Consolidate triplicated parsing logic — ✅ `995fade` (new `src/parsing.rs`)
 11. **H9**: Resolve blocking I/O in async (either go sync or use `tokio::fs`) — ⏳ remaining
