@@ -823,7 +823,16 @@ impl LlmProvider {
                 content
             }
         };
-        log_prompt_with_system(system_prompt, prompt, &result);
+        {
+            let sys = system_prompt.to_string();
+            let usr = prompt.to_string();
+            let res = result.clone();
+            tokio::task::spawn_blocking(move || {
+                log_prompt_with_system(&sys, &usr, &res);
+            })
+            .await
+            .ok();
+        }
         Ok(result)
     }
 }
