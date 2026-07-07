@@ -457,6 +457,293 @@ fn extract_event_choice(option: &Value) -> Option<String> {
     }
 }
 
+struct EventFields {
+    id: Option<String>,
+    name: Option<String>,
+    body: Option<String>,
+    choices: Vec<String>,
+}
+
+struct ShopFields {
+    cards: Vec<CardInfo>,
+    relics: Vec<RelicInfo>,
+    potions: Vec<PotionInfo>,
+    purge_available: bool,
+    purge_cost: Option<i64>,
+}
+
+struct HandSelectFields {
+    max_cards: Option<i64>,
+    can_pick_zero: bool,
+    selected: Vec<CardInfo>,
+}
+
+struct GridFields {
+    cards: Vec<CardInfo>,
+    selected_cards: Vec<CardInfo>,
+    for_upgrade: bool,
+    for_transform: bool,
+    for_purge: bool,
+    num_cards: Option<i64>,
+}
+
+fn extract_orbs(player: Option<&Value>) -> Vec<OrbInfo> {
+    player
+        .and_then(|p| p.get("orbs"))
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .map(|o| OrbInfo {
+                    id: o
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    amount: o.get("amount").and_then(|v| v.as_i64()).unwrap_or(0),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn extract_monsters(combat: Option<&Value>, total_hand_atk: i64) -> Vec<MonsterInfo> {
+    combat
+        .and_then(|c| c.get("monsters"))
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .enumerate()
+                .filter(|(_, m)| !m.get("is_gone").and_then(|g| g.as_bool()).unwrap_or(false))
+                .map(|(idx, m)| {
+                    let hp = m.get("current_hp").and_then(|n| n.as_i64());
+                    let is_scaling = m
+                        .get("powers")
+                        .and_then(|v| v.as_array())
+                        .map(|parr| {
+                            parr.iter().any(|p| {
+                                let id = p.get("id").and_then(|i| i.as_str()).unwrap_or("");
+                                id == "Strength"
+                                    || id == "Regeneration"
+                                    || id == "Metallicize"
+                                    || id == "Plated Armor"
+                            })
+                        })
+                        .unwrap_or(false);
+
+                    let can_be_killed = hp.map(|h| h <= total_hand_atk).unwrap_or(false);
+
+                    MonsterInfo {
+                        name: m
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("?")
+                            .to_string(),
+                        monster_id: m.get("id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                        index: idx,
+                        current_hp: hp,
+                        max_hp: m.get("max_hp").and_then(|n| n.as_i64()),
+                        block: m.get("block").and_then(|n| n.as_i64()),
+                        intent: m
+                            .get("intent")
+                            .and_then(|n| n.as_str())
+                            .map(|s| s.to_string()),
+                        damage: m.get("move_adjusted_damage").and_then(|n| n.as_i64()),
+                        hits: m.get("move_hits").and_then(|n| n.as_i64()),
+                        monster_powers: m
+                            .get("powers")
+                            .and_then(|v| v.as_array())
+                            .map(|arr| extract_powers(arr))
+                            .unwrap_or_default(),
+                        can_be_killed,
+                        is_scaling,
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn extract_event_fields(ss: Option<&Value>, gs: Option<&Value>, locale: &Locale) -> EventFields {
+    let id = ss
+        .and_then(|s| first_raw_string(s, &["event_id", "eventId", "id"]))
+        .filter(|s| is_readable_text(s));
+
+    let name = ss.and_then(|s| first_string(s, &["event_name", "name", "title"]));
+
+    let body =
+        ss.and_then(|s| first_string(s, &["body", "body_text", "event_text", "description"]));
+
+    let choices: Vec<String> = ss
+        .and_then(|s| first_array(s, &["options", "choices", "buttons"]))
+        .or_else(|| gs.and_then(|g| first_array(g, &["choice_list"])))
+        .map(|arr| {
+            arr.iter()
+                .enumerate()
+                .map(|(idx, choice)| {
+                    extract_event_choice(choice).unwrap_or_else(|| {
+                        locale
+                            .fallback
+                            .event_unreadable_choice
+                            .replace("{idx}", &(idx + 1).to_string())
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    EventFields {
+        id,
+        name,
+        body,
+        choices,
+    }
+}
+
+fn extract_shop_fields(ss: Option<&Value>) -> ShopFields {
+    let cards: Vec<CardInfo> = ss
+        .and_then(|s| s.get("cards"))
+        .and_then(|v| v.as_array())
+        .map(|arr| extract_cards(arr))
+        .unwrap_or_default();
+
+    let relics: Vec<RelicInfo> = ss
+        .and_then(|s| s.get("relics"))
+        .and_then(|v| v.as_array())
+        .map(|arr| extract_relic_infos(arr))
+        .unwrap_or_default();
+
+    let potions: Vec<PotionInfo> = ss
+        .and_then(|s| s.get("potions"))
+        .and_then(|v| v.as_array())
+        .map(|arr| extract_potion_infos(arr))
+        .unwrap_or_default();
+
+    let purge_available = ss
+        .and_then(|s| s.get("purge_available"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let purge_cost = ss
+        .and_then(|s| s.get("purge_cost"))
+        .and_then(|v| v.as_i64());
+
+    ShopFields {
+        cards,
+        relics,
+        potions,
+        purge_available,
+        purge_cost,
+    }
+}
+
+fn extract_map_nodes(gs: Option<&Value>) -> Vec<MapCoord> {
+    gs.and_then(|g| g.get("map"))
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .map(|n| MapCoord {
+                    symbol: n
+                        .get("symbol")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("?")
+                        .to_string(),
+                    x: n.get("x").and_then(|v| v.as_i64()).unwrap_or(0),
+                    y: n.get("y").and_then(|v| v.as_i64()).unwrap_or(0),
+                    children: n
+                        .get("children")
+                        .and_then(|v| v.as_array())
+                        .map(|children| {
+                            children
+                                .iter()
+                                .filter_map(|c| {
+                                    Some((c.get("x")?.as_i64()?, c.get("y")?.as_i64()?))
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn extract_empty_potion_slots(gs: Option<&Value>) -> usize {
+    gs.and_then(|g| g.get("potions"))
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter(|p| {
+                    p.get("id")
+                        .and_then(|id| id.as_str())
+                        .map(|id| id == "Potion Slot")
+                        .unwrap_or(false)
+                })
+                .count()
+        })
+        .unwrap_or(0)
+}
+
+fn extract_hand_select_fields(ss: Option<&Value>) -> HandSelectFields {
+    let max_cards = ss.and_then(|s| s.get("max_cards")).and_then(|v| v.as_i64());
+
+    let can_pick_zero = ss
+        .and_then(|s| s.get("can_pick_zero"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let selected: Vec<CardInfo> = ss
+        .and_then(|s| s.get("selected"))
+        .and_then(|v| v.as_array())
+        .map(|arr| extract_cards(arr))
+        .unwrap_or_default();
+
+    HandSelectFields {
+        max_cards,
+        can_pick_zero,
+        selected,
+    }
+}
+
+fn extract_grid_fields(ss: Option<&Value>) -> GridFields {
+    let cards: Vec<CardInfo> = ss
+        .and_then(|s| s.get("cards"))
+        .and_then(|v| v.as_array())
+        .map(|arr| extract_cards(arr))
+        .unwrap_or_default();
+
+    let selected_cards: Vec<CardInfo> = ss
+        .and_then(|s| s.get("selected_cards"))
+        .and_then(|v| v.as_array())
+        .map(|arr| extract_cards(arr))
+        .unwrap_or_default();
+
+    let for_upgrade = ss
+        .and_then(|s| s.get("for_upgrade"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let for_transform = ss
+        .and_then(|s| s.get("for_transform"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let for_purge = ss
+        .and_then(|s| s.get("for_purge"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let num_cards = ss.and_then(|s| s.get("num_cards")).and_then(|v| v.as_i64());
+
+    GridFields {
+        cards,
+        selected_cards,
+        for_upgrade,
+        for_transform,
+        for_purge,
+        num_cards,
+    }
+}
+
 impl NormalizedState {
     pub fn from_raw(raw: &Value, locale: &Locale) -> Self {
         let gs = raw.get("game_state");
@@ -503,23 +790,7 @@ impl NormalizedState {
 
         let turn_number = combat.and_then(|c| c.get("turn")).and_then(|v| v.as_i64());
 
-        let orbs: Vec<OrbInfo> = player
-            .and_then(|p| p.get("orbs"))
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .map(|o| OrbInfo {
-                        id: o
-                            .get("id")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        amount: o.get("amount").and_then(|v| v.as_i64()).unwrap_or(0),
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-
+        let orbs = extract_orbs(player);
         let stance = detect_stance_from_powers(&powers);
 
         let hand: Vec<CardInfo> = combat
@@ -554,62 +825,7 @@ impl NormalizedState {
             .map(|c| c.cost.min(1) * 6) // rough estimate: 6 dmg per attack
             .sum();
 
-        let monster_arr = combat
-            .and_then(|c| c.get("monsters"))
-            .and_then(|v| v.as_array());
-
-        let monsters: Vec<MonsterInfo> = monster_arr
-            .map(|arr| {
-                arr.iter()
-                    .enumerate()
-                    .filter(|(_, m)| !m.get("is_gone").and_then(|g| g.as_bool()).unwrap_or(false))
-                    .map(|(idx, m)| {
-                        let hp = m.get("current_hp").and_then(|n| n.as_i64());
-                        let is_scaling = m
-                            .get("powers")
-                            .and_then(|v| v.as_array())
-                            .map(|parr| {
-                                parr.iter().any(|p| {
-                                    let id = p.get("id").and_then(|i| i.as_str()).unwrap_or("");
-                                    id == "Strength"
-                                        || id == "Regeneration"
-                                        || id == "Metallicize"
-                                        || id == "Plated Armor"
-                                })
-                            })
-                            .unwrap_or(false);
-
-                        let can_be_killed = hp.map(|h| h <= total_hand_atk).unwrap_or(false);
-
-                        MonsterInfo {
-                            name: m
-                                .get("name")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("?")
-                                .to_string(),
-                            monster_id: m.get("id").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                            index: idx,
-                            current_hp: hp,
-                            max_hp: m.get("max_hp").and_then(|n| n.as_i64()),
-                            block: m.get("block").and_then(|n| n.as_i64()),
-                            intent: m
-                                .get("intent")
-                                .and_then(|n| n.as_str())
-                                .map(|s| s.to_string()),
-                            damage: m.get("move_adjusted_damage").and_then(|n| n.as_i64()),
-                            hits: m.get("move_hits").and_then(|n| n.as_i64()),
-                            monster_powers: m
-                                .get("powers")
-                                .and_then(|v| v.as_array())
-                                .map(|arr| extract_powers(arr))
-                                .unwrap_or_default(),
-                            can_be_killed,
-                            is_scaling,
-                        }
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
+        let monsters = extract_monsters(combat, total_hand_atk);
 
         let incoming_damage = monsters
             .iter()
@@ -659,33 +875,7 @@ impl NormalizedState {
             .map(|arr| extract_relic_infos(arr))
             .unwrap_or_default();
 
-        let event_id = screen_state
-            .and_then(|s| first_raw_string(s, &["event_id", "eventId", "id"]))
-            .filter(|s| is_readable_text(s));
-
-        let event_name =
-            screen_state.and_then(|s| first_string(s, &["event_name", "name", "title"]));
-
-        let event_body = screen_state
-            .and_then(|s| first_string(s, &["body", "body_text", "event_text", "description"]));
-
-        let event_choices: Vec<String> = screen_state
-            .and_then(|s| first_array(s, &["options", "choices", "buttons"]))
-            .or_else(|| gs.and_then(|g| first_array(g, &["choice_list"])))
-            .map(|arr| {
-                arr.iter()
-                    .enumerate()
-                    .map(|(idx, choice)| {
-                        extract_event_choice(choice).unwrap_or_else(|| {
-                            locale
-                                .fallback
-                                .event_unreadable_choice
-                                .replace("{idx}", &(idx + 1).to_string())
-                        })
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
+        let event = extract_event_fields(screen_state, gs, locale);
 
         let rest_options: Vec<String> = screen_state
             .and_then(|s| s.get("rest_options"))
@@ -697,32 +887,10 @@ impl NormalizedState {
             })
             .unwrap_or_default();
 
-        let shop_cards: Vec<CardInfo> = screen_state
-            .and_then(|s| s.get("cards"))
-            .and_then(|v| v.as_array())
-            .map(|arr| extract_cards(arr))
-            .unwrap_or_default();
+        let shop = extract_shop_fields(screen_state);
 
-        let shop_relics: Vec<RelicInfo> = screen_state
-            .and_then(|s| s.get("relics"))
-            .and_then(|v| v.as_array())
-            .map(|arr| extract_relic_infos(arr))
-            .unwrap_or_default();
-
-        let shop_potions: Vec<PotionInfo> = screen_state
-            .and_then(|s| s.get("potions"))
-            .and_then(|v| v.as_array())
-            .map(|arr| extract_potion_infos(arr))
-            .unwrap_or_default();
-
-        let purge_available = screen_state
-            .and_then(|s| s.get("purge_available"))
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        let purge_cost = screen_state
-            .and_then(|s| s.get("purge_cost"))
-            .and_then(|v| v.as_i64());
+        let purge_available = shop.purge_available;
+        let purge_cost = shop.purge_cost;
 
         let master_cards: Vec<CardInfo> = gs
             .and_then(|g| g.get("deck"))
@@ -730,35 +898,7 @@ impl NormalizedState {
             .map(|arr| extract_cards(arr))
             .unwrap_or_default();
 
-        let map_nodes: Vec<MapCoord> = gs
-            .and_then(|g| g.get("map"))
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .map(|n| MapCoord {
-                        symbol: n
-                            .get("symbol")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("?")
-                            .to_string(),
-                        x: n.get("x").and_then(|v| v.as_i64()).unwrap_or(0),
-                        y: n.get("y").and_then(|v| v.as_i64()).unwrap_or(0),
-                        children: n
-                            .get("children")
-                            .and_then(|v| v.as_array())
-                            .map(|children| {
-                                children
-                                    .iter()
-                                    .filter_map(|c| {
-                                        Some((c.get("x")?.as_i64()?, c.get("y")?.as_i64()?))
-                                    })
-                                    .collect()
-                            })
-                            .unwrap_or_default(),
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
+        let map_nodes = extract_map_nodes(gs);
 
         let mut relics: Vec<RelicInfo> = gs
             .and_then(|g| g.get("relics"))
@@ -772,35 +912,9 @@ impl NormalizedState {
             .map(|arr| extract_potion_infos(arr))
             .unwrap_or_default();
 
-        let empty_potion_slots = gs
-            .and_then(|g| g.get("potions"))
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter(|p| {
-                        p.get("id")
-                            .and_then(|id| id.as_str())
-                            .map(|id| id == "Potion Slot")
-                            .unwrap_or(false)
-                    })
-                    .count()
-            })
-            .unwrap_or(0);
+        let empty_potion_slots = extract_empty_potion_slots(gs);
 
-        let hand_select_max_cards = screen_state
-            .and_then(|s| s.get("max_cards"))
-            .and_then(|v| v.as_i64());
-
-        let hand_select_can_pick_zero = screen_state
-            .and_then(|s| s.get("can_pick_zero"))
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        let hand_select_selected: Vec<CardInfo> = screen_state
-            .and_then(|s| s.get("selected"))
-            .and_then(|v| v.as_array())
-            .map(|arr| extract_cards(arr))
-            .unwrap_or_default();
+        let hand_select = extract_hand_select_fields(screen_state);
 
         let current_action = gs
             .and_then(|g| g.get("current_action"))
@@ -811,36 +925,7 @@ impl NormalizedState {
             .and_then(|c| c.get("card_in_play"))
             .map(CardInfo::from_json);
 
-        let grid_cards: Vec<CardInfo> = screen_state
-            .and_then(|s| s.get("cards"))
-            .and_then(|v| v.as_array())
-            .map(|arr| extract_cards(arr))
-            .unwrap_or_default();
-
-        let grid_selected_cards: Vec<CardInfo> = screen_state
-            .and_then(|s| s.get("selected_cards"))
-            .and_then(|v| v.as_array())
-            .map(|arr| extract_cards(arr))
-            .unwrap_or_default();
-
-        let grid_for_upgrade = screen_state
-            .and_then(|s| s.get("for_upgrade"))
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        let grid_for_transform = screen_state
-            .and_then(|s| s.get("for_transform"))
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        let grid_for_purge = screen_state
-            .and_then(|s| s.get("for_purge"))
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        let grid_num_cards = screen_state
-            .and_then(|s| s.get("num_cards"))
-            .and_then(|v| v.as_i64());
+        let grid = extract_grid_fields(screen_state);
 
         let mut deck_names: Vec<String> = gs
             .and_then(|g| g.get("deck"))
@@ -869,10 +954,10 @@ impl NormalizedState {
             monsters,
             card_reward_choices,
             boss_relic_choices,
-            event_id,
-            event_name,
-            event_body,
-            event_choices,
+            event_id: event.id,
+            event_name: event.name,
+            event_body: event.body,
+            event_choices: event.choices,
             relics,
             potions,
             deck_names,
@@ -880,9 +965,9 @@ impl NormalizedState {
             rest_options,
             danger,
             skip_available,
-            shop_cards,
-            shop_relics,
-            shop_potions,
+            shop_cards: shop.cards,
+            shop_relics: shop.relics,
+            shop_potions: shop.potions,
             purge_available,
             purge_cost,
             turn_number,
@@ -897,17 +982,17 @@ impl NormalizedState {
             map_first_node_chosen,
             map_current_x,
             map_current_y,
-            hand_select_max_cards,
-            hand_select_can_pick_zero,
-            hand_select_selected,
+            hand_select_max_cards: hand_select.max_cards,
+            hand_select_can_pick_zero: hand_select.can_pick_zero,
+            hand_select_selected: hand_select.selected,
             current_action,
             card_in_play,
-            grid_cards,
-            grid_selected_cards,
-            grid_for_upgrade,
-            grid_for_transform,
-            grid_for_purge,
-            grid_num_cards,
+            grid_cards: grid.cards,
+            grid_selected_cards: grid.selected_cards,
+            grid_for_upgrade: grid.for_upgrade,
+            grid_for_transform: grid.for_transform,
+            grid_for_purge: grid.for_purge,
+            grid_num_cards: grid.num_cards,
             empty_potion_slots,
         }
     }
