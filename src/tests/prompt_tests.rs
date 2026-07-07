@@ -1640,6 +1640,44 @@ fn enumerate_paths_from_roots_single_root() {
 }
 
 #[test]
+fn enumerate_paths_handles_cycle_without_infinite_loop() {
+    let nodes = vec![
+        make_node("A", 0, 0, vec![(0, 1)]),
+        make_node("B", 0, 1, vec![(0, 2)]),
+        make_node("C", 0, 2, vec![(0, 0)]),
+    ];
+    let paths = enumerate_paths(0, 0, &nodes);
+    assert_eq!(paths.len(), 1);
+    assert_eq!(paths[0].len(), 3);
+    assert_eq!(paths[0][0].symbol, "A");
+    assert_eq!(paths[0][1].symbol, "B");
+    assert_eq!(paths[0][2].symbol, "C");
+}
+
+#[test]
+fn enumerate_paths_handles_self_loop() {
+    let nodes = vec![make_node("A", 0, 0, vec![(0, 0)])];
+    let paths = enumerate_paths(0, 0, &nodes);
+    assert_eq!(paths.len(), 1);
+    assert_eq!(paths[0].len(), 1);
+    assert_eq!(paths[0][0].symbol, "A");
+}
+
+#[test]
+fn enumerate_paths_handles_cycle_with_branch() {
+    let nodes = vec![
+        make_node("A", 0, 0, vec![(0, 1), (1, 1)]),
+        make_node("B", 0, 1, vec![(0, 2)]),
+        make_node("C", 0, 2, vec![(0, 0)]),
+        make_node("D", 1, 1, vec![]),
+    ];
+    let paths = enumerate_paths(0, 0, &nodes);
+    assert_eq!(paths.len(), 2);
+    assert!(paths.iter().any(|p| p.len() == 3 && p[2].symbol == "C"));
+    assert!(paths.iter().any(|p| p.len() == 2 && p[1].symbol == "D"));
+}
+
+#[test]
 fn summarize_path_all_types() {
     let path = vec![
         make_node("M", 0, 0, vec![]),

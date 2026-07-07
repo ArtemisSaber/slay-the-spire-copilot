@@ -21,6 +21,9 @@ pub fn enumerate_paths(start_x: i64, start_y: i64, nodes: &[MapCoord]) -> Vec<Ve
         let mut found = false;
         for (cx, cy) in node.children.iter().rev() {
             if let Some(child) = node_map.get(&(*cx, *cy)) {
+                if path.iter().any(|n| n.x == *cx && n.y == *cy) {
+                    continue;
+                }
                 found = true;
                 let mut new_path = path.clone();
                 new_path.push((*child).clone());
