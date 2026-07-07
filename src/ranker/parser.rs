@@ -35,9 +35,11 @@ fn extract_first_integer(s: &str) -> Option<i64> {
             while i < bytes.len() && bytes[i].is_ascii_digit() {
                 i += 1;
             }
-            return std::str::from_utf8(&bytes[start..i])
-                .ok()
-                .and_then(|n| n.parse().ok());
+            return std::str::from_utf8(&bytes[start..i]).ok().and_then(|n| {
+                n.parse::<i64>()
+                    .map_err(|e| tracing::warn!("integer parse failed: {e}"))
+                    .ok()
+            });
         }
         i += 1;
     }
@@ -54,10 +56,11 @@ fn extract_last_integer(s: &str) -> Option<i64> {
             while i < bytes.len() && bytes[i].is_ascii_digit() {
                 i += 1;
             }
-            if let Some(parsed) = std::str::from_utf8(&bytes[start..i])
-                .ok()
-                .and_then(|s| s.parse::<i64>().ok())
-            {
+            if let Some(parsed) = std::str::from_utf8(&bytes[start..i]).ok().and_then(|s| {
+                s.parse::<i64>()
+                    .map_err(|e| tracing::warn!("integer parse failed: {e}"))
+                    .ok()
+            }) {
                 last = Some(parsed);
             }
         } else {
