@@ -231,10 +231,6 @@ pub struct PostmortemLocale {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[allow(
-    dead_code,
-    reason = "WIP: effect parser locale fields will be used by effects.rs in subsequent phases"
-)]
 pub struct EffectParserLocale {
     pub damage_keyword: String,
     pub aoe_keywords: Vec<String>,
