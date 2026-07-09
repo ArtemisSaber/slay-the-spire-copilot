@@ -249,7 +249,7 @@ impl AdviceCache {
 
         // Start 30s hide timer
         let ticket = {
-            let mut g = self.overlay_gen.lock().unwrap();
+            let mut g = self.overlay_gen.lock().unwrap_or_else(|e| e.into_inner());
             *g += 1;
             *g
         };
@@ -261,7 +261,7 @@ impl AdviceCache {
         let handle = tokio::spawn(async move {
             tokio::time::sleep(delay).await;
 
-            let current_gen = *gen_counter.lock().unwrap();
+            let current_gen = *gen_counter.lock().unwrap_or_else(|e| e.into_inner());
             if current_gen != ticket {
                 return;
             }

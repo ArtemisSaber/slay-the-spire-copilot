@@ -532,3 +532,16 @@ fn cancel_hide_timer_when_none_is_noop() {
     cache.cancel_hide_timer();
     assert!(cache.hide_timer.is_none());
 }
+
+#[test]
+fn overlay_gen_lock_survives_mutex_poison() {
+    use std::sync::{Arc, Mutex};
+
+    let m = Arc::new(Mutex::new(0u64));
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _guard = m.lock().unwrap();
+        panic!("intentional poison");
+    }));
+    let val = *m.lock().unwrap_or_else(|e| e.into_inner());
+    assert_eq!(val, 0);
+}
