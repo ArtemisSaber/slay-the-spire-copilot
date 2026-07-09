@@ -5,7 +5,6 @@ use crate::state::NormalizedState;
 use chrono::{DateTime, Local};
 use serde_json::json;
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -252,13 +251,9 @@ impl Journal {
             return;
         };
 
-        match fs::OpenOptions::new().create(true).append(true).open(path) {
-            Ok(mut file) => {
-                if let Err(e) = writeln!(file, "{line}") {
-                    tracing::error!("failed to write journal event: {e}");
-                }
-            }
-            Err(e) => tracing::error!("failed to open journal file {}: {e}", path.display()),
+        let line = format!("{line}\n");
+        if let Err(e) = crate::logging::append_locked(path, line.as_bytes()) {
+            tracing::error!("failed to write journal event to {}: {e}", path.display());
         }
     }
 

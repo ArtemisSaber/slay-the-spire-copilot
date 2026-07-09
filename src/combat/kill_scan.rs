@@ -361,6 +361,7 @@ fn try_play_card(
     None
 }
 
+#[cfg(test)]
 const KNOWN_MONSTER_POWERS: &[&str] = &[
     "Artifact",
     "人工制品",
@@ -400,6 +401,7 @@ const KNOWN_MONSTER_POWERS: &[&str] = &[
     "Metallicize",
 ];
 
+#[cfg(test)]
 pub(crate) fn has_dangerous_unknown_powers(monsters: &[MonsterSnapshot]) -> bool {
     for m in monsters {
         for p in &m.powers {
@@ -445,6 +447,7 @@ pub(crate) fn random_target_guaranteed(
     total_damage >= total_durability + (damage_per_hit as i64 - 1) * (alive_count - 1)
 }
 
+#[cfg(test)]
 pub(crate) struct TestCard {
     pub uuid: &'static str,
     pub name: &'static str,
@@ -464,6 +467,7 @@ pub(crate) struct TestCard {
     pub x_cost: bool,
 }
 
+#[cfg(test)]
 impl TestCard {
     fn to_effect(&self) -> crate::combat::effects::CardEffect {
         use crate::combat::effects::{CardEffect, DamageEffect, ExhaustKind};
@@ -489,6 +493,7 @@ impl TestCard {
     clippy::too_many_arguments,
     reason = "test_scan takes all scan parameters explicitly"
 )]
+#[cfg(test)]
 pub(crate) fn test_scan(
     hand_cards: &[TestCard],
     energy: i16,

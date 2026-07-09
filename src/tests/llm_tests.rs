@@ -4,6 +4,31 @@ use crate::state::{
     DangerFlags, DangerLevel, MonsterInfo, NormalizedState, RelicInfo, RoomType, ScreenType,
 };
 use crate::test_utils::test_locale;
+use std::process::{Child, Command};
+use std::thread;
+use std::time::{Duration, Instant};
+
+const PROMPT_LOCK_CHILD_BASE: &str = "STS_COPILOT_PROMPT_LOCK_CHILD_BASE";
+const PROMPT_LOCK_CHILD_READY: &str = "STS_COPILOT_PROMPT_LOCK_CHILD_READY";
+
+fn wait_for_ready(path: &std::path::Path) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while Instant::now() < deadline {
+        if path.exists() {
+            return;
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    panic!("child did not signal readiness: {}", path.display());
+}
+
+fn assert_child_waits_while_locked(child: &mut Child) {
+    thread::sleep(Duration::from_millis(150));
+    assert!(
+        child.try_wait().unwrap().is_none(),
+        "child append completed while parent lock was held"
+    );
+}
 
 #[test]
 fn scenario_system_prompts_are_defined() {
@@ -849,6 +874,53 @@ fn log_prompt_into_dir_writes_formatted_entry() {
     assert!(contents.contains("[user]\nusr-content"));
     assert!(contents.contains("[assistant]\nast-content"));
     assert!(contents.contains("\n---\n"));
+}
+
+#[test]
+fn prompt_log_append_waits_for_cross_process_lock() {
+    if let Ok(base) = std::env::var(PROMPT_LOCK_CHILD_BASE) {
+        let ready = std::env::var(PROMPT_LOCK_CHILD_READY).unwrap();
+        std::fs::write(ready, "ready").unwrap();
+        log_prompt_into_dir(
+            std::path::Path::new(&base),
+            "locked-system",
+            "locked-user",
+            "locked-assistant",
+        );
+        return;
+    }
+
+    let dir = tempfile::tempdir().unwrap();
+    let log_dir = dir.path().join("logs");
+    std::fs::create_dir_all(&log_dir).unwrap();
+    let log_path = log_dir.join("prompts.log");
+    let ready_path = dir.path().join("child-ready");
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .unwrap();
+    fs4::FileExt::lock(&file).unwrap();
+
+    let mut child = Command::new(std::env::current_exe().unwrap())
+        .arg("llm::tests::prompt_log_append_waits_for_cross_process_lock")
+        .arg("--exact")
+        .env(PROMPT_LOCK_CHILD_BASE, dir.path())
+        .env(PROMPT_LOCK_CHILD_READY, &ready_path)
+        .spawn()
+        .unwrap();
+
+    wait_for_ready(&ready_path);
+    assert_child_waits_while_locked(&mut child);
+    fs4::FileExt::unlock(&file).unwrap();
+    let status = child.wait().unwrap();
+    assert!(status.success(), "child test failed: {status}");
+
+    let content = std::fs::read_to_string(&log_path).unwrap();
+    assert!(content.contains("[system]\nlocked-system"));
+    assert!(content.contains("[user]\nlocked-user"));
+    assert!(content.contains("[assistant]\nlocked-assistant"));
+    assert!(content.contains("\n---\n"));
 }
 
 #[test]

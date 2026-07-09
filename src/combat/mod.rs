@@ -1,8 +1,3 @@
-#![allow(
-    dead_code,
-    reason = "WIP: kill-scan types will be used in subsequent phases"
-)]
-
 pub mod context;
 pub(crate) mod damage;
 pub(crate) mod effects;
@@ -58,8 +53,10 @@ pub type KillSequence = Vec<KillPlay>;
 #[derive(Debug, Clone)]
 pub struct KillScanOptions {
     pub deadline: Duration,
+    #[allow(dead_code, reason = "planned: parallel kill-scan workers")]
     pub worker_threads: usize,
     pub max_expanded_states: usize,
+    #[allow(dead_code, reason = "planned: memo-entry cap per worker")]
     pub max_memo_entries: usize,
 }
 
@@ -80,13 +77,7 @@ pub fn find_kill_sequence(state: &NormalizedState) -> Option<KillSequence> {
     kill_scan::find_kill_sequence_inner(state, &KillScanOptions::default())
 }
 
-pub fn find_kill_sequence_with_options(
-    state: &NormalizedState,
-    options: KillScanOptions,
-) -> Option<KillSequence> {
-    kill_scan::find_kill_sequence_inner(state, &options)
-}
-
+#[cfg(test)]
 pub fn can_end_fight(state: &NormalizedState) -> bool {
     find_kill_sequence(state).is_some()
 }

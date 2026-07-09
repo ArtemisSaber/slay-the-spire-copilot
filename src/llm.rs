@@ -3,7 +3,6 @@ use crate::locales::Locale;
 use crate::state::NormalizedState;
 use anyhow::Context;
 use std::fs;
-use std::io::Write;
 use std::time::Instant;
 
 fn log_prompt_with_system(system_prompt: &str, user_prompt: &str, response: &str) {
@@ -44,10 +43,8 @@ fn log_prompt_into_dir(
         "[system]\n{system_prompt}\n\n[user]\n{user_prompt}\n\n[assistant]\n{response}\n---\n",
     );
 
-    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&path)
-        && let Err(e) = file.write_all(entry.as_bytes())
-    {
-        tracing::warn!("failed to write prompts log: {e}");
+    if let Err(e) = crate::logging::append_locked(&path, entry.as_bytes()) {
+        tracing::warn!("failed to write prompts log {}: {e}", path.display());
     }
 }
 

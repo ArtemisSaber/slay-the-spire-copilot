@@ -1,4 +1,29 @@
 use super::*;
+use std::process::{Child, Command};
+use std::thread;
+use std::time::{Duration, Instant};
+
+const RAW_LOCK_CHILD_DIR: &str = "STS_COPILOT_RAW_LOCK_CHILD_DIR";
+const RAW_LOCK_CHILD_READY: &str = "STS_COPILOT_RAW_LOCK_CHILD_READY";
+
+fn wait_for_ready(path: &std::path::Path) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while Instant::now() < deadline {
+        if path.exists() {
+            return;
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    panic!("child did not signal readiness: {}", path.display());
+}
+
+fn assert_child_waits_while_locked(child: &mut Child) {
+    thread::sleep(Duration::from_millis(150));
+    assert!(
+        child.try_wait().unwrap().is_none(),
+        "child append completed while parent lock was held"
+    );
+}
 
 #[test]
 fn project_root_is_valid_path() {
@@ -104,6 +129,43 @@ fn log_raw_input_to_appends_lines() {
     assert_eq!(content, "line 1\nline 2\n");
 
     let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn log_raw_input_to_waits_for_cross_process_lock() {
+    if let Ok(dir) = std::env::var(RAW_LOCK_CHILD_DIR) {
+        let ready = std::env::var(RAW_LOCK_CHILD_READY).unwrap();
+        fs::write(ready, "ready").unwrap();
+        log_raw_input_to(std::path::Path::new(&dir), "child-line");
+        return;
+    }
+
+    let dir = tempfile::tempdir().unwrap();
+    let log_path = dir.path().join("comm-mod-raw.log");
+    let ready_path = dir.path().join("child-ready");
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .unwrap();
+    fs4::FileExt::lock(&file).unwrap();
+
+    let mut child = Command::new(std::env::current_exe().unwrap())
+        .arg("logging::tests::log_raw_input_to_waits_for_cross_process_lock")
+        .arg("--exact")
+        .env(RAW_LOCK_CHILD_DIR, dir.path())
+        .env(RAW_LOCK_CHILD_READY, &ready_path)
+        .spawn()
+        .unwrap();
+
+    wait_for_ready(&ready_path);
+    assert_child_waits_while_locked(&mut child);
+    fs4::FileExt::unlock(&file).unwrap();
+    let status = child.wait().unwrap();
+    assert!(status.success(), "child test failed: {status}");
+
+    let content = fs::read_to_string(&log_path).unwrap();
+    assert_eq!(content, "child-line\n");
 }
 
 #[test]

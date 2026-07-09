@@ -1,16 +1,24 @@
 use crate::combat::effects::{CardEffect, DamageEffect, HitCount, StanceEffect, TargetType};
 use crate::combat::{CombatScanContext, MonsterSnapshot, PowerState, Stance};
 
+#[cfg(test)]
 pub struct PlayBranch {
     pub target_index: Option<usize>,
+    #[allow(dead_code, reason = "populated by generate_plays; consumed by callers")]
     pub resolved: CombatScanContext,
 }
 
+#[cfg(test)]
+#[allow(
+    dead_code,
+    reason = "test infrastructure: planned play-branch grouping"
+)]
 pub struct CardPlay {
     pub card_index: usize,
     pub branches: Vec<PlayBranch>,
 }
 
+#[cfg(test)]
 pub fn generate_plays(
     card_index: usize,
     effect: &CardEffect,

@@ -1,6 +1,6 @@
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -79,10 +79,22 @@ pub fn log_raw_input(line: &str) {
     log_raw_input_to(&project_root().join("logs"), line);
 }
 
+pub(crate) fn append_locked(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
+    fs4::FileExt::lock(&file)?;
+    let write_result = file.write_all(bytes);
+    let unlock_result = fs4::FileExt::unlock(&file);
+    write_result?;
+    unlock_result
+}
+
 pub(crate) fn log_raw_input_to(log_dir: &std::path::Path, line: &str) {
     let path = log_dir.join("comm-mod-raw.log");
-    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&path) {
-        let _ = writeln!(file, "{line}");
+    if let Err(e) = append_locked(&path, format!("{line}\n").as_bytes()) {
+        tracing::warn!("failed to write raw input log {}: {e}", path.display());
     }
 }
 

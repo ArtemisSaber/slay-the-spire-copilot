@@ -92,11 +92,6 @@ fn with_mantra(mut tc: TestCard, amount: i16) -> TestCard {
     tc
 }
 
-fn with_execute(mut tc: TestCard, threshold: i16) -> TestCard {
-    tc.execute_threshold = Some(threshold);
-    tc
-}
-
 fn with_xcost(mut tc: TestCard, dmg_per_x: i16) -> TestCard {
     tc.x_cost = true;
     tc.damage = Some((dmg_per_x, HitCount::XTimes, TargetType::AoE));
