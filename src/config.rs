@@ -16,6 +16,7 @@ pub struct Config {
     pub temperature: f64,
     pub disable_fast_thinking: bool,
     pub auto_play: bool,
+    pub auto_play_auto_start: bool,
 }
 
 impl Config {
@@ -84,6 +85,10 @@ impl Config {
             .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
             .unwrap_or(false);
 
+        let auto_play_auto_start = lookup_non_empty("AUTO_PLAY_AUTO_START")
+            .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+            .unwrap_or(false);
+
         Config {
             provider,
             base_url,
@@ -97,6 +102,7 @@ impl Config {
             temperature,
             disable_fast_thinking,
             auto_play,
+            auto_play_auto_start,
         }
     }
 

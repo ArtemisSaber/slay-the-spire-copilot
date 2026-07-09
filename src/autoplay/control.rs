@@ -96,7 +96,7 @@ pub fn load_control(path: &Path, last_seen_revision: Option<u64>) -> ControlLoad
     let content = match fs::read_to_string(path) {
         Ok(content) => content,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            return ControlLoad::MissingDefault(AutoPlayControl::default_paused());
+            return ControlLoad::MissingDefault(AutoPlayControl::default_enabled());
         }
         Err(e) => return ControlLoad::Malformed(e.to_string()),
     };
@@ -126,13 +126,13 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn missing_control_defaults_to_paused() {
+    fn missing_control_defaults_to_auto() {
         let dir = tempfile::tempdir().unwrap();
         let loaded = load_control(&dir.path().join("autoplay-control.json"), None);
 
         assert_eq!(
             loaded,
-            ControlLoad::MissingDefault(AutoPlayControl::default_paused())
+            ControlLoad::MissingDefault(AutoPlayControl::default_enabled())
         );
     }
 

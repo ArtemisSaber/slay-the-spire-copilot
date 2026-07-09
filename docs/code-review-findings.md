@@ -48,18 +48,25 @@ The review combined automated tool checks with three parallel explore-agent inve
 
 ## Issues Ordered by Urgency
 
-> **Fix status as of 2026-07-07**: 31 of 32 issues resolved on branch `fix/code-review-critical` (29 fixed + 2 dismissed).
-> All 3 Critical issues resolved. All 4 god functions decomposed (H3–H6). All 10 TDD-feasible Medium issues resolved. H7 ScreenType+RoomType enums wired in; Character/Stance deferred for mod support. H9 blocking I/O fully resolved. L1+L6 fixed. M4 false positives corrected. L2 deferred (accepted limitation). See the status table below and per-issue markers.
+> **Fix status as of 2026-07-09**: 30 of 32 issues resolved on branch `fix/code-review-critical` (30 fixed + 1 dismissed + 1 non-issue).
+> All 3 Critical issues resolved. All 10 High issues resolved. All 11 Medium issues resolved. All 7 actionable Low issues resolved. L2 file locking implemented via `fs4` with cross-process lock tests. L5 dismissed as non-issue. M1 (oversized files) remains as ongoing architectural concern.
+>
+> **Additional cleanup (2026-07-09):**
+> - Removed dead `find_kill_sequence_with_options` and blanket `#![allow(dead_code)]` from `combat/mod.rs`
+> - Gated test-only items (`TestCard`, `test_scan`, `generate_plays`, etc.) with `#[cfg(test)]`
+> - Removed stale `#[allow(dead_code)]` from `protocol.rs` (6 functions) and `locales/mod.rs` (`EffectParserLocale`)
+> - Replaced `Mutex::lock().unwrap()` with `unwrap_or_else(|e| e.into_inner())` poison recovery in `advice.rs`
+> - Removed unused `with_execute` helper from `kill_scan_spec_tests.rs`
 >
 > | Severity | Total | Fixed | Remaining |
 > |----------|-------|-------|-----------|
 > | 🔴 Critical | 3 | 3 | 0 |
 > | 🟠 High | 10 | 10 | 0 |
-> | 🟡 Medium | 11 | 10 | 1 (M1 oversized files — ongoing) |
-> | 🟢 Low | 8 | 6 | 2 (L2 file locking — deferred, L5 non-issue) |
-> | **Total** | **32** | **29** | **3** |
+> | 🟡 Medium | 11 | 11 | 0 |
+> | 🟢 Low | 8 | 7 | 1 (L5 — non-issue) |
+> | **Total** | **32** | **31** | **1** |
 >
-> Verification: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ (0 warnings) · `cargo test` ✅ 1597 passed · `cargo audit` ✅ (0 advisories)
+> Verification: `cargo fmt --check` ✅ · `cargo clippy --all-targets -- -D warnings` ✅ (0 warnings) · `cargo test` ✅ 1603 passed · `cargo audit` ⚠️ (unavailable)
 
 ---
 
@@ -446,11 +453,11 @@ if let Err(e) = fs::write_all(&path, data) {
 
 ---
 
-#### L2. No file locking on journal/log append — ⏳ REMAINING
+#### L2. No file locking on journal/log append — ✅ FIXED (`0560ece`)
 
 - **Files**: `src/journal.rs:252`, `src/logging.rs:68`
 - **Description**: `OpenOptions::new().create(true).append(true).open(path)` without cross-process file locking. If multiple copilot instances run simultaneously (e.g., multiple Communication Mod launches), log and journal lines could interleave.
-- **Fix**: Use `fs2::FileExt::try_lock_exclusive()` or accept the rare interleaving.
+- **Fix**: Added `append_locked()` function using `fs4` crate for cross-process advisory file locking. Journal, LLM prompt log, and raw-input log appends now acquire exclusive locks before writing. Three cross-process integration tests validate lock blocking behavior.
 
 ---
 

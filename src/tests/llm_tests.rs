@@ -601,6 +601,7 @@ fn from_config_unknown_provider() {
         temperature: 0.5,
         disable_fast_thinking: false,
         auto_play: false,
+        auto_play_auto_start: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(result.is_err());
@@ -622,6 +623,7 @@ fn from_config_missing_base_url() {
         temperature: 0.5,
         disable_fast_thinking: false,
         auto_play: false,
+        auto_play_auto_start: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(result.is_err());
@@ -642,6 +644,7 @@ fn from_config_pollinations_free_accepts_no_api_key() {
         temperature: 0.5,
         disable_fast_thinking: false,
         auto_play: false,
+        auto_play_auto_start: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(matches!(result, Ok(LlmProvider::PollinationsFree { .. })));
@@ -662,6 +665,7 @@ fn from_config_anthropic_requires_api_key() {
         temperature: 0.5,
         disable_fast_thinking: false,
         auto_play: false,
+        auto_play_auto_start: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(result.is_err());
@@ -683,6 +687,7 @@ fn from_config_anthropic_accepts_valid_config() {
         temperature: 0.5,
         disable_fast_thinking: false,
         auto_play: false,
+        auto_play_auto_start: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(matches!(result, Ok(LlmProvider::Anthropic { .. })));
@@ -830,6 +835,7 @@ fn from_config_accepts_mock_provider() {
         temperature: 0.5,
         disable_fast_thinking: false,
         auto_play: false,
+        auto_play_auto_start: false,
     };
     let result = LlmProvider::from_config(&config);
     assert!(matches!(result, Ok(LlmProvider::Mock)));

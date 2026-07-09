@@ -239,6 +239,7 @@ fn run_started_includes_provider_and_models() {
         temperature: 0.2,
         disable_fast_thinking: false,
         auto_play: false,
+        auto_play_auto_start: false,
     };
 
     journal.log_run_started_with_config(&config);

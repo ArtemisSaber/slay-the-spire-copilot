@@ -374,7 +374,11 @@ async fn main() {
     let mut map_gate = MapGate::new();
     let mut autoplay_last_revision: Option<u64> = None;
     let mut current_autoplay_control = if config.auto_play {
-        Some(autoplay::control::AutoPlayControl::default_paused())
+        Some(if config.auto_play_auto_start {
+            autoplay::control::AutoPlayControl::default_enabled()
+        } else {
+            autoplay::control::AutoPlayControl::default_paused()
+        })
     } else {
         None
     };
@@ -382,6 +386,11 @@ async fn main() {
         let initial_overlay_path = logging::advice_output_dir()
             .join("output")
             .join("overlay.json");
+        let initial_mode = if config.auto_play_auto_start {
+            "auto"
+        } else {
+            "paused"
+        };
         autoplay::status::write_overlay_autoplay(
             &initial_overlay_path,
             &advice::OverlayMetadata {
@@ -393,9 +402,16 @@ async fn main() {
                 character: None,
             },
             &autoplay::status::AutoPlayState {
-                mode: "paused".into(),
+                mode: initial_mode.into(),
                 status: "startup".into(),
             },
+        );
+    }
+    if config.auto_play_auto_start {
+        let _ = std::fs::remove_file(
+            logging::advice_output_dir()
+                .join("output")
+                .join("autoplay-control.json"),
         );
     }
     let mut autoplay_session = autoplay::control::AutoPlaySession::default();
