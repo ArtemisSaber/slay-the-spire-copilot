@@ -71,3 +71,5 @@ mod rewards_combat_core;
 mod rewards_combat_filters;
 mod rewards_combat_items;
 mod rewards_misc;
+
+mod wire_contracts;

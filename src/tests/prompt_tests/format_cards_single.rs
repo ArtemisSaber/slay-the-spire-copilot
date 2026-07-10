@@ -16,6 +16,21 @@ fn format_card_includes_name_cost_type_and_description() {
 }
 
 #[test]
+fn format_card_matches_exact_locale_template() {
+    let locale = test_locale();
+    let c = CardInfo {
+        name: "上勾拳".into(),
+        description: "造成 13 点伤害。\n给予 1 层 虚弱 。".into(),
+        ..card("Uppercut", "上勾拳", 2, "ATTACK")
+    };
+
+    assert_eq!(
+        format_card(&c, &locale),
+        "上勾拳(2费/攻击) — 造成 13 点伤害。\n给予 1 层 虚弱。"
+    );
+}
+
+#[test]
 fn format_card_shows_plus_for_upgraded() {
     let locale = test_locale();
     let c = CardInfo {
