@@ -579,5 +579,5 @@ fn has_monster_power(monster: &crate::state::MonsterInfo, power_id: &str) -> boo
 }
 
 #[cfg(test)]
-#[path = "tests/engine_tests.rs"]
+#[path = "tests/engine_tests/mod.rs"]
 mod tests;

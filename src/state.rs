@@ -1409,5 +1409,5 @@ fn hash_bytes(bytes: &[u8]) -> String {
 }
 
 #[cfg(test)]
-#[path = "tests/state_tests.rs"]
+#[path = "tests/state_tests/mod.rs"]
 mod tests;
