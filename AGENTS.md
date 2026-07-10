@@ -10,7 +10,7 @@
 - **Version**: current release is `0.2.0`
 
 ## Build & Test
-- `cargo test` — runs 1603 tests (1601 unit + 2 integration)
+- `cargo test` — runs 1605 tests (1603 unit + 2 integration)
 - `cargo build --release` — Linux binary at `target/release/slay-the-spire-copilot`
 - Cross-compile Windows: `cargo build --release --target x86_64-pc-windows-gnu` (needs `mingw-w64-gcc` on Arch)
 - Project uses `rustls-tls` (not OpenSSL) — no C dependencies beyond mingw on cross-compile

@@ -2920,3 +2920,27 @@ fn screen_type_round_trips_through_serde() {
     let back: ScreenType = serde_json::from_str(&json).unwrap();
     assert_eq!(original, back);
 }
+
+#[test]
+fn room_type_treasure_room_round_trips_through_serde() {
+    let original = RoomType::TreasureRoom;
+    let json = serde_json::to_string(&original).unwrap();
+    assert_eq!(json, "\"TreasureRoom\"");
+
+    let back: RoomType = serde_json::from_str(&json).unwrap();
+    assert_eq!(back, original);
+}
+
+#[test]
+fn normalize_treasure_room_preserves_room_type() {
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "CHEST",
+            "room_type": "TreasureRoom"
+        }
+    });
+
+    let state = NormalizedState::from_raw(&raw, test_locale());
+    assert_eq!(state.room_type, Some(RoomType::TreasureRoom));
+}
