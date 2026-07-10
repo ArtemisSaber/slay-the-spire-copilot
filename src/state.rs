@@ -249,6 +249,7 @@ pub enum RoomType {
     NeowRoom,
     RestRoom,
     ShopRoom,
+    TreasureRoom,
     VictoryRoom,
 }
 
@@ -268,6 +269,7 @@ impl RoomType {
             Self::NeowRoom => "NeowRoom",
             Self::RestRoom => "RestRoom",
             Self::ShopRoom => "ShopRoom",
+            Self::TreasureRoom => "TreasureRoom",
             Self::VictoryRoom => "VictoryRoom",
         }
     }
