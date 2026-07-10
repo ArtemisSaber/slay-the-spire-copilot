@@ -540,15 +540,14 @@ Numbers below 1000 are reserved for future rules.
       ]
     },
     {
-      "rule_id": "punishment_attack_vs_thorns",
+      "rule_id": "danger_retaliatory_damage",
       "priority": 1162,
-      "weight": -5,
+      "weight": 1,
+      "score_fn": "retaliation_damage_penalty",
       "applies_to": ["play_card"],
-      "formula": "@weight * @thorns * @hits",
       "conditions": [
         {"card": {"type": "ATTACK"}},
-        {"target": {"power": "Thorns"}},
-        {"parsed": {"damage_gt": 0}}
+        {"compute": {"formula": "@retaliatory_damage > 0"}}
       ]
     },
 
@@ -892,6 +891,7 @@ All fields available in formulas (`formula` and `compute→formula`).
 | `@free_count` | i64 | Count of 0-cost non-status non-curse cards in draw/discard |
 | `@pile_size` | i64 | Size of draw pile (or discard if draw empty) |
 | `@thorns` | i64 | Thorns amount on current target |
+| `@retaliatory_damage` | i64 | Target's retaliation damage from Thorns or Sharp Hide before Block |
 | `@focus` | i64 | Player focus amount (from Focus power) |
 | `@player_str_amount` | i64 | Player Strength power amount |
 

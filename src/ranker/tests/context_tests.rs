@@ -138,6 +138,62 @@ fn vars_contain_computed_values() {
 }
 
 #[test]
+fn target_vars_include_sharp_hide_retaliation() {
+    let mut monster = jaw_worm();
+    monster.monster_powers.push(PowerInfo {
+        id: "Sharp Hide".into(),
+        name: "Sharp Hide".into(),
+        amount: 3,
+    });
+    let state = make_state(vec![strike()], vec![monster]);
+
+    let contexts = ActionContext::build_all(&state);
+    let vars = &find_play_context(&contexts).vars;
+
+    assert_eq!(vars.get("retaliatory_damage").copied(), Some(3.0));
+}
+
+#[test]
+fn aoe_attack_totals_retaliation_before_block() {
+    let cleave = CardInfo {
+        id: "Cleave".into(),
+        name: "Cleave".into(),
+        cost: 1,
+        card_type: "ATTACK".into(),
+        description: "Deal 8 damage to all enemies.".into(),
+        uuid: Some("uuid-cleave".into()),
+        has_target: false,
+        playable: true,
+        upgraded: false,
+        price: None,
+    };
+    let mut sharp_hide = jaw_worm();
+    sharp_hide.monster_powers.push(PowerInfo {
+        id: "Sharp Hide".into(),
+        name: "Sharp Hide".into(),
+        amount: 3,
+    });
+    let mut thorns = MonsterInfo {
+        index: 1,
+        ..jaw_worm()
+    };
+    thorns.monster_powers.push(PowerInfo {
+        id: "Thorns".into(),
+        name: "Thorns".into(),
+        amount: 2,
+    });
+    let state = make_state(vec![cleave], vec![sharp_hide, thorns]);
+
+    let retaliation: Vec<_> = ActionContext::build_all(&state)
+        .iter()
+        .filter(|ctx| matches!(ctx.action_type, ActionType::PlayCard { .. }))
+        .map(|ctx| ctx.vars.get("retaliatory_damage").copied())
+        .collect();
+
+    assert_eq!(retaliation, vec![Some(5.0), Some(5.0)]);
+}
+
+#[test]
 fn incoming_lethal_false_when_safe() {
     let state = make_state(vec![strike()], vec![jaw_worm()]);
     let contexts = ActionContext::build_all(&state);

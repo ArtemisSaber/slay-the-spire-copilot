@@ -54,6 +54,27 @@ fn dispatch_known_fn() {
 }
 
 #[test]
+fn retaliation_damage_is_absorbed_by_existing_and_card_block() {
+    let mut v = HashMap::new();
+    v.insert("current_hp".to_string(), 3.0);
+    v.insert("current_block".to_string(), 2.0);
+    v.insert("block".to_string(), 1.0);
+    v.insert("retaliatory_damage".to_string(), 3.0);
+
+    assert_eq!(retaliation_damage_penalty(&v), 0);
+}
+
+#[test]
+fn lethal_retaliation_is_scored_as_a_severe_danger() {
+    let mut v = HashMap::new();
+    v.insert("current_hp".to_string(), 3.0);
+    v.insert("current_block".to_string(), 0.0);
+    v.insert("retaliatory_damage".to_string(), 3.0);
+
+    assert!(retaliation_damage_penalty(&v) < -100_000);
+}
+
+#[test]
 fn dispatch_unknown_fn_returns_none() {
     let v = HashMap::new();
     assert_eq!(dispatch("nonexistent", &v), None);

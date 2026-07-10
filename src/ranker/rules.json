@@ -2,6 +2,7 @@
   "version": "1.0",
   "available_score_fns": [
     "hp_cost_penalty",
+    "retaliation_damage_penalty",
     "weak_new_formula",
     "weak_refresh_formula"
   ],
@@ -1021,13 +1022,13 @@
       "category": "per_card"
     },
     {
-      "rule_id": "punishment_attack_vs_thorns",
+      "rule_id": "danger_retaliatory_damage",
       "priority": 1162,
-      "weight": -5,
+      "weight": 1,
+      "score_fn": "retaliation_damage_penalty",
       "applies_to": [
         "play_card"
       ],
-      "formula": "@weight * @thorns * @hits",
       "conditions": [
         {
           "card": {
@@ -1035,17 +1036,12 @@
           }
         },
         {
-          "target": {
-            "power": "Thorns"
-          }
-        },
-        {
-          "parsed": {
-            "damage_gt": 0
+          "compute": {
+            "formula": "@retaliatory_damage > 0"
           }
         }
       ],
-      "category": "per_target"
+      "category": "per_card"
     },
     {
       "rule_id": "danger_lethal_block_saved",

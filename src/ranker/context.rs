@@ -142,6 +142,7 @@ impl ActionContext {
                     vars.insert("remaining_energy".to_string(), remaining_energy as f64);
                     fill_parsed_vars(&mut vars, &parsed);
                     fill_target_vars(&mut vars, monster);
+                    fill_retaliatory_damage(&mut vars, &state.monsters);
                     fill_card_meta_vars(&mut vars, card, state);
 
                     contexts.push(ActionContext {
@@ -334,6 +335,7 @@ fn base_vars(
     vars.insert("current_block".to_string(), block as f64);
     vars.insert("current_hp".to_string(), hp as f64);
     vars.insert("incoming_damage".to_string(), incoming as f64);
+    vars.insert("retaliatory_damage".to_string(), 0.0);
     vars.insert(
         "incoming_lethal".to_string(),
         if incoming >= hp + block { 1.0 } else { 0.0 },
@@ -465,6 +467,17 @@ fn fill_target_vars(vars: &mut HashMap<String, f64>, monster: &MonsterInfo) {
     if let Some(thorns) = monster.monster_powers.iter().find(|p| p.id == "Thorns") {
         vars.insert("thorns".to_string(), thorns.amount as f64);
     }
+    fill_retaliatory_damage(vars, std::slice::from_ref(monster));
+}
+
+fn fill_retaliatory_damage(vars: &mut HashMap<String, f64>, monsters: &[MonsterInfo]) {
+    let retaliatory_damage: i64 = monsters
+        .iter()
+        .flat_map(|monster| &monster.monster_powers)
+        .filter(|p| matches!(p.id.as_str(), "Thorns" | "Sharp Hide"))
+        .map(|p| p.amount.max(0))
+        .sum();
+    vars.insert("retaliatory_damage".to_string(), retaliatory_damage as f64);
 }
 
 fn fill_card_meta_vars(vars: &mut HashMap<String, f64>, card: &CardInfo, state: &NormalizedState) {

@@ -217,7 +217,7 @@ These bonuses are additive to the base exhaust Status/Curse scoring.
 |------|-----------|-------|
 | SKILL vs Nob | `card_type == "SKILL"` AND any `monster_id == "GremlinNob"` | `-100` |
 | POWER vs Awakened One | `card_type == "POWER"` AND any `monster_id == "AwakenedOne"` | `-100` |
-| ATTACK vs Thorns | `card_type == "ATTACK"` AND target has `"Thorns"` (amount > 0) | `-5 × Thorns.amount × hits` |
+| Retaliatory damage | `card_type == "ATTACK"` that provokes `"Thorns"` or `"Sharp Hide"` | Penalize total unblocked retaliation, scaled sharply by current HP |
 
 ---
 
