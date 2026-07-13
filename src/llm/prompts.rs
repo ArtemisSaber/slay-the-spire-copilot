@@ -1,0 +1,78 @@
+use crate::locales::Locale;
+
+pub(crate) fn unified_system_prompt(locale: &Locale) -> String {
+    let mut output = vec![locale.unified_preamble.clone()];
+    let modes: &[(&str, &str, &str)] = &[
+        (
+            "combat",
+            &locale.system_prompts.combat_entry,
+            &locale.few_shot_examples.combat_entry,
+        ),
+        (
+            "card_reward",
+            &locale.system_prompts.card_reward,
+            &locale.few_shot_examples.card_reward,
+        ),
+        (
+            "boss_card_reward",
+            &locale.system_prompts.boss_card_reward,
+            &locale.few_shot_examples.boss_card_reward,
+        ),
+        (
+            "rest",
+            &locale.system_prompts.rest,
+            &locale.few_shot_examples.rest,
+        ),
+        (
+            "boss_relic",
+            &locale.system_prompts.boss_relic,
+            &locale.few_shot_examples.boss_relic,
+        ),
+        (
+            "event_choice",
+            &locale.system_prompts.event_choice,
+            &locale.few_shot_examples.event_choice,
+        ),
+        (
+            "shop",
+            &locale.system_prompts.shop,
+            &locale.few_shot_examples.shop,
+        ),
+        (
+            "map_suggestion",
+            &locale.system_prompts.map_suggestion,
+            &locale.few_shot_examples.map_suggestion,
+        ),
+        (
+            "map_crossroad",
+            &locale.system_prompts.map_crossroad,
+            &locale.few_shot_examples.map_crossroad,
+        ),
+        (
+            "generic",
+            &locale.system_prompts.generic,
+            &locale.few_shot_examples.generic,
+        ),
+    ];
+    for (mode, system_prompt, few_shot_example) in modes {
+        output.push(format!(
+            "\n---\n\n[mode: {mode}]\n{system_prompt}\n\n{few_shot_example}"
+        ));
+    }
+    output.concat()
+}
+
+const AUTOPLAY_ACTION_SYSTEM_PROMPT: &str = r#"AUTO_PLAY_ACTION_PLANNER
+You are the Slay the Spire auto-play action planner.
+Return strict JSON only, with this shape:
+{"schema_version":1,"actions":[{"kind":"choose|skip|proceed|play|end|leave","action_id":"...","target_index":0,"label":"...","reason":"...","risk":"..."}]}
+Choose exactly one action_id from the provided available_actions.
+Never invent an action_id. Never output prose or Markdown.
+For targeted combat cards, include target_index. If no available action is safe, choose an available non-destructive exit such as end/leave/proceed when present."#;
+
+pub(crate) fn autoplay_action_system_prompt(locale: &Locale) -> String {
+    format!(
+        "{}\n\n{}",
+        locale.unified_preamble, AUTOPLAY_ACTION_SYSTEM_PROMPT
+    )
+}
