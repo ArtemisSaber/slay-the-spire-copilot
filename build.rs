@@ -19,7 +19,6 @@ const FILE_SIZE_ALLOWLIST: &[(&str, usize)] = &[
     ("src/startup.rs", 594),
     ("src/state.rs", 1261),
     ("src/tests/postmortem_tests.rs", 904),
-    ("src/tests/startup_tests.rs", 1009),
 ];
 
 fn main() {
