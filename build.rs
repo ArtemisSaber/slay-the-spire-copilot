@@ -5,7 +5,6 @@ const DEFAULT_MAX_LOGICAL_LOC: usize = 250;
 const FILE_SIZE_ALLOWLIST: &[(&str, usize)] = &[
     ("src/autoplay/action.rs", 611),
     ("src/autoplay/planner.rs", 604),
-    ("src/combat/damage.rs", 385),
     ("src/combat/effects.rs", 1253),
     ("src/combat/kill_scan.rs", 521),
     ("src/llm.rs", 785),
