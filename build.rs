@@ -25,7 +25,6 @@ const FILE_SIZE_ALLOWLIST: &[(&str, usize)] = &[
     ("src/tests/llm_tests.rs", 1014),
     ("src/tests/main_tests.rs", 485),
     ("src/tests/postmortem_tests.rs", 904),
-    ("src/tests/ranker_tests.rs", 350),
     ("src/tests/startup_tests.rs", 1009),
 ];
 
