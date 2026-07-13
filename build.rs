@@ -6,7 +6,6 @@ const FILE_SIZE_ALLOWLIST: &[(&str, usize)] = &[
     ("src/autoplay/action.rs", 611),
     ("src/autoplay/planner.rs", 604),
     ("src/combat/effects.rs", 1253),
-    ("src/combat/kill_scan.rs", 521),
     ("src/llm.rs", 785),
     ("src/main.rs", 778),
     ("src/postmortem.rs", 591),
