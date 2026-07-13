@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 
 const DEFAULT_MAX_LOGICAL_LOC: usize = 250;
 const FILE_SIZE_ALLOWLIST: &[(&str, usize)] = &[
-    ("src/advice.rs", 256),
     ("src/autoplay/action.rs", 611),
     ("src/autoplay/combat_adviser.rs", 442),
     ("src/autoplay/planner.rs", 604),
@@ -21,7 +20,6 @@ const FILE_SIZE_ALLOWLIST: &[(&str, usize)] = &[
     ("src/setup_wizard.rs", 1344),
     ("src/startup.rs", 594),
     ("src/state.rs", 1261),
-    ("src/tests/advice_tests.rs", 465),
     ("src/tests/combat_tests.rs", 491),
     ("src/tests/damage_tests.rs", 1225),
     ("src/tests/journal_tests.rs", 426),
