@@ -19,7 +19,6 @@ const FILE_SIZE_ALLOWLIST: &[(&str, usize)] = &[
     ("src/prompt/builder.rs", 1288),
     ("src/prompt/routing.rs", 443),
     ("src/ranker/context.rs", 482),
-    ("src/ranker/engine.rs", 520),
     ("src/ranker/formula.rs", 357),
     ("src/ranker/parser.rs", 465),
     ("src/ranker/tests/context_tests.rs", 822),
