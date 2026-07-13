@@ -18,7 +18,6 @@ const FILE_SIZE_ALLOWLIST: &[(&str, usize)] = &[
     ("src/setup_wizard.rs", 1344),
     ("src/startup.rs", 594),
     ("src/state.rs", 1261),
-    ("src/tests/kill_scan_spec_tests.rs", 1089),
     ("src/tests/llm_tests.rs", 1014),
     ("src/tests/postmortem_tests.rs", 904),
     ("src/tests/startup_tests.rs", 1009),
