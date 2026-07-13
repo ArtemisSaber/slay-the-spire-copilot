@@ -8,7 +8,6 @@ const FILE_SIZE_ALLOWLIST: &[(&str, usize)] = &[
     ("src/main.rs", 778),
     ("src/prompt/builder.rs", 1288),
     ("src/setup_wizard.rs", 1344),
-    ("src/startup.rs", 594),
     ("src/state.rs", 1261),
 ];
 
