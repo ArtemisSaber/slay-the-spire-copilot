@@ -2,10 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 const DEFAULT_MAX_LOGICAL_LOC: usize = 250;
-const FILE_SIZE_ALLOWLIST: &[(&str, usize)] = &[
-    ("src/prompt/builder.rs", 1288),
-    ("src/setup_wizard.rs", 1344),
-];
+const FILE_SIZE_ALLOWLIST: &[(&str, usize)] = &[("src/setup_wizard.rs", 1344)];
 
 fn main() {
     check_file_size_ratchet();
