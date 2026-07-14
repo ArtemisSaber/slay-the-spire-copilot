@@ -5,7 +5,6 @@ const DEFAULT_MAX_LOGICAL_LOC: usize = 250;
 const FILE_SIZE_ALLOWLIST: &[(&str, usize)] = &[
     ("src/prompt/builder.rs", 1288),
     ("src/setup_wizard.rs", 1344),
-    ("src/state.rs", 1261),
 ];
 
 fn main() {
