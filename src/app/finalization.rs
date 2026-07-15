@@ -129,6 +129,7 @@ async fn finalize(
                             journal.log_learning_event(&serde_json::json!({
                                 "schema_version": 1,
                                 "event": "learning_critic_ingested",
+                                "response_valid": result.response_valid,
                                 "accepted_lessons": result.accepted_lessons,
                                 "rejected_lessons": result.rejected_lessons,
                                 "snapshot_id": result.snapshot_id,

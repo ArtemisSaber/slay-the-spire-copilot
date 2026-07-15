@@ -10,6 +10,7 @@ mod types;
     reason = "Retained as part of the setup wizard module's public API."
 )]
 pub use flow::env_path;
+pub(crate) use flow::run_setup_with_io;
 pub use flow::{maybe_run_setup, run_setup};
 
 #[cfg(test)]
@@ -30,12 +31,6 @@ use env_file::*;
     reason = "Re-exported only to preserve the existing setup wizard test namespace."
 )]
 use features::*;
-#[cfg(test)]
-#[allow(
-    unused_imports,
-    reason = "Re-exported only to preserve the existing setup wizard test namespace."
-)]
-use flow::run_setup_with_io;
 #[cfg(test)]
 #[allow(
     unused_imports,

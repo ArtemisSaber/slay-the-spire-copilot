@@ -87,11 +87,11 @@ cargo run -- setup
 
 The wizard writes `.env` next to the binary and preserves unrelated lines in an existing `.env`. It asks whether to enable auto-play, whether to learn locally from completed normal runs, and whether that experience may influence future play. The safe learning choice is `collect`: it records eligible experience but does not affect decisions yet. No profile hash, approval flag, or debug-card ID is required. Built-in API presets include Pollinations Free for no-account/no-key onboarding, OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Groq, OpenRouter Free Router, Mistral, Cerebras, a custom OpenAI-compatible endpoint, and Mock provider for offline smoke tests.
 
-After a run, `slay-the-spire-copilot learning status` shows the active mode, saved case and lesson counts, and in plain language whether the last run was learned. It does not expose internal hashes. Maintainer automation can request the machine-readable snapshot view with `knowledge status --json`.
+Launching `slay-the-spire-copilot` directly in an interactive terminal opens the terminal control center. It shows learning status, opens Settings, and lets you choose a completed run for an explicit one-request AI review. CommunicationMod starts the same binary with its standard input/output streams and goes directly to the game protocol; terminal menus are never written into that protocol. Existing subcommands remain available for compatibility and maintainer automation, including the machine-readable `knowledge status --json` view.
 
 向导会把 `.env` 写到二进制文件旁边，并保留已有 `.env` 中无关的行。它会询问是否启用自动出牌、是否从已完成的正常对局中进行本地学习，以及这些经验是否可以影响后续决策。安全的学习选项是 `collect`：记录合格经验，但暂不影响出牌。不需要配置哈希、批准开关或调试卡 ID。内置 API 预设包括 Pollinations Free、OpenAI、Anthropic Claude、Google Gemini、DeepSeek、Groq、OpenRouter Free Router、Mistral、Cerebras、自定义 OpenAI-compatible endpoint 和 Mock provider。
 
-完成一局后，运行 `slay-the-spire-copilot learning status` 即可查看当前模式、已保存的案例/经验规则数量，以及上一局是否被学习。输出使用普通文字，不显示内部哈希。维护者的自动化工具仍可通过 `knowledge status --json` 获取机器可读的快照信息。
+在交互式终端中直接启动 `slay-the-spire-copilot` 会打开终端控制中心。这里可以查看学习状态、进入设置，并选择一局已完成的对局进行一次需要确认的 AI 复盘。CommunicationMod 通过同一程序的标准输入/输出流直接进入游戏协议，终端菜单绝不会混入该协议。原有子命令仅为兼容性和维护者自动化保留，例如机器可读的 `knowledge status --json`。
 
 Manual `.env` editing is still supported. For a real free no-key cloud setup:
 
@@ -163,9 +163,10 @@ eligible completed auto-play experience locally without influencing decisions;
 `on` also supplies relevant past experience to the planner. Ascension `-15`
 debug flows are excluded automatically. See
 [`docs/learning-module.md`](docs/learning-module.md) for the exact contracts,
-modes, CLI operations, and production qualification gates.
+modes, terminal operations, maintainer interfaces, and production qualification
+gates.
 
-外部经验记忆由同一个向导配置。`collect` 会在本地保存合格的已完成自动对局经验，但不会影响决策；`on` 还会把相关历史经验提供给 planner。Ascension `-15` 调试流程会自动排除。完整契约、运行模式、CLI 操作与上线门槛见
+外部经验记忆由同一个向导配置。`collect` 会在本地保存合格的已完成自动对局经验，但不会影响决策；`on` 还会把相关历史经验提供给 planner。Ascension `-15` 调试流程会自动排除。完整契约、运行模式、终端操作、维护者接口与上线门槛见
 [`docs/learning-module.md`](docs/learning-module.md)。
 
 ## Game Configuration / 游戏配置

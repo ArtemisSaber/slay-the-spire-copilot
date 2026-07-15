@@ -50,6 +50,34 @@ fn startup_check_enabled_by_default() {
 }
 
 #[test]
+fn plain_terminal_launch_opens_the_control_center() {
+    let opts = runtime_options_from([], None);
+
+    assert!(opts.opens_terminal_home(true));
+}
+
+#[test]
+fn communication_mod_standard_streams_never_open_the_control_center() {
+    let opts = runtime_options_from([], None);
+
+    assert!(!opts.opens_terminal_home(false));
+}
+
+#[test]
+fn explicit_automation_modes_bypass_the_control_center() {
+    for args in [
+        vec!["--stdin-test"],
+        vec!["--no-startup-check"],
+        vec!["setup"],
+        vec!["learning", "status"],
+        vec!["postmortem", "runs/example/events.jsonl"],
+    ] {
+        let opts = runtime_options_from(args, None);
+        assert!(!opts.opens_terminal_home(true));
+    }
+}
+
+#[test]
 fn startup_check_skipped_by_no_startup_check_flag() {
     let opts = runtime_options_from(["--no-startup-check"], None);
     assert!(opts.skip_startup_check);

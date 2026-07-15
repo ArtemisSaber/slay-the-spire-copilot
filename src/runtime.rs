@@ -14,6 +14,15 @@ impl RuntimeOptions {
         let skip_env = std::env::var("SKIP_COMM_CONFIG").ok();
         runtime_options_from(args.iter().map(|s| s.as_str()), skip_env.as_deref())
     }
+
+    pub fn opens_terminal_home(&self, stdin_is_terminal: bool) -> bool {
+        stdin_is_terminal
+            && !self.skip_startup_check
+            && !self.force_mock_provider
+            && !self.setup_only
+            && self.postmortem_path.is_none()
+            && self.knowledge_args.is_none()
+    }
 }
 
 pub fn runtime_options_from<'a>(

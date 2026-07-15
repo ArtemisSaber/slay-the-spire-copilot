@@ -20,6 +20,7 @@ mod runtime;
 mod setup_wizard;
 mod startup;
 mod state;
+mod terminal;
 
 pub(crate) const MAX_STDIN_JSON_BYTES: usize = 10 * 1024 * 1024;
 

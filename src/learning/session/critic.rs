@@ -18,6 +18,7 @@ const MAX_PROPOSALS: usize = 5;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CriticIngest {
     pub report_markdown: String,
+    pub response_valid: bool,
     pub accepted_lessons: usize,
     pub rejected_lessons: usize,
     pub snapshot_id: String,
@@ -138,6 +139,7 @@ impl LearningSession {
         }
         Ok(CriticIngest {
             report_markdown: envelope.report_markdown,
+            response_valid: true,
             accepted_lessons: accepted,
             rejected_lessons: total.saturating_sub(accepted),
             snapshot_id: self.snapshot.snapshot_id.clone(),
@@ -147,6 +149,7 @@ impl LearningSession {
     fn empty_ingest(&self, report: &str) -> CriticIngest {
         CriticIngest {
             report_markdown: report.to_string(),
+            response_valid: false,
             accepted_lessons: 0,
             rejected_lessons: 0,
             snapshot_id: self.snapshot.snapshot_id.clone(),

@@ -27,6 +27,11 @@ pub(crate) async fn run() {
         return;
     }
 
+    if options.opens_terminal_home(manual_run) {
+        crate::terminal::run(&project_root).await;
+        return;
+    }
+
     if modes::run_setup_if_needed(&options, &project_root, manual_run) {
         return;
     }

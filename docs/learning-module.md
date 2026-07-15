@@ -404,22 +404,31 @@ MEMORY_MODE=off|collect|shadow|on
 The default is `off`. Memory mode is independent from `AUTO_PLAY`, but prompt
 injection is relevant only when auto-play invokes the LLM planner.
 
-Normal users configure both through `slay-the-spire-copilot setup`. The wizard
-uses plain-language choices and writes `AUTO_PLAY` plus `MEMORY_MODE`; no manual
-environment editing or identity input is required. For new auto-play users,
-`collect` is the recommended safe starting mode because it records eligible
-experience without changing decisions. `shadow` remains an advanced evaluation
-mode and is preserved when an existing installation already uses it.
+Normal users launch `slay-the-spire-copilot` in an interactive terminal and use
+its control center. Settings runs the same plain-language wizard and writes
+`AUTO_PLAY` plus `MEMORY_MODE`; no manual environment editing or identity input
+is required. For new auto-play users, `collect` is the recommended safe starting
+mode because it records eligible experience without changing decisions.
+`shadow` remains an advanced evaluation mode and is preserved when an existing
+installation already uses it.
 
 For an existing installation, the first-use flow is:
 
-1. Run `slay-the-spire-copilot setup`.
-2. Keep the existing API connection when asked whether to reconfigure it.
+1. Launch `slay-the-spire-copilot` directly in a terminal.
+2. Open Settings and keep the existing API connection when asked whether to
+   reconfigure it.
 3. Enable automatic play and local learning.
 4. Answer no when asked whether past experience should influence play now; this
    selects safe `collect` mode.
-5. Complete the next normal auto-play run and run
-   `slay-the-spire-copilot learning status`.
+5. Complete the next normal auto-play run, relaunch the terminal control center,
+   and choose Review a completed run when an explicit AI synthesis is wanted.
+
+The launch boundary is structural. When stdin is an interactive terminal and
+no explicit compatibility/automation action was requested, the binary opens
+the control center. CommunicationMod starts the binary with non-terminal
+standard input/output streams, which bypass the menu and enter the game
+protocol directly. No prompt, menu text, or confirmation is emitted into the
+CommunicationMod protocol.
 
 Collection begins with runs observed after it is enabled. A run completed
 before this module was active cannot be retroactively imported as decision
@@ -1122,8 +1131,10 @@ These rules establish repeated association, not action optimality.
 
 ### 14.8 Human Operations
 
-Manual editing of source JSONL is unsupported. The binary appends auditable
-events through commands such as:
+Manual editing of source JSONL is unsupported. Normal status, settings, and
+completed-run review are available from the terminal control center without
+adding user-facing run modes. Existing command interfaces are retained for
+backward compatibility and maintainer automation:
 
 ```text
 learning status
@@ -1135,10 +1146,9 @@ knowledge rebuild
 knowledge export-bundle [output_path]
 ```
 
-`learning status` is the user-facing view. It reports the configured mode,
-saved counts, and the last run's accepted/rejected result in plain language,
-without internal IDs. `knowledge status --json` retains the verified snapshot
-view for maintainer automation.
+The control-center home screen reports the configured mode and saved counts in
+plain language without internal IDs. `knowledge status --json` retains the
+verified snapshot view for maintainer automation.
 
 Validation records a timestamp, the complete verified lesson state, and the
 reason as a new event in `lessons.jsonl`. The CLI also accepts the reason as
@@ -1253,7 +1263,22 @@ not the envelope, it is treated as the existing prose report and alters no
 knowledge. The deterministic postmortem and factual cases remain available in
 either path.
 
-### 15.5 No Retroactive Truth
+### 15.5 Interactive Completed-Run Review
+
+The terminal control center lists at most the 10 newest completed runs that
+already have committed factual cases. It shows case and lesson counts, asks the
+user to select a visible run number, and requires confirmation before spending
+one LLM request. The review reuses the same bounded audit, dedicated JSON
+system prompt, proposal validator, append-only lesson store, and Markdown report
+extraction as automatic finalization. It appends a
+`learning_critic_reviewed` audit event to the selected journal.
+
+This action synthesizes lessons from cases that were already captured while
+the run was active. It does not import an old journal that lacks acknowledged
+semantic actions and outcomes. Invalid JSON is reported directly in the
+terminal, saves no lesson, and leaves a deterministic human-readable report.
+
+### 15.6 No Retroactive Truth
 
 The critic cannot know what an unselected action would have done. It may
 propose “be cautious” or “consider,” but it may not create a factual record that
@@ -2182,6 +2207,10 @@ Section 20.
   human-readable report inside `report_markdown`.
 - Eligible-run finalization both persists a validated lesson and writes the
   extracted Markdown report rather than the raw JSON envelope.
+- A TTY launch exposes the terminal control center; CommunicationMod standard
+  input/output bypasses it and remains protocol-only.
+- Selecting a visible completed run can create a validated lesson from its
+  already-committed cases without a new command mode.
 
 ### 25.11 Repository Gates
 
@@ -2202,9 +2231,9 @@ Acceptance evidence measured on 2026-07-15:
 |---|---|
 | `cargo fmt --check` | Passed |
 | `cargo clippy --all-targets -- -D warnings` | Passed with zero warnings |
-| `cargo test` | Passed: 1,738 unit tests and 2 integration tests |
+| `cargo test` | Passed: 1,745 unit tests and 2 integration tests |
 | `cargo build --release` | Passed, including the build-time 250-logical-LOC ceiling |
-| Learning-module line coverage | 91.74%: 2,622 of 2,858 executable production lines in `src/learning/**`, excluding `src/learning/tests/**` |
+| Learning-module line coverage | 91.75%: 2,624 of 2,860 executable production lines in `src/learning/**`, excluding `src/learning/tests/**` |
 
 Coverage was measured with
 `cargo +stable llvm-cov --json --summary-only --output-path <temporary-file>`.

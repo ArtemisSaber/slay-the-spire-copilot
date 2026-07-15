@@ -98,6 +98,7 @@ fn critic_accepts_only_structured_lessons_citing_supplied_cases() {
 
     let result = session.ingest_critic_response(&response, "run-a").unwrap();
 
+    assert!(result.response_valid);
     assert_eq!(result.accepted_lessons, 1);
     assert_eq!(result.rejected_lessons, 0);
     assert_eq!(session.snapshot().lessons.len(), 1);
@@ -145,6 +146,7 @@ fn malformed_or_uncited_critic_output_cannot_change_knowledge() {
         .unwrap();
 
     assert_eq!(result.report_markdown, "ordinary markdown fallback");
+    assert!(!result.response_valid);
     assert_eq!(result.accepted_lessons, 0);
     assert!(session.snapshot().lessons.is_empty());
 }
