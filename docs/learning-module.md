@@ -1175,6 +1175,18 @@ appendix is omitted and the ordinary postmortem path remains available.
 
 ### 15.3 Response Envelope
 
+When eligible cases are attached, the provider uses a dedicated learning-
+postmortem system prompt. That prompt requires exactly one strict JSON object,
+with no Markdown, prose, or code fence outside the object. The ordinary
+postmortem system prompt is not reused because its Markdown-only contract would
+conflict with structured lesson generation.
+
+The complete localized human-readable report is transported as the
+`report_markdown` string. Finalization parses the envelope, validates lesson
+proposals, and writes only `report_markdown` to `postmortem.md`. If no eligible
+case fits the bounded prompt, finalization keeps the ordinary Markdown
+postmortem path.
+
 ```json
 {
   "schema_version": 1,
@@ -2166,6 +2178,10 @@ Section 20.
 - Failed commands are discarded before retry and cannot become factual cases.
 - Corrupt local startup source falls back to the verified repository bundle.
 - Structured critic ingest accepts only cited cases from the completed run.
+- The learning-postmortem provider contract returns strict JSON with the
+  human-readable report inside `report_markdown`.
+- Eligible-run finalization both persists a validated lesson and writes the
+  extracted Markdown report rather than the raw JSON envelope.
 
 ### 25.11 Repository Gates
 
@@ -2186,9 +2202,9 @@ Acceptance evidence measured on 2026-07-15:
 |---|---|
 | `cargo fmt --check` | Passed |
 | `cargo clippy --all-targets -- -D warnings` | Passed with zero warnings |
-| `cargo test` | Passed: 1,735 unit tests and 2 integration tests |
+| `cargo test` | Passed: 1,738 unit tests and 2 integration tests |
 | `cargo build --release` | Passed, including the build-time 250-logical-LOC ceiling |
-| Learning-module line coverage | 91.70%: 2,606 of 2,842 executable production lines in `src/learning/**`, excluding `src/learning/tests/**` |
+| Learning-module line coverage | 91.74%: 2,622 of 2,858 executable production lines in `src/learning/**`, excluding `src/learning/tests/**` |
 
 Coverage was measured with
 `cargo +stable llvm-cov --json --summary-only --output-path <temporary-file>`.

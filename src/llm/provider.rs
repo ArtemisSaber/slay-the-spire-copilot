@@ -122,6 +122,16 @@ impl LlmProvider {
             .await
     }
 
+    pub async fn query_learning_postmortem(
+        &self,
+        prompt: &str,
+        locale: &Locale,
+    ) -> anyhow::Result<String> {
+        let system_prompt = super::prompts::learning_postmortem_system_prompt(locale);
+        self.query_with_system_prompt(&system_prompt, prompt, Effort::Heavy)
+            .await
+    }
+
     pub async fn query_autoplay_action(
         &self,
         prompt: &str,
@@ -144,7 +154,7 @@ impl LlmProvider {
             LlmProvider::Mock if system_prompt.contains("AUTO_PLAY_ACTION_PLANNER") => {
                 super::mock::mock_autoplay_action_response(prompt)
             }
-            LlmProvider::Mock => super::mock::mock_advice_response(system_prompt),
+            LlmProvider::Mock => super::mock::mock_advice_response(system_prompt, prompt),
             LlmProvider::OpenAiCompatible {
                 base_url,
                 api_key,

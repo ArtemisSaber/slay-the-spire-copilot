@@ -33,6 +33,24 @@ async fn mock_provider_returns_postmortem_report() {
     assert!(text.contains("## 下次改进"));
 }
 
+#[tokio::test]
+async fn mock_provider_returns_learning_postmortem_envelope() {
+    let provider = LlmProvider::Mock;
+    let response = provider
+        .query_learning_postmortem("critic input", test_locale())
+        .await
+        .unwrap();
+    let envelope: serde_json::Value = serde_json::from_str(&response).unwrap();
+
+    assert_eq!(envelope["schema_version"], 1);
+    assert!(
+        envelope["report_markdown"]
+            .as_str()
+            .is_some_and(|report| report.starts_with('#'))
+    );
+    assert!(envelope["lesson_proposals"].is_array());
+}
+
 #[test]
 fn chat_completion_body_can_disable_thinking() {
     let cfg = OpenAiConfig {

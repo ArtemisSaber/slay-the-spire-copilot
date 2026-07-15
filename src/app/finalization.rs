@@ -102,17 +102,25 @@ async fn finalize(
     };
     let base_prompt =
         crate::postmortem::build_ai_postmortem_prompt(&deterministic_report, locale, outcome);
-    let prompt = if critic_enabled {
+    let critic_prompt = if critic_enabled {
         learning
             .as_deref()
             .and_then(|learning| learning.build_critic_prompt(&base_prompt, journal.run_id()))
-            .unwrap_or(base_prompt)
     } else {
-        base_prompt
+        None
     };
-    match provider.query_postmortem(&prompt, locale).await {
+    let (prompt, critic_requested) = match critic_prompt {
+        Some(prompt) => (prompt, true),
+        None => (base_prompt, false),
+    };
+    let response = if critic_requested {
+        provider.query_learning_postmortem(&prompt, locale).await
+    } else {
+        provider.query_postmortem(&prompt, locale).await
+    };
+    match response {
         Ok(response) => {
-            let ai_report = if critic_enabled {
+            let ai_report = if critic_requested {
                 match learning {
                     Some(learning) => match learning
                         .ingest_critic_response(&response, journal.run_id())

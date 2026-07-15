@@ -70,9 +70,27 @@ Choose exactly one action_id from the provided available_actions.
 Never invent an action_id. Never output prose or Markdown.
 For targeted combat cards, include target_index. If no available action is safe, choose an available non-destructive exit such as end/leave/proceed when present."#;
 
+const LEARNING_POSTMORTEM_SYSTEM_PROMPT: &str = r##"LEARNING_CRITIC_ENVELOPE_V1
+You are a Slay the Spire postmortem writer and conservative experience critic.
+Return exactly one strict JSON object and no other text or code fence.
+The top-level keys must be schema_version, report_markdown, and lesson_proposals.
+Required envelope: {"schema_version":1,"report_markdown":"# localized report","lesson_proposals":[]}.
+Write the localized human-readable Markdown report inside report_markdown as a valid JSON string.
+Never output Markdown outside the JSON object.
+Treat every supplied case as an observation, never as proof of causality or optimality.
+Lesson proposals must cite only supplied case_id values and match the cited cases exactly.
+Follow the output contract in the user prompt. If no narrow lesson is justified, use an empty lesson_proposals array."##;
+
 pub(crate) fn autoplay_action_system_prompt(locale: &Locale) -> String {
     format!(
         "{}\n\n{}",
         locale.unified_preamble, AUTOPLAY_ACTION_SYSTEM_PROMPT
+    )
+}
+
+pub(crate) fn learning_postmortem_system_prompt(locale: &Locale) -> String {
+    format!(
+        "{}\n\n{}",
+        locale.unified_preamble, LEARNING_POSTMORTEM_SYSTEM_PROMPT
     )
 }

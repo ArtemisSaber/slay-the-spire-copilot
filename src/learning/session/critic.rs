@@ -193,14 +193,30 @@ fn case_summary(case: &crate::learning::case::DecisionCase) -> Value {
 
 fn critic_appendix(cases: &[Value]) -> String {
     serde_json::to_string_pretty(&json!({
-        "instruction": "Return strict JSON only. Treat cases as observations, not proof of causality or optimality. Cite only supplied case_id values. Propose at most five narrowly scoped lessons, or an empty array.",
-        "output_schema": {
+        "instruction": "Return the required JSON envelope. Put the localized human-readable Markdown only in report_markdown. Treat cases as observations, not proof of causality or optimality. Cite only supplied case_id values. Propose at most five narrowly scoped lessons, or an empty array.",
+        "output_contract": {
             "schema_version": 1,
-            "report_markdown": "localized postmortem markdown",
+            "report_markdown": "localized Markdown string with the complete human-readable postmortem",
             "lesson_proposals": [{
-                "scope": "LessonScope",
-                "trigger": "LessonTrigger",
-                "action_pattern": "ActionPattern",
+                "scope": {
+                    "character": "copy the exact cited situation character",
+                    "objective": "act3_victory|act4_victory",
+                    "ascension_bands": ["a0|a1_9|a10_16|a17_19|a20"],
+                    "encounter_ids": ["copy the exact cited situation encounter_ids"]
+                },
+                "trigger": {
+                    "turn_buckets": ["turn1|turn2|turn3|turn4_plus"],
+                    "block_threat_buckets": ["no_incoming|fully_covered|chip|danger|lethal"],
+                    "required_card_ids": ["optional exact card_id from the cited situation"],
+                    "required_enemy_power_ids": ["optional exact enemy power ID from the cited situation"],
+                    "required_ranker_tags": ["optional exact ranker tag from the cited situation"]
+                },
+                "action_pattern": {
+                    "kind": "play_card|use_potion|end_turn",
+                    "card_types": ["empty unless kind is play_card"],
+                    "card_ids": ["empty unless kind is play_card"],
+                    "potion_ids": ["empty unless kind is use_potion"]
+                },
                 "outcome_code": "combat_death|combat_win|high_combat_hp_loss|low_combat_hp_loss|potion_spent|potion_preserved|turn_damage_taken|combat_completed_quickly",
                 "guidance": {"kind": "caution|consider|avoid|prefer", "text": "observational guidance"},
                 "rationale": "bounded factual rationale",
