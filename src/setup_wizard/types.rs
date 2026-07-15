@@ -9,6 +9,7 @@ pub(crate) const DEFAULT_MAX_TOKENS_FAST: &str = "300";
 pub(crate) const DEFAULT_TEMPERATURE: &str = "0.7";
 pub(crate) const PLACEHOLDER_API_KEY: &str = "sk-your-key-here";
 
+#[cfg(test)]
 pub(crate) const LLM_ENV_KEYS: &[&str] = &[
     "LLM_PROVIDER",
     "LLM_BASE_URL",
@@ -24,6 +25,62 @@ pub(crate) const LLM_ENV_KEYS: &[&str] = &[
     "LLM_TEMPERATURE",
     "LLM_DISABLE_FAST_THINKING",
 ];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LearningSetup {
+    Off,
+    Collect,
+    Shadow,
+    On,
+}
+
+impl LearningSetup {
+    pub(crate) fn from_env(value: Option<&str>) -> Option<Self> {
+        match value?.trim().to_ascii_lowercase().as_str() {
+            "off" => Some(Self::Off),
+            "collect" => Some(Self::Collect),
+            "shadow" => Some(Self::Shadow),
+            "on" => Some(Self::On),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn as_env(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Collect => "collect",
+            Self::Shadow => "shadow",
+            Self::On => "on",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct FeatureSetup {
+    pub(crate) auto_play: bool,
+    pub(crate) learning: LearningSetup,
+}
+
+impl FeatureSetup {
+    pub(crate) fn new(auto_play: bool, learning: LearningSetup) -> Self {
+        Self {
+            auto_play,
+            learning: if auto_play {
+                learning
+            } else {
+                LearningSetup::Off
+            },
+        }
+    }
+}
+
+pub(crate) fn parse_env_bool(value: Option<&str>) -> Option<bool> {
+    match value?.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => None,
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct EnvAssignment {

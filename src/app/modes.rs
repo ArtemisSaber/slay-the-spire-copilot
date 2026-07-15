@@ -18,7 +18,7 @@ pub(crate) fn run_setup_if_needed(
     manual_run: bool,
 ) -> bool {
     if options.setup_only {
-        match crate::setup_wizard::run_api_setup(project_root) {
+        match crate::setup_wizard::run_setup(project_root) {
             Ok(true) => {
                 if let Err(error) = dotenvy::from_path_override(project_root.join(".env")) {
                     tracing::warn!("failed to reload .env after setup: {error}");
@@ -31,7 +31,7 @@ pub(crate) fn run_setup_if_needed(
     }
 
     if manual_run && !options.force_mock_provider && !options.postmortem_plain {
-        match crate::setup_wizard::maybe_run_api_setup(project_root) {
+        match crate::setup_wizard::maybe_run_setup(project_root) {
             Ok(true) => {
                 if let Err(error) = dotenvy::from_path_override(project_root.join(".env")) {
                     tracing::warn!("failed to reload .env after setup: {error}");

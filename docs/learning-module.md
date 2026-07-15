@@ -404,6 +404,13 @@ MEMORY_MODE=off|collect|shadow|on
 The default is `off`. Memory mode is independent from `AUTO_PLAY`, but prompt
 injection is relevant only when auto-play invokes the LLM planner.
 
+Normal users configure both through `slay-the-spire-copilot setup`. The wizard
+uses plain-language choices and writes `AUTO_PLAY` plus `MEMORY_MODE`; no manual
+environment editing or identity input is required. For new auto-play users,
+`collect` is the recommended safe starting mode because it records eligible
+experience without changing decisions. `shadow` remains an advanced evaluation
+mode and is preserved when an existing installation already uses it.
+
 Suggested initial settings:
 
 ```text

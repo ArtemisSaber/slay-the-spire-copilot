@@ -2,8 +2,15 @@ use std::collections::HashMap;
 
 use super::types::{
     DEFAULT_MAX_TOKENS, DEFAULT_MAX_TOKENS_FAST, DEFAULT_MODEL, DEFAULT_OPENAI_BASE_URL,
-    DEFAULT_TEMPERATURE, EnvAssignment, PLACEHOLDER_API_KEY, ProviderSetup,
+    DEFAULT_TEMPERATURE, EnvAssignment, FeatureSetup, PLACEHOLDER_API_KEY, ProviderSetup,
 };
+
+pub(crate) fn feature_assignments(setup: FeatureSetup) -> Vec<EnvAssignment> {
+    vec![
+        assignment("AUTO_PLAY", if setup.auto_play { "true" } else { "false" }),
+        assignment("MEMORY_MODE", setup.learning.as_env()),
+    ]
+}
 
 pub(crate) fn provider_assignments(
     setup: ProviderSetup,

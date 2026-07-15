@@ -242,3 +242,19 @@ fn env_file_needs_setup_no_provider_key() {
     fs::write(&path, "LLM_MODEL=gpt-5\n").unwrap();
     assert!(env_file_needs_setup(&path));
 }
+
+#[test]
+fn feature_setup_requires_both_valid_choices() {
+    let mut values = HashMap::new();
+    assert!(feature_values_need_setup(&values));
+
+    values.insert("AUTO_PLAY".into(), "true".into());
+    assert!(feature_values_need_setup(&values));
+    values.insert("MEMORY_MODE".into(), "collect".into());
+    assert!(!feature_values_need_setup(&values));
+
+    values.insert("AUTO_PLAY".into(), "false".into());
+    assert!(feature_values_need_setup(&values));
+    values.insert("MEMORY_MODE".into(), "off".into());
+    assert!(!feature_values_need_setup(&values));
+}

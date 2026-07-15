@@ -3,19 +3,24 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use super::types::{EnvAssignment, LLM_ENV_KEYS, PLACEHOLDER_API_KEY};
+use super::types::{EnvAssignment, LearningSetup, PLACEHOLDER_API_KEY, parse_env_bool};
 
+#[cfg(test)]
 pub(crate) fn env_file_needs_setup(path: &Path) -> bool {
     if !path.exists() {
         return true;
     }
 
     let values = read_env_values(path);
-    match provider_value(&values) {
+    api_values_need_setup(&values) || feature_values_need_setup(&values)
+}
+
+pub(crate) fn api_values_need_setup(values: &HashMap<String, String>) -> bool {
+    match provider_value(values) {
         Some("mock") => false,
-        Some("pollinations-free") => missing_value(&values, "LLM_BASE_URL"),
+        Some("pollinations-free") => missing_value(values, "LLM_BASE_URL"),
         Some("openai-compatible" | "anthropic") => {
-            missing_value(&values, "LLM_BASE_URL")
+            missing_value(values, "LLM_BASE_URL")
                 || values
                     .get("LLM_API_KEY")
                     .is_none_or(|value| missing_or_placeholder(value))
@@ -23,6 +28,17 @@ pub(crate) fn env_file_needs_setup(path: &Path) -> bool {
         Some(_) => true,
         None => true,
     }
+}
+
+pub(crate) fn feature_values_need_setup(values: &HashMap<String, String>) -> bool {
+    let Some(auto_play) = parse_env_bool(values.get("AUTO_PLAY").map(String::as_str)) else {
+        return true;
+    };
+    let Some(learning) = LearningSetup::from_env(values.get("MEMORY_MODE").map(String::as_str))
+    else {
+        return true;
+    };
+    !auto_play && learning != LearningSetup::Off
 }
 
 pub(crate) fn provider_value(values: &HashMap<String, String>) -> Option<&str> {
@@ -88,11 +104,13 @@ pub(crate) fn write_env_assignments(path: &Path, assignments: &[EnvAssignment]) 
         lines.push(String::new());
     }
 
-    for key in LLM_ENV_KEYS {
-        if let Some(value) = assignments_by_key.get(key)
-            && !seen.contains(*key)
-        {
-            lines.push(format!("{key}={}", format_env_value(value)));
+    for assignment in assignments {
+        if seen.insert(assignment.key.to_string()) {
+            lines.push(format!(
+                "{}={}",
+                assignment.key,
+                format_env_value(&assignment.value)
+            ));
         }
     }
 

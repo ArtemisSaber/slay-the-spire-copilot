@@ -1,6 +1,23 @@
 use super::*;
 
 #[test]
+fn feature_assignments_write_autoplay_and_learning_mode() {
+    let assignments = feature_assignments(FeatureSetup::new(true, LearningSetup::Collect));
+
+    assert_eq!(assignments.len(), 2);
+    assert_eq!(find_value(&assignments, "AUTO_PLAY"), "true");
+    assert_eq!(find_value(&assignments, "MEMORY_MODE"), "collect");
+}
+
+#[test]
+fn disabled_autoplay_forces_learning_off() {
+    let assignments = feature_assignments(FeatureSetup::new(false, LearningSetup::On));
+
+    assert_eq!(find_value(&assignments, "AUTO_PLAY"), "false");
+    assert_eq!(find_value(&assignments, "MEMORY_MODE"), "off");
+}
+
+#[test]
 fn provider_assignments_has_all_13_keys() {
     let setup = ProviderSetup {
         provider: "test-provider",

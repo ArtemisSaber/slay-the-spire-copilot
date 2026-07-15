@@ -12,9 +12,13 @@ fn find_value(assignments: &[EnvAssignment], key: &str) -> String {
 mod assignments;
 #[path = "setup_wizard_tests/env_helpers.rs"]
 mod env_helpers;
+#[path = "setup_wizard_tests/feature_prompts.rs"]
+mod feature_prompts;
 #[path = "setup_wizard_tests/metadata.rs"]
 mod metadata;
 #[path = "setup_wizard_tests/parse_values.rs"]
 mod parse_values;
 #[path = "setup_wizard_tests/setup.rs"]
 mod setup;
+#[path = "setup_wizard_tests/setup_existing.rs"]
+mod setup_existing;

@@ -67,11 +67,11 @@ cargo test
 cargo build --release
 ```
 
-## API Setup / API 配置
+## Setup / 配置向导
 
-When you run the app manually in a terminal and `.env` is missing or incomplete, it opens an interactive setup wizard for the API connection. You can also run the wizard directly:
+When you run the app manually in a terminal and `.env` is missing or incomplete, it opens an interactive setup wizard for the API connection, auto-play, and local learning. You can also run the wizard directly:
 
-当你在终端手动运行程序，并且 `.env` 不存在或配置不完整时，程序会打开交互式配置向导来设置 API 连接。也可以直接运行向导：
+当你在终端手动运行程序，并且 `.env` 不存在或配置不完整时，程序会打开交互式配置向导来设置 API 连接、自动出牌和本地学习。也可以直接运行向导：
 
 ```bash
 slay-the-spire-copilot setup
@@ -85,9 +85,9 @@ When running from source:
 cargo run -- setup
 ```
 
-The wizard writes `.env` next to the binary and preserves unrelated lines in an existing `.env`. Built-in presets include Pollinations Free for no-account/no-key onboarding, OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Groq, OpenRouter Free Router, Mistral, Cerebras, a custom OpenAI-compatible endpoint, and Mock provider for offline smoke tests. Pollinations Free uses a public shared endpoint, so it is convenient for first runs but BYOK or local providers are better for reliability.
+The wizard writes `.env` next to the binary and preserves unrelated lines in an existing `.env`. It asks whether to enable auto-play, whether to learn locally from completed normal runs, and whether that experience may influence future play. The safe learning choice is `collect`: it records eligible experience but does not affect decisions yet. No profile hash, approval flag, or debug-card ID is required. Built-in API presets include Pollinations Free for no-account/no-key onboarding, OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Groq, OpenRouter Free Router, Mistral, Cerebras, a custom OpenAI-compatible endpoint, and Mock provider for offline smoke tests.
 
-向导会把 `.env` 写到二进制文件旁边，并保留已有 `.env` 中无关的行。内置预设包括无需账号/无需 API key 的 Pollinations Free、OpenAI、Anthropic Claude、Google Gemini、DeepSeek、Groq、OpenRouter Free Router、Mistral、Cerebras、自定义 OpenAI-compatible endpoint，以及用于离线快速测试的 Mock provider。Pollinations Free 使用公共共享端点，适合首次体验；如果追求稳定，建议改用 BYOK 或本地模型。
+向导会把 `.env` 写到二进制文件旁边，并保留已有 `.env` 中无关的行。它会询问是否启用自动出牌、是否从已完成的正常对局中进行本地学习，以及这些经验是否可以影响后续决策。安全的学习选项是 `collect`：记录合格经验，但暂不影响出牌。不需要配置哈希、批准开关或调试卡 ID。内置 API 预设包括 Pollinations Free、OpenAI、Anthropic Claude、Google Gemini、DeepSeek、Groq、OpenRouter Free Router、Mistral、Cerebras、自定义 OpenAI-compatible endpoint 和 Mock provider。
 
 Manual `.env` editing is still supported. For a real free no-key cloud setup:
 
@@ -146,21 +146,22 @@ LLM_DISABLE_FAST_THINKING=true  # DeepSeek: force non-thinking mode for combat/f
 LLM_LOG_PROMPTS=false            # Set false to disable prompt/response logging to logs/prompts.log
 ```
 
-Auto-play is opt-in and off by default:
+Auto-play remains opt-in. The wizard configures it, while manual `.env` editing remains available:
 
-自动出牌默认关闭，需要显式启用：
+自动出牌仍需用户选择启用；推荐使用向导，也可以手动编辑 `.env`：
 
 ```env
 AUTO_PLAY=true
 ```
 
-External experience memory is also opt-in and defaults to `off`. Collection
-requires an explicitly approved mod-profile ID; do not approve debug or
-rollback/Undo profiles. See
+External experience memory is configured by the same wizard. `collect` stores
+eligible completed auto-play experience locally without influencing decisions;
+`on` also supplies relevant past experience to the planner. Ascension `-15`
+debug flows are excluded automatically. See
 [`docs/learning-module.md`](docs/learning-module.md) for the exact contracts,
 modes, CLI operations, and production qualification gates.
 
-外部经验记忆同样默认关闭。收集数据前必须显式配置并批准模组配置 ID；请勿批准含调试或回滚/Undo 工具的配置。完整契约、运行模式、CLI 操作与上线门槛见
+外部经验记忆由同一个向导配置。`collect` 会在本地保存合格的已完成自动对局经验，但不会影响决策；`on` 还会把相关历史经验提供给 planner。Ascension `-15` 调试流程会自动排除。完整契约、运行模式、CLI 操作与上线门槛见
 [`docs/learning-module.md`](docs/learning-module.md)。
 
 ## Game Configuration / 游戏配置
@@ -473,7 +474,7 @@ src/
   journal.rs       JSONL run journal with schema versioning
   parsing.rs       generic extract_first_integer<T> helper shared by combat/ranker/relic_counters
   postmortem.rs    postmortem report generation
-  setup_wizard.rs  interactive API setup wizard
+  setup_wizard.rs  interactive API, auto-play, and learning setup wizard
   startup.rs       Communication Mod CJK config validation, auto-fix, language detection
   gate.rs          advice gating: screen types, combat turns, map crossroads/act-entry
   runtime.rs       game-over detection, run finalization on exit

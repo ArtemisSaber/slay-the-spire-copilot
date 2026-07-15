@@ -12,7 +12,11 @@ fn missing_env_file_needs_setup() {
 fn mock_provider_is_considered_configured() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join(".env");
-    fs::write(&path, "LLM_PROVIDER=mock\n").unwrap();
+    fs::write(
+        &path,
+        "LLM_PROVIDER=mock\nAUTO_PLAY=false\nMEMORY_MODE=off\n",
+    )
+    .unwrap();
 
     assert!(!env_file_needs_setup(&path));
 }
@@ -36,11 +40,48 @@ fn complete_openai_config_does_not_need_setup() {
     let path = dir.path().join(".env");
     fs::write(
         &path,
-        "LLM_PROVIDER=openai-compatible\nLLM_BASE_URL=https://api.openai.com/v1\nLLM_API_KEY=sk-real\n",
+        "LLM_PROVIDER=openai-compatible\nLLM_BASE_URL=https://api.openai.com/v1\nLLM_API_KEY=sk-real\nAUTO_PLAY=false\nMEMORY_MODE=off\n",
     )
     .unwrap();
 
     assert!(!env_file_needs_setup(&path));
+}
+
+#[test]
+fn complete_api_without_play_choices_needs_setup() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join(".env");
+    fs::write(
+        &path,
+        "LLM_PROVIDER=openai-compatible\nLLM_BASE_URL=https://api.openai.com/v1\nLLM_API_KEY=sk-real\n",
+    )
+    .unwrap();
+
+    assert!(env_file_needs_setup(&path));
+}
+
+#[test]
+fn wizard_adds_play_choices_without_reselecting_a_complete_api() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join(".env");
+    fs::write(
+        &path,
+        "LLM_PROVIDER=openai-compatible\nLLM_BASE_URL=https://api.openai.com/v1\nLLM_API_KEY=sk-real\n",
+    )
+    .unwrap();
+    let mut input = Cursor::new("y\ny\ny\nn\n");
+    let mut output = Vec::new();
+
+    let saved = run_setup_with_io(&path, &mut input, &mut output, false).unwrap();
+
+    assert!(saved);
+    let content = fs::read_to_string(path).unwrap();
+    assert!(content.contains("LLM_API_KEY=sk-real"));
+    assert!(content.contains("AUTO_PLAY=true"));
+    assert!(content.contains("MEMORY_MODE=collect"));
+    let output = String::from_utf8(output).unwrap();
+    assert!(!output.contains("Choose an API connection"));
+    assert!(output.contains("Learning: collect"));
 }
 
 #[test]
@@ -49,7 +90,7 @@ fn complete_pollinations_free_config_does_not_need_setup() {
     let path = dir.path().join(".env");
     fs::write(
         &path,
-        "LLM_PROVIDER=pollinations-free\nLLM_BASE_URL=https://text.pollinations.ai/openai\nLLM_API_KEY=\n",
+        "LLM_PROVIDER=pollinations-free\nLLM_BASE_URL=https://text.pollinations.ai/openai\nLLM_API_KEY=\nAUTO_PLAY=false\nMEMORY_MODE=off\n",
     )
     .unwrap();
 
@@ -60,10 +101,10 @@ fn complete_pollinations_free_config_does_not_need_setup() {
 fn setup_wizard_writes_pollinations_free_config_without_api_key() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join(".env");
-    let mut input = Cursor::new("y\n1\n\n");
+    let mut input = Cursor::new("y\n1\n\nn\n");
     let mut output = Vec::new();
 
-    let saved = run_api_setup_with_io(&path, &mut input, &mut output, false).unwrap();
+    let saved = run_setup_with_io(&path, &mut input, &mut output, false).unwrap();
 
     assert!(saved);
     let content = fs::read_to_string(path).unwrap();
@@ -74,12 +115,29 @@ fn setup_wizard_writes_pollinations_free_config_without_api_key() {
 }
 
 #[test]
+fn setup_wizard_configures_autoplay_and_safe_local_learning() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join(".env");
+    let mut input = Cursor::new("y\n1\n\ny\ny\nn\n");
+    let mut output = Vec::new();
+
+    let saved = run_setup_with_io(&path, &mut input, &mut output, false).unwrap();
+
+    assert!(saved);
+    let content = fs::read_to_string(path).unwrap();
+    assert!(content.contains("AUTO_PLAY=true"));
+    assert!(content.contains("MEMORY_MODE=collect"));
+    let output = String::from_utf8(output).unwrap();
+    assert!(output.contains("Learning: collect"));
+}
+
+#[test]
 fn complete_anthropic_config_does_not_need_setup() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join(".env");
     fs::write(
         &path,
-        "LLM_PROVIDER=anthropic\nLLM_BASE_URL=https://api.anthropic.com\nLLM_API_KEY=sk-ant-real\n",
+        "LLM_PROVIDER=anthropic\nLLM_BASE_URL=https://api.anthropic.com\nLLM_API_KEY=sk-ant-real\nAUTO_PLAY=false\nMEMORY_MODE=off\n",
     )
     .unwrap();
 
@@ -90,10 +148,10 @@ fn complete_anthropic_config_does_not_need_setup() {
 fn setup_wizard_writes_openai_config() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join(".env");
-    let mut input = Cursor::new("y\n2\nsk-real\ncustom-model\n");
+    let mut input = Cursor::new("y\n2\nsk-real\ncustom-model\nn\n");
     let mut output = Vec::new();
 
-    let saved = run_api_setup_with_io(&path, &mut input, &mut output, false).unwrap();
+    let saved = run_setup_with_io(&path, &mut input, &mut output, false).unwrap();
 
     assert!(saved);
     let content = fs::read_to_string(path).unwrap();
@@ -110,10 +168,10 @@ fn setup_wizard_writes_openai_config() {
 fn setup_wizard_writes_anthropic_config() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join(".env");
-    let mut input = Cursor::new("y\n3\nsk-ant-real\n\n");
+    let mut input = Cursor::new("y\n3\nsk-ant-real\n\nn\n");
     let mut output = Vec::new();
 
-    let saved = run_api_setup_with_io(&path, &mut input, &mut output, false).unwrap();
+    let saved = run_setup_with_io(&path, &mut input, &mut output, false).unwrap();
 
     assert!(saved);
     let content = fs::read_to_string(path).unwrap();
@@ -127,10 +185,10 @@ fn setup_wizard_writes_anthropic_config() {
 fn setup_wizard_writes_deepseek_fast_thinking_default() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join(".env");
-    let mut input = Cursor::new("y\n5\nsk-deepseek\n\n");
+    let mut input = Cursor::new("y\n5\nsk-deepseek\n\nn\n");
     let mut output = Vec::new();
 
-    let saved = run_api_setup_with_io(&path, &mut input, &mut output, false).unwrap();
+    let saved = run_setup_with_io(&path, &mut input, &mut output, false).unwrap();
 
     assert!(saved);
     let content = fs::read_to_string(path).unwrap();
@@ -143,10 +201,10 @@ fn setup_wizard_writes_deepseek_fast_thinking_default() {
 fn setup_wizard_writes_openrouter_free_router_config() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join(".env");
-    let mut input = Cursor::new("y\n7\nsk-or\n\n");
+    let mut input = Cursor::new("y\n7\nsk-or\n\nn\n");
     let mut output = Vec::new();
 
-    let saved = run_api_setup_with_io(&path, &mut input, &mut output, false).unwrap();
+    let saved = run_setup_with_io(&path, &mut input, &mut output, false).unwrap();
 
     assert!(saved);
     let content = fs::read_to_string(path).unwrap();
@@ -159,11 +217,11 @@ fn setup_wizard_can_write_compatible_tiered_models() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join(".env");
     let mut input = Cursor::new(
-        "y\n10\nhttps://api.example.com/v1\nsk-real\nfallback\ny\nfast\nmedium\nheavy\n",
+        "y\n10\nhttps://api.example.com/v1\nsk-real\nfallback\ny\nfast\nmedium\nheavy\nn\n",
     );
     let mut output = Vec::new();
 
-    let saved = run_api_setup_with_io(&path, &mut input, &mut output, false).unwrap();
+    let saved = run_setup_with_io(&path, &mut input, &mut output, false).unwrap();
 
     assert!(saved);
     let content = fs::read_to_string(path).unwrap();

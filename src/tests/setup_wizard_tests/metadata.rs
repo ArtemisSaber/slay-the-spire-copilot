@@ -88,3 +88,21 @@ fn all_openai_compatible_presets_require_key() {
 fn api_presets_count_is_9() {
     assert_eq!(API_PRESETS.len(), 9);
 }
+
+#[test]
+fn learning_setup_parses_only_supported_modes() {
+    assert_eq!(
+        LearningSetup::from_env(Some("collect")),
+        Some(LearningSetup::Collect)
+    );
+    assert_eq!(LearningSetup::from_env(Some("ON")), Some(LearningSetup::On));
+    assert_eq!(LearningSetup::from_env(Some("unknown")), None);
+    assert_eq!(LearningSetup::from_env(None), None);
+}
+
+#[test]
+fn setup_boolean_parser_rejects_ambiguous_values() {
+    assert_eq!(parse_env_bool(Some("yes")), Some(true));
+    assert_eq!(parse_env_bool(Some("off")), Some(false));
+    assert_eq!(parse_env_bool(Some("maybe")), None);
+}

@@ -2,8 +2,11 @@ use std::collections::HashMap;
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
 
-use super::assignments::{mock_assignments, provider_assignments};
-use super::env_file::{env_file_needs_setup, read_env_values, write_env_assignments};
+use super::assignments::{feature_assignments, mock_assignments, provider_assignments};
+use super::env_file::{
+    api_values_need_setup, feature_values_need_setup, read_env_values, write_env_assignments,
+};
+use super::features::{prompt_feature_setup, write_feature_summary};
 use super::prompts::{
     prompt_api_key, prompt_line, prompt_model, prompt_model_with_default, prompt_yes_no,
 };
@@ -15,62 +18,70 @@ pub fn env_path(project_root: &Path) -> PathBuf {
     project_root.join(ENV_FILE_NAME)
 }
 
-pub fn maybe_run_api_setup(project_root: &Path) -> io::Result<bool> {
+pub fn maybe_run_setup(project_root: &Path) -> io::Result<bool> {
     let path = env_path(project_root);
     let stdin = io::stdin();
     let mut stdin = stdin.lock();
     let mut stdout = io::stdout().lock();
-    run_api_setup_with_io(&path, &mut stdin, &mut stdout, false)
+    run_setup_with_io(&path, &mut stdin, &mut stdout, false)
 }
 
-pub fn run_api_setup(project_root: &Path) -> io::Result<bool> {
+pub fn run_setup(project_root: &Path) -> io::Result<bool> {
     let path = env_path(project_root);
     let stdin = io::stdin();
     let mut stdin = stdin.lock();
     let mut stdout = io::stdout().lock();
-    run_api_setup_with_io(&path, &mut stdin, &mut stdout, true)
+    run_setup_with_io(&path, &mut stdin, &mut stdout, true)
 }
 
-pub(crate) fn run_api_setup_with_io(
+pub(crate) fn run_setup_with_io(
     env_path: &Path,
     input: &mut impl BufRead,
     output: &mut impl Write,
     force: bool,
 ) -> io::Result<bool> {
-    if !force && !env_file_needs_setup(env_path) {
+    let existing = read_env_values(env_path);
+    let needs_api = api_values_need_setup(&existing);
+    let needs_features = feature_values_need_setup(&existing);
+    if !force && !needs_api && !needs_features {
         return Ok(false);
     }
 
     writeln!(output)?;
-    writeln!(output, "Slay the Spire AI Copilot API Setup")?;
+    writeln!(output, "Slay the Spire AI Copilot Setup")?;
     writeln!(output, "Env file: {}", env_path.display())?;
     writeln!(output)?;
 
-    if !force
-        && !prompt_yes_no(
-            input,
-            output,
-            "No API connection is configured. Set it up now?",
-            true,
-        )?
-    {
-        writeln!(
-            output,
-            "Skipping API setup. The mock provider can still run smoke tests."
-        )?;
+    if !force && !prompt_yes_no(input, output, "Setup is incomplete. Finish it now?", true)? {
+        writeln!(output, "Setup skipped; existing settings were not changed.")?;
         return Ok(false);
     }
 
-    let existing = read_env_values(env_path);
-    let choice = prompt_provider(input, output, &existing)?;
-    let Some(assignments) = choice else {
-        writeln!(output, "Setup skipped.")?;
-        return Ok(false);
+    let mut assignments = Vec::new();
+    let configure_api = needs_api
+        || (force && prompt_yes_no(input, output, "Reconfigure the API connection?", false)?);
+    if configure_api {
+        let Some(provider) = prompt_provider(input, output, &existing)? else {
+            writeln!(output, "Setup skipped; existing settings were not changed.")?;
+            return Ok(false);
+        };
+        assignments.extend(provider);
+    }
+
+    let features = if force || needs_features {
+        let setup = prompt_feature_setup(input, output, &existing)?;
+        assignments.extend(feature_assignments(setup));
+        Some(setup)
+    } else {
+        None
     };
 
     write_env_assignments(env_path, &assignments)?;
     writeln!(output)?;
-    writeln!(output, "Saved API configuration to {}", env_path.display())?;
+    writeln!(output, "Saved setup to {}", env_path.display())?;
+    if let Some(features) = features {
+        write_feature_summary(output, features)?;
+    }
     Ok(true)
 }
 
@@ -101,11 +112,7 @@ fn prompt_provider(
         writeln!(output, "  {mock_choice}) Mock provider (offline/testing)")?;
         writeln!(output, "  {skip_choice}) Skip")?;
 
-        let default_choice = if super::env_file::provider_value(existing) == Some("mock") {
-            mock_choice.to_string()
-        } else {
-            "1".to_string()
-        };
+        let default_choice = default_provider_choice(existing, custom_choice, mock_choice);
 
         let choice = prompt_line(input, output, "Selection", Some(&default_choice))?;
         if let Ok(choice_num) = choice.parse::<usize>() {
@@ -136,6 +143,28 @@ fn prompt_provider(
         )?;
         writeln!(output)?;
     }
+}
+
+fn default_provider_choice(
+    existing: &HashMap<String, String>,
+    custom_choice: usize,
+    mock_choice: usize,
+) -> String {
+    let provider = super::env_file::provider_value(existing);
+    if provider == Some("mock") {
+        return mock_choice.to_string();
+    }
+    let base_url = existing.get("LLM_BASE_URL").map(String::as_str);
+    if let Some(index) = API_PRESETS
+        .iter()
+        .position(|preset| Some(preset.provider) == provider && Some(preset.base_url) == base_url)
+    {
+        return (index + 1).to_string();
+    }
+    if provider == Some("openai-compatible") {
+        return custom_choice.to_string();
+    }
+    "1".to_string()
 }
 
 fn configure_preset(
