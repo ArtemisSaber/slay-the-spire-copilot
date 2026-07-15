@@ -3,6 +3,7 @@ pub mod audit;
 pub mod bundle;
 pub mod case;
 pub mod cli;
+mod compatibility;
 pub mod config;
 pub mod context;
 pub mod descriptor;

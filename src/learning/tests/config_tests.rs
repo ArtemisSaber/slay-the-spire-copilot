@@ -17,27 +17,20 @@ fn defaults_are_conservative_and_bounded() {
     assert_eq!(config.lesson_min_similarity, 700);
     assert_eq!(config.proposed_lesson_min_similarity, 850);
     assert_eq!(config.max_cases_per_run, 500);
-    assert!(config.mod_profile_sha256.is_none());
-    assert!(!config.mod_profile_approved);
     assert!(!config.captures());
     assert!(!config.retrieves());
     assert!(!config.injects());
 }
 
 #[test]
-fn profile_and_debug_ids_require_explicit_configuration() {
-    let config = config(&[
+fn legacy_operator_identity_settings_are_ignored() {
+    let with_legacy_settings = config(&[
         ("MEMORY_MOD_PROFILE_SHA256", "sha256:approved"),
         ("MEMORY_MOD_PROFILE_APPROVED", "true"),
         ("MEMORY_DEBUG_CARD_IDS", "DebugWin, TestCard,DebugWin"),
     ]);
 
-    assert_eq!(
-        config.mod_profile_sha256.as_deref(),
-        Some("sha256:approved")
-    );
-    assert!(config.mod_profile_approved);
-    assert_eq!(config.debug_card_ids, vec!["DebugWin", "TestCard"]);
+    assert_eq!(with_legacy_settings, config(&[]));
 }
 
 #[test]

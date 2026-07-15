@@ -12,7 +12,7 @@ impl LearningSession {
     }
 
     fn commit_finalized_run(&mut self, reason: &str) -> anyhow::Result<FinalizeSummary> {
-        let run_facts = facts(&self.capture, &self.config, &self.provenance, reason);
+        let run_facts = facts(&self.capture, &self.provenance, reason);
         let eligibility = evaluate(&run_facts);
         self.last_eligibility = Some(eligibility.clone());
         let mut appended_cases = 0;
@@ -23,7 +23,7 @@ impl LearningSession {
                 prompt_schema_version: 1,
                 rules_sha256: self.provenance.rules_sha256.clone(),
                 model_profile_sha256: self.provenance.model_profile_sha256.clone(),
-                mod_profile_sha256: self.config.mod_profile_sha256.clone().unwrap_or_default(),
+                compatibility_sha256: self.provenance.compatibility_sha256.clone(),
                 knowledge_snapshot_id: Some(self.snapshot.snapshot_id.clone()),
             };
             let cases = self.capture.finalize_cases(

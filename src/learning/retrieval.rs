@@ -12,7 +12,7 @@ pub use similarity::situation_similarity;
 pub struct RetrievalQuery {
     pub situation: SituationDescriptor,
     pub seed_hash: String,
-    pub mod_profile_sha256: String,
+    pub compatibility_sha256: String,
     pub language: String,
 }
 
@@ -183,7 +183,7 @@ fn compatible_case(case: &DecisionCase, query: &RetrievalQuery) -> bool {
     let left = &case.situation;
     let right = &query.situation;
     case.seed_hash != query.seed_hash
-        && case.provenance.mod_profile_sha256 == query.mod_profile_sha256
+        && case.provenance.compatibility_sha256 == query.compatibility_sha256
         && left.descriptor_version == right.descriptor_version
         && left.ranker_tag_schema_version == right.ranker_tag_schema_version
         && left.character == right.character

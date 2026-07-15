@@ -54,8 +54,6 @@ fn plan(action: AutoPlayAction, semantic: SemanticAction) -> ExecutedPlan {
 fn session(root: &std::path::Path) -> LearningSession {
     let config = MemoryConfig {
         mode: MemoryMode::Collect,
-        mod_profile_sha256: Some("mods".into()),
-        mod_profile_approved: true,
         ..MemoryConfig::default()
     };
     LearningSession::new(
@@ -65,6 +63,7 @@ fn session(root: &std::path::Path) -> LearningSession {
         SessionProvenance {
             locale: "en".into(),
             model_profile_sha256: "model".into(),
+            compatibility_sha256: "mods".into(),
             rules_sha256: "rules".into(),
             synthetic_input: false,
         },

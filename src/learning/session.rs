@@ -28,6 +28,7 @@ use capture::RunCapture;
 pub struct SessionProvenance {
     pub locale: String,
     pub model_profile_sha256: String,
+    pub compatibility_sha256: String,
     pub rules_sha256: String,
     pub synthetic_input: bool,
 }
@@ -103,7 +104,7 @@ impl LearningSession {
 
     pub fn observe(&mut self, state: &NormalizedState) {
         if self.config.captures() {
-            self.capture.observe(state, &self.config.debug_card_ids);
+            self.capture.observe(state);
         }
     }
 
@@ -126,15 +127,15 @@ impl LearningSession {
         let mut exposed_memory_ids = vec![];
         let mut context = None;
         if self.config.retrieves()
-            && let (Some(seed), Some(profile)) =
-                (state.seed, self.config.mod_profile_sha256.as_deref())
+            && let Some(seed) = state.seed
         {
+            let compatibility = &self.provenance.compatibility_sha256;
             let result = retrieve(
                 &self.snapshot,
                 &RetrievalQuery {
                     situation: situation.clone(),
-                    seed_hash: seed_hash(seed, profile),
-                    mod_profile_sha256: profile.to_string(),
+                    seed_hash: seed_hash(seed, compatibility),
+                    compatibility_sha256: compatibility.clone(),
                     language: self.provenance.locale.clone(),
                 },
                 &self.config,
@@ -169,10 +170,9 @@ impl LearningSession {
         plan: &ExecutedPlan,
         prepared: &PreparedMemory,
     ) -> Option<Value> {
-        let (Some(selected_action), Some(seed), Some(profile)) = (
+        let (Some(selected_action), Some(seed)) = (
             SemanticAction::from_execution(&plan.action, state),
             state.seed,
-            self.config.mod_profile_sha256.as_deref(),
         ) else {
             return None;
         };
@@ -203,7 +203,7 @@ impl LearningSession {
         let draft = CaseDraft {
             run_id: run_id.to_string(),
             decision_id: decision_id.clone(),
-            seed_hash: seed_hash(seed, profile),
+            seed_hash: seed_hash(seed, &self.provenance.compatibility_sha256),
             situation: prepared.situation.clone(),
             selected_action: selected_action.clone(),
             decision_source: plan.source,

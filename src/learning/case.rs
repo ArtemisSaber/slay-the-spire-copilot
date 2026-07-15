@@ -26,7 +26,7 @@ pub struct CaseProvenance {
     pub prompt_schema_version: u32,
     pub rules_sha256: String,
     pub model_profile_sha256: String,
-    pub mod_profile_sha256: String,
+    pub compatibility_sha256: String,
     pub knowledge_snapshot_id: Option<String>,
 }
 
@@ -133,7 +133,7 @@ impl CaseDraft {
             provenance.app_version.as_str(),
             provenance.rules_sha256.as_str(),
             provenance.model_profile_sha256.as_str(),
-            provenance.mod_profile_sha256.as_str(),
+            provenance.compatibility_sha256.as_str(),
         ]
         .into_iter()
         .chain(self.retrieved_memory_ids.iter().map(String::as_str))

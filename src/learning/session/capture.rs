@@ -1,6 +1,5 @@
 use super::SessionProvenance;
 use crate::learning::case::{CaseDraft, CaseOutcome, CaseProvenance, DecisionCase};
-use crate::learning::config::MemoryConfig;
 use crate::learning::eligibility::{RunFacts, RunObjective, RunOutcome};
 use crate::learning::telemetry::DecisionIdGenerator;
 use crate::state::NormalizedState;
@@ -11,7 +10,6 @@ pub(super) struct RunCapture {
     encounter: Option<Encounter>,
     pending: Vec<PendingCase>,
     generator: Option<(String, DecisionIdGenerator)>,
-    debug_card_seen: bool,
 }
 
 struct Encounter {
@@ -32,23 +30,13 @@ struct PendingCase {
 }
 
 impl RunCapture {
-    pub(super) fn observe(&mut self, state: &NormalizedState, debug_card_ids: &[String]) {
+    pub(super) fn observe(&mut self, state: &NormalizedState) {
         let observation_hash = state.observation_hash();
         for pending in &mut self.pending {
             if pending.observation_hash != observation_hash {
                 pending.outcome.command_succeeded = true;
             }
         }
-        self.debug_card_seen |= [
-            state.master_cards.as_slice(),
-            state.hand.as_slice(),
-            state.draw_pile.as_slice(),
-            state.discard_pile.as_slice(),
-            state.exhaust_cards.as_slice(),
-        ]
-        .into_iter()
-        .flatten()
-        .any(|card| debug_card_ids.contains(&card.id));
         let active = is_active_combat(state);
         if self.encounter.is_some() && !active {
             self.close_turns_and_combat(state);
@@ -200,7 +188,6 @@ impl RunCapture {
 
 pub(super) fn facts(
     capture: &RunCapture,
-    config: &MemoryConfig,
     provenance: &SessionProvenance,
     reason: &str,
 ) -> RunFacts {
@@ -222,9 +209,6 @@ pub(super) fn facts(
         model_profile_sha256: Some(provenance.model_profile_sha256.clone()),
         prompt_schema_version: Some(1),
         locale: Some(provenance.locale.clone()),
-        mod_profile_sha256: config.mod_profile_sha256.clone(),
-        mod_profile_approved: config.mod_profile_approved,
-        debug_card_seen: capture.debug_card_seen,
         synthetic_input: provenance.synthetic_input,
         stdin_test: provenance.synthetic_input,
         telemetry_consistent: capture

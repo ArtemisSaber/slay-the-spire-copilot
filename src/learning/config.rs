@@ -37,9 +37,6 @@ pub struct MemoryConfig {
     pub lesson_min_similarity: u16,
     pub proposed_lesson_min_similarity: u16,
     pub max_cases_per_run: usize,
-    pub mod_profile_sha256: Option<String>,
-    pub mod_profile_approved: bool,
-    pub debug_card_ids: Vec<String>,
 }
 
 impl Default for MemoryConfig {
@@ -52,9 +49,6 @@ impl Default for MemoryConfig {
             lesson_min_similarity: DEFAULT_LESSON_MIN_SIMILARITY,
             proposed_lesson_min_similarity: DEFAULT_PROPOSED_MIN_SIMILARITY,
             max_cases_per_run: DEFAULT_MAX_CASES_PER_RUN,
-            mod_profile_sha256: None,
-            mod_profile_approved: false,
-            debug_card_ids: vec![],
         }
     }
 }
@@ -99,9 +93,6 @@ impl MemoryConfig {
                 5_000,
                 DEFAULT_MAX_CASES_PER_RUN,
             ),
-            mod_profile_sha256: non_empty(lookup("MEMORY_MOD_PROFILE_SHA256")),
-            mod_profile_approved: truthy(lookup("MEMORY_MOD_PROFILE_APPROVED")),
-            debug_card_ids: comma_list(lookup("MEMORY_DEBUG_CARD_IDS")),
         }
     }
 
@@ -116,34 +107,6 @@ impl MemoryConfig {
     pub fn injects(&self) -> bool {
         self.mode == MemoryMode::On
     }
-}
-
-fn non_empty(value: Option<String>) -> Option<String> {
-    value
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty() && value.len() <= 256)
-}
-
-fn truthy(value: Option<String>) -> bool {
-    value.is_some_and(|value| {
-        matches!(
-            value.trim().to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes" | "on"
-        )
-    })
-}
-
-fn comma_list(value: Option<String>) -> Vec<String> {
-    let mut values: Vec<_> = value
-        .iter()
-        .flat_map(|value| value.split(','))
-        .map(str::trim)
-        .filter(|value| !value.is_empty() && value.len() <= 256)
-        .map(str::to_string)
-        .collect();
-    values.sort();
-    values.dedup();
-    values
 }
 
 fn bounded<T>(

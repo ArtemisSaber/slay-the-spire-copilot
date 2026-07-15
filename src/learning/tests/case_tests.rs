@@ -17,7 +17,7 @@ fn provenance() -> CaseProvenance {
         prompt_schema_version: 1,
         rules_sha256: "rules".into(),
         model_profile_sha256: "model".into(),
-        mod_profile_sha256: "mods".into(),
+        compatibility_sha256: "compatibility".into(),
         knowledge_snapshot_id: None,
     }
 }
@@ -95,7 +95,7 @@ fn outcome_change_changes_identity_without_claiming_optimality() {
 }
 
 #[test]
-fn seed_hash_is_stable_but_profile_scoped() {
+fn seed_hash_is_stable_but_compatibility_scoped() {
     assert_eq!(seed_hash(42, "a"), seed_hash(42, "a"));
     assert_ne!(seed_hash(42, "a"), seed_hash(42, "b"));
     assert!(!seed_hash(42, "a").contains("42"));

@@ -20,7 +20,7 @@ fn similarity_is_exact_and_weighted_with_adjacent_buckets() {
 }
 
 #[test]
-fn hard_filters_exclude_same_seed_and_different_mod_profiles() {
+fn hard_filters_exclude_same_seed_and_different_compatibility_profiles() {
     let same_seed = decision_case("same", 1);
     let usable = decision_case("usable", 2);
     let wrong_mod = decision_case_for("mod", 3, situation(), true, &[], "other-mods");
@@ -31,7 +31,7 @@ fn hard_filters_exclude_same_seed_and_different_mod_profiles() {
         &RetrievalQuery {
             situation: situation(),
             seed_hash: crate::learning::case::seed_hash(1, "mods"),
-            mod_profile_sha256: "mods".into(),
+            compatibility_sha256: "mods".into(),
             language: "en".into(),
         },
         &MemoryConfig::default(),
@@ -50,7 +50,7 @@ fn proposed_lesson_requires_language_match_and_high_similarity() {
     let query = |language: &str| RetrievalQuery {
         situation: situation(),
         seed_hash: crate::learning::case::seed_hash(99, "mods"),
-        mod_profile_sha256: "mods".into(),
+        compatibility_sha256: "mods".into(),
         language: language.into(),
     };
 
@@ -83,7 +83,7 @@ fn validated_lesson_ranks_above_a_raw_case_but_both_remain_observational() {
         &RetrievalQuery {
             situation: situation(),
             seed_hash: crate::learning::case::seed_hash(99, "mods"),
-            mod_profile_sha256: "mods".into(),
+            compatibility_sha256: "mods".into(),
             language: "en".into(),
         },
         &MemoryConfig::default(),
@@ -107,7 +107,7 @@ fn contested_and_retired_lessons_are_not_retrieved() {
             &RetrievalQuery {
                 situation: situation(),
                 seed_hash: crate::learning::case::seed_hash(99, "mods"),
-                mod_profile_sha256: "mods".into(),
+                compatibility_sha256: "mods".into(),
                 language: "en".into(),
             },
             &MemoryConfig::default(),
@@ -131,7 +131,7 @@ fn lesson_cannot_reveal_itself_to_its_only_source_seed() {
         &RetrievalQuery {
             situation: situation(),
             seed_hash: crate::learning::case::seed_hash(1, "mods"),
-            mod_profile_sha256: "mods".into(),
+            compatibility_sha256: "mods".into(),
             language: "en".into(),
         },
         &MemoryConfig::default(),

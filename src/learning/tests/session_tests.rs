@@ -51,8 +51,6 @@ fn combat_state(ascension: i64, seed: i64) -> NormalizedState {
 fn config(mode: MemoryMode) -> MemoryConfig {
     MemoryConfig {
         mode,
-        mod_profile_sha256: Some("mods".into()),
-        mod_profile_approved: true,
         ..MemoryConfig::default()
     }
 }
@@ -61,6 +59,7 @@ fn provenance(synthetic: bool) -> SessionProvenance {
     SessionProvenance {
         locale: "en".into(),
         model_profile_sha256: "model".into(),
+        compatibility_sha256: "mods".into(),
         rules_sha256: "rules".into(),
         synthetic_input: synthetic,
     }

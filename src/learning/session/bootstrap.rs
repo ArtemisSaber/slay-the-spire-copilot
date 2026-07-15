@@ -4,6 +4,7 @@ use std::path::Path;
 use super::{LearningSession, SessionProvenance};
 use crate::config::Config;
 use crate::learning::bundle::embedded_bundle;
+use crate::learning::compatibility::runtime_compatibility_sha256;
 use crate::learning::snapshot::KnowledgeSnapshot;
 use crate::learning::store::KnowledgeStore;
 
@@ -31,10 +32,12 @@ pub fn bootstrap_session(
         KnowledgeSnapshot::build(vec![], &[bundle])
             .map_err(|error| anyhow::anyhow!("knowledge snapshot build failed: {error:?}"))?
     };
+    let rules_sha256 = crate::ranker::active_rules_sha256(project_root);
     let provenance = SessionProvenance {
         locale: locale.to_string(),
         model_profile_sha256: model_profile_sha256(config)?,
-        rules_sha256: crate::ranker::active_rules_sha256(project_root),
+        compatibility_sha256: runtime_compatibility_sha256(&rules_sha256),
+        rules_sha256,
         synthetic_input,
     };
     if config.memory.captures() {

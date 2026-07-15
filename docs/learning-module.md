@@ -136,7 +136,7 @@ The design must therefore solve four problems:
 - Retrieving seed-specific draw order, random results, or future enemy actions.
 - Learning non-combat card rewards, map paths, shops, events, rests, or boss
   relic choices in version 1.
-- Supporting content-changing mods in the first production knowledge profile.
+- Publishing repository knowledge from unreviewed content-changing mods.
 - Allowing free-form knowledge text to create executable actions.
 - Automatically declaring the system globally optimal or converged.
 
@@ -171,7 +171,7 @@ The design must therefore solve four problems:
 | Independent support | A supporting case generated without that lesson being present in the prompt |
 | Dependent observation | A case generated after the lesson was supplied to the planner |
 | Experience context | The bounded knowledge object inserted into the planner payload |
-| Legitimate run | A terminal normal run that passes available provenance checks under an explicitly approved, rollback-free mod profile |
+| Legitimate run | A terminal normal run that passes every provenance check the runtime can actually observe |
 
 ---
 
@@ -183,10 +183,10 @@ These invariants are release-blocking.
    factual situation, action, or outcome fields of a case.
 2. **No optimal-action fiction.** A selected-action outcome is never stored or
    presented as proof that an unselected action was worse.
-3. **Legitimate data only.** Debug, Ascension `-15`, synthetic, incomplete,
-   unsupported-profile, and any explicitly marked restore/undo runs never enter
-   the retrievable store. Profiles with rollback tools are not approvable while
-   the mod interface lacks a trusted signal.
+3. **Observable eligibility only.** Ascension `-15`, synthetic, incomplete, and
+   any explicitly marked restore/undo runs never enter the retrievable store.
+   When the mod interface supplies no rollback signal, the system does not
+   falsely claim that rollback was absent.
 4. **No same-seed recall.** Runtime retrieval excludes cases from the current
    seed and never includes seed-specific future information.
 5. **Current state is authoritative.** Memory cannot add an available action,
@@ -351,7 +351,8 @@ src/learning/
 ├── bundle.rs              # verified repository-bundled knowledge
 ├── case.rs                # immutable factual case schema
 ├── cli.rs                 # status, inspect, rebuild, export, and human review
-├── config.rs              # modes, budgets, profile, and debug-card IDs
+├── compatibility.rs       # automatic runtime/schema/ranker identity
+├── config.rs              # modes and bounded retrieval settings
 ├── context.rs             # bounded localized experience_context
 ├── descriptor.rs          # public situation descriptor
 ├── descriptor/buckets.rs  # versioned integer buckets
@@ -373,7 +374,7 @@ src/learning/
 | Existing area | Implemented change |
 |---|---|
 | `src/main.rs` | Declare `learning` module |
-| `src/config.rs` | Load memory mode, budgets, and profile settings |
+| `src/config.rs` | Load memory mode and bounded retrieval settings |
 | `src/app/session.rs` | Own one `LearningSession` and its pinned snapshot |
 | `src/app/session/autoplay.rs` | Retrieve context, call the typed planner, and record authorized execution |
 | `src/app/session/error.rs` | Discard failed commands before retrying with the same deterministic context |
@@ -412,14 +413,11 @@ MEMORY_CASE_MIN_SIMILARITY=800
 MEMORY_LESSON_MIN_SIMILARITY=700
 MEMORY_PROPOSED_LESSON_MIN_SIMILARITY=850
 MEMORY_MAX_CASES_PER_RUN=500
-MEMORY_MOD_PROFILE_SHA256=<operator-generated profile hash>
-MEMORY_MOD_PROFILE_APPROVED=false
-MEMORY_DEBUG_CARD_IDS=<comma-separated stable card IDs>
 ```
 
-Malformed values use conservative defaults. Collection is not eligible unless
-both a non-empty profile hash and explicit approval are present. Ascension
-`-15` is excluded independently of the debug-card list.
+Malformed values use conservative defaults. Compatibility identity and seed
+salting are derived internally; users do not create hashes, approve profiles,
+or enumerate debug cards. Ascension `-15` is excluded automatically.
 
 ---
 
@@ -445,12 +443,8 @@ The implemented evaluator requires all of the following facts before commit:
 - Ascension is in `0..=20`.
 - Finalization is for `game_over`, yielding a terminal victory or defeat.
 - Character, seed, objective, application version, model profile, prompt
-  schema, locale, and mod profile are known.
-- No configured debug-card ID was observed in the master deck, hand, draw,
-  discard, or exhaust piles.
+  schema, and locale are known.
 - The run is not stdin-test, fixture, or other synthetic input.
-- The operator supplied a non-empty `MEMORY_MOD_PROFILE_SHA256` and explicitly
-  approved it with `MEMORY_MOD_PROFILE_APPROVED=true`.
 - Required decision and outcome telemetry is internally consistent.
 
 Both victories and defeats are eligible. The run outcome is stored as global
@@ -460,9 +454,10 @@ The eligibility type also has `state_restore`, `undo_used`, and
 `already_committed` rejection reasons for a future trusted provenance signal.
 CommunicationMod currently supplies no callable Undo the Spire API or trusted
 restore/undo flag, so the runtime cannot honestly infer those facts. Until such
-a signal exists, an approved production profile must exclude Undo the Spire and
-other rollback tools. Exact case IDs make an identical replayed append
-idempotent, but that is not a substitute for rollback provenance.
+a signal exists, local cases carry no claim that rollback was absent. Exact
+case IDs make an identical replayed append idempotent, but that is not a
+substitute for rollback provenance. Repository publication and performance
+claims must therefore review the source runs separately.
 
 ### 10.3 Ascension `-15`
 
@@ -477,18 +472,19 @@ valid victories and remain useful for:
 They are always `debug_flow` and never enter cases, lessons, retrieval indexes,
 memory evaluation, or production quality metrics.
 
-### 10.4 Mod Profile
+### 10.4 Automatic Compatibility Identity
 
-Version 1 does not claim that CommunicationMod exposes a trustworthy loaded-mod
-manifest. `mod_profile_sha256` is therefore an operator-managed, versioned
-profile identifier supplied through configuration, and collection remains
-disabled unless the separate approval flag is true. Retrieval requires an
-exact profile match.
+The runtime derives `compatibility_sha256` from the application major/minor
+version, case/descriptor/ranker-tag/prompt schema versions, and the exact active
+ranker-rules hash. It salts private seed hashes and is an exact retrieval gate.
+No user input is required.
 
-Maintainers must define the hash from a reviewed manifest outside the runtime,
-record that manifest with the release/evaluation evidence, and withhold
-approval from profiles containing Undo the Spire, debug content, or unknown
-content-changing mods. Automatic loaded-mod attestation is future work.
+This identity partitions changes the application can observe; it is not a
+loaded-mod attestation. CommunicationMod does not expose a trustworthy mod
+manifest, so the runtime must not pretend it can prove that arbitrary content
+or rollback mods were absent. Encounter and stable content IDs still gate
+matching. Promotion from local knowledge to a repository bundle remains a
+maintainer-reviewed operation until trusted mod/rollback provenance exists.
 
 ### 10.5 Commit Timing
 
@@ -509,7 +505,7 @@ retrieval.
   "eligibility": {
     "run_kind": "debug_flow",
     "knowledge_eligible": false,
-    "reasons": ["debug_ascension", "debug_card"]
+    "reasons": ["debug_ascension"]
   },
   "appended_cases": 0,
   "skipped_cases": 0,
@@ -886,7 +882,7 @@ are not compared unless an explicit migration exists.
     "prompt_schema_version": 1,
     "rules_sha256": "...",
     "model_profile_sha256": "...",
-    "mod_profile_sha256": "...",
+    "compatibility_sha256": "...",
     "knowledge_snapshot_id": null
   }
 }
@@ -1251,8 +1247,8 @@ otherwise memory fails closed for that run.
 A case is considered only when all conditions hold:
 
 - Schema and descriptor versions are supported.
-- Mod profile, character, objective, ascension band, and initial encounter-ID
-  multiset match exactly.
+- Compatibility identity, character, objective, ascension band, and initial
+  encounter-ID multiset match exactly.
 - Case seed hash differs from the current run seed hash.
 - Case and descriptor content hashes verify.
 
@@ -1622,12 +1618,12 @@ reloaded from its immutable snapshot file when available.
 ### 19.5 Index Structure
 
 The version 1 snapshot keeps canonical sorted vectors. Retrieval first applies
-exact profile, schema, character, objective, ascension-band, encounter, and
-different-seed filters, then computes similarity over the remaining local
-items. Lessons additionally require an exact language match. This deliberately
-simple scan is deterministic and sufficient for the expected local scale; a
-secondary per-encounter index is a measured optimization, not part of the
-identity contract.
+exact compatibility identity, schema, character, objective, ascension-band,
+encounter, and different-seed filters, then computes similarity over the
+remaining local items. Lessons additionally require an exact language match.
+This deliberately simple scan is deterministic and sufficient for the expected
+local scale; a secondary per-encounter index is a measured optimization, not
+part of the identity contract.
 
 ### 19.6 Schema Evolution
 
@@ -1649,7 +1645,8 @@ plan.
 
 The checked-in bundle is intentionally empty until maintainers have legitimate,
 reviewed source runs. It must never be populated with fixtures, stdin tests,
-Ascension `-15`, or debug-card runs. To publish qualified accumulated knowledge:
+Ascension `-15`, or otherwise reviewed-as-contaminated runs. To publish
+qualified accumulated knowledge:
 
 ```text
 cargo run -- knowledge verify
@@ -1733,8 +1730,8 @@ snapshot and the journaled situation. Before `on` mode:
 For an end-to-end comparison:
 
 - Freeze one knowledge snapshot for the experiment.
-- Pin model, provider, temperature, prompt schema, app version, mod profile,
-  objective, character, and ascension population.
+- Pin model, provider, temperature, prompt schema, app version, compatibility
+  identity, objective, character, and ascension population.
 - Assign entire legitimate runs to `memory_off` or `memory_on` before the first
   eligible combat decision.
 - Never change snapshot or arm during a run.
@@ -1752,7 +1749,8 @@ memory mode based on the evaluation report and safety gates.
 ### 20.7 Operational Maturity, Not Convergence
 
 Each eligible run can add cases immediately. No epoch or optimizer must finish.
-The knowledge base is considered operationally mature for a profile when:
+The knowledge base is considered operationally mature for a deployment scope
+when:
 
 - Retrieval relevance remains above the launch threshold.
 - Invalid-action and retry metrics do not regress materially.
@@ -1786,7 +1784,8 @@ grow after these criteria are met.
 
 Version 1 has no wall-clock retrieval-abort timer. The 5 ms p99 target is a
 measured production gate while memory remains default-off; adding a deadline
-and timeout metric is required before enabling a profile that misses that gate.
+and timeout metric is required before enabling a deployment that misses that
+gate.
 
 ---
 
@@ -1797,7 +1796,7 @@ present; empirical gates remain deliberately unclaimed.
 
 | Phase | Code status | Operational status |
 |---|---|---|
-| 1. Eligibility and telemetry | Complete | Legitimate profile must be configured |
+| 1. Eligibility and telemetry | Complete | Runtime compatibility is automatic; trusted rollback provenance remains unavailable |
 | 2. Descriptor and store | Complete | Repository bundle awaits reviewed real runs |
 | 3. Shadow retrieval | Complete | 100-item relevance review pending |
 | 4. Structured lessons | Complete | Real-provider envelope sampling pending |
@@ -1809,8 +1808,8 @@ present; empirical gates remain deliberately unclaimed.
 Deliverables:
 
 - Add memory configuration with default `off`.
-- Add immutable run classification plus an operator-supplied profile identifier
-  and approval gate.
+- Add immutable run classification plus an automatically derived compatibility
+  identity.
 - Return typed `PlannedAction` metadata from the planner and construct the
   richer `PlannedDecision` audit record at the session boundary.
 - Journal selected semantic action, candidates, ranker suggestions, memory
@@ -1821,7 +1820,7 @@ Exit criteria:
 
 - `MEMORY_MODE=off` is behaviorally identical to the current baseline.
 - Every successful auto-play combat action joins to one proposal and outcome.
-- No debug, synthetic, restored, incomplete, or unknown-profile run is
+- No Ascension `-15`, synthetic, explicitly restored, or incomplete run is
   knowledge-eligible.
 
 ### Phase 2: Descriptor, Case Store, and Rebuild
@@ -1851,7 +1850,7 @@ Deliverables:
 
 Exit criteria:
 
-- Same-seed and incompatible-profile cases are always excluded.
+- Same-seed and incompatible-runtime cases are always excluded.
 - Golden retrieval ordering is deterministic across supported platforms.
 - Latency target passes on the reference corpus; byte-budget behavior remains
   covered by deterministic context tests.
@@ -1905,7 +1904,7 @@ Exit criteria:
 
 - Fixed-snapshot experiment is complete or explicitly inconclusive.
 - No safety invariant is violated.
-- Maintainer approves normal `on` operation for the exact evaluation profile.
+- Maintainer approves normal `on` operation for the exact evaluation scope.
 
 No phase requires an RL epoch, ranker retraining, or Undo the Spire.
 
@@ -2026,8 +2025,8 @@ Section 20.
 - Ascension `-15` victory finalizes normally but commits zero cases.
 - Terminal runs in the valid `0..=20` range can be classified legitimate when
   all provenance is present.
-- Debug card, restore marker, synthetic input, incomplete run, unknown
-  objective, and unknown mod profile fail closed.
+- Debug Ascension, restore marker, synthetic input, incomplete run, and unknown
+  objective fail closed.
 - Exact duplicate case and lesson-event appends are idempotent.
 - Victory and defeat both remain eligible when other conditions pass.
 
@@ -2092,7 +2091,7 @@ Section 20.
 ### 25.7 Retrieval Tests
 
 - Different seed is required.
-- Same-seed and different-profile hard filters are enforced; lesson language
+- Same-seed and different-compatibility hard filters are enforced; lesson language
   and source-seed filters are covered.
 - Exact and adjacent-bucket weighted similarity has golden values.
 - Validated lessons rank over raw cases while remaining observational.
@@ -2275,8 +2274,8 @@ snapshot is sufficient for expected local scale.
 | Global run result is blamed on one action | Planner case items omit run victory and state observational limits |
 | Localized names break matching | Stable IDs only; missing stable IDs fail closed |
 | Model/provider change alters memory use | Record model profile and use fixed profiles for evaluation |
-| Knowledge grows stale after game/mod changes | Exact operator-approved profile, schema versions, compatibility gates, retirement |
-| Undo/restore contaminates evidence without an API signal | Do not approve profiles containing rollback tools; add trusted provenance before relaxing this gate |
+| Knowledge grows stale after application/rules changes | Automatic compatibility identity, stable content IDs, schema gates, and retirement |
+| Undo/restore contaminates evidence without an API signal | Do not claim local data proves rollback absence; review runs before repository publication and add trusted provenance when available |
 | Contradictions are hidden by rebuild or status changes | Append-only events and mandatory contradiction accounting |
 | JSONL grows too large | Compact descriptors, snapshots, cap, measured migration gate |
 | Memory increases prompt cost | Fixed item/byte budget and token metrics |
@@ -2288,9 +2287,9 @@ snapshot is sufficient for expected local scale.
 
 | Topic | Implementation decision | Remaining validation |
 |---|---|---|
-| Mod profile | Operator supplies `MEMORY_MOD_PROFILE_SHA256` and explicitly sets approval; missing or unapproved profiles cannot commit | Define and publish the first approved production profile hash |
+| Compatibility | Runtime derives an exact compatibility identity; no user-managed hash or approval flag | Add trusted loaded-mod and rollback provenance when an upstream signal exists |
 | Potion identity | Preserve CommunicationMod's stable potion `id`; omit potion actions when it is absent | Confirm IDs across the deployed mod versions and locales |
-| Objective | Version 1 uses `act3_victory` only | Add a new profile/version before mixing Heart objectives |
+| Objective | Version 1 uses `act3_victory` only | Add a new objective/schema version before mixing Heart objectives |
 | Ascension bands | `a0`, `a1_9`, `a10_16`, `a17_19`, `a20` | Review relevance by band in shadow data |
 | Similarity thresholds | Defaults are 800/700/850 and are configurable | Run sensitivity analysis before default-on use |
 | Retrieved content | Diversity permits at most two lesson families and one factual case | Review prompt usefulness and noise on 100 shadow items |
@@ -2308,11 +2307,11 @@ The code-complete acceptance criteria are:
 
 - The implementation contains no RL trainer, optimization epoch, learned
   ranker multiplier, or required Undo integration.
-- Every locally committed case comes from a terminal run that passes the
-  available eligibility and operator-approved profile checks; the launch
-  profile excludes rollback tools that CommunicationMod cannot attest.
-- Ascension `-15` and debug-card victories still validate the full application
-  flow but commit no knowledge.
+- Every locally committed case comes from a terminal run that passes all
+  eligibility checks supported by observable telemetry; the system does not
+  claim that unavailable rollback provenance was verified.
+- Ascension `-15` victories still validate the full application flow but commit
+  no knowledge.
 - Cases preserve factual situations, actions, and outcomes without claiming
   unobserved alternatives were worse.
 - Situation descriptors contain no seed, ordered draw pile, future RNG result,
@@ -2341,8 +2340,8 @@ The code-complete acceptance criteria are:
 
 Production default-on approval additionally requires:
 
-- A reviewed, exact approved mod-profile manifest/hash that excludes Undo the
-  Spire and other rollback/debug tools until trusted provenance exists.
+- Reviewed source-run evidence that excludes known rollback/debug contamination;
+  no user-generated manifest hash is required or accepted.
 - At least 90% relevance in the predeclared 100-item shadow sample.
 - A memory-on canary with no safety invariant violation or material command-
   rejection regression.

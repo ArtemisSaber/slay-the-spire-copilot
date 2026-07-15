@@ -111,12 +111,12 @@ pub(super) fn decision_case_for(
     situation: SituationDescriptor,
     combat_won: bool,
     retrieved_memory_ids: &[String],
-    mod_profile: &str,
+    compatibility: &str,
 ) -> DecisionCase {
     CaseDraft {
         run_id: run_id.into(),
         decision_id: format!("{run_id}:8:2:1"),
-        seed_hash: seed_hash(seed, "mods"),
+        seed_hash: seed_hash(seed, compatibility),
         situation,
         selected_action: SemanticAction::EndTurn,
         decision_source: DecisionSource::Llm,
@@ -143,7 +143,7 @@ pub(super) fn decision_case_for(
             prompt_schema_version: 1,
             rules_sha256: "rules".into(),
             model_profile_sha256: "model".into(),
-            mod_profile_sha256: mod_profile.into(),
+            compatibility_sha256: compatibility.into(),
             knowledge_snapshot_id: None,
         },
     )

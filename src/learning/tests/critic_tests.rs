@@ -12,8 +12,6 @@ fn session(temp: &std::path::Path) -> (LearningSession, String) {
     store.append_cases(&[case]).unwrap();
     let config = MemoryConfig {
         mode: MemoryMode::Collect,
-        mod_profile_sha256: Some("mods".into()),
-        mod_profile_approved: true,
         ..MemoryConfig::default()
     };
     (
@@ -24,6 +22,7 @@ fn session(temp: &std::path::Path) -> (LearningSession, String) {
             SessionProvenance {
                 locale: "en".into(),
                 model_profile_sha256: "model".into(),
+                compatibility_sha256: "mods".into(),
                 rules_sha256: "rules".into(),
                 synthetic_input: false,
             },
@@ -57,8 +56,6 @@ fn critic_omits_an_indivisible_case_that_exceeds_the_absolute_prompt_budget() {
     let snapshot = KnowledgeSnapshot::build(vec![case], &[]).unwrap();
     let config = MemoryConfig {
         mode: MemoryMode::Collect,
-        mod_profile_sha256: Some("mods".into()),
-        mod_profile_approved: true,
         ..MemoryConfig::default()
     };
     let session = LearningSession::new(
@@ -68,6 +65,7 @@ fn critic_omits_an_indivisible_case_that_exceeds_the_absolute_prompt_budget() {
         SessionProvenance {
             locale: "en".into(),
             model_profile_sha256: "model".into(),
+            compatibility_sha256: "mods".into(),
             rules_sha256: "rules".into(),
             synthetic_input: false,
         },

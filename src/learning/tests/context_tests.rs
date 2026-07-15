@@ -13,7 +13,7 @@ fn result(with_lesson: bool) -> crate::learning::retrieval::RetrievalResult {
         &RetrievalQuery {
             situation: situation(),
             seed_hash: crate::learning::case::seed_hash(99, "mods"),
-            mod_profile_sha256: "mods".into(),
+            compatibility_sha256: "mods".into(),
             language: "en".into(),
         },
         &MemoryConfig::default(),
@@ -53,7 +53,7 @@ fn no_retrieval_produces_no_prompt_field() {
         &RetrievalQuery {
             situation: situation(),
             seed_hash: "sha256:none".into(),
-            mod_profile_sha256: "mods".into(),
+            compatibility_sha256: "mods".into(),
             language: "en".into(),
         },
         &MemoryConfig::default(),

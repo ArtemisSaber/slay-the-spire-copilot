@@ -6,11 +6,7 @@ use std::collections::HashMap;
 #[test]
 fn startup_rebuilds_one_verified_snapshot_with_the_repository_bundle() {
     let temp = tempfile::tempdir().unwrap();
-    let config = Config::from_map(&HashMap::from([
-        ("MEMORY_MODE", "collect"),
-        ("MEMORY_MOD_PROFILE_SHA256", "sha256:approved"),
-        ("MEMORY_MOD_PROFILE_APPROVED", "true"),
-    ]));
+    let config = Config::from_map(&HashMap::from([("MEMORY_MODE", "collect")]));
 
     let session = bootstrap_session(temp.path(), &config, "en", false).unwrap();
     let bundle = embedded_bundle().unwrap();

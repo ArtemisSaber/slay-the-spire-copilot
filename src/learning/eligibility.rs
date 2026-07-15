@@ -29,7 +29,6 @@ pub enum RunObjective {
 #[serde(rename_all = "snake_case")]
 pub enum IneligibilityReason {
     DebugAscension,
-    DebugCard,
     InvalidAscension,
     MissingTerminalOutcome,
     MissingCharacter,
@@ -39,8 +38,6 @@ pub enum IneligibilityReason {
     MissingModelProfile,
     MissingPromptSchema,
     MissingLocale,
-    MissingModProfile,
-    UnapprovedModProfile,
     SyntheticInput,
     StdinTest,
     StateRestore,
@@ -60,9 +57,6 @@ pub struct RunFacts {
     pub model_profile_sha256: Option<String>,
     pub prompt_schema_version: Option<u32>,
     pub locale: Option<String>,
-    pub mod_profile_sha256: Option<String>,
-    pub mod_profile_approved: bool,
-    pub debug_card_seen: bool,
     pub synthetic_input: bool,
     pub stdin_test: bool,
     pub used_restore: bool,
@@ -98,9 +92,6 @@ fn check_ascension(facts: &RunFacts, reasons: &mut Vec<IneligibilityReason>) {
         Some(0..=20) => {}
         _ => reasons.push(IneligibilityReason::InvalidAscension),
     }
-    if facts.debug_card_seen {
-        reasons.push(IneligibilityReason::DebugCard);
-    }
 }
 
 fn required(facts: &RunFacts, reasons: &mut Vec<IneligibilityReason>) {
@@ -132,14 +123,6 @@ fn required(facts: &RunFacts, reasons: &mut Vec<IneligibilityReason>) {
         ),
         (facts.locale.is_none(), IneligibilityReason::MissingLocale),
         (
-            facts.mod_profile_sha256.is_none(),
-            IneligibilityReason::MissingModProfile,
-        ),
-        (
-            !facts.mod_profile_approved,
-            IneligibilityReason::UnapprovedModProfile,
-        ),
-        (
             !facts.telemetry_consistent,
             IneligibilityReason::InconsistentTelemetry,
         ),
@@ -170,7 +153,7 @@ fn contamination(facts: &RunFacts, reasons: &mut Vec<IneligibilityReason>) {
 }
 
 fn classify(facts: &RunFacts, reasons: &[IneligibilityReason]) -> RunKind {
-    if facts.ascension_level == Some(-15) || facts.debug_card_seen {
+    if facts.ascension_level == Some(-15) {
         RunKind::DebugFlow
     } else if facts.synthetic_input || facts.stdin_test {
         RunKind::Synthetic

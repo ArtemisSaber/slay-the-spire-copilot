@@ -5,6 +5,7 @@ mod bundle_tests;
 mod capture_outcome_tests;
 mod case_tests;
 mod cli_tests;
+mod compatibility_tests;
 mod config_tests;
 mod context_tests;
 mod critic_tests;
