@@ -25,6 +25,7 @@ fn shop_prompt_contains_mode_tag() {
             }
         }],
         shop_potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "再生药水".into(),
             description: "获得 5 层 再生 。".into(),
@@ -199,6 +200,7 @@ fn build_shop_items_price_none() {
             price: None,
         }],
         shop_potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "再生药水".into(),
             description: "获得 5 层 再生 。".into(),

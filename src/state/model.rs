@@ -114,6 +114,8 @@ pub struct RelicInfo {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PotionInfo {
     #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
     pub slot: usize,
     pub name: String,
     pub description: String,

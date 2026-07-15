@@ -7,6 +7,7 @@ fn potion_action_id_uses_raw_slot_with_gaps() {
         screen_type: Some(ScreenType::None),
         potions: vec![
             PotionInfo {
+                id: None,
                 slot: 1,
                 name: "能量药水".into(),
                 description: "获得 2 点能量。".into(),
@@ -16,6 +17,7 @@ fn potion_action_id_uses_raw_slot_with_gaps() {
                 requires_target: false,
             },
             PotionInfo {
+                id: None,
                 slot: 2,
                 name: "格挡药水".into(),
                 description: "获得 12 点 格挡 。".into(),

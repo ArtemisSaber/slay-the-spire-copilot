@@ -4,6 +4,7 @@ use super::*;
 fn builds_potion_contexts() {
     let mut state = make_state(vec![], vec![jaw_worm()]);
     state.potions = vec![PotionInfo {
+        id: None,
         slot: 0,
         name: "Fire Potion".into(),
         description: "Deal 20 damage".into(),
@@ -28,6 +29,7 @@ fn builds_potion_contexts() {
 fn skips_unusable_potions() {
     let mut state = make_state(vec![], vec![jaw_worm()]);
     state.potions = vec![PotionInfo {
+        id: None,
         slot: 0,
         name: "Block Potion".into(),
         description: "Gain 12 Block".into(),
@@ -48,6 +50,7 @@ fn skips_unusable_potions() {
 fn untargeted_potion_one_context() {
     let mut state = make_state(vec![], vec![jaw_worm()]);
     state.potions = vec![PotionInfo {
+        id: None,
         slot: 0,
         name: "Block Potion".into(),
         description: "Gain 12 Block".into(),

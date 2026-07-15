@@ -73,7 +73,14 @@ pub(crate) fn mock_autoplay_action_response(prompt: &str) -> String {
 }
 
 pub(crate) fn mock_advice_response(system_prompt: &str) -> String {
-    if system_prompt.contains("## 总览") || system_prompt.contains("## Overview") {
+    if system_prompt.contains("LEARNING_CRITIC_ENVELOPE_V1") {
+        serde_json::json!({
+            "schema_version": 1,
+            "report_markdown": "# Mock Review\n\nThis mock postmortem summarizes the completed run and leaves structured lessons empty.",
+            "lesson_proposals": []
+        })
+        .to_string()
+    } else if system_prompt.contains("## 总览") || system_prompt.contains("## Overview") {
         "# 本局复盘\n## 总览\n这是 mock 复盘。\n## 关键决策\n回看选牌、篝火和战斗入口建议。\n## 风险与转折\n关注血量变化和卡组膨胀。\n## 下次改进\n优先保证生存，再贪长期收益。"
             .to_string()
     } else {

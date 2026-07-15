@@ -5,6 +5,7 @@ pub struct RuntimeOptions {
     pub setup_only: bool,
     pub postmortem_path: Option<String>,
     pub postmortem_plain: bool,
+    pub knowledge_args: Option<Vec<String>>,
 }
 
 impl RuntimeOptions {
@@ -24,6 +25,7 @@ pub fn runtime_options_from<'a>(
     let mut setup_only = false;
     let mut postmortem_path = None;
     let mut postmortem_plain = false;
+    let mut knowledge_args = None;
     let mut iter = args.into_iter();
 
     while let Some(arg) = iter.next() {
@@ -47,6 +49,11 @@ pub fn runtime_options_from<'a>(
                     }
                 }
             }
+            "knowledge" => {
+                skip_startup_check = true;
+                knowledge_args = Some(iter.map(str::to_string).collect());
+                break;
+            }
             _ => {}
         }
     }
@@ -57,6 +64,7 @@ pub fn runtime_options_from<'a>(
         setup_only,
         postmortem_path,
         postmortem_plain,
+        knowledge_args,
     }
 }
 

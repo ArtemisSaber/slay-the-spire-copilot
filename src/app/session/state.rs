@@ -34,6 +34,7 @@ impl GameRuntime {
             .unwrap_or("?");
 
         let normalized = crate::state::NormalizedState::from_raw(&raw, &self.locale);
+        self.learning.observe(&normalized);
         let hash = normalized.stable_hash();
         let command_state = crate::autoplay::command_state::CommandState::from_raw(&raw);
         let scenario = AdviceScenario::from_state(&normalized);
@@ -62,7 +63,8 @@ impl GameRuntime {
             );
         }
 
-        if !self.journal.is_confirmed()
+        let confirming_run = !self.journal.is_confirmed();
+        if confirming_run
             && let (Some(seed), Some(character)) = (normalized.seed, normalized.character.as_ref())
         {
             self.journal.confirm(
@@ -72,6 +74,18 @@ impl GameRuntime {
                 &self.config,
                 &self.locale,
             );
+        }
+        if confirming_run
+            && self.journal.is_continued_run()
+            && let Some(path) = self.journal.path()
+        {
+            match self.learning.pin_snapshot_from_journal(path) {
+                Ok(true) => tracing::info!("restored continued run knowledge snapshot"),
+                Ok(false) => {}
+                Err(error) => tracing::warn!(
+                    "continued run snapshot unavailable; memory disabled for this run: {error:#}"
+                ),
+            }
         }
         if !self.journal.is_confirmed() {
             return;
@@ -102,12 +116,13 @@ impl GameRuntime {
         }
 
         if crate::runtime::is_game_over_state(processed.raw) {
-            super::super::finalization::finalize_run_once(
+            super::super::finalization::finalize_run_once_with_learning(
                 &self.journal,
                 &self.provider,
                 "game_over",
                 &mut self.run_finalized,
                 &self.locale,
+                &mut self.learning,
             )
             .await;
             self.reset_after_game();

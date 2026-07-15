@@ -70,3 +70,10 @@ pub(crate) fn timestamp_ms() -> u128 {
         .map(|d| d.as_millis())
         .unwrap_or(0)
 }
+
+pub(super) fn learning_event(event: &serde_json::Value, run_id: &str) -> Option<serde_json::Value> {
+    let mut object = event.as_object()?.clone();
+    object.insert("ts_ms".into(), serde_json::json!(timestamp_ms()));
+    object.insert("run_id".into(), serde_json::json!(run_id));
+    Some(serde_json::Value::Object(object))
+}

@@ -1,6 +1,17 @@
 use crate::runtime::RuntimeOptions;
 use std::path::Path;
 
+pub(crate) fn run_knowledge_mode(options: &RuntimeOptions, project_root: &Path) -> bool {
+    let Some(args) = options.knowledge_args.as_deref() else {
+        return false;
+    };
+    match crate::learning::cli::execute_command(project_root, args) {
+        Ok(output) => println!("{output}"),
+        Err(error) => eprintln!("knowledge command failed: {error:#}"),
+    }
+    true
+}
+
 pub(crate) fn run_setup_if_needed(
     options: &RuntimeOptions,
     project_root: &Path,

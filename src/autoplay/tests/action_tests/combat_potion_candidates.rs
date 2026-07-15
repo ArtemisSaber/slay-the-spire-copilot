@@ -6,6 +6,7 @@ fn combat_candidates_skip_unusable_potion() {
     let s = NormalizedState {
         screen_type: Some(ScreenType::None),
         potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "Bad".into(),
             description: "".into(),
@@ -58,6 +59,7 @@ fn combat_candidates_targeted_potion() {
     let s = NormalizedState {
         screen_type: Some(ScreenType::None),
         potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "Fire Potion".into(),
             description: "Deal 20 damage.".into(),

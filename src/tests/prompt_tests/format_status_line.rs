@@ -76,6 +76,7 @@ fn status_line_full_kitchen_sink() {
             price: None,
         }],
         potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "恐惧药水".into(),
             description: "".into(),

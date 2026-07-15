@@ -3,6 +3,7 @@ mod autoplay;
 mod control;
 mod error;
 mod input;
+mod learning;
 mod state;
 
 use crate::advice::{AdviceCache, OverlayMetadata};
@@ -20,6 +21,7 @@ pub(crate) struct GameRuntime {
     config: crate::config::Config,
     provider: crate::llm::LlmProvider,
     locale: crate::locales::Locale,
+    learning: crate::learning::session::LearningSession,
     cache: AdviceCache,
     journal: Journal,
     combat_turn_gate: CombatTurnGate,
@@ -40,7 +42,15 @@ impl GameRuntime {
         config: crate::config::Config,
         provider: crate::llm::LlmProvider,
         locale: crate::locales::Locale,
-    ) -> Self {
+        locale_key: &str,
+        synthetic_input: bool,
+    ) -> anyhow::Result<Self> {
+        let learning = crate::learning::session::bootstrap_session(
+            &project_root,
+            &config,
+            locale_key,
+            synthetic_input,
+        )?;
         let current_autoplay_control = if config.auto_play {
             Some(if config.auto_play_auto_start {
                 AutoPlayControl::default_enabled()
@@ -83,12 +93,13 @@ impl GameRuntime {
             );
         }
 
-        Self {
+        Ok(Self {
             journal: Journal::new(project_root.join("runs")),
             project_root,
             config,
             provider,
             locale,
+            learning,
             cache: AdviceCache::new(),
             combat_turn_gate: CombatTurnGate::new(),
             map_gate: MapGate::new(),
@@ -100,7 +111,7 @@ impl GameRuntime {
             consecutive_errors: 0,
             saw_game_state: false,
             run_finalized: false,
-        }
+        })
     }
 
     pub(crate) async fn run(mut self) {
@@ -138,12 +149,13 @@ impl GameRuntime {
                 if crate::runtime::should_end_run(&raw, self.saw_game_state) {
                     let reason = crate::runtime::run_end_reason(&raw, self.saw_game_state)
                         .unwrap_or("left_game");
-                    super::finalization::finalize_run_once(
+                    super::finalization::finalize_run_once_with_learning(
                         &self.journal,
                         &self.provider,
                         reason,
                         &mut self.run_finalized,
                         &self.locale,
+                        &mut self.learning,
                     )
                     .await;
                     if self.config.auto_play {
@@ -159,12 +171,13 @@ impl GameRuntime {
                 .await;
         }
 
-        super::finalization::finalize_run_once(
+        super::finalization::finalize_run_once_with_learning(
             &self.journal,
             &self.provider,
             "stdin_closed",
             &mut self.run_finalized,
             &self.locale,
+            &mut self.learning,
         )
         .await;
         tracing::info!("stdin closed, exiting");

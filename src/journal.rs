@@ -41,7 +41,6 @@ impl Journal {
         matches!(self.state, JournalState::Confirmed { .. })
     }
 
-    #[allow(dead_code, reason = "public API for potential future use")]
     pub fn is_continued_run(&self) -> bool {
         self.is_continued
     }
@@ -163,6 +162,14 @@ impl Journal {
         self.append_event(&event);
     }
 
+    pub fn log_learning_event(&self, event: &serde_json::Value) {
+        let Some(event) = support::learning_event(event, self.run_id()) else {
+            tracing::error!("attempted to log non-object learning event");
+            return;
+        };
+        self.append_event(&event);
+    }
+
     pub fn log_advice(
         &self,
         state_hash: &str,
@@ -260,7 +267,7 @@ impl Journal {
         }
     }
 
-    fn run_id(&self) -> &str {
+    pub(crate) fn run_id(&self) -> &str {
         match &self.state {
             JournalState::Pending { .. } => {
                 tracing::error!("log event before journal confirmed");

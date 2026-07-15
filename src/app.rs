@@ -23,6 +23,10 @@ pub(crate) async fn run() {
     let options = RuntimeOptions::from_env_and_args();
     let manual_run = std::io::stdin().is_terminal();
 
+    if modes::run_knowledge_mode(&options, &project_root) {
+        return;
+    }
+
     if modes::run_setup_if_needed(&options, &project_root, manual_run) {
         return;
     }
@@ -75,7 +79,15 @@ pub(crate) async fn run() {
     tracing::info!("detected language: {language} -> locale: {locale_key}");
     let locale = crate::locales::Locale::load(locale_key);
 
-    session::GameRuntime::new(project_root, config, provider, locale)
-        .run()
-        .await;
+    match session::GameRuntime::new(
+        project_root,
+        config,
+        provider,
+        locale,
+        locale_key,
+        options.force_mock_provider,
+    ) {
+        Ok(runtime) => runtime.run().await,
+        Err(error) => tracing::error!("failed to initialize runtime: {error}"),
+    }
 }

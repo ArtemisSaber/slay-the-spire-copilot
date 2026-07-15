@@ -148,6 +148,10 @@ pub(super) fn extract_potion_infos(items: &[Value]) -> Vec<PotionInfo> {
                 .unwrap_or(true)
         })
         .map(|(slot, potion)| PotionInfo {
+            id: potion
+                .get("id")
+                .and_then(|value| value.as_str())
+                .map(str::to_string),
             slot,
             name: potion
                 .get("name")

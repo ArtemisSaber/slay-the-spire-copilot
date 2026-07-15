@@ -14,6 +14,7 @@ fn turn_status_line_with_powers_and_potions() {
             amount: 3,
         }],
         potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "再生药水".into(),
             description: "获得 5 层 再生 。".into(),

@@ -6,6 +6,7 @@ mod combat;
 mod config;
 mod gate;
 mod journal;
+mod learning;
 mod llm;
 mod locales;
 mod logging;

@@ -18,6 +18,7 @@ fn run_started_includes_provider_and_models() {
         disable_fast_thinking: false,
         auto_play: false,
         auto_play_auto_start: false,
+        memory: Default::default(),
     };
 
     journal.log_run_started_with_config(&config);

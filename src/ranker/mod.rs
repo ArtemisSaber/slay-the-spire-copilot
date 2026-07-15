@@ -3,7 +3,9 @@ pub mod engine;
 pub mod formula;
 pub mod parser;
 pub mod predicates;
+mod profile;
 pub mod rules;
+pub use profile::active_rules_sha256;
 
 use std::sync::LazyLock;
 use std::time::Instant;

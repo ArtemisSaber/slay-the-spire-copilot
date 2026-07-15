@@ -1,6 +1,9 @@
 use crate::autoplay::action::AutoPlayAction;
 use crate::state::NormalizedState;
 
+mod memory;
+pub use memory::{ranker_tags, recorded_ranked_actions};
+
 pub fn try_kill_scan_action(state: &NormalizedState) -> Option<AutoPlayAction> {
     if state.screen_type.as_ref().map(|st| st.as_str()) != Some("NONE") {
         return None;

@@ -5,6 +5,7 @@ fn resolve_combat_drink_potion_not_found() {
     use crate::state::PotionInfo;
     let s = NormalizedState {
         potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "Heal".into(),
             description: "".into(),
@@ -28,6 +29,7 @@ fn resolve_combat_drink_potion_cannot_use() {
     use crate::state::PotionInfo;
     let s = NormalizedState {
         potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "Heal".into(),
             description: "".into(),
@@ -51,6 +53,7 @@ fn resolve_combat_drink_missing_target_for_targeted_potion() {
     use crate::state::PotionInfo;
     let s = NormalizedState {
         potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "Fire".into(),
             description: "".into(),
@@ -88,6 +91,7 @@ fn resolve_combat_drink_invalid_monster_target() {
     use crate::state::PotionInfo;
     let s = NormalizedState {
         potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "Fire".into(),
             description: "".into(),
@@ -126,6 +130,7 @@ fn resolve_combat_drink_targetless_potion_returns_drink_without_target() {
     let s = NormalizedState {
         screen_type: Some(ScreenType::None),
         potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "Heal".into(),
             description: "".into(),
@@ -179,6 +184,7 @@ fn resolve_combat_drink_targeted_potion_success() {
     use crate::state::PotionInfo;
     let s = NormalizedState {
         potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "Fire Potion".into(),
             description: "".into(),

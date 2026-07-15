@@ -11,6 +11,7 @@ fn unknown_args_are_ignored() {
             setup_only: false,
             postmortem_path: None,
             postmortem_plain: false,
+            knowledge_args: None,
         }
     );
 }
@@ -82,6 +83,7 @@ fn runtime_options_field_access() {
         setup_only: true,
         postmortem_path: Some("test.jsonl".to_string()),
         postmortem_plain: true,
+        knowledge_args: None,
     };
     assert!(opts.skip_startup_check);
     assert!(opts.force_mock_provider);
@@ -98,6 +100,25 @@ fn runtime_options_clone_is_equal() {
         setup_only: false,
         postmortem_path: None,
         postmortem_plain: false,
+        knowledge_args: None,
     };
     assert_eq!(opts, opts.clone());
+}
+
+#[test]
+fn knowledge_mode_preserves_subcommand_arguments() {
+    let opts = runtime_options_from(
+        ["knowledge", "contest", "lesson:1", "reviewed evidence"],
+        None,
+    );
+
+    assert_eq!(
+        opts.knowledge_args,
+        Some(vec![
+            "contest".to_string(),
+            "lesson:1".to_string(),
+            "reviewed evidence".to_string(),
+        ])
+    );
+    assert!(opts.skip_startup_check);
 }

@@ -18,6 +18,8 @@ mod deterministic_skip_flags;
 
 mod fallback;
 
+mod experience_context;
+
 mod prompt_action_labels;
 mod prompt_ranked_suggestions;
 

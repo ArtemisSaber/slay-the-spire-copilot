@@ -154,6 +154,15 @@ Auto-play is opt-in and off by default:
 AUTO_PLAY=true
 ```
 
+External experience memory is also opt-in and defaults to `off`. Collection
+requires an explicitly approved mod-profile ID; do not approve debug or
+rollback/Undo profiles. See
+[`docs/learning-module.md`](docs/learning-module.md) for the exact contracts,
+modes, CLI operations, and production qualification gates.
+
+外部经验记忆同样默认关闭。收集数据前必须显式配置并批准模组配置 ID；请勿批准含调试或回滚/Undo 工具的配置。完整契约、运行模式、CLI 操作与上线门槛见
+[`docs/learning-module.md`](docs/learning-module.md)。
+
 ## Game Configuration / 游戏配置
 
 Install ModTheSpire and Communication Mod CJK first. The app relies on the detailed descriptions emitted by Communication Mod CJK.
@@ -450,6 +459,7 @@ src/
     formula.rs     expression parser/evaluator (@damage * @hits * @weight / ...)
     parser.rs      zh/en description parsing → ParsedEffects
     predicates.rs  Rust score_fn registry (hp_cost, weak_new, etc.)
+  learning/        external factual cases, lessons, retrieval, snapshots, bundles, and CLI
   autoplay/
     action.rs          action candidates, action validation, protocol command execution
     command_state.rs   Communication Mod command metadata extraction
@@ -482,6 +492,8 @@ tests/
   integration_test.rs
 schemas/
   overlay.d.ts     TypeScript type definition for output/overlay.json
+knowledge/
+  bundled-v1.json  verified repository-distributed experience bundle
 docs/
   auto-play-spec.md
   auto-play-design.md
@@ -491,6 +503,7 @@ docs/
   kill-scan-test-spec.ts
   ranker-architecture.md
   ranker-rules.md
+  learning-module.md
   mvp-roadmap.md
 ```
 

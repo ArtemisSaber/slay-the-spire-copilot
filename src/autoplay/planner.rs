@@ -2,14 +2,18 @@ use crate::autoplay::action::{AutoPlayAction, available_action_candidates};
 use crate::autoplay::combat_adviser;
 use crate::autoplay::command_state::CommandState;
 use crate::autoplay::control::{AutoPlayControl, AutoPlaySession};
+use crate::learning::telemetry::DecisionSource;
 use crate::llm::{Effort, LlmProvider};
 use crate::locales::Locale;
 use crate::state::NormalizedState;
 
+mod decision;
 mod deterministic;
 mod fallback;
 mod prompting;
 
+pub(crate) use decision::PlannedAction;
+use decision::planned_action;
 use deterministic::{potion_in_full_slots_was_rejected, try_deterministic_action};
 use fallback::fallback_action;
 #[cfg(test)]
@@ -17,12 +21,16 @@ use fallback::fallback_rest_action;
 #[cfg(test)]
 use prompting::ActionRequestSummary;
 use prompting::{
-    RejectedAttempt, build_planner_prompt, parse_planner_response, rejected_action_from_response,
+    RejectedAttempt, build_planner_prompt_with_memory, parse_planner_response_with_memory,
+    rejected_action_from_response,
 };
+#[cfg(test)]
+use prompting::{build_planner_prompt, parse_planner_response};
 
 const MAX_LLM_ATTEMPTS: usize = 3;
 const DETERMINISTIC_ACTION_DELAY: std::time::Duration = std::time::Duration::from_millis(1500);
 
+#[cfg(test)]
 pub async fn plan_action(
     provider: &LlmProvider,
     control: &mut AutoPlayControl,
@@ -32,6 +40,36 @@ pub async fn plan_action(
     locale: &Locale,
     shop_visited: bool,
 ) -> anyhow::Result<Option<AutoPlayAction>> {
+    plan_action_with_memory(
+        provider,
+        control,
+        session,
+        command_state,
+        state,
+        locale,
+        shop_visited,
+        None,
+        &[],
+    )
+    .await
+    .map(|planned| planned.map(|planned| planned.action))
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "planner orchestration keeps its existing runtime dependencies explicit"
+)]
+pub(crate) async fn plan_action_with_memory(
+    provider: &LlmProvider,
+    control: &mut AutoPlayControl,
+    session: &mut AutoPlaySession,
+    command_state: &CommandState,
+    state: &NormalizedState,
+    locale: &Locale,
+    shop_visited: bool,
+    experience_context: Option<&serde_json::Value>,
+    retrieved_memory_ids: &[String],
+) -> anyhow::Result<Option<PlannedAction>> {
     if state.screen_type.as_ref().map(|st| st.as_str()) == Some("COMBAT_REWARD")
         && session.last_combat_reward_floor != state.floor
     {
@@ -65,7 +103,13 @@ pub async fn plan_action(
     {
         tracing::info!("autoplay deterministic {:?}", action);
         delay_before_deterministic_action().await;
-        return Ok(Some(action));
+        return Ok(Some(planned_action(
+            action,
+            DecisionSource::Deterministic,
+            state,
+            &candidates,
+            vec![],
+        )));
     }
 
     if state.screen_type.as_ref().map(|st| st.as_str()) == Some("NONE")
@@ -73,7 +117,13 @@ pub async fn plan_action(
     {
         tracing::info!("autoplay kill_scan {:?}", action);
         delay_before_deterministic_action().await;
-        return Ok(Some(action));
+        return Ok(Some(planned_action(
+            action,
+            DecisionSource::KillScan,
+            state,
+            &candidates,
+            vec![],
+        )));
     }
 
     if state.screen_type.as_ref().map(|st| st.as_str()) == Some("SHOP_SCREEN") {
@@ -88,7 +138,7 @@ pub async fn plan_action(
 
     let mut rejections = vec![];
     for attempt in 1..=MAX_LLM_ATTEMPTS {
-        let prompt = build_planner_prompt(
+        let prompt = build_planner_prompt_with_memory(
             session,
             command_state,
             state,
@@ -96,33 +146,45 @@ pub async fn plan_action(
             shop_visited,
             &candidates,
             &rejections,
+            experience_context,
         )?;
         match provider
             .query_autoplay_action(&prompt, effort, locale)
             .await
         {
             Ok(response) => {
-                match parse_planner_response(&response, control, command_state, state, &candidates)
-                {
-                    Ok(action) => {
-                        tracing::info!("autoplay LLM attempt={} {:?}", attempt, action);
+                match parse_planner_response_with_memory(
+                    &response,
+                    control,
+                    command_state,
+                    state,
+                    &candidates,
+                    retrieved_memory_ids,
+                ) {
+                    Ok(parsed) => {
+                        tracing::info!("autoplay LLM attempt={} {:?}", attempt, parsed.action);
                         if let Some((potion_index, AutoPlayAction::Choose(chosen))) =
                             potion_in_full_slots_was_rejected(
                                 &candidates,
                                 command_state,
                                 state,
-                                &action,
+                                &Some(parsed.action.clone()),
                             )
                             && chosen != potion_index
                         {
                             session.skipped_combat_reward_potion = true;
                         }
                         if state.screen_type.as_ref().map(|st| st.as_str()) == Some("CARD_REWARD")
-                            && matches!(&action, Some(AutoPlayAction::Skip))
+                            && matches!(&parsed.action, AutoPlayAction::Skip)
                         {
                             session.skipped_combat_reward_card = true;
                         }
-                        return Ok(action);
+                        return Ok(Some(PlannedAction {
+                            action: parsed.action,
+                            source: DecisionSource::Llm,
+                            selected_action_id: parsed.selected_action_id,
+                            memory_ids_used: parsed.memory_ids_used,
+                        }));
                     }
                     Err(e) => {
                         tracing::debug!("autoplay LLM attempt={} rejected: {e}", attempt,);
@@ -154,7 +216,8 @@ pub async fn plan_action(
     if action.is_some() {
         delay_before_deterministic_action().await;
     }
-    Ok(action)
+    Ok(action
+        .map(|action| planned_action(action, DecisionSource::Fallback, state, &candidates, vec![])))
 }
 
 async fn delay_before_deterministic_action() {

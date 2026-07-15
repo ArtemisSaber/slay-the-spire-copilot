@@ -17,6 +17,7 @@ pub struct Config {
     pub disable_fast_thinking: bool,
     pub auto_play: bool,
     pub auto_play_auto_start: bool,
+    pub memory: crate::learning::config::MemoryConfig,
 }
 
 impl Config {
@@ -89,6 +90,8 @@ impl Config {
             .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
             .unwrap_or(false);
 
+        let memory = crate::learning::config::MemoryConfig::from_lookup(&mut lookup_non_empty);
+
         Config {
             provider,
             base_url,
@@ -103,6 +106,7 @@ impl Config {
             disable_fast_thinking,
             auto_play,
             auto_play_auto_start,
+            memory,
         }
     }
 

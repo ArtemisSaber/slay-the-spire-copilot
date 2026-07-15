@@ -1,0 +1,62 @@
+use super::support::{decision_case, lesson_for, situation};
+use crate::learning::config::MemoryConfig;
+use crate::learning::context::build_experience_context;
+use crate::learning::retrieval::{RetrievalQuery, retrieve};
+use crate::learning::snapshot::KnowledgeSnapshot;
+
+fn result(with_lesson: bool) -> crate::learning::retrieval::RetrievalResult {
+    let case = decision_case("private-run-id", 1);
+    let lessons = with_lesson.then(|| lesson_for(&case)).into_iter().collect();
+    let snapshot = KnowledgeSnapshot::build_with_lessons(vec![case], lessons, &[]).unwrap();
+    retrieve(
+        &snapshot,
+        &RetrievalQuery {
+            situation: situation(),
+            seed_hash: crate::learning::case::seed_hash(99, "mods"),
+            mod_profile_sha256: "mods".into(),
+            language: "en".into(),
+        },
+        &MemoryConfig::default(),
+    )
+}
+
+#[test]
+fn context_is_bounded_and_omits_private_or_hindsight_fields() {
+    let config = MemoryConfig::default();
+    let context = build_experience_context(&result(true), "en", &config).unwrap();
+    let encoded = serde_json::to_vec(&context).unwrap();
+    let text = String::from_utf8(encoded.clone()).unwrap();
+
+    assert!(encoded.len() <= config.max_context_bytes);
+    assert!(!text.contains("private-run-id"));
+    assert!(!text.contains("seed_hash"));
+    assert!(!text.contains("run_victory"));
+    assert!(!text.contains("final_floor"));
+    assert!(text.contains("observational"));
+}
+
+#[test]
+fn context_respects_a_tighter_byte_budget_by_dropping_items() {
+    let config = MemoryConfig {
+        max_context_bytes: 700,
+        ..MemoryConfig::default()
+    };
+    let context = build_experience_context(&result(true), "en", &config).unwrap();
+    assert!(serde_json::to_vec(&context).unwrap().len() <= 700);
+}
+
+#[test]
+fn no_retrieval_produces_no_prompt_field() {
+    let empty = KnowledgeSnapshot::build(vec![], &[]).unwrap();
+    let result = retrieve(
+        &empty,
+        &RetrievalQuery {
+            situation: situation(),
+            seed_hash: "sha256:none".into(),
+            mod_profile_sha256: "mods".into(),
+            language: "en".into(),
+        },
+        &MemoryConfig::default(),
+    );
+    assert!(build_experience_context(&result, "en", &MemoryConfig::default()).is_none());
+}

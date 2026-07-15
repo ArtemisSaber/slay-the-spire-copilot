@@ -9,9 +9,14 @@ impl GameRuntime {
         overlay_path: &Path,
         autoplay_control_path: &Path,
     ) -> bool {
-        let Some(control) = self.current_autoplay_control.as_mut() else {
+        if self.current_autoplay_control.is_none() {
             return false;
-        };
+        }
+        let prepared = self.prepare_learning(state.normalized);
+        let control = self
+            .current_autoplay_control
+            .as_mut()
+            .expect("presence checked above");
 
         self.autoplay_overlay_state.mode = format!("{:?}", control.mode).to_lowercase();
         self.autoplay_overlay_state.status = "planning".into();
@@ -21,7 +26,18 @@ impl GameRuntime {
             &self.autoplay_overlay_state,
         );
 
-        match crate::autoplay::planner::plan_action(
+        let candidates = crate::autoplay::action::available_action_candidates(
+            control,
+            &self.autoplay_session,
+            state.command_state,
+            state.normalized,
+        );
+        let available_semantic_actions =
+            crate::learning::action::available_semantic_actions(&candidates, state.normalized);
+        let ranked_suggestions =
+            crate::autoplay::combat_adviser::recorded_ranked_actions(state.normalized);
+
+        match crate::autoplay::planner::plan_action_with_memory(
             &self.provider,
             control,
             &mut self.autoplay_session,
@@ -29,10 +45,15 @@ impl GameRuntime {
             state.normalized,
             &self.locale,
             self.map_gate.shop_visited,
+            prepared.as_ref().and_then(|memory| memory.context.as_ref()),
+            prepared
+                .as_ref()
+                .map(|memory| memory.exposed_memory_ids.as_slice())
+                .unwrap_or(&[]),
         )
         .await
         {
-            Ok(Some(action)) => {
+            Ok(Some(planned)) => {
                 let control_load = control::refresh_autoplay_control(
                     autoplay_control_path,
                     &mut self.autoplay_last_revision,
@@ -47,7 +68,7 @@ impl GameRuntime {
                     );
                     tracing::info!(
                         "autoplay executing {:?} screen={} hash={}",
-                        action,
+                        planned.action,
                         state.screen_type,
                         &state.hash[..16],
                     );
@@ -56,8 +77,15 @@ impl GameRuntime {
                         state.normalized.clone(),
                         state.command_state.clone(),
                     ));
+                    self.record_learning_execution(
+                        state.normalized,
+                        &planned,
+                        prepared.as_ref(),
+                        available_semantic_actions,
+                        ranked_suggestions,
+                    );
                     let mut stdout = io::stdout().lock();
-                    crate::autoplay::action::execute_action_to(&mut stdout, &action);
+                    crate::autoplay::action::execute_action_to(&mut stdout, &planned.action);
                     true
                 } else {
                     self.autoplay_overlay_state.mode = format!(

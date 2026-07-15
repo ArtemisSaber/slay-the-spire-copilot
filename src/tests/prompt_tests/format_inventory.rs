@@ -12,6 +12,7 @@ fn build_relics_potions_section_with_both() {
             price: None,
         }],
         potions: vec![PotionInfo {
+            id: None,
             slot: 0,
             name: "恐惧药水".into(),
             description: "给予3层易伤。".into(),

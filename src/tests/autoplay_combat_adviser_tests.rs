@@ -136,6 +136,8 @@ fn two_monster_state(energy: i64, cards: Vec<serde_json::Value>) -> NormalizedSt
 
 #[path = "autoplay_combat_adviser_tests/kill_scan.rs"]
 mod kill_scan;
+#[path = "autoplay_combat_adviser_tests/memory.rs"]
+mod memory;
 #[path = "autoplay_combat_adviser_tests/ranking.rs"]
 mod ranking;
 #[path = "autoplay_combat_adviser_tests/targeting.rs"]

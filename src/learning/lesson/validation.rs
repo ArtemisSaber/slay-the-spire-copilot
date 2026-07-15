@@ -1,0 +1,70 @@
+use super::{ActionKind, LessonError, LessonProposal};
+
+pub(super) fn validate_and_canonicalize(proposal: &mut LessonProposal) -> Result<(), LessonError> {
+    if proposal.confidence_millis > 1_000 {
+        return Err(LessonError::InvalidConfidence);
+    }
+    let pattern = &proposal.action_pattern;
+    let invalid_pattern = match pattern.kind {
+        ActionKind::PlayCard => !pattern.potion_ids.is_empty(),
+        ActionKind::UsePotion => !pattern.card_types.is_empty() || !pattern.card_ids.is_empty(),
+        ActionKind::EndTurn => {
+            !pattern.card_types.is_empty()
+                || !pattern.card_ids.is_empty()
+                || !pattern.potion_ids.is_empty()
+        }
+    };
+    if invalid_pattern {
+        return Err(LessonError::InvalidActionPattern);
+    }
+    let identifiers = [
+        &proposal.language,
+        &proposal.scope.character,
+        &proposal.critic_model_profile_sha256,
+    ]
+    .into_iter()
+    .chain(proposal.scope.encounter_ids.iter())
+    .chain(proposal.source_case_ids.iter());
+    if identifiers.into_iter().any(|id| !valid_identifier(id)) {
+        return Err(LessonError::InvalidIdentifier);
+    }
+    if !safe_text(&proposal.guidance.text, 512) || !safe_text(&proposal.rationale, 1_024) {
+        return Err(LessonError::UnsafeText);
+    }
+    proposal.scope.ascension_bands.sort();
+    sort_dedup(&mut proposal.scope.encounter_ids);
+    proposal.trigger.turn_buckets.sort();
+    proposal.trigger.block_threat_buckets.sort();
+    sort_dedup(&mut proposal.trigger.required_card_ids);
+    sort_dedup(&mut proposal.trigger.required_enemy_power_ids);
+    sort_dedup(&mut proposal.trigger.required_ranker_tags);
+    sort_dedup(&mut proposal.action_pattern.card_types);
+    sort_dedup(&mut proposal.action_pattern.card_ids);
+    sort_dedup(&mut proposal.action_pattern.potion_ids);
+    sort_dedup(&mut proposal.source_case_ids);
+    Ok(())
+}
+
+fn sort_dedup(values: &mut Vec<String>) {
+    values.sort();
+    values.dedup();
+}
+
+fn valid_identifier(value: &str) -> bool {
+    !value.is_empty()
+        && value.trim() == value
+        && value.len() <= 256
+        && !value.chars().any(char::is_control)
+}
+
+fn safe_text(value: &str, max: usize) -> bool {
+    let lower = value.to_ascii_lowercase();
+    !value.trim().is_empty()
+        && value.len() <= max
+        && !value
+            .chars()
+            .any(|character| character.is_control() && character != '\n')
+        && !["```", "<script", "http://", "https://"]
+            .iter()
+            .any(|needle| lower.contains(needle))
+}
