@@ -6,7 +6,7 @@ pub(crate) async fn finalize_run_once(
     finalized: &mut bool,
     locale: &crate::locales::Locale,
 ) {
-    finalize(journal, provider, reason, finalized, locale, None).await;
+    finalize(journal, provider, reason, finalized, locale, None, None).await;
 }
 
 pub(crate) async fn finalize_run_once_with_learning(
@@ -16,8 +16,18 @@ pub(crate) async fn finalize_run_once_with_learning(
     finalized: &mut bool,
     locale: &crate::locales::Locale,
     learning: &mut crate::learning::session::LearningSession,
+    overlay_path: &std::path::Path,
 ) {
-    finalize(journal, provider, reason, finalized, locale, Some(learning)).await;
+    finalize(
+        journal,
+        provider,
+        reason,
+        finalized,
+        locale,
+        Some(learning),
+        Some(overlay_path),
+    )
+    .await;
 }
 
 async fn finalize(
@@ -27,6 +37,7 @@ async fn finalize(
     finalized: &mut bool,
     locale: &crate::locales::Locale,
     learning: Option<&mut crate::learning::session::LearningSession>,
+    overlay_path: Option<&std::path::Path>,
 ) {
     let mut learning = learning;
     if *finalized {
@@ -56,6 +67,9 @@ async fn finalize(
                     "skipped_cases": summary.skipped_cases,
                     "snapshot_id": summary.snapshot_id,
                 }));
+                if let Some(path) = overlay_path {
+                    crate::advice::write_overlay_learning(path, &learning.status());
+                }
             }
             Err(error) => tracing::error!("failed to finalize learning run: {error}"),
         }
@@ -99,23 +113,28 @@ async fn finalize(
     match provider.query_postmortem(&prompt, locale).await {
         Ok(response) => {
             let ai_report = if critic_enabled {
-                match learning
-                    .map(|learning| learning.ingest_critic_response(&response, journal.run_id()))
-                {
-                    Some(Ok(result)) => {
-                        journal.log_learning_event(&serde_json::json!({
-                            "schema_version": 1,
-                            "event": "learning_critic_ingested",
-                            "accepted_lessons": result.accepted_lessons,
-                            "rejected_lessons": result.rejected_lessons,
-                            "snapshot_id": result.snapshot_id,
-                        }));
-                        result.report_markdown
-                    }
-                    Some(Err(error)) => {
-                        tracing::error!("failed to ingest learning critic response: {error}");
-                        response
-                    }
+                match learning {
+                    Some(learning) => match learning
+                        .ingest_critic_response(&response, journal.run_id())
+                    {
+                        Ok(result) => {
+                            journal.log_learning_event(&serde_json::json!({
+                                "schema_version": 1,
+                                "event": "learning_critic_ingested",
+                                "accepted_lessons": result.accepted_lessons,
+                                "rejected_lessons": result.rejected_lessons,
+                                "snapshot_id": result.snapshot_id,
+                            }));
+                            if let Some(path) = overlay_path {
+                                crate::advice::write_overlay_learning(path, &learning.status());
+                            }
+                            result.report_markdown
+                        }
+                        Err(error) => {
+                            tracing::error!("failed to ingest learning critic response: {error}");
+                            response
+                        }
+                    },
                     None => response,
                 }
             } else {

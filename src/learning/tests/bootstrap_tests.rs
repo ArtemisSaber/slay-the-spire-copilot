@@ -64,3 +64,24 @@ fn unavailable_pinned_snapshot_disables_memory_for_the_continued_run() {
     assert!(session.pin_snapshot_from_journal(&journal).is_err());
     assert!(!session.is_enabled());
 }
+
+#[test]
+fn startup_preserves_last_run_eligibility_status() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("learning/knowledge");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(
+        root.join("status.json"),
+        r#"{"last_run_eligibility":{"run_kind":"legitimate","knowledge_eligible":true,"reasons":[]}}"#,
+    )
+    .unwrap();
+    let config = Config::from_map(&HashMap::from([("MEMORY_MODE", "collect")]));
+
+    let session = bootstrap_session(temp.path(), &config, "en", false).unwrap();
+
+    let status: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(root.join("status.json")).unwrap()).unwrap();
+    assert_eq!(status["last_run_eligibility"]["run_kind"], "legitimate");
+    assert_eq!(status["last_run_eligibility"]["knowledge_eligible"], true);
+    assert!(session.status().last_run.unwrap().accepted);
+}

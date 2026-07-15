@@ -9,6 +9,7 @@ use crate::learning::eligibility::RunKind;
 use crate::learning::eligibility::{Eligibility, RunObjective};
 use crate::learning::retrieval::{RetrievalQuery, retrieve};
 use crate::learning::snapshot::KnowledgeSnapshot;
+use crate::learning::status::LearningStatus;
 use crate::learning::store::KnowledgeStore;
 use crate::learning::telemetry::{
     DecisionSource, PlannedDecision, RecordedAction, RecordedRankedAction, proposal_event,
@@ -100,6 +101,19 @@ impl LearningSession {
 
     pub fn is_enabled(&self) -> bool {
         self.config.captures()
+    }
+
+    pub fn status(&self) -> LearningStatus {
+        LearningStatus {
+            mode: self.config.mode,
+            case_count: self.snapshot.cases.len(),
+            lesson_count: self.snapshot.lessons.len(),
+            last_run: self.last_eligibility.as_ref().map(Into::into),
+        }
+    }
+
+    pub(crate) fn restore_last_run_eligibility(&mut self, eligibility: Option<Eligibility>) {
+        self.last_eligibility = eligibility;
     }
 
     pub fn observe(&mut self, state: &NormalizedState) {

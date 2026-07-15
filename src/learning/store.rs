@@ -35,6 +35,14 @@ struct Manifest {
     bundle_ids: Vec<String>,
 }
 
+#[derive(Deserialize)]
+struct StoredStatus {
+    #[serde(default)]
+    mode: Option<MemoryMode>,
+    #[serde(default)]
+    last_run_eligibility: Option<Eligibility>,
+}
+
 impl KnowledgeStore {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
@@ -195,6 +203,28 @@ impl KnowledgeStore {
             &self.root.join("status.json"),
             &serde_json::to_vec_pretty(&status)?,
         )
+    }
+
+    pub fn read_last_run_eligibility(&self) -> anyhow::Result<Option<Eligibility>> {
+        Ok(self
+            .read_stored_status()?
+            .and_then(|status| status.last_run_eligibility))
+    }
+
+    pub fn read_recorded_mode(&self) -> anyhow::Result<Option<MemoryMode>> {
+        Ok(self.read_stored_status()?.and_then(|status| status.mode))
+    }
+
+    fn read_stored_status(&self) -> anyhow::Result<Option<StoredStatus>> {
+        let path = self.root.join("status.json");
+        let bytes = match fs::read(&path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error.into()),
+        };
+        let status: StoredStatus = serde_json::from_slice(&bytes)
+            .with_context(|| format!("invalid learning status at {}", path.display()))?;
+        Ok(Some(status))
     }
 
     fn cases_path(&self) -> PathBuf {

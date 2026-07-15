@@ -1,7 +1,10 @@
 mod overlay;
 mod response;
 
-pub(crate) use overlay::{OVERLAY_LOCK, atomic_write_json, timestamp_ms, write_overlay_json_to};
+pub(crate) use overlay::{
+    OVERLAY_LOCK, atomic_write_json, hide_overlay, timestamp_ms, write_overlay_json_to,
+    write_overlay_learning,
+};
 pub use overlay::{OverlayMetadata, OverlayOutput};
 pub use response::{AdviceFields, parse_advice_response};
 
@@ -148,14 +151,7 @@ impl AdviceCache {
             }
 
             tokio::task::spawn_blocking(move || {
-                if let Ok(content) = fs::read_to_string(&path)
-                    && let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&content)
-                {
-                    v["overlay_visibility"] = serde_json::Value::Bool(false);
-                    if let Ok(json) = serde_json::to_string_pretty(&v) {
-                        atomic_write_json(&path, &json);
-                    }
-                }
+                hide_overlay(&path);
             })
             .await
             .ok();

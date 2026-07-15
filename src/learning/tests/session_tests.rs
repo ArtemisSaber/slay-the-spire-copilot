@@ -116,6 +116,11 @@ fn legitimate_completed_run_commits_cases_after_finalization_only() {
     assert_eq!(status["mode"], "collect");
     assert_eq!(status["case_count"], 1);
     assert_eq!(status["last_run_eligibility"]["run_kind"], "legitimate");
+    let user_status = session.status();
+    assert_eq!(user_status.mode, MemoryMode::Collect);
+    assert_eq!(user_status.case_count, 1);
+    assert_eq!(user_status.lesson_count, 0);
+    assert!(user_status.last_run.unwrap().accepted);
 }
 
 #[test]
@@ -138,6 +143,9 @@ fn debug_ascension_victory_is_observed_but_never_committed() {
 
     assert_eq!(summary.eligibility.run_kind, RunKind::DebugFlow);
     assert_eq!(summary.appended_cases, 0);
+    let last_run = session.status().last_run.unwrap();
+    assert!(!last_run.accepted);
+    assert_eq!(last_run.run_kind, RunKind::DebugFlow);
     assert!(!temp.path().join("cases.jsonl").exists());
 }
 

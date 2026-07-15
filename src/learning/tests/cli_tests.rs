@@ -14,7 +14,7 @@ fn status_and_export_operate_on_verified_repository_plus_local_knowledge() {
     let store = KnowledgeStore::new(temp.path().join("learning/knowledge"));
     store.rebuild(&[embedded_bundle().unwrap()]).unwrap();
 
-    let status = execute_command(temp.path(), &args(&["status"])).unwrap();
+    let status = execute_command(temp.path(), &args(&["status", "--json"])).unwrap();
     let status: serde_json::Value = serde_json::from_str(&status).unwrap();
     assert_eq!(status["verified"], true);
     assert_eq!(status["case_count"], 0);
@@ -26,6 +26,33 @@ fn status_and_export_operate_on_verified_repository_plus_local_knowledge() {
     )
     .unwrap();
     assert!(output.is_file());
+}
+
+#[test]
+fn status_defaults_to_plain_language_without_internal_ids() {
+    let temp = tempfile::tempdir().unwrap();
+    let store = KnowledgeStore::new(temp.path().join("learning/knowledge"));
+    let snapshot = store.rebuild(&[embedded_bundle().unwrap()]).unwrap();
+    let eligibility = crate::learning::eligibility::Eligibility {
+        run_kind: crate::learning::eligibility::RunKind::DebugFlow,
+        knowledge_eligible: false,
+        reasons: vec![crate::learning::eligibility::IneligibilityReason::DebugAscension],
+    };
+    store
+        .write_status(
+            &snapshot,
+            crate::learning::config::MemoryMode::Collect,
+            Some(&eligibility),
+        )
+        .unwrap();
+
+    let status = execute_command(temp.path(), &args(&["status"])).unwrap();
+
+    assert!(status.contains("Learning:"));
+    assert!(status.contains("Last run: not learned"));
+    assert!(status.contains("debug Ascension (-15)"));
+    assert!(!status.contains("snapshot_id"));
+    assert!(!status.contains("sha256:"));
 }
 
 #[test]

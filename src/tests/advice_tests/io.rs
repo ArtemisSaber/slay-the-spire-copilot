@@ -149,3 +149,81 @@ fn atomic_write_json_tmp_is_cleaned_up() {
     assert_eq!(std::fs::read_to_string(&path).unwrap(), r#"{"ok":true}"#);
     assert!(!path.with_extension("json.tmp").exists());
 }
+
+#[test]
+fn advice_refresh_preserves_runtime_learning_status() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("overlay.json");
+    std::fs::write(
+        &path,
+        r#"{"learning":{"mode":"collect","case_count":4,"lesson_count":1}}"#,
+    )
+    .unwrap();
+    let output = OverlayOutput {
+        schema_version: 1,
+        status: "ok".into(),
+        overlay_visibility: true,
+        advice: AdviceFields::default(),
+        screen_type: None,
+        scenario: "generic".into(),
+        in_combat: false,
+        state_hash: "state".into(),
+        floor: None,
+        character: None,
+        timestamp_ms: timestamp_ms(),
+    };
+
+    write_overlay_json_to(&path, &output);
+
+    let value: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    assert_eq!(value["learning"]["mode"], "collect");
+    assert_eq!(value["learning"]["case_count"], 4);
+}
+
+#[test]
+fn learning_status_creates_a_complete_overlay_without_hashes() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("overlay.json");
+    let status = crate::learning::status::LearningStatus {
+        mode: crate::learning::config::MemoryMode::Collect,
+        case_count: 7,
+        lesson_count: 2,
+        last_run: Some(crate::learning::status::LastRunStatus {
+            accepted: true,
+            run_kind: crate::learning::eligibility::RunKind::Legitimate,
+            reasons: vec![],
+        }),
+    };
+
+    write_overlay_learning(&path, &status);
+
+    let value: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    assert_eq!(value["schema_version"], 1);
+    assert_eq!(value["learning"]["mode"], "collect");
+    assert_eq!(value["learning"]["case_count"], 7);
+    assert_eq!(value["learning"]["lesson_count"], 2);
+    assert_eq!(value["learning"]["last_run"]["accepted"], true);
+    assert!(value.get("snapshot_id").is_none());
+    assert!(value.get("compatibility_sha256").is_none());
+}
+
+#[test]
+fn hiding_advice_preserves_runtime_learning_status() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("overlay.json");
+    std::fs::write(
+        &path,
+        r#"{"overlay_visibility":true,"learning":{"mode":"collect","case_count":4}}"#,
+    )
+    .unwrap();
+
+    hide_overlay(&path);
+
+    let value: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    assert_eq!(value["overlay_visibility"], false);
+    assert_eq!(value["learning"]["mode"], "collect");
+    assert_eq!(value["learning"]["case_count"], 4);
+}

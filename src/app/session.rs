@@ -60,10 +60,19 @@ impl GameRuntime {
         } else {
             None
         };
+        let initial_overlay_path = crate::logging::advice_output_dir()
+            .join("output")
+            .join("overlay.json");
+        let learning_status = learning.status();
+        crate::advice::write_overlay_learning(&initial_overlay_path, &learning_status);
+        tracing::info!(
+            "learning mode={:?} cases={} lessons={} last_run_accepted={:?}",
+            learning_status.mode,
+            learning_status.case_count,
+            learning_status.lesson_count,
+            learning_status.last_run.as_ref().map(|run| run.accepted),
+        );
         if config.auto_play {
-            let initial_overlay_path = crate::logging::advice_output_dir()
-                .join("output")
-                .join("overlay.json");
             let initial_mode = if config.auto_play_auto_start {
                 "auto"
             } else {
@@ -156,6 +165,7 @@ impl GameRuntime {
                         &mut self.run_finalized,
                         &self.locale,
                         &mut self.learning,
+                        &overlay_path,
                     )
                     .await;
                     if self.config.auto_play {
@@ -171,6 +181,9 @@ impl GameRuntime {
                 .await;
         }
 
+        let overlay_path = crate::logging::advice_output_dir()
+            .join("output")
+            .join("overlay.json");
         super::finalization::finalize_run_once_with_learning(
             &self.journal,
             &self.provider,
@@ -178,6 +191,7 @@ impl GameRuntime {
             &mut self.run_finalized,
             &self.locale,
             &mut self.learning,
+            &overlay_path,
         )
         .await;
         tracing::info!("stdin closed, exiting");

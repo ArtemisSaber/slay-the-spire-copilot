@@ -49,7 +49,7 @@ pub fn runtime_options_from<'a>(
                     }
                 }
             }
-            "knowledge" => {
+            "knowledge" | "learning" => {
                 skip_startup_check = true;
                 knowledge_args = Some(iter.map(str::to_string).collect());
                 break;

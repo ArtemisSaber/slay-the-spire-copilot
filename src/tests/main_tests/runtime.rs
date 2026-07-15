@@ -86,6 +86,14 @@ fn configure_alias_runs_setup_mode() {
 }
 
 #[test]
+fn learning_alias_opens_the_user_facing_status_command() {
+    let opts = runtime_options_from(["learning", "status"], None);
+
+    assert_eq!(opts.knowledge_args, Some(vec!["status".to_string()]));
+    assert!(opts.skip_startup_check);
+}
+
+#[test]
 fn postmortem_mode_uses_ai_by_default() {
     let opts = runtime_options_from(["postmortem", "runs/test/events.jsonl"], None);
     assert_eq!(

@@ -12,6 +12,7 @@ pub mod lesson;
 pub mod retrieval;
 pub mod session;
 pub mod snapshot;
+pub mod status;
 pub mod store;
 pub mod telemetry;
 

@@ -87,7 +87,11 @@ cargo run -- setup
 
 The wizard writes `.env` next to the binary and preserves unrelated lines in an existing `.env`. It asks whether to enable auto-play, whether to learn locally from completed normal runs, and whether that experience may influence future play. The safe learning choice is `collect`: it records eligible experience but does not affect decisions yet. No profile hash, approval flag, or debug-card ID is required. Built-in API presets include Pollinations Free for no-account/no-key onboarding, OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Groq, OpenRouter Free Router, Mistral, Cerebras, a custom OpenAI-compatible endpoint, and Mock provider for offline smoke tests.
 
+After a run, `slay-the-spire-copilot learning status` shows the active mode, saved case and lesson counts, and in plain language whether the last run was learned. It does not expose internal hashes. Maintainer automation can request the machine-readable snapshot view with `knowledge status --json`.
+
 向导会把 `.env` 写到二进制文件旁边，并保留已有 `.env` 中无关的行。它会询问是否启用自动出牌、是否从已完成的正常对局中进行本地学习，以及这些经验是否可以影响后续决策。安全的学习选项是 `collect`：记录合格经验，但暂不影响出牌。不需要配置哈希、批准开关或调试卡 ID。内置 API 预设包括 Pollinations Free、OpenAI、Anthropic Claude、Google Gemini、DeepSeek、Groq、OpenRouter Free Router、Mistral、Cerebras、自定义 OpenAI-compatible endpoint 和 Mock provider。
+
+完成一局后，运行 `slay-the-spire-copilot learning status` 即可查看当前模式、已保存的案例/经验规则数量，以及上一局是否被学习。输出使用普通文字，不显示内部哈希。维护者的自动化工具仍可通过 `knowledge status --json` 获取机器可读的快照信息。
 
 Manual `.env` editing is still supported. For a real free no-key cloud setup:
 
@@ -347,7 +351,8 @@ When used with Communication Mod CJK, the working directory is the Slay the Spir
 - The copilot controls visibility via the `overlay_visibility` field in `output/overlay.json`.
 - `status: "loading"` — the copilot is waiting for the LLM; overlay may show a spinner.
 - `status: "ok"` — fresh advice available with structured `advice` fields (`recommendation`, `reason`, `risk`, `commentary`).
-- `autoplay` — current auto-play mode/status (`mode`: `"off"` | `"auto"`, `status`: `"idle"` | `"planning"` | `"executing"` | `"error"`).
+- `autoplay` — current auto-play mode/status, including paused, startup, active, stopped, and error states.
+- `learning` — current memory mode, case/lesson counts, and whether the last run was accepted, including rejection reasons.
 - After 30 seconds, the copilot sets `overlay_visibility: false`; the overlay should hide.
 - `output/overlay.json` is written only by the copilot. To control auto-play from the overlay, write `"begin"` or `"stop"` to `output/autoplay-control.json`.
 - The JSON schemas (`schemas/overlay.d.ts`) provide structured fields directly.
@@ -356,7 +361,8 @@ When used with Communication Mod CJK, the working directory is the Slay the Spir
 - copilot 通过 `output/overlay.json` 中的 `overlay_visibility` 字段控制悬浮窗显隐。
 - `status: "loading"` — copilot 正在等待 LLM 回复，悬浮窗可显示加载状态。
 - `status: "ok"` — 新建议已就绪，`advice` 对象包含结构化字段（`recommendation`、`reason`、`risk`、`commentary`）。
-- `autoplay` — 当前自动出牌模式/状态（`mode`: `"off"` | `"auto"`，`status`: `"idle"` | `"planning"` | `"executing"` | `"error"`）。
+- `autoplay` — 当前自动出牌模式/状态，包括暂停、启动、运行、停止和错误状态。
+- `learning` — 当前记忆模式、案例/经验规则数量，以及上一局是否被接纳；未接纳时包含原因。
 - 30 秒后，copilot 会将 `overlay_visibility` 设为 `false`，悬浮窗应隐藏。
 - `output/overlay.json` 由 copilot 独占写入。控制自动出牌时，将 `"begin"` 或 `"stop"` 写入 `output/autoplay-control.json`。
 - JSON schema（`schemas/overlay.d.ts`）直接提供结构化字段。

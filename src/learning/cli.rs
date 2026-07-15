@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::learning::bundle::{KnowledgeBundle, embedded_bundle};
 use crate::learning::lesson::{LessonEvent, LessonEventKind, LessonStatus};
 use crate::learning::snapshot::KnowledgeSnapshot;
+use crate::learning::status::{LastRunStatus, LearningStatus, render_human};
 use crate::learning::store::KnowledgeStore;
 
 pub fn execute_command(project_root: &Path, args: &[String]) -> anyhow::Result<String> {
@@ -12,7 +13,7 @@ pub fn execute_command(project_root: &Path, args: &[String]) -> anyhow::Result<S
     let bundle = embedded_bundle()
         .map_err(|error| anyhow::anyhow!("embedded knowledge bundle invalid: {error:?}"))?;
     match args.first().map(String::as_str).unwrap_or("status") {
-        "status" => status(&store, &bundle),
+        "status" => status(&store, &bundle, args),
         "verify" => verify(&store, &bundle),
         "inspect" => inspect(&store, &bundle, required(args, 1, "memory ID")?),
         "rebuild" => rebuild(&store, &bundle),
@@ -29,9 +30,38 @@ pub fn execute_command(project_root: &Path, args: &[String]) -> anyhow::Result<S
     }
 }
 
-fn status(store: &KnowledgeStore, bundle: &KnowledgeBundle) -> anyhow::Result<String> {
+fn status(
+    store: &KnowledgeStore,
+    bundle: &KnowledgeBundle,
+    args: &[String],
+) -> anyhow::Result<String> {
     let snapshot = load_or_rebuild(store, bundle)?;
-    snapshot_summary(&snapshot)
+    if args.get(1).map(String::as_str) == Some("--json") {
+        return snapshot_summary(&snapshot);
+    }
+    let mode = active_memory_mode(store)?;
+    let last_run = store
+        .read_last_run_eligibility()?
+        .as_ref()
+        .map(LastRunStatus::from);
+    Ok(render_human(&LearningStatus {
+        mode,
+        case_count: snapshot.cases.len(),
+        lesson_count: snapshot.lessons.len(),
+        last_run,
+    }))
+}
+
+fn active_memory_mode(
+    store: &KnowledgeStore,
+) -> anyhow::Result<crate::learning::config::MemoryMode> {
+    if let Ok(value) = std::env::var("MEMORY_MODE") {
+        let config = crate::learning::config::MemoryConfig::from_lookup(|key| {
+            (key == "MEMORY_MODE").then(|| value.clone())
+        });
+        return Ok(config.mode);
+    }
+    Ok(store.read_recorded_mode()?.unwrap_or_default())
 }
 
 fn verify(store: &KnowledgeStore, bundle: &KnowledgeBundle) -> anyhow::Result<String> {

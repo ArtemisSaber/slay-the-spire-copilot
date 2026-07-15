@@ -123,6 +123,7 @@ impl GameRuntime {
                 &mut self.run_finalized,
                 &self.locale,
                 &mut self.learning,
+                overlay_path,
             )
             .await;
             self.reset_after_game();

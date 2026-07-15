@@ -17,6 +17,17 @@ pub fn bootstrap_session(
     let bundle = embedded_bundle()
         .map_err(|error| anyhow::anyhow!("embedded knowledge bundle invalid: {error:?}"))?;
     let store = KnowledgeStore::new(project_root.join("learning").join("knowledge"));
+    let last_run_eligibility = if config.memory.captures() {
+        match store.read_last_run_eligibility() {
+            Ok(eligibility) => eligibility,
+            Err(error) => {
+                tracing::warn!("failed to read previous learning status: {error:#}");
+                None
+            }
+        }
+    } else {
+        None
+    };
     let snapshot = if config.memory.captures() {
         match store.rebuild(std::slice::from_ref(&bundle)) {
             Ok(snapshot) => snapshot,
@@ -41,14 +52,11 @@ pub fn bootstrap_session(
         synthetic_input,
     };
     if config.memory.captures() {
-        store.write_status(&snapshot, config.memory.mode, None)?;
+        store.write_status(&snapshot, config.memory.mode, last_run_eligibility.as_ref())?;
     }
-    Ok(LearningSession::new(
-        config.memory.clone(),
-        store,
-        snapshot,
-        provenance,
-    ))
+    let mut session = LearningSession::new(config.memory.clone(), store, snapshot, provenance);
+    session.restore_last_run_eligibility(last_run_eligibility);
+    Ok(session)
 }
 
 fn model_profile_sha256(config: &Config) -> anyhow::Result<String> {

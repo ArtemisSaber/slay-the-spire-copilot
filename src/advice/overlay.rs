@@ -31,8 +31,7 @@ pub struct OverlayMetadata {
 }
 
 /// Serializes all overlay.json writes to prevent TOCTOU races between
-/// the advice write path (write_overlay_json_to) and the autoplay status
-/// path (write_overlay_autoplay, which does read-modify-write).
+/// advice, autoplay, learning, and visibility updates.
 pub(crate) static OVERLAY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 pub(crate) fn timestamp_ms() -> u128 {
@@ -77,8 +76,71 @@ pub(crate) fn atomic_write_json(path: &Path, json: &str) {
 }
 
 pub(crate) fn write_overlay_json_to(path: &Path, output: &OverlayOutput) {
-    if let Ok(json) = serde_json::to_string_pretty(output) {
-        let _lock = OVERLAY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let Ok(mut value) = serde_json::to_value(output) else {
+        return;
+    };
+    let _lock = OVERLAY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    if let Ok(content) = fs::read_to_string(path)
+        && let Ok(existing) = serde_json::from_str::<serde_json::Value>(&content)
+    {
+        for key in ["autoplay", "learning"] {
+            if let Some(runtime_status) = existing.get(key) {
+                value[key] = runtime_status.clone();
+            }
+        }
+    }
+    if let Ok(json) = serde_json::to_string_pretty(&value) {
         atomic_write_json(path, &json);
     }
+}
+
+pub(crate) fn write_overlay_learning(
+    path: &Path,
+    status: &crate::learning::status::LearningStatus,
+) {
+    let _lock = OVERLAY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut output = fs::read_to_string(path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+        .unwrap_or_else(empty_overlay);
+    output["learning"] = serde_json::to_value(status).unwrap_or(serde_json::Value::Null);
+    output["timestamp_ms"] = serde_json::Value::from(timestamp_ms() as u64);
+    if let Ok(json) = serde_json::to_string_pretty(&output) {
+        atomic_write_json(path, &json);
+    }
+}
+
+pub(crate) fn hide_overlay(path: &Path) {
+    let _lock = OVERLAY_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let Ok(content) = fs::read_to_string(path) else {
+        return;
+    };
+    let Ok(mut output) = serde_json::from_str::<serde_json::Value>(&content) else {
+        return;
+    };
+    output["overlay_visibility"] = serde_json::Value::Bool(false);
+    if let Ok(json) = serde_json::to_string_pretty(&output) {
+        atomic_write_json(path, &json);
+    }
+}
+
+fn empty_overlay() -> serde_json::Value {
+    serde_json::json!({
+        "schema_version": 1,
+        "status": "ok",
+        "overlay_visibility": false,
+        "advice": {
+            "recommendation": "",
+            "reason": "",
+            "risk": "",
+            "commentary": ""
+        },
+        "screen_type": null,
+        "scenario": "",
+        "in_combat": false,
+        "state_hash": "",
+        "floor": null,
+        "character": null,
+        "timestamp_ms": 0
+    })
 }

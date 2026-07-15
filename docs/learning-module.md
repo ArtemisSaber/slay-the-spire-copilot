@@ -411,6 +411,21 @@ environment editing or identity input is required. For new auto-play users,
 experience without changing decisions. `shadow` remains an advanced evaluation
 mode and is preserved when an existing installation already uses it.
 
+For an existing installation, the first-use flow is:
+
+1. Run `slay-the-spire-copilot setup`.
+2. Keep the existing API connection when asked whether to reconfigure it.
+3. Enable automatic play and local learning.
+4. Answer no when asked whether past experience should influence play now; this
+   selects safe `collect` mode.
+5. Complete the next normal auto-play run and run
+   `slay-the-spire-copilot learning status`.
+
+Collection begins with runs observed after it is enabled. A run completed
+before this module was active cannot be retroactively imported as decision
+experience because its journal lacks the acknowledged semantic-action and
+outcome telemetry required by the evidence schema.
+
 Suggested initial settings:
 
 ```text
@@ -1111,7 +1126,7 @@ Manual editing of source JSONL is unsupported. The binary appends auditable
 events through commands such as:
 
 ```text
-knowledge status
+learning status
 knowledge inspect <lesson_id>
 knowledge validate <lesson_id> --reason <text>
 knowledge contest <lesson_id> --reason <text>
@@ -1119,6 +1134,11 @@ knowledge retire <lesson_id> --reason <text>
 knowledge rebuild
 knowledge export-bundle [output_path]
 ```
+
+`learning status` is the user-facing view. It reports the configured mode,
+saved counts, and the last run's accepted/rejected result in plain language,
+without internal IDs. `knowledge status --json` retains the verified snapshot
+view for maintainer automation.
 
 Validation records a timestamp, the complete verified lesson state, and the
 reason as a new event in `lessons.jsonl`. The CLI also accepts the reason as
@@ -1948,6 +1968,12 @@ the document does not treat them as present.
 - Case and lesson counts.
 - The last run's complete eligibility classification and reasons.
 
+The same user-relevant subset is written to `output/overlay.json` under
+`learning`: mode, case count, lesson count, and a plain accepted/rejected last
+run result with stable reasons. It is written at startup and immediately after
+learning finalization, survives advice/autoplay overlay refreshes, and contains
+no profile or snapshot hash that a normal user must understand.
+
 Source offsets, latency histograms, quarantine counts, and evaluation results
 belong in a future aggregated rollout report; they are not fabricated in the
 version 1 status artifact.
@@ -2154,18 +2180,19 @@ cargo build --release
 
 No native database or C dependency is introduced in version 1.
 
-Acceptance evidence measured on 2026-07-14:
+Acceptance evidence measured on 2026-07-15:
 
 | Gate | Result |
 |---|---|
 | `cargo fmt --check` | Passed |
 | `cargo clippy --all-targets -- -D warnings` | Passed with zero warnings |
-| `cargo test` | Passed: 1,712 unit tests and 2 integration tests |
+| `cargo test` | Passed: 1,735 unit tests and 2 integration tests |
 | `cargo build --release` | Passed, including the build-time 250-logical-LOC ceiling |
-| Learning-module line coverage | 92.71%: 2,556 of 2,757 executable production lines in `src/learning/**`, excluding `src/learning/tests/**` |
+| Learning-module line coverage | 91.70%: 2,606 of 2,842 executable production lines in `src/learning/**`, excluding `src/learning/tests/**` |
 
-Coverage was measured with `cargo llvm-cov --all-features --workspace --lcov`.
-The checked report is a local build artifact rather than repository source.
+Coverage was measured with
+`cargo +stable llvm-cov --json --summary-only --output-path <temporary-file>`.
+The generated report is a local build artifact rather than repository source.
 
 ---
 
