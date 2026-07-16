@@ -12,6 +12,7 @@ mod status;
 
 pub(crate) const MAP_CANDIDATE_LIMIT: usize = 5;
 
+pub(crate) use cards::clean_description;
 pub use dispatch::build_prompt;
 pub(crate) use map_helpers::position_label;
 
@@ -20,7 +21,7 @@ pub(crate) use map_helpers::position_label;
     unused_imports,
     reason = "Re-exported only to preserve the existing prompt test namespace."
 )]
-pub(crate) use cards::{clean_description, compact_pile, format_card, format_deck_section};
+pub(crate) use cards::{compact_pile, format_card, format_deck_section};
 #[cfg(test)]
 #[allow(
     unused_imports,

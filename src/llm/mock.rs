@@ -1,7 +1,7 @@
 pub(crate) fn mock_autoplay_action_response(prompt: &str) -> String {
     let prompt_json: serde_json::Value = serde_json::from_str(prompt).unwrap_or_default();
-    let localized_status_context = prompt_json
-        .get("localized_status_context")
+    let test_marker = prompt_json
+        .pointer("/scenario/test_marker")
         .and_then(|value| value.as_str())
         .unwrap_or_default();
     let has_rejections = prompt_json
@@ -9,11 +9,11 @@ pub(crate) fn mock_autoplay_action_response(prompt: &str) -> String {
         .and_then(|value| value.as_array())
         .is_some_and(|attempts| !attempts.is_empty());
 
-    if localized_status_context.contains("fallback_test_marker") {
+    if test_marker.contains("fallback_test_marker") {
         return r#"{"schema_version":2,"actions":[{"ref":"A99","reason":"","risk":""}]}"#
             .to_string();
     }
-    if localized_status_context.contains("retry_test_marker") && !has_rejections {
+    if test_marker.contains("retry_test_marker") && !has_rejections {
         return r#"{"schema_version":2,"actions":[{"ref":"A99","reason":"","risk":""}]}"#
             .to_string();
     }
@@ -46,7 +46,7 @@ pub(crate) fn mock_autoplay_action_response(prompt: &str) -> String {
         .unwrap_or(false)
     {
         prompt_json
-            .pointer("/state/monsters/0/index")
+            .pointer("/scenario/combat/monsters/0/index")
             .cloned()
             .unwrap_or_else(|| serde_json::json!(0))
     } else {

@@ -317,6 +317,41 @@ and the LLM never emits internal action IDs or action kinds. After validation,
 the resolver maps `ref` back to the authoritative `ActionCandidate`; telemetry
 records its internal action ID.
 
+### Autoplay prompt context
+
+The planner receives one structured `scenario` object. It replaces the former
+duplicated localized prose and compact `state` payloads; those legacy fields
+must not be emitted.
+
+Every scenario contains:
+
+- `kind`, `screen_type`, and `room_type`;
+- `run` facts: character, Ascension, floor, and gold;
+- `player` facts: HP, block, energy, stance, powers, and orbs;
+- `inventory`: relic and potion descriptions, counters, prices, usability, and
+  empty potion slots;
+- `threat`: incoming damage and the normalized danger flags.
+
+The active screen adds a typed section:
+
+- combat: turn, full hand card fields, monsters including per-hit damage, hit
+  count, total visible damage and powers, plus compact draw/discard/exhaust
+  piles;
+- card or boss rewards: full choice descriptions, skip state, deck, and the
+  next-Act heal semantic when applicable;
+- boss relic, rest, event, shop, hand-select, and grid: their complete current
+  choices and screen-specific constraints;
+- map: the graph, current coordinate, and scored route options with stable
+  `choice_index` values;
+- combat reward: potion capacity and session skip state.
+
+`available_actions` remains the execution boundary. Each entry contains a
+prompt-scoped `ref` and may include structured source data such as
+`hand_index`, `choice_index`, `potion_slot`, `card`, `relic`, `potion`,
+`option`, or `reward_kind`. These fields help the model relate an action to the
+scenario, but only the server-side candidate behind `ref` can authorize
+execution. Card instance IDs and internal action IDs never enter the prompt.
+
 The resolver must reject:
 
 - Invalid JSON syntax.
@@ -546,7 +581,8 @@ Action IDs:
 - `combat:end`
 
 Targeted cards expose `target_required=true` on the referenced candidate. The
-response includes `target_index` as a separate integer field.
+response includes `target_index` as a separate integer field copied from an
+existing `scenario.combat.monsters[].index`.
 
 Execution:
 

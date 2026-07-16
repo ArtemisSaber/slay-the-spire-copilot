@@ -1137,6 +1137,11 @@ The LLM prompt receives `ranked_suggestions` as a flat array of
 action IDs are not exposed through ranker suggestions. There is no rule
 breakdown or suggested/other/avoided split.
 
+The same prompt contains one screen-aware structured `scenario`. Ranker refs
+must match `available_actions` refs, and monster targets refer to
+`scenario.combat.monsters[].index`; ranker output does not duplicate or replace
+the scenario facts.
+
 ---
 
 ## 14. Implementation Order

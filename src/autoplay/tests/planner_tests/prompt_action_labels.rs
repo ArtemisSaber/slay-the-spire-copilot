@@ -48,7 +48,6 @@ fn prompt_candidates_use_short_refs_without_execution_ids() {
         &state,
     );
     let locale = Locale::load("en");
-    let expected_scenario = crate::prompt::build_prompt(&state, &locale, false);
 
     let prompt = build_planner_prompt(
         &AutoPlaySession::default(),
@@ -73,7 +72,11 @@ fn prompt_candidates_use_short_refs_without_execution_ids() {
     );
     assert_eq!(payload["schema"]["schema_version"], 2);
     assert!(payload["task"].as_str().unwrap().contains("bare action"));
-    assert_eq!(payload["localized_status_context"], expected_scenario);
+    assert_eq!(payload["scenario"]["kind"], "event");
+    assert_eq!(payload["scenario"]["event"]["choices"][0], "Take gold");
+    assert_eq!(actions[0]["choice_index"], 0);
+    assert!(payload.get("localized_status_context").is_none());
+    assert!(payload.get("state").is_none());
 }
 
 #[test]
@@ -136,16 +139,21 @@ fn combat_prompt_omits_card_uuid_from_the_complete_payload() {
     )
     .unwrap();
     let payload: Value = serde_json::from_str(&prompt).unwrap();
-    let card = &payload["state"]["hand"][0];
+    let card = &payload["scenario"]["combat"]["hand"][0];
 
     assert!(!prompt.contains(secret_uuid));
     assert!(!prompt.to_ascii_lowercase().contains("uuid"));
     assert!(card.get("uuid").is_none());
-    assert_eq!(card["index"], 0);
+    assert_eq!(card["hand_index"], 0);
     assert_eq!(card["id"], "Strike_R");
     assert_eq!(card["name"], "Strike");
     assert_eq!(card["cost"], 1);
     assert_eq!(payload["available_actions"][0]["ref"], "A0");
+    assert_eq!(payload["available_actions"][0]["hand_index"], 0);
+    assert_eq!(
+        payload["available_actions"][0]["card"]["description"],
+        "Deal 6 damage."
+    );
 }
 
 #[test]

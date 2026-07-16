@@ -129,7 +129,7 @@ Module responsibilities:
 | `control.rs` | Read and validate `output/autoplay-control.json`; track latest revision. |
 | `status.rs` | Produce overlay-facing auto-play state and errors. |
 | `action.rs` | Define typed action enums and parser for LLM JSON/action output. |
-| `prompt.rs` | Build executor-oriented prompts with prompt-scoped action refs. |
+| `prompt.rs` | Build the screen-aware structured scenario and prompt-scoped action refs without exposing execution-local IDs. |
 | `planner.rs` | Ask LLM for an action or action sequence; no stdout writes. |
 | `resolver.rs` | Map chosen refs through authoritative internal action IDs to current game-state choices, hand indices, targets, or map nodes. |
 | `executor.rs` | Send validated CommunicationMod commands to stdout. |
@@ -237,6 +237,12 @@ The prompt builder exposes temporary `A0..An` references and the LLM echoes
 one reference. The resolver maps it to an internal action ID. This avoids fuzzy
 localized-name matching without exposing UUIDs to the model. References remain
 stable across retries for one state and have no meaning on later states.
+
+The model receives a single structured `scenario` object rather than parallel
+localized prose and compact-state representations. Card, relic, potion,
+monster, pile, event, shop, selection, and route facts are attached to their
+typed screen section. Each prompt action may additionally carry a structured
+source object and an index that links it to that scenario.
 
 Examples:
 

@@ -36,8 +36,10 @@ fn parses_llm_action_json_into_executable_action() {
     )
     .unwrap();
 
-    assert!(prompt.contains("=== Current State ==="));
-    assert!(prompt.contains("\"language\": \"English\""));
+    let payload: Value = serde_json::from_str(&prompt).unwrap();
+    assert_eq!(payload["scenario"]["kind"], "card_reward");
+    assert_eq!(payload["language"], "English");
+    assert!(payload.get("localized_status_context").is_none());
 
     let action = parse_planner_response(
         r#"{

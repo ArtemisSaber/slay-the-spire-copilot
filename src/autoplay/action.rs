@@ -12,7 +12,7 @@ mod navigation;
 mod reference;
 mod rewards;
 
-pub(crate) use reference::{action_reference, candidate_for_reference, prompt_action_candidates};
+pub(crate) use reference::{action_reference, candidate_for_reference};
 
 use combat::{combat_candidates, resolve_requested_combat};
 use navigation::{

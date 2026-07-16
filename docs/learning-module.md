@@ -116,8 +116,9 @@ These invariants are release-blocking.
 2. Counterfactuals remain hypotheses and cannot be stored as observed facts.
 3. Ascension `-15`, synthetic, stdin-test, incomplete, and detected
    restore/undo runs are knowledge-ineligible.
-4. Current state and server-resolved `available_actions` remain the only
-   execution authority; prompt-scoped refs cannot invent an action.
+4. The current structured `scenario` and server-resolved `available_actions`
+   remain the only execution authority; prompt-scoped refs cannot invent an
+   action.
 5. Retrieval cannot override kill-scan, ranker avoidance, or command validation.
 6. Same-seed factual cases are not retrieved.
 7. A strategic lesson is evaluated only if its ID appears in validated
@@ -590,8 +591,9 @@ subject to the global item and byte limits. Default context capacity remains
 ```
 
 Origin run ID, seed, run victory, and final floor are intentionally not sent in
-combat context. They remain internal lifecycle data. Current candidates remain
-the only source of executable action IDs; the LLM sees only prompt-scoped refs.
+combat context. They remain internal lifecycle data. The current structured
+scenario supplies present-game facts, while current candidates remain the only
+source of executable action IDs; the LLM sees only prompt-scoped refs.
 
 ## 11. Storage and migration
 

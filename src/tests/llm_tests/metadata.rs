@@ -55,6 +55,9 @@ fn unified_system_prompt_contains_all_ten_modes() {
 fn autoplay_action_system_prompt_contains_planner_header() {
     let prompt = autoplay_action_system_prompt(test_locale());
     assert!(prompt.contains("AUTO_PLAY_ACTION_PLANNER"));
+    assert!(prompt.contains("scenario.combat.monsters[].index"));
+    assert!(prompt.contains("descriptions"));
+    assert!(!prompt.contains("localized_status_context"));
     assert!(!prompt.to_ascii_lowercase().contains("uuid"));
     assert!(!prompt.is_empty());
 }

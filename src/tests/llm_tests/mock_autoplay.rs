@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn mock_autoplay_fallback_test_marker_returns_invalid_action() {
-    let prompt = r#"{"localized_status_context":"fallback_test_marker","available_actions":[{"ref":"A0","kind":"play","label":"Strike"}],"rejected_attempts":["previous fail"]}"#;
+    let prompt = r#"{"scenario":{"test_marker":"fallback_test_marker"},"available_actions":[{"ref":"A0","kind":"play","label":"Strike"}],"rejected_attempts":["previous fail"]}"#;
     let response = mock_autoplay_action_response(prompt);
     let json: serde_json::Value = serde_json::from_str(&response).unwrap();
     assert_eq!(json["actions"][0]["ref"], "A99");
@@ -10,7 +10,7 @@ fn mock_autoplay_fallback_test_marker_returns_invalid_action() {
 
 #[test]
 fn mock_autoplay_retry_test_marker_no_rejections_returns_invalid_action() {
-    let prompt = r#"{"localized_status_context":"retry_test_marker","available_actions":[{"ref":"A0","kind":"play","label":"Strike"}],"rejected_attempts":[]}"#;
+    let prompt = r#"{"scenario":{"test_marker":"retry_test_marker"},"available_actions":[{"ref":"A0","kind":"play","label":"Strike"}],"rejected_attempts":[]}"#;
     let response = mock_autoplay_action_response(prompt);
     let json: serde_json::Value = serde_json::from_str(&response).unwrap();
     assert_eq!(json["actions"][0]["ref"], "A99");
@@ -18,7 +18,7 @@ fn mock_autoplay_retry_test_marker_no_rejections_returns_invalid_action() {
 
 #[test]
 fn mock_autoplay_prefers_card_reward_skip() {
-    let prompt = r#"{"available_actions":[{"ref":"A0","kind":"skip","label":"Skip"},{"ref":"A1","kind":"choose","label":"Card 0"}],"localized_status_context":""}"#;
+    let prompt = r#"{"scenario":{},"available_actions":[{"ref":"A0","kind":"skip","label":"Skip"},{"ref":"A1","kind":"choose","label":"Card 0"}]}"#;
     let response = mock_autoplay_action_response(prompt);
     let json: serde_json::Value = serde_json::from_str(&response).unwrap();
     assert_eq!(json["actions"][0]["ref"], "A0");
@@ -26,7 +26,7 @@ fn mock_autoplay_prefers_card_reward_skip() {
 
 #[test]
 fn mock_autoplay_prefers_play_action() {
-    let prompt = r#"{"available_actions":[{"ref":"A0","kind":"end","label":"End Turn"},{"ref":"A1","kind":"play","label":"Strike"}],"localized_status_context":""}"#;
+    let prompt = r#"{"scenario":{},"available_actions":[{"ref":"A0","kind":"end","label":"End Turn"},{"ref":"A1","kind":"play","label":"Strike"}]}"#;
     let response = mock_autoplay_action_response(prompt);
     let json: serde_json::Value = serde_json::from_str(&response).unwrap();
     assert_eq!(json["actions"][0]["ref"], "A1");
@@ -34,7 +34,7 @@ fn mock_autoplay_prefers_play_action() {
 
 #[test]
 fn mock_autoplay_first_action_fallback() {
-    let prompt = r#"{"available_actions":[{"ref":"A0","kind":"end","label":"End Turn"},{"ref":"A1","kind":"proceed","label":"Proceed"}],"localized_status_context":""}"#;
+    let prompt = r#"{"scenario":{},"available_actions":[{"ref":"A0","kind":"end","label":"End Turn"},{"ref":"A1","kind":"proceed","label":"Proceed"}]}"#;
     let response = mock_autoplay_action_response(prompt);
     let json: serde_json::Value = serde_json::from_str(&response).unwrap();
     assert_eq!(json["actions"][0]["ref"], "A0");
@@ -42,7 +42,7 @@ fn mock_autoplay_first_action_fallback() {
 
 #[test]
 fn mock_autoplay_empty_actions_returns_empty() {
-    let prompt = r#"{"available_actions":[],"localized_status_context":""}"#;
+    let prompt = r#"{"scenario":{},"available_actions":[]}"#;
     let response = mock_autoplay_action_response(prompt);
     let json: serde_json::Value = serde_json::from_str(&response).unwrap();
     assert_eq!(json["schema_version"], 2);
@@ -51,15 +51,15 @@ fn mock_autoplay_empty_actions_returns_empty() {
 
 #[test]
 fn mock_autoplay_target_required_sets_target_index() {
-    let prompt = r#"{"available_actions":[{"ref":"A0","kind":"play","label":"Strike","target_required":true}],"localized_status_context":""}"#;
+    let prompt = r#"{"scenario":{"combat":{"monsters":[{"index":4}]}},"available_actions":[{"ref":"A0","kind":"play","label":"Strike","target_required":true}]}"#;
     let response = mock_autoplay_action_response(prompt);
     let json: serde_json::Value = serde_json::from_str(&response).unwrap();
-    assert_eq!(json["actions"][0]["target_index"], 0);
+    assert_eq!(json["actions"][0]["target_index"], 4);
 }
 
 #[test]
 fn mock_autoplay_no_target_required_sets_null_target_index() {
-    let prompt = r#"{"available_actions":[{"ref":"A0","kind":"play","label":"Strike","target_required":false}],"localized_status_context":""}"#;
+    let prompt = r#"{"scenario":{},"available_actions":[{"ref":"A0","kind":"play","label":"Strike","target_required":false}]}"#;
     let response = mock_autoplay_action_response(prompt);
     let json: serde_json::Value = serde_json::from_str(&response).unwrap();
     assert_eq!(json["actions"][0]["target_index"], serde_json::Value::Null);
@@ -68,7 +68,8 @@ fn mock_autoplay_no_target_required_sets_null_target_index() {
 #[tokio::test]
 async fn mock_provider_query_autoplay_action_returns_json() {
     let provider = LlmProvider::Mock;
-    let prompt = r#"{"available_actions":[{"ref":"A0","kind":"play","label":"Strike"}],"localized_status_context":""}"#;
+    let prompt =
+        r#"{"scenario":{},"available_actions":[{"ref":"A0","kind":"play","label":"Strike"}]}"#;
     let result = provider
         .query_autoplay_action(prompt, Effort::Fast, test_locale())
         .await;
