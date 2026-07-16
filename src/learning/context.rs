@@ -37,6 +37,7 @@ fn item_value(item: &RetrievalItem) -> Value {
             "similarity": similarity,
             "guidance_kind": lesson.guidance.kind,
             "guidance": truncate(&lesson.guidance.text, 256),
+            "critic_confidence_millis": lesson.critic.confidence_millis,
             "support": {
                 "independent_cases": lesson.support.independent_cases,
                 "dependent_cases": lesson.support.dependent_cases,
@@ -52,6 +53,10 @@ fn item_value(item: &RetrievalItem) -> Value {
             "similarity": similarity,
             "selected_action": case.selected_action,
             "observed_outcome": {
+                "player_hp_before_action": case.outcome.player_hp_before_action,
+                "player_hp_after_action": case.outcome.player_hp_after_action,
+                "action_hp_lost": case.outcome.action_hp_lost,
+                "player_died_after_action": case.outcome.player_died_after_action,
                 "turn_hp_lost": case.outcome.turn_hp_lost,
                 "combat_completed": case.outcome.combat_completed,
                 "combat_won": case.outcome.combat_won,

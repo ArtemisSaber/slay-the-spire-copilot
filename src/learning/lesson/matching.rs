@@ -6,15 +6,14 @@ use std::collections::HashSet;
 pub(super) fn matches_proposal(proposal: &LessonProposal, case: &DecisionCase) -> bool {
     scope_trigger(&proposal.scope, &proposal.trigger, case)
         && action_matches(&proposal.action_pattern, case)
+        && selected_action_has_required_tags(&proposal.trigger.required_ranker_tags, case)
 }
 
 pub(super) fn support(lesson: &Lesson, cases: &[DecisionCase]) -> SupportStats {
     let mut stats = SupportStats::default();
     let mut independent_seeds = HashSet::new();
     for case in cases {
-        if !scope_trigger(&lesson.scope, &lesson.trigger, case)
-            || !action_matches(&lesson.action_pattern, case)
-        {
+        if !lesson_matches_case(lesson, case) {
             continue;
         }
         match outcome_matches(lesson.outcome_code, case) {
@@ -84,6 +83,16 @@ pub(super) fn lesson_matches_situation(
 pub(super) fn lesson_matches_case(lesson: &Lesson, case: &DecisionCase) -> bool {
     scope_trigger(&lesson.scope, &lesson.trigger, case)
         && action_matches(&lesson.action_pattern, case)
+        && selected_action_has_required_tags(&lesson.trigger.required_ranker_tags, case)
+}
+
+fn selected_action_has_required_tags(required: &[String], case: &DecisionCase) -> bool {
+    required.is_empty()
+        || case
+            .ranked_suggestions
+            .iter()
+            .find(|ranked| ranked.semantic_action == case.selected_action)
+            .is_some_and(|ranked| subset(required, ranked.tags.iter()))
 }
 
 fn member_or_any<T: PartialEq>(allowed: &[T], actual: &T) -> bool {

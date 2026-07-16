@@ -42,12 +42,13 @@ async fn mock_provider_returns_learning_postmortem_envelope() {
         .unwrap();
     let envelope: serde_json::Value = serde_json::from_str(&response).unwrap();
 
-    assert_eq!(envelope["schema_version"], 1);
+    assert_eq!(envelope["schema_version"], 2);
     assert!(
         envelope["report_markdown"]
             .as_str()
             .is_some_and(|report| report.starts_with('#'))
     );
+    assert!(envelope["run_analysis"].is_object());
     assert!(envelope["lesson_proposals"].is_array());
 }
 

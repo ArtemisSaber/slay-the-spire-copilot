@@ -73,7 +73,7 @@ pub(crate) fn mock_autoplay_action_response(prompt: &str) -> String {
 }
 
 pub(crate) fn mock_advice_response(system_prompt: &str, user_prompt: &str) -> String {
-    if system_prompt.contains("LEARNING_CRITIC_ENVELOPE_V1") {
+    if system_prompt.contains("LEARNING_CRITIC_ENVELOPE_V2") {
         mock_learning_postmortem_response(user_prompt)
     } else if system_prompt.contains("## 总览") || system_prompt.contains("## Overview") {
         "# 本局复盘\n## 总览\n这是 mock 复盘。\n## 关键决策\n回看选牌、篝火和战斗入口建议。\n## 风险与转折\n关注血量变化和卡组膨胀。\n## 下次改进\n优先保证生存，再贪长期收益。"
@@ -88,14 +88,40 @@ pub(crate) fn mock_advice_response(system_prompt: &str, user_prompt: &str) -> St
 }
 
 fn mock_learning_postmortem_response(user_prompt: &str) -> String {
-    let proposal = user_prompt
-        .rsplit_once("LEARNING_CRITIC_ENVELOPE_V1")
-        .and_then(|(_, appendix)| serde_json::from_str::<serde_json::Value>(appendix.trim()).ok())
-        .and_then(|appendix| appendix.get("eligible_cases")?.as_array()?.first().cloned())
-        .and_then(|case| mock_lesson_proposal(&case));
+    let appendix = user_prompt
+        .rsplit_once("LEARNING_CRITIC_ENVELOPE_V2")
+        .and_then(|(_, appendix)| serde_json::from_str::<serde_json::Value>(appendix.trim()).ok());
+    let primary_case_id = appendix
+        .as_ref()
+        .and_then(|value| value.get("primary_case_id"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("missing");
+    let outcome = appendix
+        .as_ref()
+        .and_then(|value| value.get("run_outcome"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("victory");
+    let primary_case = appendix.as_ref().and_then(|value| {
+        value
+            .get("eligible_cases")?
+            .as_array()?
+            .iter()
+            .find(|case| {
+                case.get("case_id").and_then(serde_json::Value::as_str) == Some(primary_case_id)
+            })
+            .cloned()
+    });
+    let proposal = primary_case.and_then(|case| mock_lesson_proposal(&case));
     serde_json::json!({
-        "schema_version": 1,
+        "schema_version": 2,
         "report_markdown": "# Mock Review\n\nThis human-readable postmortem was transported inside the JSON envelope.",
+        "run_analysis": {
+            "outcome": outcome,
+            "primary_case_id": primary_case_id,
+            "contributing_case_ids": [],
+            "explanation": "The deterministic primary case is the closest observed decision to the run outcome.",
+            "confidence_millis": 700
+        },
         "lesson_proposals": proposal.into_iter().collect::<Vec<_>>(),
     })
     .to_string()
@@ -119,7 +145,7 @@ fn mock_lesson_proposal(case: &serde_json::Value) -> Option<serde_json::Value> {
         _ => return None,
     };
     let outcome_code = match case
-        .pointer("/outcome/combat_won")
+        .pointer("/later_outcome/combat_won")
         .and_then(serde_json::Value::as_bool)
     {
         Some(true) => "combat_win",
@@ -148,7 +174,7 @@ fn mock_lesson_proposal(case: &serde_json::Value) -> Option<serde_json::Value> {
         },
         "outcome_code": outcome_code,
         "guidance": {
-            "kind": "caution",
+            "kind": if outcome_code == "combat_death" { "avoid" } else { "prefer" },
             "text": "Treat this as observational evidence and re-check the current state.",
         },
         "rationale": "The cited case matched this action and observed combat outcome.",

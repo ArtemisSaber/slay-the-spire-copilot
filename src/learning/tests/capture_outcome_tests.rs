@@ -110,6 +110,87 @@ fn combat_outcomes_include_terminal_turn_and_all_autoplay_potions_used() {
         case.outcome.combat_turns == Some(2)
             && case.outcome.potions_used == ["FirePotion".to_string()]
     }));
+    let potion_case = session
+        .snapshot()
+        .cases
+        .iter()
+        .find(|case| matches!(case.selected_action, SemanticAction::UsePotion { .. }))
+        .unwrap();
+    assert_eq!(potion_case.outcome.player_hp_before_action, Some(40));
+    assert_eq!(potion_case.outcome.player_hp_after_action, Some(35));
+    assert_eq!(potion_case.outcome.action_hp_lost, Some(5));
+    assert_eq!(potion_case.outcome.player_died_after_action, Some(false));
+    assert_eq!(potion_case.outcome.alive_monsters_after_action, Some(0));
+}
+
+#[test]
+fn action_outcome_marks_the_decision_immediately_preceding_death() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut session = session(temp.path());
+    let mut state = combat_state(12);
+    state.current_hp = Some(2);
+    session.observe(&state);
+    let prepared = session.prepare(&state, &[]).unwrap();
+    let end = plan(AutoPlayAction::End, SemanticAction::EndTurn);
+    session.record_executed("run", &state, &end, &prepared);
+
+    let mut terminal = state;
+    terminal.screen_type = Some(ScreenType::GameOver);
+    terminal.current_hp = Some(0);
+    terminal.monsters.clear();
+    session.observe(&terminal);
+    session.finalize("game_over").unwrap();
+
+    let case = &session.snapshot().cases[0];
+    assert_eq!(case.outcome.player_hp_before_action, Some(2));
+    assert_eq!(case.outcome.player_hp_after_action, Some(0));
+    assert_eq!(case.outcome.action_hp_lost, Some(2));
+    assert_eq!(case.outcome.player_died_after_action, Some(true));
+    assert_eq!(case.outcome.alive_monsters_after_action, Some(0));
+}
+
+#[test]
+fn case_cap_always_retains_the_terminal_decision() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut session = LearningSession::new(
+        MemoryConfig {
+            mode: MemoryMode::Collect,
+            max_cases_per_run: 1,
+            ..MemoryConfig::default()
+        },
+        KnowledgeStore::new(temp.path()),
+        KnowledgeSnapshot::build(vec![], &[]).unwrap(),
+        SessionProvenance {
+            locale: "en".into(),
+            model_profile_sha256: "model".into(),
+            compatibility_sha256: "mods".into(),
+            rules_sha256: "rules".into(),
+            synthetic_input: false,
+        },
+    );
+    let first = combat_state(1);
+    session.observe(&first);
+    let prepared = session.prepare(&first, &[]).unwrap();
+    let end = plan(AutoPlayAction::End, SemanticAction::EndTurn);
+    session.record_executed("run", &first, &end, &prepared);
+
+    let second = combat_state(2);
+    session.observe(&second);
+    let prepared = session.prepare(&second, &[]).unwrap();
+    session.record_executed("run", &second, &end, &prepared);
+    let mut terminal = second;
+    terminal.screen_type = Some(ScreenType::GameOver);
+    terminal.current_hp = Some(0);
+    terminal.monsters.clear();
+    session.observe(&terminal);
+    session.finalize("game_over").unwrap();
+
+    assert_eq!(session.snapshot().cases.len(), 1);
+    assert!(session.snapshot().cases[0].decision_id.ends_with(":2"));
+    assert_eq!(
+        session.snapshot().cases[0].outcome.player_died_after_action,
+        Some(true)
+    );
 }
 
 #[test]

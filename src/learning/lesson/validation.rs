@@ -1,4 +1,4 @@
-use super::{ActionKind, LessonError, LessonProposal};
+use super::{ActionKind, GuidanceKind, Lesson, LessonError, LessonProposal, OutcomeCode};
 
 pub(super) fn validate_and_canonicalize(proposal: &mut LessonProposal) -> Result<(), LessonError> {
     if proposal.confidence_millis > 1_000 {
@@ -17,6 +17,7 @@ pub(super) fn validate_and_canonicalize(proposal: &mut LessonProposal) -> Result
     if invalid_pattern {
         return Err(LessonError::InvalidActionPattern);
     }
+    validate_guidance_coherence(proposal.outcome_code, pattern.kind, proposal.guidance.kind)?;
     let identifiers = [
         &proposal.language,
         &proposal.scope.character,
@@ -43,6 +44,41 @@ pub(super) fn validate_and_canonicalize(proposal: &mut LessonProposal) -> Result
     sort_dedup(&mut proposal.action_pattern.potion_ids);
     sort_dedup(&mut proposal.source_case_ids);
     Ok(())
+}
+
+pub(super) fn validate_guidance_coherence(
+    outcome_code: OutcomeCode,
+    action_kind: ActionKind,
+    guidance_kind: GuidanceKind,
+) -> Result<(), LessonError> {
+    let coherent = match outcome_code {
+        OutcomeCode::CombatDeath | OutcomeCode::HighCombatHpLoss | OutcomeCode::TurnDamageTaken => {
+            matches!(guidance_kind, GuidanceKind::Avoid | GuidanceKind::Caution)
+        }
+        OutcomeCode::CombatWin
+        | OutcomeCode::LowCombatHpLoss
+        | OutcomeCode::CombatCompletedQuickly => {
+            matches!(guidance_kind, GuidanceKind::Prefer | GuidanceKind::Consider)
+        }
+        OutcomeCode::PotionSpent => {
+            action_kind == ActionKind::UsePotion
+                && matches!(guidance_kind, GuidanceKind::Prefer | GuidanceKind::Consider)
+        }
+        OutcomeCode::PotionPreserved => return Err(LessonError::UnsupportedOutcome),
+    };
+    if !coherent {
+        return Err(LessonError::IncoherentGuidance);
+    }
+    Ok(())
+}
+
+pub(crate) fn lesson_guidance_is_coherent(lesson: &Lesson) -> bool {
+    validate_guidance_coherence(
+        lesson.outcome_code,
+        lesson.action_pattern.kind,
+        lesson.guidance.kind,
+    )
+    .is_ok()
 }
 
 fn sort_dedup(values: &mut Vec<String>) {

@@ -44,6 +44,11 @@ fn draft() -> CaseDraft {
 fn outcome() -> CaseOutcome {
     CaseOutcome {
         command_succeeded: true,
+        player_hp_before_action: None,
+        player_hp_after_action: None,
+        action_hp_lost: None,
+        player_died_after_action: None,
+        alive_monsters_after_action: None,
         turn_hp_lost: Some(8),
         combat_completed: true,
         combat_won: Some(true),

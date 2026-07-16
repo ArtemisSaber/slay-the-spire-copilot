@@ -1,12 +1,14 @@
 use crate::learning::case::DecisionCase;
 use crate::learning::config::MemoryConfig;
 use crate::learning::descriptor::SituationDescriptor;
-use crate::learning::lesson::{Lesson, LessonStatus};
+use crate::learning::lesson::{Lesson, LessonStatus, lesson_guidance_is_coherent};
 use crate::learning::snapshot::KnowledgeSnapshot;
 use std::collections::HashSet;
 
 mod similarity;
 pub use similarity::situation_similarity;
+
+const MIN_PROPOSED_LESSON_CONFIDENCE: u16 = 600;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RetrievalQuery {
@@ -25,12 +27,12 @@ pub struct RetrievalResult {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RetrievalItem {
     Case {
-        case: DecisionCase,
+        case: Box<DecisionCase>,
         similarity: u16,
         rank: i32,
     },
     Lesson {
-        lesson: Lesson,
+        lesson: Box<Lesson>,
         evidence_case_id: String,
         similarity: u16,
         rank: i32,
@@ -103,7 +105,7 @@ fn raw_candidates(
         .filter_map(|case| {
             let similarity = situation_similarity(&query.situation, &case.situation);
             (similarity >= config.case_min_similarity).then(|| RetrievalItem::Case {
-                case: case.clone(),
+                case: Box::new(case.clone()),
                 similarity,
                 rank: i32::from(similarity),
             })
@@ -126,6 +128,13 @@ fn lesson_candidates(
                 lesson.status,
                 LessonStatus::Contested | LessonStatus::Retired
             )
+        })
+        .filter(|lesson| {
+            lesson.status == LessonStatus::Validated || lesson_guidance_is_coherent(lesson)
+        })
+        .filter(|lesson| {
+            lesson.status != LessonStatus::Proposed
+                || lesson.critic.confidence_millis >= MIN_PROPOSED_LESSON_CONFIDENCE
         })
         .filter_map(|lesson| best_lesson_item(lesson, snapshot, query, config))
         .collect()
@@ -172,7 +181,7 @@ fn best_lesson_item(
     let support_bonus = 50.min(10 * lesson.support.distinct_independent_seeds as i32);
     let contradiction_penalty = 100.min(20 * lesson.support.contradicting_cases as i32);
     Some(RetrievalItem::Lesson {
-        lesson: lesson.clone(),
+        lesson: Box::new(lesson.clone()),
         evidence_case_id: evidence.case_id.clone(),
         similarity,
         rank: i32::from(similarity) + status_bonus + support_bonus - contradiction_penalty,

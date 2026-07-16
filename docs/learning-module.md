@@ -348,6 +348,7 @@ src/learning/
 ├── mod.rs                 # module facade
 ├── action.rs              # semantic action mapping and available-action projection
 ├── audit.rs               # deterministic postmortem case selection
+├── audit/scoring.rs       # terminal anchors, harm signals, and stable ordering
 ├── bundle.rs              # verified repository-bundled knowledge
 ├── case.rs                # immutable factual case schema
 ├── cli.rs                 # status, inspect, rebuild, export, and human review
@@ -363,6 +364,8 @@ src/learning/
 ├── retrieval/similarity.rs
 ├── session.rs             # run-scoped learning facade
 ├── session/               # bootstrap, capture, critic, finalization, and resume
+├── session/capture/       # causal-safe case retention
+├── session/critic/        # envelope-v2 contract, prompt, and validation
 ├── snapshot.rs            # immutable verified retrieval view
 ├── store.rs               # append-only logs and atomic derived artifacts
 ├── store/support.rs
@@ -898,6 +901,11 @@ are not compared unless an explicit migration exists.
   "memory_ids_used": [],
   "outcome": {
     "command_succeeded": true,
+    "player_hp_before_action": 34,
+    "player_hp_after_action": 26,
+    "action_hp_lost": 8,
+    "player_died_after_action": false,
+    "alive_monsters_after_action": 1,
     "turn_hp_lost": 8,
     "combat_completed": true,
     "combat_won": true,
@@ -945,9 +953,16 @@ A case means only:
 > In this public situation, the system selected this action and subsequently
 > observed these outcomes.
 
+For newly captured cases, the first changed state after command execution also
+records exact player HP before and after the action, immediate HP loss, whether
+the player died, and the number of living monsters afterward. These optional
+fields are backward-compatible: older case identities omit them rather than
+serializing synthetic null values.
+
 It does not mean:
 
-- The selected action caused the terminal run result.
+- An earlier selected action caused the terminal run result merely because the
+  combat eventually ended in defeat.
 - The selected action was correct because the combat or run won.
 - An unselected candidate would have performed worse.
 - The same action should be repeated in every similar state.
@@ -955,9 +970,12 @@ It does not mean:
 ### 13.4 Outcome Presentation
 
 The persistent case may retain run outcome for analysis. Runtime retrieval
-exposes bounded turn- and combat-level aggregates plus an explicit disclaimer
-that they are observational. Run victory and final floor are omitted from case
-prompt items to avoid attributing an entire run to one action.
+exposes immediate action-level HP observations and bounded turn- and
+combat-level aggregates plus an explicit disclaimer that they are
+observational. Run victory and final floor are omitted from case prompt items
+to avoid attributing an entire run to one action. A
+`player_died_after_action=true` transition establishes temporal proximity to
+death; it still does not prove an unselected counterfactual.
 
 ### 13.5 Case Caps
 
@@ -967,11 +985,11 @@ prompt items to avoid attributing an entire run to one action.
 - At most 256 bytes for any stable external identifier.
 - No raw prompts, model responses, or localized descriptions in `cases.jsonl`.
 
-If a run exceeds the configured case cap, version 1 retains the earliest cases
-in execution order and drops the remainder. The postmortem audit performs its
-own adverse-outcome prioritization over the cases that survived this cap. A
-future retention sampler must be versioned and tested before changing this
-behavior.
+If a run exceeds the configured case cap, the implementation reserves the
+latest 32 cases (or the complete cap when it is smaller) and fills remaining
+capacity with deterministic evenly spaced earlier cases. Retained cases remain
+in execution order. This guarantees that a terminal decision is not discarded
+before the loss-first audit while preserving coverage from earlier acts.
 
 ---
 
@@ -1076,11 +1094,14 @@ combat_death
 combat_win
 high_combat_hp_loss
 low_combat_hp_loss
-potion_spent
-potion_preserved
 turn_damage_taken
 combat_completed_quickly
 ```
+
+`potion_spent` and `potion_preserved` remain readable legacy enum values for
+store compatibility, but critic envelope version 2 does not accept them as
+automatic lesson evidence. A lack of potion use does not establish that a
+potion was owned or usable, and therefore cannot justify action guidance.
 
 Predicate version 1 defines high combat loss as at least 15 HP, low combat loss
 as at most 5 HP, and quick completion as a completed combat ending by turn 3.
@@ -1163,27 +1184,37 @@ positional text for scripting compatibility.
 The implementation reuses the existing optional run-end postmortem request.
 It does not add a second critic request.
 
-### 15.2 Deterministic Audit
+### 15.2 Deterministic Loss-First Audit
 
-The critic receives at most 10 factual cases from the completed run. Cases are
-ordered deterministically by the following priority, with `case_id` as the
-tie-breaker:
+The critic receives at most 10 factual cases from the completed run. Defeats
+use a loss-first selection policy instead of treating every decision in the
+lost combat as equally causal:
 
-- Combat death.
-- High combat HP loss.
-- Prior-memory exposure, so support or contradiction can be inspected.
-- Ranker top semantic action and executed action disagreed.
-- Turn damage was observed.
-- Otherwise, stable case ID order supplies low-risk controls when capacity
-  remains.
+1. Select the action whose first observed successor state contains player
+   death. For legacy cases without action-level outcome fields, select the
+   highest decision sequence in the lost combat as a terminal anchor.
+2. Select harmful ranker disagreements: the executed action differed from the
+   top-ranked action and the action or turn observed HP loss. Zero-damage
+   disagreements such as harmless overblocking do not outrank damaging cases.
+3. Add a bounded terminal decision window in reverse execution order.
+4. Add the highest observed action/turn-damage cases.
+5. Fill remaining capacity with memory-exposure and stable contextual controls.
 
-Flags are hypotheses, not automatic mistakes.
+The selected primary outcome case is emitted explicitly as
+`primary_case_id`. Each case carries its audit role, decision sequence, the
+selected and best-ranked action evaluations, score regret, available semantic
+actions, and immediate outcome fields. Prompt-size truncation removes cases
+from the lowest-priority end, so it cannot silently remove the primary anchor.
+Audit roles remain hypotheses except for directly observed state transitions.
+Victories use the symmetric terminal-success anchor: prefer the latest action
+whose successor state has no living monsters and a living player, falling back
+to the highest decision sequence for legacy cases.
 
 The combined prompt has a hard 20,000-byte ceiling. Lower-priority cases are
 removed until it fits; if even one indivisible case cannot fit, the learning
 appendix is omitted and the ordinary postmortem path remains available.
 
-### 15.3 Response Envelope
+### 15.3 Response Envelope Version 2
 
 When eligible cases are attached, the provider uses a dedicated learning-
 postmortem system prompt. That prompt requires exactly one strict JSON object,
@@ -1199,8 +1230,15 @@ postmortem path.
 
 ```json
 {
-  "schema_version": 1,
-  "report_markdown": "Human-readable postmortem...",
+  "schema_version": 2,
+  "report_markdown": "Human-readable postmortem beginning with the primary outcome mechanism...",
+  "run_analysis": {
+    "outcome": "defeat",
+    "primary_case_id": "sha256:terminal-case",
+    "contributing_case_ids": ["sha256:earlier-damaging-case"],
+    "explanation": "The selected action was immediately followed by zero player HP.",
+    "confidence_millis": 900
+  },
   "lesson_proposals": [
     {
       "source_case_ids": ["sha256:..."],
@@ -1223,13 +1261,13 @@ postmortem path.
         "card_ids": [],
         "potion_ids": []
       },
-      "outcome_code": "high_combat_hp_loss",
+      "outcome_code": "combat_death",
       "guidance": {
         "kind": "caution",
-        "text": "Low-impact Skills may be costly while Enrage is active."
+        "text": "Avoid this action pattern when the recorded retaliation can reduce HP to zero."
       },
-      "rationale": "The cited case lost substantial HP after this pattern.",
-      "confidence_millis": 720
+      "rationale": "The cited selected action was immediately followed by player death.",
+      "confidence_millis": 900
     }
   ]
 }
@@ -1240,6 +1278,14 @@ postmortem path.
 For every proposal:
 
 - Every case ID exists, is eligible, and was supplied to the critic.
+- The `run_analysis` outcome must match recorded run facts. For a defeat, its
+  `primary_case_id` must exactly equal the deterministic terminal anchor;
+  contributing IDs must be supplied causal-candidate cases.
+- Every defeat lesson must cite the primary case, declare `combat_death`, and
+  use `avoid` or `caution`. If no narrow primary lesson validates, zero lessons
+  are saved; an unrelated fallback lesson is forbidden.
+- Every victory lesson must likewise cite its terminal-success anchor, declare
+  `combat_win`, and use `prefer` or `consider`.
 - Scope and trigger values must match the cited case descriptors; required IDs
   are checked as subsets of source facts.
 - Every cited case must match the declared scope, trigger, and action pattern;
@@ -1248,7 +1294,14 @@ For every proposal:
 - Fields for other action kinds must be empty; for example, an `end_turn`
   pattern cannot carry card or potion selectors.
 - The outcome code is true for at least one cited case.
-- Confidence is an integer in `0..=1000`.
+- Negative outcomes require `avoid`/`caution`; positive outcomes require
+  `prefer`/`consider`. Potion outcome codes are not accepted for automatic
+  lessons because inventory availability and benefit are not established by
+  the current outcome fields.
+- Required ranker tags must belong to the cited selected action's ranker
+  evaluation, not merely to some other available action in the situation.
+- Confidence is an integer in `0..=1000`; automatic proposals below 600 are
+  rejected.
 - At most 10 audit cases and five proposals are accepted; identifiers and
   lesson text have fixed length caps, and structured lists are canonicalized.
 - Lesson language and outcome-predicate version are assigned locally from the
@@ -1257,7 +1310,8 @@ For every proposal:
   script tags. They remain untrusted interpretation and have no field capable
   of creating or executing a current action.
 
-At most five proposals are considered. Invalid proposals are discarded
+At most five proposals are considered, and duplicate families from the same
+response are discarded. Invalid proposals are discarded
 independently. A valid human report may still be written. If the response is
 not the envelope, it is treated as the existing prose report and alters no
 knowledge. The deterministic postmortem and factual cases remain available in
@@ -1281,9 +1335,10 @@ terminal, saves no lesson, and leaves a deterministic human-readable report.
 ### 15.6 No Retroactive Truth
 
 The critic cannot know what an unselected action would have done. It may
-propose “be cautious” or “consider,” but it may not create a factual record that
-another action was better. Such language remains hypothesis text and carries
-no executable authority.
+identify a ranker-preferred or deterministically computed alternative, but it
+may not create a factual record that the unexecuted alternative occurred or
+would certainly have won. Such language remains hypothesis text and carries no
+executable authority.
 
 ---
 
@@ -1321,7 +1376,10 @@ structured scope/trigger predicates must match. At least one cited or
 supporting case must also survive the different-seed filter; a single-seed
 lesson cannot reveal itself back to that same seed. Free-text lesson language
 must exactly match the current locale. `contested` and `retired` lessons are
-always excluded in version 1.
+always excluded in version 1. Proposed lessons below 600 critic confidence are
+also excluded. Non-validated legacy lessons whose guidance direction is
+incoherent with their outcome, including `potion_preserved` action guidance,
+are retained for audit but excluded from runtime retrieval.
 
 Local runtime cases reach the snapshot only after terminal eligibility. A
 repository bundle is trusted only after bundle hash verification and code
@@ -1387,6 +1445,9 @@ supported/validated:  similarity >= 700
 proposed:             similarity >= 850
 contested/retired:    not retrieved by default
 ```
+
+The proposed threshold applies only after the 600 minimum critic-confidence
+gate and guidance/outcome coherence gate.
 
 ### 16.5 Retrieval Rank
 
@@ -1863,7 +1924,7 @@ present; empirical gates remain deliberately unclaimed.
 | 1. Eligibility and telemetry | Complete | Runtime compatibility is automatic; trusted rollback provenance remains unavailable |
 | 2. Descriptor and store | Complete | Repository bundle awaits reviewed real runs |
 | 3. Shadow retrieval | Complete | 100-item relevance review pending |
-| 4. Structured lessons | Complete | Real-provider envelope sampling pending |
+| 4. Structured lessons | Complete (causal envelope v2) | Real-provider envelope sampling pending |
 | 5. Prompt injection | Complete, default off | Canary pending |
 | 6. Fixed-snapshot evaluation | Tooling contract defined | Gameplay experiment pending |
 
@@ -2204,7 +2265,15 @@ Section 20.
 - Corrupt local startup source falls back to the verified repository bundle.
 - Structured critic ingest accepts only cited cases from the completed run.
 - The learning-postmortem provider contract returns strict JSON with the
-  human-readable report inside `report_markdown`.
+  human-readable report inside `report_markdown` and a validated
+  `run_analysis` terminal anchor.
+- A Guardian-style mutual-kill regression prioritizes the immediate fatal
+  retaliation decision, rejects a zero-damage overblock lesson, and retains
+  only the terminal `combat_death` lesson.
+- Action capture records exact HP before/after the first successor state, and
+  case-cap retention preserves the terminal decision.
+- Low-confidence and guidance/outcome-incoherent proposed lessons cannot enter
+  runtime retrieval.
 - Eligible-run finalization both persists a validated lesson and writes the
   extracted Markdown report rather than the raw JSON envelope.
 - A TTY launch exposes the terminal control center; CommunicationMod standard

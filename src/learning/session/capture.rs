@@ -4,6 +4,9 @@ use crate::learning::eligibility::{RunFacts, RunObjective, RunOutcome};
 use crate::learning::telemetry::DecisionIdGenerator;
 use crate::state::NormalizedState;
 
+mod retention;
+use retention::retain_bounded_cases;
+
 #[derive(Default)]
 pub(super) struct RunCapture {
     last_state: Option<NormalizedState>,
@@ -33,8 +36,19 @@ impl RunCapture {
     pub(super) fn observe(&mut self, state: &NormalizedState) {
         let observation_hash = state.observation_hash();
         for pending in &mut self.pending {
-            if pending.observation_hash != observation_hash {
+            if !pending.outcome.command_succeeded && pending.observation_hash != observation_hash {
+                let hp = state.current_hp.unwrap_or(0);
                 pending.outcome.command_succeeded = true;
+                pending.outcome.player_hp_after_action = Some(hp);
+                pending.outcome.action_hp_lost = Some((pending.start_hp - hp).max(0));
+                pending.outcome.player_died_after_action = Some(hp <= 0);
+                pending.outcome.alive_monsters_after_action = Some(
+                    state
+                        .monsters
+                        .iter()
+                        .filter(|monster| monster.current_hp.unwrap_or(0) > 0)
+                        .count(),
+                );
             }
         }
         let active = is_active_combat(state);
@@ -105,6 +119,11 @@ impl RunCapture {
             observation_hash: state.observation_hash(),
             outcome: CaseOutcome {
                 command_succeeded: false,
+                player_hp_before_action: state.current_hp,
+                player_hp_after_action: None,
+                action_hp_lost: None,
+                player_died_after_action: None,
+                alive_monsters_after_action: None,
                 turn_hp_lost: None,
                 combat_completed: false,
                 combat_won: None,
@@ -130,9 +149,9 @@ impl RunCapture {
     ) -> anyhow::Result<Vec<DecisionCase>> {
         let final_floor = self.last_state.as_ref().and_then(|state| state.floor);
         let run_victory = terminal.map(|outcome| outcome == RunOutcome::Victory);
-        self.pending
-            .drain(..)
-            .take(maximum)
+        let pending = retain_bounded_cases(self.pending.drain(..).collect(), maximum);
+        pending
+            .into_iter()
             .map(|mut pending| {
                 pending.outcome.run_completed = terminal.is_some();
                 pending.outcome.run_victory = run_victory;

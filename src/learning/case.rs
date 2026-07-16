@@ -8,6 +8,16 @@ use sha2::{Digest, Sha256};
 #[serde(deny_unknown_fields)]
 pub struct CaseOutcome {
     pub command_succeeded: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub player_hp_before_action: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub player_hp_after_action: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub action_hp_lost: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub player_died_after_action: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alive_monsters_after_action: Option<usize>,
     pub turn_hp_lost: Option<i64>,
     pub combat_completed: bool,
     pub combat_won: Option<bool>,

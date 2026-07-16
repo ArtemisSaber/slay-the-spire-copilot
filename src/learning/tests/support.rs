@@ -48,6 +48,10 @@ pub(super) fn situation() -> SituationDescriptor {
 }
 
 pub(super) fn lesson_for(case: &DecisionCase) -> Lesson {
+    lesson_for_confidence(case, 700)
+}
+
+pub(super) fn lesson_for_confidence(case: &DecisionCase, confidence_millis: u16) -> Lesson {
     Lesson::propose(
         LessonProposal {
             language: "en".into(),
@@ -62,7 +66,7 @@ pub(super) fn lesson_for(case: &DecisionCase) -> Lesson {
                 block_threat_buckets: vec![case.situation.block_threat_bucket],
                 required_card_ids: vec![],
                 required_enemy_power_ids: vec!["Enrage".into()],
-                required_ranker_tags: vec!["damage".into()],
+                required_ranker_tags: vec![],
             },
             action_pattern: ActionPattern {
                 kind: ActionKind::EndTurn,
@@ -72,13 +76,13 @@ pub(super) fn lesson_for(case: &DecisionCase) -> Lesson {
             },
             outcome_code: OutcomeCode::CombatWin,
             guidance: Guidance {
-                kind: GuidanceKind::Caution,
+                kind: GuidanceKind::Prefer,
                 text: "This is observational evidence; check the current threat.".into(),
             },
             rationale: "A cited case matched this action and outcome.".into(),
             source_case_ids: vec![case.case_id.clone()],
             critic_model_profile_sha256: "critic".into(),
-            confidence_millis: 700,
+            confidence_millis,
         },
         std::slice::from_ref(case),
     )
@@ -128,6 +132,11 @@ pub(super) fn decision_case_for(
     .finalize(
         CaseOutcome {
             command_succeeded: true,
+            player_hp_before_action: None,
+            player_hp_after_action: None,
+            action_hp_lost: None,
+            player_died_after_action: None,
+            alive_monsters_after_action: None,
             turn_hp_lost: Some(2),
             combat_completed: true,
             combat_won: Some(combat_won),

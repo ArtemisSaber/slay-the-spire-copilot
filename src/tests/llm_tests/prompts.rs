@@ -105,9 +105,10 @@ fn postmortem_system_prompt_is_defined() {
 fn learning_postmortem_requires_json_with_the_report_inside_a_field() {
     let prompt = learning_postmortem_system_prompt(test_locale());
 
-    assert!(prompt.contains("LEARNING_CRITIC_ENVELOPE_V1"));
+    assert!(prompt.contains("LEARNING_CRITIC_ENVELOPE_V2"));
     assert!(prompt.contains("strict JSON"));
     assert!(prompt.contains("\"report_markdown\""));
+    assert!(prompt.contains("\"run_analysis\""));
     assert!(prompt.contains("inside report_markdown"));
     assert!(!prompt.contains("输出 Markdown："));
 }

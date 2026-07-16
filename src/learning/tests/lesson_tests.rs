@@ -21,7 +21,7 @@ fn proposal(source_case_id: String, guidance: &str) -> LessonProposal {
             block_threat_buckets: vec![BlockThreatBucket::Danger],
             required_card_ids: vec![],
             required_enemy_power_ids: vec!["Enrage".into()],
-            required_ranker_tags: vec!["damage".into()],
+            required_ranker_tags: vec![],
         },
         action_pattern: ActionPattern {
             kind: ActionKind::EndTurn,
@@ -31,7 +31,7 @@ fn proposal(source_case_id: String, guidance: &str) -> LessonProposal {
         },
         outcome_code: OutcomeCode::CombatWin,
         guidance: Guidance {
-            kind: GuidanceKind::Caution,
+            kind: GuidanceKind::Prefer,
             text: guidance.into(),
         },
         rationale: "Observed a combat win after this action.".into(),

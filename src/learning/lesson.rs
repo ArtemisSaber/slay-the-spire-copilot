@@ -9,6 +9,7 @@ mod matching;
 mod validation;
 
 pub use event::{LessonEvent, LessonEventKind};
+pub(crate) use validation::lesson_guidance_is_coherent;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -141,6 +142,8 @@ pub enum LessonError {
     SourceDoesNotMatch,
     OutcomeNotObserved,
     InvalidActionPattern,
+    IncoherentGuidance,
+    UnsupportedOutcome,
     InvalidIdentifier,
     UnsafeText,
     InvalidConfidence,

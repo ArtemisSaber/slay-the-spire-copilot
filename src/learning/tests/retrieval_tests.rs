@@ -1,4 +1,6 @@
-use super::support::{decision_case, decision_case_for, lesson_for, situation};
+use super::support::{
+    decision_case, decision_case_for, lesson_for, lesson_for_confidence, situation,
+};
 use crate::learning::config::MemoryConfig;
 use crate::learning::descriptor::{CountBucket, RatioBucket};
 use crate::learning::lesson::{LessonStatus, OutcomeCode};
@@ -64,6 +66,31 @@ fn proposed_lesson_requires_language_match_and_high_similarity() {
     let wrong_language = retrieve(&snapshot, &query("zh"), &MemoryConfig::default());
     assert!(
         !wrong_language
+            .items
+            .iter()
+            .any(|item| item.id() == lesson.lesson_id)
+    );
+}
+
+#[test]
+fn low_confidence_proposed_lesson_is_not_retrieved() {
+    let case = decision_case("source", 1);
+    let lesson = lesson_for_confidence(&case, 400);
+    let snapshot =
+        KnowledgeSnapshot::build_with_lessons(vec![case], vec![lesson.clone()], &[]).unwrap();
+    let result = retrieve(
+        &snapshot,
+        &RetrievalQuery {
+            situation: situation(),
+            seed_hash: crate::learning::case::seed_hash(99, "mods"),
+            compatibility_sha256: "mods".into(),
+            language: "en".into(),
+        },
+        &MemoryConfig::default(),
+    );
+
+    assert!(
+        !result
             .items
             .iter()
             .any(|item| item.id() == lesson.lesson_id)

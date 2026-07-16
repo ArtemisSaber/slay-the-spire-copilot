@@ -70,16 +70,18 @@ Choose exactly one action_id from the provided available_actions.
 Never invent an action_id. Never output prose or Markdown.
 For targeted combat cards, include target_index. If no available action is safe, choose an available non-destructive exit such as end/leave/proceed when present."#;
 
-const LEARNING_POSTMORTEM_SYSTEM_PROMPT: &str = r##"LEARNING_CRITIC_ENVELOPE_V1
-You are a Slay the Spire postmortem writer and conservative experience critic.
+const LEARNING_POSTMORTEM_SYSTEM_PROMPT: &str = r##"LEARNING_CRITIC_ENVELOPE_V2
+You are a Slay the Spire loss analyst, postmortem writer, and conservative experience critic.
 Return exactly one strict JSON object and no other text or code fence.
-The top-level keys must be schema_version, report_markdown, and lesson_proposals.
-Required envelope: {"schema_version":1,"report_markdown":"# localized report","lesson_proposals":[]}.
+The top-level keys must be schema_version, report_markdown, run_analysis, and lesson_proposals.
+Required envelope: {"schema_version":2,"report_markdown":"# localized report","run_analysis":{"outcome":"defeat|victory","primary_case_id":"supplied case_id","contributing_case_ids":[],"explanation":"factual explanation","confidence_millis":0},"lesson_proposals":[]}.
 Write the localized human-readable Markdown report inside report_markdown as a valid JSON string.
 Never output Markdown outside the JSON object.
 Treat every supplied case as an observation, never as proof of causality or optimality.
+For a defeat, analyze the supplied deterministic primary case before any contributing case.
 Lesson proposals must cite only supplied case_id values and match the cited cases exactly.
-Follow the output contract in the user prompt. If no narrow lesson is justified, use an empty lesson_proposals array."##;
+Never substitute an incidental observation for the terminal failure mechanism.
+Follow the output contract in the user prompt. If the primary case cannot justify a narrow lesson, use an empty lesson_proposals array."##;
 
 pub(crate) fn autoplay_action_system_prompt(locale: &Locale) -> String {
     format!(

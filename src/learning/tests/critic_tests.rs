@@ -38,8 +38,10 @@ fn critic_prompt_is_bounded_and_contains_only_cases_from_the_completed_run() {
 
     let prompt = session.build_critic_prompt("base report", "run-a").unwrap();
 
-    assert!(prompt.contains("LEARNING_CRITIC_ENVELOPE_V1"));
+    assert!(prompt.contains("LEARNING_CRITIC_ENVELOPE_V2"));
     assert!(prompt.contains(&case_id));
+    assert!(prompt.contains("primary_case_id"));
+    assert!(prompt.contains("ranker_evaluation"));
     assert!(!prompt.contains("seed_hash"));
     assert!(prompt.len() <= 20_000);
     assert!(session.build_critic_prompt("base", "other-run").is_none());
@@ -81,8 +83,15 @@ fn critic_accepts_only_structured_lessons_citing_supplied_cases() {
     let case = session.snapshot().cases[0].clone();
     let lesson = lesson_for(&case);
     let response = serde_json::json!({
-        "schema_version": 1,
+        "schema_version": 2,
         "report_markdown": "# Review\n\nA sufficiently detailed postmortem report for this completed run.",
+        "run_analysis": {
+            "outcome": "victory",
+            "primary_case_id": case_id,
+            "contributing_case_ids": [],
+            "explanation": "The cited decision is the deterministic audit anchor for this victory.",
+            "confidence_millis": 700
+        },
         "lesson_proposals": [{
             "scope": lesson.scope,
             "trigger": lesson.trigger,
@@ -112,8 +121,15 @@ fn one_malformed_proposal_does_not_discard_valid_siblings() {
     let case = session.snapshot().cases[0].clone();
     let lesson = lesson_for(&case);
     let response = serde_json::json!({
-        "schema_version": 1,
+        "schema_version": 2,
         "report_markdown": "Review",
+        "run_analysis": {
+            "outcome": "victory",
+            "primary_case_id": case_id,
+            "contributing_case_ids": [],
+            "explanation": "The cited decision is the deterministic audit anchor for this victory.",
+            "confidence_millis": 700
+        },
         "lesson_proposals": [
             {"scope": "not-an-object"},
             {
