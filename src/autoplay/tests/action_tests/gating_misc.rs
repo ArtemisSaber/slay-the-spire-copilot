@@ -39,14 +39,38 @@ fn unknown_screen_type_returns_empty_candidates() {
 }
 
 #[test]
-fn shop_candidates_already_entered_shows_proceed_and_leave() {
+fn shop_screen_keeps_choices_until_returning_to_shop_room() {
     let raw = json!({
         "available_commands": ["choose", "proceed", "leave"],
         "ready_for_command": true,
         "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5, "choice_list": ["purge"]}
     });
     let session = AutoPlaySession {
-        last_shop_room_floor: Some(5),
+        completed_shop_floor: Some(5),
+
+        ..Default::default()
+    };
+    let mut s = state(raw.clone());
+    s.floor = Some(5);
+    let candidates = available_action_candidates(
+        &AutoPlayControl::default_enabled(),
+        &session,
+        &command_state(&raw),
+        &s,
+    );
+    assert!(candidates.iter().any(|c| c.action_id == "shop:choice:0"));
+    assert!(candidates.iter().any(|c| c.action_id == "shop:leave"));
+}
+
+#[test]
+fn completed_shop_room_suppresses_reentry() {
+    let raw = json!({
+        "available_commands": ["choose", "proceed", "leave"],
+        "ready_for_command": true,
+        "game_state": {"screen_type": "SHOP_ROOM", "floor": 5, "choice_list": ["shop"]}
+    });
+    let session = AutoPlaySession {
+        completed_shop_floor: Some(5),
 
         ..Default::default()
     };
@@ -64,25 +88,24 @@ fn shop_candidates_already_entered_shows_proceed_and_leave() {
 }
 
 #[test]
-fn shop_candidates_already_entered_no_proceed_command() {
+fn completed_shop_on_another_floor_does_not_suppress_entry() {
     let raw = json!({
-        "available_commands": ["leave"],
+        "available_commands": ["choose", "leave"],
         "ready_for_command": true,
-        "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5, "choice_list": []}
+        "game_state": {"screen_type": "SHOP_ROOM", "floor": 6, "choice_list": ["shop"]}
     });
     let session = AutoPlaySession {
-        last_shop_room_floor: Some(5),
+        completed_shop_floor: Some(5),
 
         ..Default::default()
     };
     let mut s = state(raw.clone());
-    s.floor = Some(5);
+    s.floor = Some(6);
     let candidates = available_action_candidates(
         &AutoPlayControl::default_enabled(),
         &session,
         &command_state(&raw),
         &s,
     );
-    assert_eq!(candidates.len(), 1);
-    assert_eq!(candidates[0].action_id, "shop:leave");
+    assert!(candidates.iter().any(|c| c.action_id == "shop:choice:0"));
 }

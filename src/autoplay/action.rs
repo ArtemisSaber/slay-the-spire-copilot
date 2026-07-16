@@ -98,7 +98,7 @@ pub fn available_action_candidates(
         Some("REST") if control.allow_rest => rest_candidates(command_state, state),
         Some("EVENT") if control.allow_events => event_candidates(command_state, state),
         Some("SHOP_ROOM" | "SHOP_SCREEN") if control.allow_shop => {
-            shop_candidates(session, command_state, state.floor)
+            shop_candidates(session, command_state, state)
         }
         Some("MAP") if control.allow_map => map_candidates(command_state),
         Some("NONE") if control.allow_combat => combat_candidates(command_state, state),
@@ -197,6 +197,23 @@ pub fn execute_action_to(writer: &mut impl Write, action: &AutoPlayAction) {
         AutoPlayAction::Skip => protocol::send_skip_to(writer),
         AutoPlayAction::Proceed => protocol::send_proceed_to(writer),
         AutoPlayAction::Leave => protocol::send_leave_to(writer),
+    }
+}
+
+pub(crate) fn record_executed_action(
+    session: &mut AutoPlaySession,
+    state: &NormalizedState,
+    action: &AutoPlayAction,
+) {
+    let is_shop = matches!(
+        state.screen_type.as_ref().map(|screen| screen.as_str()),
+        Some("SHOP_ROOM" | "SHOP_SCREEN")
+    );
+    if is_shop
+        && matches!(action, AutoPlayAction::Leave)
+        && let Some(floor) = state.floor
+    {
+        session.completed_shop_floor = Some(floor);
     }
 }
 

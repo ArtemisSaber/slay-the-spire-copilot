@@ -126,10 +126,6 @@ pub(crate) async fn plan_action_with_memory(
         )));
     }
 
-    if state.screen_type.as_ref().map(|st| st.as_str()) == Some("SHOP_SCREEN") {
-        session.last_shop_room_floor = state.floor;
-    }
-
     let effort = state
         .screen_type
         .as_ref()

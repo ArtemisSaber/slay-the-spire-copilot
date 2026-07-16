@@ -202,6 +202,7 @@ impl GameRuntime {
         self.cache = AdviceCache::new();
         self.combat_turn_gate = CombatTurnGate::new();
         self.map_gate = MapGate::new();
+        self.autoplay_session = AutoPlaySession::default();
         self.saw_game_state = false;
         self.run_finalized = false;
         self.last_autoplay_state = None;

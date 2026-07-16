@@ -48,6 +48,36 @@ fn execute_action_writes_protocol_command() {
     );
 }
 
+#[test]
+fn recording_shop_leave_marks_the_floor_completed() {
+    let raw = json!({
+        "available_commands": ["leave"],
+        "ready_for_command": true,
+        "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5}
+    });
+    let mut session = AutoPlaySession::default();
+    let state = state(raw);
+
+    record_executed_action(&mut session, &state, &AutoPlayAction::Leave);
+
+    assert_eq!(session.completed_shop_floor, Some(5));
+}
+
+#[test]
+fn recording_shop_purchase_does_not_complete_the_floor() {
+    let raw = json!({
+        "available_commands": ["choose", "leave"],
+        "ready_for_command": true,
+        "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5}
+    });
+    let mut session = AutoPlaySession::default();
+    let state = state(raw);
+
+    record_executed_action(&mut session, &state, &AutoPlayAction::Choose(0));
+
+    assert_eq!(session.completed_shop_floor, None);
+}
+
 // ─── execute_action_to Edge cases ─────────────────────────────────
 
 #[test]

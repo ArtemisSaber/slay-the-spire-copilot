@@ -571,6 +571,9 @@ Execution:
 - One transaction per fresh state.
 - Re-plan after every purchase because gold and inventory change.
 - Leave only when planner chooses `shop:leave` and no mandatory action remains.
+- Mark the shop floor completed only after executing `shop:leave`. While still
+  on `SHOP_SCREEN`, keep exposing purchases from every fresh state; after
+  returning to `SHOP_ROOM`, suppress re-entry and proceed onward.
 
 Safety:
 

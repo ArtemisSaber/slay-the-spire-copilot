@@ -30,7 +30,7 @@ fn shop_candidates_first_visit_shows_choices_and_leave() {
         "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5, "choice_list": ["purge", "Strike"]}
     });
     let session = AutoPlaySession {
-        last_shop_room_floor: Some(3),
+        completed_shop_floor: Some(3),
 
         ..Default::default()
     };
@@ -55,7 +55,7 @@ fn resolve_shop_proceed_returns_proceed() {
         "game_state": {"screen_type": "SHOP_SCREEN", "floor": 5, "choice_list": []}
     });
     let session = AutoPlaySession {
-        last_shop_room_floor: Some(5),
+        completed_shop_floor: Some(5),
 
         ..Default::default()
     };
@@ -81,7 +81,7 @@ fn shop_candidates_floor_none_not_entered() {
         "game_state": {"screen_type": "SHOP_SCREEN", "choice_list": ["purge"]}
     });
     let session = AutoPlaySession {
-        last_shop_room_floor: Some(5),
+        completed_shop_floor: Some(5),
 
         ..Default::default()
     };

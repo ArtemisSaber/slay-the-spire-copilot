@@ -1,5 +1,6 @@
 use crate::autoplay::command_state::CommandState;
 use crate::autoplay::control::AutoPlaySession;
+use crate::state::NormalizedState;
 
 use super::{ActionCandidate, ActionRequest, AutoPlayAction, candidate, parse_index};
 
@@ -43,16 +44,18 @@ pub(super) fn resolve_requested_indexed(
 pub(super) fn shop_candidates(
     session: &AutoPlaySession,
     command_state: &CommandState,
-    floor: Option<i64>,
+    state: &NormalizedState,
 ) -> Vec<ActionCandidate> {
     let mut candidates = vec![];
 
-    let already_entered = match (session.last_shop_room_floor, floor) {
+    let completed = match (session.completed_shop_floor, state.floor) {
         (Some(last), Some(current)) => last == current,
         _ => false,
     };
+    let inside_shop =
+        state.screen_type.as_ref().map(|screen| screen.as_str()) == Some("SHOP_SCREEN");
 
-    if already_entered {
+    if completed && !inside_shop {
         if command_state.has_command("proceed") {
             candidates.push(candidate(
                 "proceed",
@@ -68,6 +71,19 @@ pub(super) fn shop_candidates(
                 choice.clone(),
             ));
         }
+    }
+
+    if inside_shop
+        && command_state.has_command("proceed")
+        && !candidates
+            .iter()
+            .any(|candidate| candidate.action_id == "shop:proceed")
+    {
+        candidates.push(candidate(
+            "proceed",
+            "shop:proceed".to_string(),
+            "Proceed".to_string(),
+        ));
     }
 
     if command_state.has_command("leave") {

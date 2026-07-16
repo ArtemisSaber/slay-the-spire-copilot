@@ -86,6 +86,11 @@ impl GameRuntime {
                     );
                     let mut stdout = io::stdout().lock();
                     crate::autoplay::action::execute_action_to(&mut stdout, &planned.action);
+                    crate::autoplay::action::record_executed_action(
+                        &mut self.autoplay_session,
+                        state.normalized,
+                        &planned.action,
+                    );
                     true
                 } else {
                     self.autoplay_overlay_state.mode = format!(

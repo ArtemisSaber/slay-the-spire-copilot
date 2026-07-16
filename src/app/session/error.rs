@@ -78,6 +78,11 @@ impl GameRuntime {
                         );
                         let mut stdout = io::stdout().lock();
                         crate::autoplay::action::execute_action_to(&mut stdout, &planned.action);
+                        crate::autoplay::action::record_executed_action(
+                            &mut self.autoplay_session,
+                            &saved_normalized,
+                            &planned.action,
+                        );
                     } else {
                         let retry_scenario = AdviceScenario::from_state(&saved_normalized);
                         crate::autoplay::status::write_overlay_autoplay(
