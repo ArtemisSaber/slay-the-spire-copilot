@@ -386,8 +386,11 @@ observed action/turn/combat/run outcomes. The LLM cites stable decision IDs,
 not internal SHA IDs that a user must manually enter.
 
 The deterministic report prefix is capped at 8,000 bytes and the complete
-critic prompt at 40,000 bytes. If the appendix cannot fit, normal postmortem
-behavior remains available and no lesson is created.
+critic prompt at 40,000 bytes. If the selected evidence exceeds that budget,
+the builder removes the oldest cases first while preserving the current run's
+terminal window. It then trims older related-run evidence before reducing that
+terminal window. Only an indivisible final case that cannot fit falls back to
+normal postmortem behavior without creating a lesson.
 
 ### 8.4 Prompt contract
 
@@ -657,7 +660,7 @@ maintainer inspect/verify tooling but are not required for normal operation.
 | Unknown or ambiguous stable action/target | Do not create a cross-run case for it |
 | Same-seed evidence | Exclude before similarity scoring |
 | Context item exceeds byte limit | Omit the whole item |
-| Critic prompt exceeds 40,000 bytes | Use ordinary report behavior; create no lesson |
+| Critic prompt exceeds 40,000 bytes | Trim oldest evidence first and preserve terminal evidence; use ordinary report behavior only if one indivisible case still cannot fit |
 | Invalid critic JSON or references | Preserve report fallback and factual cases; create no lesson |
 | Store append fails | Preserve the run journal; do not publish a new snapshot |
 | Continued-run snapshot is missing | Disable memory for that run rather than substitute a newer snapshot |

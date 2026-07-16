@@ -7,6 +7,7 @@ mod cli_tests;
 mod compatibility_tests;
 mod config_tests;
 mod context_tests;
+mod critic_budget_tests;
 mod critic_causality_support;
 mod critic_causality_tests;
 mod critic_tests;

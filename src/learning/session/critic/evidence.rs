@@ -5,6 +5,7 @@ use crate::learning::case::DecisionCase;
 
 const CURRENT_RUN_CASES: usize = 14;
 const RELATED_RUN_CASES: usize = 6;
+const CURRENT_RUN_TERMINAL_CASES: usize = 4;
 
 pub(super) fn supplied_cases<'a>(
     all: &'a [DecisionCase],
@@ -70,6 +71,44 @@ pub(super) fn source_case_ids(
     ids.sort();
     ids.dedup();
     Some(ids)
+}
+
+pub(super) fn trim_oldest_case(cases: &mut Vec<&DecisionCase>, current_run_id: &str) -> bool {
+    let current_count = cases
+        .iter()
+        .filter(|case| case.run_id == current_run_id)
+        .count();
+    if current_count > CURRENT_RUN_TERMINAL_CASES
+        && let Some(index) = cases.iter().position(|case| case.run_id == current_run_id)
+    {
+        cases.remove(index);
+        return true;
+    }
+
+    let mut related_counts = HashMap::<&str, usize>::new();
+    for case in cases.iter().filter(|case| case.run_id != current_run_id) {
+        *related_counts.entry(case.run_id.as_str()).or_default() += 1;
+    }
+    if let Some(index) = cases.iter().position(|case| {
+        case.run_id != current_run_id
+            && related_counts
+                .get(case.run_id.as_str())
+                .is_some_and(|count| *count > 1)
+    }) {
+        cases.remove(index);
+        return true;
+    }
+    if let Some(index) = cases.iter().position(|case| case.run_id != current_run_id) {
+        cases.remove(index);
+        return true;
+    }
+    if current_count > 1
+        && let Some(index) = cases.iter().position(|case| case.run_id == current_run_id)
+    {
+        cases.remove(index);
+        return true;
+    }
+    false
 }
 
 fn select_run_cases<'a>(

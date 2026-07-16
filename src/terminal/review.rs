@@ -92,7 +92,7 @@ pub(crate) async fn review_run_with_provider(
         crate::learning::session::bootstrap_session(project_root, config, locale_key, false)?;
     let prompt = learning
         .build_critic_prompt(&base_prompt, run_id)
-        .context("this run has no saved decision cases available for review")?;
+        .context("saved decision cases could not be converted into a bounded review prompt")?;
     let response = provider.query_learning_postmortem(&prompt, locale).await?;
     let ingest = learning.ingest_critic_response(&response, run_id)?;
     let report = if ingest.response_valid {

@@ -10,7 +10,7 @@ mod mode;
 mod prompt;
 
 use contract::{CriticEnvelope, CriticResult, safe_text, valid_result_shape};
-use evidence::{allowed_decisions, source_case_ids, supplied_cases};
+use evidence::{allowed_decisions, source_case_ids, supplied_cases, trim_oldest_case};
 use mode::{CriticMode, context_for_run};
 use prompt::{critic_appendix, truncate_utf8, valid_report};
 
@@ -30,14 +30,35 @@ pub struct CriticIngest {
 impl LearningSession {
     pub fn build_critic_prompt(&self, base_report_prompt: &str, run_id: &str) -> Option<String> {
         let context = context_for_run(self, run_id)?;
-        let cases = supplied_cases(&self.snapshot.cases, run_id, context.mode);
+        let mut cases = supplied_cases(&self.snapshot.cases, run_id, context.mode);
         if cases.is_empty() {
             return None;
         }
         let base = truncate_utf8(base_report_prompt, MAX_REPORT_BYTES);
-        let appendix = critic_appendix(&context, &cases);
-        let prompt = format!("{base}\n\nLEARNING_CRITIC_ENVELOPE_V3\n{appendix}");
-        (prompt.len() <= MAX_PROMPT_BYTES).then_some(prompt)
+        let original_count = cases.len();
+        loop {
+            let appendix = critic_appendix(&context, &cases);
+            let prompt = format!("{base}\n\nLEARNING_CRITIC_ENVELOPE_V3\n{appendix}");
+            if prompt.len() <= MAX_PROMPT_BYTES {
+                if cases.len() < original_count {
+                    tracing::info!(
+                        "trimmed learning critic evidence from {} to {} cases for run {}",
+                        original_count,
+                        cases.len(),
+                        run_id,
+                    );
+                }
+                return Some(prompt);
+            }
+            if !trim_oldest_case(&mut cases, run_id) {
+                tracing::warn!(
+                    "learning critic evidence for run {} cannot fit within {} bytes",
+                    run_id,
+                    MAX_PROMPT_BYTES,
+                );
+                return None;
+            }
+        }
     }
 
     pub fn ingest_critic_response(
