@@ -1,4 +1,5 @@
-use crate::autoplay::action::AutoPlayAction;
+use crate::autoplay::action::{ActionCandidate, AutoPlayAction, action_reference};
+use crate::ranker::context::ActionType;
 use crate::state::NormalizedState;
 
 mod memory;
@@ -61,6 +62,7 @@ fn derive_tags(breakdown: &[crate::ranker::engine::RuleResult]) -> Vec<String> {
     tags
 }
 
+#[cfg(test)]
 fn action_entry(
     s: &crate::ranker::engine::ScoredAction,
     state: &NormalizedState,
@@ -75,6 +77,60 @@ fn action_entry(
     })
 }
 
+fn referenced_action_entry(
+    scored: &crate::ranker::engine::ScoredAction,
+    state: &NormalizedState,
+    candidates: &[ActionCandidate],
+) -> Option<serde_json::Value> {
+    let candidate_index = candidate_index(scored, state, candidates)?;
+    let candidate = &candidates[candidate_index];
+    Some(serde_json::json!({
+        "ref": action_reference(candidate_index),
+        "label": candidate.label,
+        "target": resolve_target(state, scored.target_index),
+        "score": scored.score,
+        "tags": derive_tags(&scored.breakdown),
+    }))
+}
+
+fn candidate_index(
+    scored: &crate::ranker::engine::ScoredAction,
+    state: &NormalizedState,
+    candidates: &[ActionCandidate],
+) -> Option<usize> {
+    match &scored.action_type {
+        ActionType::PlayCard { card_id, .. } => candidates
+            .iter()
+            .position(|candidate| candidate.action_id == format!("combat:play:{card_id}")),
+        ActionType::EndTurn => candidates
+            .iter()
+            .position(|candidate| candidate.action_id == "combat:end"),
+        ActionType::UsePotion { potion_name } => unique_potion_candidate(
+            state
+                .potions
+                .iter()
+                .filter(|potion| potion.name == *potion_name)
+                .filter_map(|potion| {
+                    let action_id = format!("combat:potion:{}", potion.slot);
+                    candidates
+                        .iter()
+                        .position(|candidate| candidate.action_id == action_id)
+                }),
+        ),
+    }
+}
+
+fn unique_potion_candidate(indices: impl Iterator<Item = usize>) -> Option<usize> {
+    let mut unique = indices.collect::<Vec<_>>();
+    unique.sort_unstable();
+    unique.dedup();
+    let [index] = unique.as_slice() else {
+        return None;
+    };
+    Some(*index)
+}
+
+#[cfg(test)]
 pub fn top_ranked_context(state: &NormalizedState) -> Option<serde_json::Value> {
     if state.screen_type.as_ref().map(|st| st.as_str()) != Some("NONE") {
         return None;
@@ -93,6 +149,21 @@ pub fn top_ranked_context(state: &NormalizedState) -> Option<serde_json::Value> 
     Some(serde_json::json!({
         "ranked_suggestions": actions
     }))
+}
+
+pub fn top_ranked_context_with_refs(
+    state: &NormalizedState,
+    candidates: &[ActionCandidate],
+) -> Option<serde_json::Value> {
+    if state.screen_type.as_ref().map(|st| st.as_str()) != Some("NONE") {
+        return None;
+    }
+    let actions: Vec<_> = crate::ranker::rank(state)
+        .iter()
+        .filter(|scored| !scored.is_avoid)
+        .filter_map(|scored| referenced_action_entry(scored, state, candidates))
+        .collect();
+    (!actions.is_empty()).then(|| serde_json::json!(actions))
 }
 
 #[cfg(test)]

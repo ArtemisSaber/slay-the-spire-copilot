@@ -71,12 +71,11 @@ Screen-specific command mapping:
 | `NONE` (combat) | `choose <0..N-1>` + `key end` | Play card from hand; `key` for end turn |
 | `HAND_SELECT` | `choose <0..N-1>` | Discard/exhaust selection screens |
 
-Key challenge: **index resolution**. The LLM doesn't know about array indices — it selects by name. The executor must:
-1. Parse the LLM's action (e.g., "pick Shrug It Off")
-2. Look up the index in `card_reward_choices`, `boss_relic_choices`, `event_choices`, etc.
-3. Send `choose <index>`
-
-For combat, the LLM must reference cards by **name** or **uuid** (which are already in the prompt), and the executor maps these back to hand indices.
+Key challenge: **reference resolution**. The prompt assigns temporary `A0..An`
+refs to authoritative action candidates. The LLM selects one ref, and the
+executor maps it to the internal action ID, current choice or hand index, and
+optional monster target. Card UUIDs remain internal and are never reproduced by
+the model.
 
 ### E. Command Readiness Tracking (small, ~50 lines)
 - Extract `available_commands` and `ready_for_command` from the raw JSON (currently not parsed)

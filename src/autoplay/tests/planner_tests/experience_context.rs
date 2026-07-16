@@ -68,11 +68,11 @@ fn planner_response_keeps_only_memory_ids_that_were_retrieved() {
     let (control, command, state, candidates) = combat_fixture();
     let parsed = parse_planner_response_with_memory(
         r#"{
-            "schema_version": 1,
+            "schema_version": 2,
             "memory_ids_used": ["lesson:one", "invented", "lesson:one"],
             "actions": [{
-                "kind": "play", "action_id": "combat:play:strike-1",
-                "target_index": 0, "label": "Strike", "reason": "Known case", "risk": ""
+                "ref": "A0", "target_index": 0,
+                "reason": "Known case", "risk": ""
             }]
         }"#,
         &control,
@@ -110,6 +110,35 @@ fn legacy_prompt_omits_experience_context() {
     let payload: Value = serde_json::from_str(&prompt).unwrap();
 
     assert!(payload.get("experience_context").is_none());
+}
+
+#[tokio::test]
+async fn combat_reference_resolves_to_the_real_action_and_telemetry_id() {
+    let (mut control, command, state, _) = combat_fixture();
+    let planned = plan_action_with_memory(
+        &LlmProvider::Mock,
+        &mut control,
+        &mut AutoPlaySession::default(),
+        &command,
+        &state,
+        &Locale::load("en"),
+        false,
+        None,
+        &[],
+    )
+    .await
+    .unwrap()
+    .unwrap();
+
+    assert_eq!(
+        planned.action,
+        AutoPlayAction::Play {
+            hand_index: 0,
+            target_index: Some(0)
+        }
+    );
+    assert_eq!(planned.selected_action_id, "combat:play:strike-1");
+    assert_eq!(planned.source, DecisionSource::Llm);
 }
 
 #[tokio::test]

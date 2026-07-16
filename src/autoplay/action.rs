@@ -9,7 +9,10 @@ use crate::state::NormalizedState;
 
 mod combat;
 mod navigation;
+mod reference;
 mod rewards;
+
+pub(crate) use reference::{action_reference, candidate_for_reference, prompt_action_candidates};
 
 use combat::{combat_candidates, resolve_requested_combat};
 use navigation::{

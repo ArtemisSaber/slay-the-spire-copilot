@@ -19,7 +19,7 @@ use fallback::fallback_action;
 #[cfg(test)]
 use fallback::fallback_rest_action;
 #[cfg(test)]
-use prompting::ActionRequestSummary;
+use prompting::ActionSelectionSummary;
 use prompting::{
     RejectedAttempt, build_planner_prompt_with_memory, parse_planner_response_with_memory,
     rejected_action_from_response,

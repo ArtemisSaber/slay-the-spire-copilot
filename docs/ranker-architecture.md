@@ -1122,11 +1122,20 @@ scanner is ready, replace that rule with one that calls
 
 ### Autoplay
 
-`top_ranked_context()` in `src/autoplay/combat_adviser.rs` calls `rank()` and returns a flat array of all non-avoided actions with `score` and `tags` (derived from matched rule_ids: `damage`, `block`, `excessive`, `killable`, `lethal`, `priority_kill`, `heal`, `power`, `draw`, `potion`). Avoided actions (`is_avoid == true`) are excluded. The consumer (planner) injects this as `ranked_suggestions` into the LLM prompt.
+`top_ranked_context_with_refs()` in `src/autoplay/combat_adviser.rs` calls
+`rank()` and returns a flat array of all non-avoided actions with the same
+prompt-scoped refs used by `available_actions`, plus `score` and `tags`
+(derived from matched rule IDs: `damage`, `block`, `excessive`, `killable`,
+`lethal`, `priority_kill`, `heal`, `power`, `draw`, `potion`). Avoided actions
+(`is_avoid == true`) and suggestions that cannot be mapped unambiguously to an
+available action are excluded.
 
 ### Prompt Builder
 
-The LLM prompt receives `ranked_suggestions` as a flat array of `{action, target, score, tags}` objects — no rule breakdown, no suggested/other/avoided split.
+The LLM prompt receives `ranked_suggestions` as a flat array of
+`{ref, label, target, score, tags}` objects. Execution-local UUIDs and internal
+action IDs are not exposed through ranker suggestions. There is no rule
+breakdown or suggested/other/avoided split.
 
 ---
 

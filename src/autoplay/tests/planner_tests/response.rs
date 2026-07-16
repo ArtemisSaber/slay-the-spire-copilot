@@ -41,11 +41,9 @@ fn parses_llm_action_json_into_executable_action() {
 
     let action = parse_planner_response(
         r#"{
-            "schema_version": 1,
+            "schema_version": 2,
             "actions": [{
-                "kind": "choose",
-                "action_id": "card_reward:1",
-                "label": "Anger",
+                "ref": "A1",
                 "reason": "Cheap attack.",
                 "risk": ""
             }]
@@ -82,11 +80,9 @@ fn rejects_unavailable_llm_action() {
 
     let error = parse_planner_response(
         r#"{
-            "schema_version": 1,
+            "schema_version": 2,
             "actions": [{
-                "kind": "choose",
-                "action_id": "event:9",
-                "label": "Bad index",
+                "ref": "A9",
                 "reason": "",
                 "risk": ""
             }]
@@ -98,7 +94,7 @@ fn rejects_unavailable_llm_action() {
     )
     .unwrap_err();
 
-    assert!(error.to_string().contains("unavailable action_id"));
+    assert!(error.to_string().contains("unknown action ref A9"));
 }
 
 #[test]
@@ -130,7 +126,41 @@ fn rejects_non_json_llm_output() {
     )
     .unwrap_err();
 
-    assert!(error.to_string().contains("non-JSON"));
+    assert!(error.to_string().contains("invalid JSON syntax"));
+}
+
+#[test]
+fn distinguishes_valid_json_with_an_invalid_planner_schema() {
+    let raw = json!({
+        "available_commands": ["choose"],
+        "ready_for_command": true,
+        "game_state": {"screen_type": "EVENT", "choice_list": ["Leave"]}
+    });
+    let control = AutoPlayControl::default_enabled();
+    let command_state = command_state(&raw);
+    let state = state(raw);
+    let candidates = available_action_candidates(
+        &control,
+        &AutoPlaySession::default(),
+        &command_state,
+        &state,
+    );
+
+    let error = parse_planner_response(
+        r#"{"ref":"A0"}"#,
+        &control,
+        &command_state,
+        &state,
+        &candidates,
+    )
+    .unwrap_err();
+
+    assert!(
+        error
+            .to_string()
+            .contains("valid JSON with an invalid schema")
+    );
+    assert!(error.to_string().contains("missing field `schema_version`"));
 }
 
 #[test]
@@ -154,12 +184,11 @@ fn retry_prompt_includes_rejected_action_and_reason() {
     );
     let rejections = vec![RejectedAttempt {
         attempt: 1,
-        rejected_action: Some(ActionRequestSummary {
-            kind: "choose".to_string(),
-            action_id: "event:9".to_string(),
+        rejected_action: Some(ActionSelectionSummary {
+            action_ref: "A9".to_string(),
             target_index: None,
         }),
-        reason: "autoplay planner returned unavailable action_id event:9".to_string(),
+        reason: "autoplay planner returned unknown action ref A9".to_string(),
     }];
 
     let prompt = build_planner_prompt(
@@ -174,6 +203,6 @@ fn retry_prompt_includes_rejected_action_and_reason() {
     .unwrap();
 
     assert!(prompt.contains("\"rejected_attempts\""));
-    assert!(prompt.contains("\"action_id\": \"event:9\""));
-    assert!(prompt.contains("unavailable action_id"));
+    assert!(prompt.contains("\"ref\": \"A9\""));
+    assert!(prompt.contains("unknown action ref"));
 }

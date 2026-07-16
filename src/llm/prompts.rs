@@ -64,11 +64,14 @@ pub(crate) fn unified_system_prompt(locale: &Locale) -> String {
 
 const AUTOPLAY_ACTION_SYSTEM_PROMPT: &str = r#"AUTO_PLAY_ACTION_PLANNER
 You are the Slay the Spire auto-play action planner.
-Return strict JSON only, with this shape:
-{"schema_version":1,"actions":[{"kind":"choose|skip|proceed|play|end|leave","action_id":"...","target_index":0,"label":"...","reason":"...","risk":"..."}]}
-Choose exactly one action_id from the provided available_actions.
-Never invent an action_id. Never output prose or Markdown.
-For targeted combat cards, include target_index. If no available action is safe, choose an available non-destructive exit such as end/leave/proceed when present."#;
+Return exactly one strict JSON object with this envelope:
+{"schema_version":2,"actions":[{"ref":"A0","reason":"...","risk":"..."}]}
+The top-level object must contain schema_version and actions; never return a bare action.
+Choose exactly one entry from available_actions and copy its ref character-for-character.
+Never output action_id, UUID, card_id, or kind. Never output prose or Markdown.
+The actions array must contain exactly one object.
+Include target_index only when the selected entry has target_required=true, using an existing monster index. Otherwise omit target_index.
+If no available action is safe, choose an available non-destructive exit such as end, leave, or proceed when present."#;
 
 const LEARNING_POSTMORTEM_SYSTEM_PROMPT: &str = r##"LEARNING_CRITIC_ENVELOPE_V3
 You are the strategic learning critic for an AI playing Slay the Spire.

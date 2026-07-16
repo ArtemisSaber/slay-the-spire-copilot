@@ -49,6 +49,31 @@ fn prompt_includes_ranked_suggestions_for_combat() {
         prompt.contains("ranked_suggestions"),
         "combat prompt should include ranked_suggestions"
     );
+    let payload: Value = serde_json::from_str(&prompt).unwrap();
+    let available_refs: Vec<_> = payload["available_actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|action| action["ref"].clone())
+        .collect();
+    let ranked = payload["ranked_suggestions"].as_array().unwrap();
+    assert!(!ranked.is_empty());
+    assert!(
+        ranked
+            .iter()
+            .all(|entry| available_refs.contains(&entry["ref"]))
+    );
+    assert!(ranked.iter().all(|entry| entry.get("action").is_none()));
+    let strike = ranked
+        .iter()
+        .find(|entry| entry["label"] == "Play Strike")
+        .unwrap();
+    let end = ranked
+        .iter()
+        .find(|entry| entry["label"] == "End turn")
+        .unwrap();
+    assert_eq!(strike["ref"], "A0");
+    assert_eq!(end["ref"], "A1");
 }
 
 #[test]

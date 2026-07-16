@@ -32,6 +32,51 @@ fn neow_event_produces_candidates() {
 }
 
 #[test]
+fn prompt_candidates_use_short_refs_without_execution_ids() {
+    let raw = json!({
+        "available_commands": ["choose"],
+        "ready_for_command": true,
+        "game_state": {"screen_type": "EVENT", "choice_list": ["Take gold", "Leave"]}
+    });
+    let control = AutoPlayControl::default_enabled();
+    let command_state = command_state(&raw);
+    let state = state(raw);
+    let candidates = available_action_candidates(
+        &control,
+        &AutoPlaySession::default(),
+        &command_state,
+        &state,
+    );
+    let locale = Locale::load("en");
+    let expected_scenario = crate::prompt::build_prompt(&state, &locale, false);
+
+    let prompt = build_planner_prompt(
+        &AutoPlaySession::default(),
+        &command_state,
+        &state,
+        &locale,
+        false,
+        &candidates,
+        &[],
+    )
+    .unwrap();
+    let payload: Value = serde_json::from_str(&prompt).unwrap();
+    let actions = payload["available_actions"].as_array().unwrap();
+
+    assert_eq!(actions[0]["ref"], "A0");
+    assert_eq!(actions[1]["ref"], "A1");
+    assert_eq!(actions[0]["kind"], "choose");
+    assert!(
+        actions
+            .iter()
+            .all(|action| action.get("action_id").is_none())
+    );
+    assert_eq!(payload["schema"]["schema_version"], 2);
+    assert!(payload["task"].as_str().unwrap().contains("bare action"));
+    assert_eq!(payload["localized_status_context"], expected_scenario);
+}
+
+#[test]
 fn map_actions_include_position_labels() {
     let raw = json!({
         "available_commands": ["choose"],

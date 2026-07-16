@@ -23,4 +23,5 @@ mod experience_context;
 mod prompt_action_labels;
 mod prompt_ranked_suggestions;
 
+mod reference_response;
 mod response;

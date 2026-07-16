@@ -10,10 +10,12 @@ pub(crate) fn mock_autoplay_action_response(prompt: &str) -> String {
         .is_some_and(|attempts| !attempts.is_empty());
 
     if localized_status_context.contains("fallback_test_marker") {
-        return r#"{"schema_version":1,"actions":[{"kind":"choose","action_id":"event:99","label":"Invalid","reason":"","risk":""}]}"#.to_string();
+        return r#"{"schema_version":2,"actions":[{"ref":"A99","reason":"","risk":""}]}"#
+            .to_string();
     }
     if localized_status_context.contains("retry_test_marker") && !has_rejections {
-        return r#"{"schema_version":1,"actions":[{"kind":"choose","action_id":"event:99","label":"Invalid","reason":"","risk":""}]}"#.to_string();
+        return r#"{"schema_version":2,"actions":[{"ref":"A99","reason":"","risk":""}]}"#
+            .to_string();
     }
 
     let actions = prompt_json
@@ -23,9 +25,7 @@ pub(crate) fn mock_autoplay_action_response(prompt: &str) -> String {
         .unwrap_or_default();
     let preferred = actions
         .iter()
-        .find(|action| {
-            action.get("action_id").and_then(|value| value.as_str()) == Some("card_reward:skip")
-        })
+        .find(|action| action.get("kind").and_then(|value| value.as_str()) == Some("skip"))
         .or_else(|| {
             actions
                 .iter()
@@ -33,15 +33,11 @@ pub(crate) fn mock_autoplay_action_response(prompt: &str) -> String {
         })
         .or_else(|| actions.first());
     let Some(action) = preferred else {
-        return r#"{"schema_version":1,"actions":[]}"#.to_string();
+        return r#"{"schema_version":2,"actions":[]}"#.to_string();
     };
 
-    let kind = action
-        .get("kind")
-        .and_then(|value| value.as_str())
-        .unwrap_or("choose");
-    let action_id = action
-        .get("action_id")
+    let action_ref = action
+        .get("ref")
         .and_then(|value| value.as_str())
         .unwrap_or("");
     let target_index = if action
@@ -49,22 +45,19 @@ pub(crate) fn mock_autoplay_action_response(prompt: &str) -> String {
         .and_then(|value| value.as_bool())
         .unwrap_or(false)
     {
-        serde_json::json!(0)
+        prompt_json
+            .pointer("/state/monsters/0/index")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!(0))
     } else {
         serde_json::Value::Null
     };
-    let label = action
-        .get("label")
-        .and_then(|value| value.as_str())
-        .unwrap_or("Mock action");
 
     serde_json::json!({
-        "schema_version": 1,
+        "schema_version": 2,
         "actions": [{
-            "kind": kind,
-            "action_id": action_id,
+            "ref": action_ref,
             "target_index": target_index,
-            "label": label,
             "reason": "Mock auto-play planner selected the first preferred available action.",
             "risk": ""
         }]
