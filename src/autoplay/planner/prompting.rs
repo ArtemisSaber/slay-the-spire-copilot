@@ -10,7 +10,8 @@ use crate::state::NormalizedState;
 
 mod context;
 mod response;
-use context::{annotate_map_action_positions, prompt_action_candidates, structured_scenario};
+pub(super) use context::structured_scenario;
+use context::{annotate_map_action_positions, prompt_action_candidates};
 #[cfg(test)]
 pub(super) use response::parse_planner_response;
 pub(super) use response::{parse_planner_response_with_memory, rejected_action_from_response};

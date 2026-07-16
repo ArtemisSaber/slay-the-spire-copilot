@@ -1,3 +1,19 @@
+pub(crate) fn mock_card_reward_candidate_response(prompt: &str) -> String {
+    let prompt_json: serde_json::Value = serde_json::from_str(prompt).unwrap_or_default();
+    let selected_ref = prompt_json
+        .pointer("/offered_cards/0/ref")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    serde_json::json!({
+        "schema_version": 1,
+        "selected_ref": selected_ref,
+        "reason": "Mock selected the first offered card.",
+        "risk": "",
+        "memory_ids_used": [],
+    })
+    .to_string()
+}
+
 pub(crate) fn mock_autoplay_action_response(prompt: &str) -> String {
     let prompt_json: serde_json::Value = serde_json::from_str(prompt).unwrap_or_default();
     let test_marker = prompt_json

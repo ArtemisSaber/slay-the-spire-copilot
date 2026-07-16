@@ -27,8 +27,6 @@ pub(crate) struct PromptActionCandidate {
     #[serde(skip_serializing_if = "Option::is_none")]
     reward_kind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    baseline: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     card: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     potion: Option<Value>,
@@ -55,7 +53,6 @@ pub(in crate::autoplay::planner::prompting) fn prompt_action_candidates(
                 potion_slot: None,
                 option: None,
                 reward_kind: None,
-                baseline: None,
                 card: None,
                 potion: None,
                 relic: None,
@@ -84,10 +81,6 @@ fn add_source(
     locale: &Locale,
 ) {
     let action_id = candidate.action_id.as_str();
-    if matches!(action_id, "card_reward:skip" | "boss_card_reward:skip") {
-        prompt.baseline = Some(true);
-        return;
-    }
     if let Some(identity) = action_id.strip_prefix("combat:play:") {
         if let Some((index, card)) = state
             .hand

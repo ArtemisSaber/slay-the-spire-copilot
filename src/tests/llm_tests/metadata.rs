@@ -63,16 +63,25 @@ fn autoplay_action_system_prompt_contains_planner_header() {
 }
 
 #[test]
-fn autoplay_action_system_prompt_defines_skip_first_card_reward_policy() {
+fn autoplay_action_system_prompt_does_not_define_card_reward_policy() {
     let prompt = autoplay_action_system_prompt(test_locale());
 
-    assert!(prompt.contains("Treat Skip as the baseline"));
-    assert!(prompt.contains("meaningful net improvement"));
-    assert!(prompt.contains("Positive synergy alone is insufficient"));
-    assert!(
-        prompt.contains("scenario.card_reward.next_act_full_heal is true"),
-        "boss-heal assumptions must be scoped to the current reward"
-    );
+    assert!(!prompt.contains("For scenario.kind card_reward"));
+    assert!(!prompt.contains("Treat Skip as the baseline"));
+    assert!(!prompt.contains("marginal_net_gain"));
+}
+
+#[test]
+fn card_reward_candidate_selector_system_prompt_is_forced_pick_only() {
+    let prompt = card_reward_candidate_system_prompt();
+
+    assert!(prompt.contains("CARD_REWARD_CANDIDATE_SELECTOR_V1"));
+    assert!(prompt.contains("Assume one offered card must be added"));
+    assert!(prompt.contains("Do not evaluate Skip"));
+    assert!(prompt.contains("starter cards"));
+    assert!(prompt.contains("not a deck-size threshold"));
+    assert!(!prompt.contains("20 cards"));
+    assert!(!prompt.contains("30 cards"));
 }
 
 #[test]
@@ -98,6 +107,42 @@ fn unified_preambles_do_not_globalize_boss_heal() {
                 .boss_card_reward
                 .contains(boss_reward_heal_rule),
             "{language} boss card reward prompt lost its scoped heal rule"
+        );
+    }
+}
+
+#[test]
+fn unified_preambles_do_not_impose_a_lean_deck_policy() {
+    for (language, lean_deck_rule, thick_deck_rule) in [
+        (
+            "en",
+            "Skip card picks to keep deck lean",
+            "Thick decks lower key draw consistency",
+        ),
+        (
+            "zh",
+            "可跳过选牌，保持卡组精简",
+            "卡组过厚会降低关键牌上手率",
+        ),
+        (
+            "ja",
+            "カード報酬はスキップ可能、デッキのスリム化が重要",
+            "デッキが厚いとキーカードの引け率が下がる",
+        ),
+        (
+            "ko",
+            "카드 보상 건너뛰기 가능, 덱을 간결하게 유지",
+            "두꺼운 덱은 핵심 카드 드로우 확률 저하",
+        ),
+    ] {
+        let locale = Locale::load(language);
+        assert!(
+            !locale.unified_preamble.contains(lean_deck_rule),
+            "{language} preamble still makes lean decks a global rule"
+        );
+        assert!(
+            !locale.unified_preamble.contains(thick_deck_rule),
+            "{language} preamble still makes deck thickness a global rule"
         );
     }
 }

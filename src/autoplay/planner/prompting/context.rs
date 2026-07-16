@@ -13,7 +13,7 @@ pub(super) use actions::{annotate_map_action_positions, prompt_action_candidates
 use projection::{potion_value, power_values, relic_value};
 use screens::add_screen_context;
 
-pub(super) fn structured_scenario(
+pub(in crate::autoplay::planner) fn structured_scenario(
     session: &AutoPlaySession,
     state: &NormalizedState,
     locale: &Locale,

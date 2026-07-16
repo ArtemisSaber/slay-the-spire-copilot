@@ -122,11 +122,6 @@ fn card_reward_context(
         "skip_available": state.skip_available,
         "next_act_full_heal": next_act_full_heal,
         "deck_size_before_pick": deck_size_before_pick,
-        "selection_policy": {
-            "baseline": state.skip_available.then_some("skip"),
-            "take_card_only_if": "meaningful_net_improvement",
-            "positive_synergy_alone_is_sufficient": false,
-        },
     })
 }
 

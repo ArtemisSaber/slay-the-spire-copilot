@@ -7,11 +7,15 @@ use crate::llm::{Effort, LlmProvider};
 use crate::locales::Locale;
 use crate::state::NormalizedState;
 
+mod card_reward;
 mod decision;
 mod deterministic;
 mod fallback;
 mod prompting;
 
+use card_reward::select_best_card;
+#[cfg(test)]
+use card_reward::{build_card_candidate_prompt, parse_card_candidate_response};
 pub(crate) use decision::PlannedAction;
 use decision::planned_action;
 use deterministic::{potion_in_full_slots_was_rejected, try_deterministic_action};
@@ -124,6 +128,36 @@ pub(crate) async fn plan_action_with_memory(
             &candidates,
             vec![],
         )));
+    }
+
+    if state.screen_type.as_ref().map(|st| st.as_str()) == Some("CARD_REWARD")
+        && !state.skip_available
+    {
+        match select_best_card(
+            provider,
+            session,
+            state,
+            locale,
+            shop_visited,
+            &candidates,
+            experience_context,
+            retrieved_memory_ids,
+        )
+        .await
+        {
+            Ok(selection) => {
+                let candidate = &candidates[selection.candidate_index];
+                return Ok(Some(PlannedAction {
+                    action: AutoPlayAction::Choose(selection.choice_index),
+                    source: DecisionSource::Llm,
+                    selected_action_id: candidate.action_id.clone(),
+                    memory_ids_used: selection.memory_ids_used,
+                }));
+            }
+            Err(error) => {
+                tracing::warn!("forced card reward selector failed: {error}");
+            }
+        }
     }
 
     let effort = state
