@@ -13,6 +13,19 @@ use super::screen_data::{
 };
 use super::{CardInfo, DangerFlags, NormalizedState, RoomType, ScreenType};
 
+fn monster_incoming_damage(monster: &super::MonsterInfo) -> i64 {
+    if monster.intent.as_deref() == Some("NONE") {
+        return 0;
+    }
+
+    let Some(damage_per_hit) = monster.damage.filter(|damage| *damage > 0) else {
+        return 0;
+    };
+    let hit_count = monster.hits.unwrap_or(1).max(0);
+
+    damage_per_hit.saturating_mul(hit_count)
+}
+
 impl NormalizedState {
     pub fn from_raw(raw: &Value, locale: &Locale) -> Self {
         let game_state = raw.get("game_state");
@@ -93,10 +106,8 @@ impl NormalizedState {
         let monsters = extract_monsters(combat, total_hand_atk);
         let incoming_damage = monsters
             .iter()
-            .filter(|monster| monster.intent.as_deref() != Some("NONE"))
-            .filter_map(|monster| monster.damage)
-            .filter(|damage| *damage > 0)
-            .sum();
+            .map(monster_incoming_damage)
+            .fold(0_i64, i64::saturating_add);
         let danger = DangerFlags::compute(
             current_hp,
             max_hp,

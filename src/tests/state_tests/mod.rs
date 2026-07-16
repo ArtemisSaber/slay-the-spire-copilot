@@ -69,6 +69,7 @@ mod extract_monsters_scaling_powers;
 mod extract_normalize_event;
 mod extract_normalize_screens;
 mod extract_selection;
+mod incoming_damage;
 
 mod map_nodes;
 mod screen_room_types;

@@ -882,7 +882,7 @@ All fields available in formulas (`formula` and `compute→formula`).
 | `@remaining_energy` | i64 | Energy after playing the card |
 | `@current_block` | i64 | Player block before the action |
 | `@current_hp` | i64 | Player current HP |
-| `@incoming_damage` | i64 | Total incoming monster damage this turn (only positive values; debuff-only monsters with `damage <= 0` are excluded) |
+| `@incoming_damage` | i64 | Total incoming monster damage this turn: the saturating sum of each positive per-hit `move_adjusted_damage * move_hits` (`move_hits` defaults to 1 when absent; non-positive damage and `NONE` intent are excluded) |
 | `@incoming_lethal` | bool | Would incoming damage kill the player? |
 | `@total_damage` | i64 | Sum of this action's damage across all targets |
 | `@monsters_total_hp_plus_block` | i64 | Sum of all alive monster HP + block |

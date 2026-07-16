@@ -419,9 +419,11 @@ The ranker does NOT re-apply multipliers to cards played in their current
 stance. Multipliers are only applied when evaluating *other* cards in hand
 that will be played after a stance change.
 
-**Incoming damage**: CommunicationMod already applies Wrath ×2 to
-`incoming_damage`. The ranker does NOT re-apply incoming multipliers. All
-block/lethal/danger calculations use state values as-is.
+**Incoming damage**: CommunicationMod already applies Wrath ×2 to each
+monster's per-hit `move_adjusted_damage`. Normalization multiplies that value
+by `move_hits` and sums all monsters into `incoming_damage`. The ranker does
+NOT re-apply incoming multipliers. All block/lethal/danger calculations use
+the normalized state value as-is.
 
 ### Stance Powers (from `state.powers`)
 
