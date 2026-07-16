@@ -312,9 +312,10 @@ General action fields:
 | `risk` | yes | Short risk or empty string. |
 
 The prompt builder assigns `A0..An` once for the current state and preserves
-that mapping across all retries. The LLM never emits internal action IDs,
-card UUIDs, or action kinds. After validation, the resolver maps `ref` back to
-the authoritative `ActionCandidate`; telemetry records its internal action ID.
+that mapping across all retries. The LLM-facing payload contains no card UUIDs,
+and the LLM never emits internal action IDs or action kinds. After validation,
+the resolver maps `ref` back to the authoritative `ActionCandidate`; telemetry
+records its internal action ID.
 
 The resolver must reject:
 

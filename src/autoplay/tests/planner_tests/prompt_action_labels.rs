@@ -77,6 +77,78 @@ fn prompt_candidates_use_short_refs_without_execution_ids() {
 }
 
 #[test]
+fn combat_prompt_omits_card_uuid_from_the_complete_payload() {
+    let secret_uuid = "run-local-secret-card-instance-42";
+    let raw = json!({
+        "available_commands": ["play", "end"],
+        "ready_for_command": true,
+        "game_state": {
+            "screen_type": "NONE",
+            "combat_state": {
+                "player": {"energy": 1, "block": 0, "powers": []},
+                "hand": [{
+                    "id": "Strike_R",
+                    "name": "Strike",
+                    "cost": 1,
+                    "type": "ATTACK",
+                    "uuid": secret_uuid,
+                    "description": "Deal 6 damage.",
+                    "has_target": true,
+                    "is_playable": true
+                }],
+                "monsters": [{
+                    "id": "JawWorm",
+                    "name": "Jaw Worm",
+                    "current_hp": 40,
+                    "max_hp": 40,
+                    "block": 0,
+                    "intent": "ATTACK",
+                    "move_adjusted_damage": 11,
+                    "move_hits": 1,
+                    "is_gone": false
+                }]
+            }
+        }
+    });
+    let control = AutoPlayControl::default_enabled();
+    let command_state = command_state(&raw);
+    let state = state(raw);
+    let candidates = available_action_candidates(
+        &control,
+        &AutoPlaySession::default(),
+        &command_state,
+        &state,
+    );
+
+    assert!(
+        candidates[0].action_id.contains(secret_uuid),
+        "execution must retain the private card identity"
+    );
+
+    let prompt = build_planner_prompt(
+        &AutoPlaySession::default(),
+        &command_state,
+        &state,
+        &Locale::load("en"),
+        false,
+        &candidates,
+        &[],
+    )
+    .unwrap();
+    let payload: Value = serde_json::from_str(&prompt).unwrap();
+    let card = &payload["state"]["hand"][0];
+
+    assert!(!prompt.contains(secret_uuid));
+    assert!(!prompt.to_ascii_lowercase().contains("uuid"));
+    assert!(card.get("uuid").is_none());
+    assert_eq!(card["index"], 0);
+    assert_eq!(card["id"], "Strike_R");
+    assert_eq!(card["name"], "Strike");
+    assert_eq!(card["cost"], 1);
+    assert_eq!(payload["available_actions"][0]["ref"], "A0");
+}
+
+#[test]
 fn map_actions_include_position_labels() {
     let raw = json!({
         "available_commands": ["choose"],

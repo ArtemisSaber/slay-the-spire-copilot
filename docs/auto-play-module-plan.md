@@ -235,8 +235,8 @@ Example:
 
 The prompt builder exposes temporary `A0..An` references and the LLM echoes
 one reference. The resolver maps it to an internal action ID. This avoids fuzzy
-localized-name matching without asking the model to reproduce UUIDs. References
-remain stable across retries for one state and have no meaning on later states.
+localized-name matching without exposing UUIDs to the model. References remain
+stable across retries for one state and have no meaning on later states.
 
 Examples:
 

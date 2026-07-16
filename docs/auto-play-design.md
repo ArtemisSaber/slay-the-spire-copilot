@@ -74,8 +74,8 @@ Screen-specific command mapping:
 Key challenge: **reference resolution**. The prompt assigns temporary `A0..An`
 refs to authoritative action candidates. The LLM selects one ref, and the
 executor maps it to the internal action ID, current choice or hand index, and
-optional monster target. Card UUIDs remain internal and are never reproduced by
-the model.
+optional monster target. Card UUIDs remain internal and are never included in
+the LLM-facing payload.
 
 ### E. Command Readiness Tracking (small, ~50 lines)
 - Extract `available_commands` and `ready_for_command` from the raw JSON (currently not parsed)
