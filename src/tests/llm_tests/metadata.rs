@@ -61,3 +61,43 @@ fn autoplay_action_system_prompt_contains_planner_header() {
     assert!(!prompt.to_ascii_lowercase().contains("uuid"));
     assert!(!prompt.is_empty());
 }
+
+#[test]
+fn autoplay_action_system_prompt_defines_skip_first_card_reward_policy() {
+    let prompt = autoplay_action_system_prompt(test_locale());
+
+    assert!(prompt.contains("Treat Skip as the baseline"));
+    assert!(prompt.contains("meaningful net improvement"));
+    assert!(prompt.contains("Positive synergy alone is insufficient"));
+    assert!(
+        prompt.contains("scenario.card_reward.next_act_full_heal is true"),
+        "boss-heal assumptions must be scoped to the current reward"
+    );
+}
+
+#[test]
+fn unified_preambles_do_not_globalize_boss_heal() {
+    for (language, global_heal_rule, boss_reward_heal_rule) in [
+        ("en", "Full heal after Boss", "HP fully heals next act"),
+        ("zh", "Boss 战后回满血", "Boss 战后下一幕会回满血"),
+        ("ja", "Boss後は全回復", "ボス戦後、次のActでHPが全回復"),
+        (
+            "ko",
+            "Boss 전투 후 완전 회복",
+            "보스 전투 후 다음 액트에서 HP가 완전 회복",
+        ),
+    ] {
+        let locale = Locale::load(language);
+        assert!(
+            !locale.unified_preamble.contains(global_heal_rule),
+            "{language} preamble still exposes the boss-only heal rule globally"
+        );
+        assert!(
+            locale
+                .system_prompts
+                .boss_card_reward
+                .contains(boss_reward_heal_rule),
+            "{language} boss card reward prompt lost its scoped heal rule"
+        );
+    }
+}

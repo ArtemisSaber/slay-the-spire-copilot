@@ -337,7 +337,8 @@ The active screen adds a typed section:
 - combat: turn, full hand card fields, monsters including per-hit damage, hit
   count, total visible damage and powers, plus compact draw/discard/exhaust
   piles;
-- card or boss rewards: full choice descriptions, skip state, deck, and the
+- card or boss rewards: full choice descriptions, skip state, deck,
+  `deck_size_before_pick`, a skip-baseline `selection_policy`, and the
   next-Act heal semantic when applicable;
 - boss relic, rest, event, shop, hand-select, and grid: their complete current
   choices and screen-specific constraints;
@@ -351,6 +352,11 @@ prompt-scoped `ref` and may include structured source data such as
 `option`, or `reward_kind`. These fields help the model relate an action to the
 scenario, but only the server-side candidate behind `ref` can authorize
 execution. Card instance IDs and internal action IDs never enter the prompt.
+On card rewards, the Skip entry is marked `baseline: true`. The planner must
+compare every offered card against leaving the deck unchanged, and may take a
+card only for a meaningful net improvement rather than positive synergy alone.
+It may assume a post-Boss full heal only when
+`scenario.card_reward.next_act_full_heal` is true.
 
 The resolver must reject:
 

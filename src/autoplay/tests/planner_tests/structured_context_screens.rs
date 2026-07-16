@@ -41,6 +41,20 @@ fn reward_prompt_structures_choices_deck_and_action_sources() {
         "Deal 13 damage. Apply 1 Weak and 1 Vulnerable."
     );
     assert_eq!(scenario["card_reward"]["skip_available"], true);
+    assert_eq!(scenario["card_reward"]["next_act_full_heal"], false);
+    assert_eq!(scenario["card_reward"]["deck_size_before_pick"], 1);
+    assert_eq!(
+        scenario["card_reward"]["selection_policy"]["baseline"],
+        "skip"
+    );
+    assert_eq!(
+        scenario["card_reward"]["selection_policy"]["take_card_only_if"],
+        "meaningful_net_improvement"
+    );
+    assert_eq!(
+        scenario["card_reward"]["selection_policy"]["positive_synergy_alone_is_sufficient"],
+        false
+    );
     assert_eq!(scenario["deck"][0]["id"], "Bash");
     assert_eq!(scenario["deck"][0]["upgraded"], true);
     assert_eq!(
@@ -48,6 +62,44 @@ fn reward_prompt_structures_choices_deck_and_action_sources() {
         "Deal 13 damage. Apply 1 Weak and 1 Vulnerable."
     );
     assert_eq!(payload["available_actions"][0]["choice_index"], 0);
+    assert_eq!(payload["available_actions"][1]["baseline"], true);
+}
+
+#[test]
+fn boss_card_reward_context_scopes_full_heal_to_boss_rewards() {
+    let state: NormalizedState = serde_json::from_value(json!({
+        "screen_type":"CARD_REWARD",
+        "floor":16,
+        "skip_available":true,
+        "card_reward_choices":[{
+            "id":"Demon Form","name":"Demon Form","cost":3,"card_type":"POWER","upgraded":false,
+            "description":"At the start of each turn, gain 2 Strength.",
+            "playable":false,"has_target":false
+        }],
+        "master_cards":[{
+            "id":"Bash","name":"Bash","cost":2,"card_type":"ATTACK","upgraded":true,
+            "description":"Deal 10 damage. Apply 3 Vulnerable.",
+            "playable":false,"has_target":true
+        }]
+    }))
+    .unwrap();
+    let candidates = vec![
+        candidate("choose", "boss_card_reward:0", "Demon Form"),
+        candidate("skip", "boss_card_reward:skip", "Skip"),
+    ];
+
+    let payload = planner_payload(&state, &candidates, false);
+
+    assert_eq!(payload["scenario"]["kind"], "boss_card_reward");
+    assert_eq!(
+        payload["scenario"]["card_reward"]["next_act_full_heal"],
+        true
+    );
+    assert_eq!(
+        payload["scenario"]["card_reward"]["selection_policy"]["baseline"],
+        "skip"
+    );
+    assert_eq!(payload["available_actions"][1]["baseline"], true);
 }
 
 #[test]
