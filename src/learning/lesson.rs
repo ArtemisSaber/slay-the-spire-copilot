@@ -5,10 +5,16 @@ use serde::{Deserialize, Serialize};
 
 mod event;
 mod identity;
+mod legacy;
 mod matching;
+mod strategy;
 mod validation;
 
 pub use event::{LessonEvent, LessonEventKind};
+pub use strategy::{
+    LessonBenchmark, LessonLifecycle, StrategicEvidence, StrategicHypothesis,
+    StrategicLessonProposal, TrialDisposition,
+};
 pub(crate) use validation::lesson_guidance_is_coherent;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,6 +33,7 @@ pub enum ActionKind {
     PlayCard,
     UsePotion,
     EndTurn,
+    StrategicPolicy,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,6 +47,7 @@ pub enum OutcomeCode {
     PotionPreserved,
     TurnDamageTaken,
     CombatCompletedQuickly,
+    RunProgression,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -49,6 +57,7 @@ pub enum GuidanceKind {
     Consider,
     Avoid,
     Prefer,
+    Experimental,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -120,8 +129,13 @@ pub struct Lesson {
     pub source_case_ids: Vec<String>,
     pub support: SupportStats,
     pub critic: Critic,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub strategy: Option<StrategicHypothesis>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lifecycle: Option<LessonLifecycle>,
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LessonProposal {
     pub language: String,
@@ -139,97 +153,25 @@ pub struct LessonProposal {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LessonError {
     UnknownSourceCase,
+    #[cfg(test)]
     SourceDoesNotMatch,
+    #[cfg(test)]
     OutcomeNotObserved,
+    #[cfg(test)]
     InvalidActionPattern,
     IncoherentGuidance,
     UnsupportedOutcome,
+    #[cfg(test)]
     InvalidIdentifier,
     UnsafeText,
+    #[cfg(test)]
     InvalidConfidence,
+    InvalidLifecycle,
     InvalidHumanStatus,
     Serialization,
 }
 
 impl Lesson {
-    pub fn propose(
-        mut proposal: LessonProposal,
-        cases: &[DecisionCase],
-    ) -> Result<Self, LessonError> {
-        validation::validate_and_canonicalize(&mut proposal)?;
-        let cited = proposal
-            .source_case_ids
-            .iter()
-            .map(|id| {
-                cases
-                    .iter()
-                    .find(|case| &case.case_id == id)
-                    .ok_or(LessonError::UnknownSourceCase)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        if cited
-            .iter()
-            .any(|case| !matching::matches_proposal(&proposal, case))
-        {
-            return Err(LessonError::SourceDoesNotMatch);
-        }
-        if !cited.iter().any(|case| {
-            matching::matches_proposal(&proposal, case)
-                && matching::outcome_matches(proposal.outcome_code, case) == Some(true)
-        }) {
-            return Err(LessonError::OutcomeNotObserved);
-        }
-        let mut lesson = Self {
-            schema_version: 1,
-            lesson_id: String::new(),
-            family_key: String::new(),
-            status: LessonStatus::Proposed,
-            language: proposal.language,
-            outcome_predicate_version: 1,
-            scope: proposal.scope,
-            trigger: proposal.trigger,
-            action_pattern: proposal.action_pattern,
-            outcome_code: proposal.outcome_code,
-            guidance: proposal.guidance,
-            rationale: proposal.rationale,
-            source_case_ids: proposal.source_case_ids,
-            support: SupportStats::default(),
-            critic: Critic {
-                model_profile_sha256: proposal.critic_model_profile_sha256,
-                confidence_millis: proposal.confidence_millis,
-            },
-        };
-        lesson.family_key = identity::family_key(&lesson)?;
-        lesson.lesson_id = identity::lesson_id(&lesson)?;
-        lesson.recalculate_support(cases);
-        Ok(lesson)
-    }
-
-    pub fn recalculate_support(&mut self, cases: &[DecisionCase]) {
-        self.support = matching::support(self, cases);
-        if matches!(
-            self.status,
-            LessonStatus::Validated | LessonStatus::Contested | LessonStatus::Retired
-        ) {
-            return;
-        }
-        let total = self.support.independent_cases
-            + self.support.dependent_cases
-            + self.support.contradicting_cases;
-        if self.support.contradicting_cases >= 3
-            && self.support.contradicting_cases * 100 >= total.max(1) * 40
-        {
-            self.status = LessonStatus::Contested;
-        } else if self.support.independent_cases >= 5
-            && self.support.distinct_independent_seeds >= 5
-            && self.support.contradicting_cases <= self.support.independent_cases / 3
-        {
-            self.status = LessonStatus::Supported;
-        } else {
-            self.status = LessonStatus::Proposed;
-        }
-    }
-
     pub fn set_human_status(&mut self, status: LessonStatus) -> Result<(), LessonError> {
         if !matches!(
             status,
@@ -242,10 +184,21 @@ impl Lesson {
     }
 
     pub fn verify_identity(&self) -> bool {
-        self.schema_version == 1
+        matches!(self.schema_version, 1 | 2)
+            && (self.schema_version == 1) == self.strategy.is_none()
+            && (self.schema_version == 1) == self.lifecycle.is_none()
             && self.outcome_predicate_version == 1
+            && (self.schema_version == 1 || strategy::verify_structure(self))
             && identity::family_key(self).is_ok_and(|key| key == self.family_key)
             && identity::lesson_id(self).is_ok_and(|id| id == self.lesson_id)
+    }
+
+    pub fn is_strategic(&self) -> bool {
+        self.strategy.is_some() && self.lifecycle.is_some()
+    }
+
+    pub(crate) fn sources_are_valid(&self, cases: &[DecisionCase]) -> bool {
+        !self.is_strategic() || strategy::verify_sources(self, cases)
     }
 
     pub(crate) fn matches_situation(

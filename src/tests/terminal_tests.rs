@@ -143,6 +143,7 @@ fn decision_case(run_id: &str) -> crate::learning::case::DecisionCase {
         decision_id: format!("{run_id}:8:2:1"),
         seed_hash: seed_hash(7, "mods"),
         situation,
+        ascension_level: Some(0),
         selected_action: SemanticAction::EndTurn,
         decision_source: DecisionSource::Llm,
         available_semantic_actions: vec![SemanticAction::EndTurn],

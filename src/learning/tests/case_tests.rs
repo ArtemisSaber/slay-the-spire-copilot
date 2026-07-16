@@ -28,6 +28,7 @@ fn draft() -> CaseDraft {
         decision_id: "run-1:8:2:1".into(),
         seed_hash: seed_hash(42, "profile-salt"),
         situation: situation(),
+        ascension_level: Some(20),
         selected_action: action(),
         decision_source: DecisionSource::Llm,
         available_semantic_actions: vec![action(), SemanticAction::EndTurn],
@@ -70,6 +71,27 @@ fn case_identity_is_deterministic_and_verified() {
     assert!(first.case_id.starts_with("sha256:"));
     assert!(first.verify_id());
     assert_eq!(first.situation_hash, situation().situation_hash().unwrap());
+}
+
+#[test]
+fn exact_ascension_must_match_the_public_descriptor_band() {
+    let mut mismatched = draft();
+    mismatched.ascension_level = Some(19);
+
+    assert_eq!(
+        mismatched.finalize(outcome(), provenance()),
+        Err(CaseError::InvalidAscension)
+    );
+
+    let mut legacy = draft();
+    legacy.ascension_level = None;
+    let case = legacy.finalize(outcome(), provenance()).unwrap();
+    assert!(case.verify_id());
+    assert!(
+        !serde_json::to_string(&case)
+            .unwrap()
+            .contains("ascension_level")
+    );
 }
 
 #[test]

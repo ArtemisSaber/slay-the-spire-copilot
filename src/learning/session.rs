@@ -2,12 +2,10 @@ use crate::autoplay::action::AutoPlayAction;
 use crate::learning::action::SemanticAction;
 use crate::learning::case::{CaseDraft, seed_hash};
 use crate::learning::config::MemoryConfig;
-use crate::learning::context::build_experience_context;
 use crate::learning::descriptor::SituationDescriptor;
+use crate::learning::eligibility::Eligibility;
 #[cfg(test)]
 use crate::learning::eligibility::RunKind;
-use crate::learning::eligibility::{Eligibility, RunObjective};
-use crate::learning::retrieval::{RetrievalQuery, retrieve};
 use crate::learning::snapshot::KnowledgeSnapshot;
 use crate::learning::status::LearningStatus;
 use crate::learning::store::KnowledgeStore;
@@ -21,6 +19,8 @@ mod bootstrap;
 mod capture;
 mod critic;
 mod finalize;
+mod lifecycle;
+mod prepare;
 mod resume;
 pub use bootstrap::bootstrap_session;
 use capture::RunCapture;
@@ -60,6 +60,8 @@ pub struct FinalizeSummary {
     pub appended_cases: usize,
     pub skipped_cases: usize,
     pub snapshot_id: String,
+    pub evaluated_lessons: usize,
+    pub retired_lessons: usize,
 }
 
 impl FinalizeSummary {
@@ -76,6 +78,7 @@ pub struct LearningSession {
     provenance: SessionProvenance,
     capture: RunCapture,
     last_eligibility: Option<Eligibility>,
+    last_completed_benchmark: Option<crate::learning::lesson::LessonBenchmark>,
 }
 
 impl LearningSession {
@@ -92,6 +95,7 @@ impl LearningSession {
             provenance,
             capture: RunCapture::default(),
             last_eligibility: None,
+            last_completed_benchmark: None,
         }
     }
 
@@ -123,61 +127,6 @@ impl LearningSession {
         }
     }
 
-    pub fn prepare(
-        &self,
-        state: &NormalizedState,
-        ranker_tags: &[String],
-    ) -> Option<PreparedMemory> {
-        if !self.config.captures() {
-            return None;
-        }
-        let situation = SituationDescriptor::from_state(
-            state,
-            self.capture.encounter_ids()?,
-            RunObjective::Act3Victory,
-            ranker_tags,
-        )
-        .ok()?;
-        let mut retrieved_memory_ids = vec![];
-        let mut exposed_memory_ids = vec![];
-        let mut context = None;
-        if self.config.retrieves()
-            && let Some(seed) = state.seed
-        {
-            let compatibility = &self.provenance.compatibility_sha256;
-            let result = retrieve(
-                &self.snapshot,
-                &RetrievalQuery {
-                    situation: situation.clone(),
-                    seed_hash: seed_hash(seed, compatibility),
-                    compatibility_sha256: compatibility.clone(),
-                    language: self.provenance.locale.clone(),
-                },
-                &self.config,
-            );
-            retrieved_memory_ids = result.items.iter().map(|item| item.id()).collect();
-            if self.config.injects() {
-                context = build_experience_context(&result, &self.provenance.locale, &self.config);
-                exposed_memory_ids = context
-                    .as_ref()
-                    .and_then(|value| value.get("items"))
-                    .and_then(Value::as_array)
-                    .into_iter()
-                    .flatten()
-                    .filter_map(|item| item.get("memory_id").and_then(Value::as_str))
-                    .map(str::to_string)
-                    .collect();
-            }
-        }
-        Some(PreparedMemory {
-            situation,
-            context,
-            retrieved_memory_ids,
-            exposed_memory_ids,
-            knowledge_snapshot_id: self.snapshot.snapshot_id.clone(),
-        })
-    }
-
     pub fn record_executed(
         &mut self,
         run_id: &str,
@@ -199,6 +148,22 @@ impl LearningSession {
             .collect();
         used.sort();
         used.dedup();
+        let strategic_ids: Vec<_> = used
+            .iter()
+            .filter(|id| {
+                self.snapshot
+                    .lessons
+                    .iter()
+                    .any(|lesson| lesson.lesson_id == id.as_str() && lesson.is_strategic())
+            })
+            .cloned()
+            .collect();
+        if let Some(locked) = self.capture.trial_lesson_id().map(str::to_string) {
+            used.retain(|id| !strategic_ids.contains(id) || id == &locked);
+        } else if let Some(first) = strategic_ids.first() {
+            self.capture.lock_trial_lesson(first.clone());
+            used.retain(|id| !strategic_ids.contains(id) || id == first);
+        }
         let decision_id = self
             .capture
             .next_decision_id(run_id, state.floor, state.turn_number);
@@ -220,6 +185,7 @@ impl LearningSession {
             decision_id: decision_id.clone(),
             seed_hash: seed_hash(seed, &self.provenance.compatibility_sha256),
             situation: prepared.situation.clone(),
+            ascension_level: state.ascension_level,
             selected_action: selected_action.clone(),
             decision_source: plan.source,
             available_semantic_actions: available_semantic_actions.clone(),

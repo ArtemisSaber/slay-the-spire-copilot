@@ -8,11 +8,10 @@ use std::collections::HashSet;
 mod similarity;
 pub use similarity::situation_similarity;
 
-const MIN_PROPOSED_LESSON_CONFIDENCE: u16 = 600;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RetrievalQuery {
     pub situation: SituationDescriptor,
+    pub ascension_level: Option<i64>,
     pub seed_hash: String,
     pub compatibility_sha256: String,
     pub language: String,
@@ -122,7 +121,17 @@ fn lesson_candidates(
         .lessons
         .iter()
         .filter(|lesson| lesson.language == query.language)
-        .filter(|lesson| lesson.matches_situation(&query.situation))
+        .filter(|lesson| {
+            !snapshot.cases.iter().any(|case| {
+                case.seed_hash == query.seed_hash && lesson.source_case_ids.contains(&case.case_id)
+            })
+        })
+        .filter(|lesson| {
+            lesson.matches_situation(&query.situation)
+                && lesson.lifecycle.as_ref().is_none_or(|lifecycle| {
+                    query.ascension_level == Some(lifecycle.benchmark.ascension_level)
+                })
+        })
         .filter(|lesson| {
             !matches!(
                 lesson.status,
@@ -130,11 +139,8 @@ fn lesson_candidates(
             )
         })
         .filter(|lesson| {
-            lesson.status == LessonStatus::Validated || lesson_guidance_is_coherent(lesson)
-        })
-        .filter(|lesson| {
-            lesson.status != LessonStatus::Proposed
-                || lesson.critic.confidence_millis >= MIN_PROPOSED_LESSON_CONFIDENCE
+            lesson.is_strategic()
+                || (lesson.status != LessonStatus::Proposed && lesson_guidance_is_coherent(lesson))
         })
         .filter_map(|lesson| best_lesson_item(lesson, snapshot, query, config))
         .collect()
@@ -146,11 +152,11 @@ fn best_lesson_item(
     query: &RetrievalQuery,
     config: &MemoryConfig,
 ) -> Option<RetrievalItem> {
-    let allow_cited = lesson.status == LessonStatus::Proposed;
+    let allow_cited = lesson.is_strategic() || lesson.status == LessonStatus::Proposed;
     let (evidence, similarity) = snapshot
         .cases
         .iter()
-        .filter(|case| compatible_case(case, query))
+        .filter(|case| compatible_lesson_evidence(lesson, case, query))
         .filter(|case| {
             lesson.is_independent_support(case)
                 || (allow_cited && lesson.source_case_ids.contains(&case.case_id))
@@ -201,6 +207,25 @@ fn compatible_case(case: &DecisionCase, query: &RetrievalQuery) -> bool {
         && left.encounter_ids == right.encounter_ids
 }
 
+fn compatible_lesson_evidence(
+    lesson: &Lesson,
+    case: &DecisionCase,
+    query: &RetrievalQuery,
+) -> bool {
+    if !lesson.is_strategic() {
+        return compatible_case(case, query);
+    }
+    let left = &case.situation;
+    let right = &query.situation;
+    case.seed_hash != query.seed_hash
+        && case.provenance.compatibility_sha256 == query.compatibility_sha256
+        && left.descriptor_version == right.descriptor_version
+        && left.ranker_tag_schema_version == right.ranker_tag_schema_version
+        && left.character == right.character
+        && left.objective == right.objective
+        && left.ascension_band == right.ascension_band
+}
+
 fn diversify(candidates: Vec<RetrievalItem>, maximum: usize) -> Vec<RetrievalItem> {
     let mut selected = Vec::new();
     let mut families = HashSet::new();
@@ -209,7 +234,7 @@ fn diversify(candidates: Vec<RetrievalItem>, maximum: usize) -> Vec<RetrievalIte
     for candidate in candidates {
         let keep = match &candidate {
             RetrievalItem::Lesson { lesson, .. } => {
-                lessons < 2 && families.insert(lesson.family_key.clone())
+                lessons < 1 && families.insert(lesson.family_key.clone())
             }
             RetrievalItem::Case { .. } => cases < 1,
         };

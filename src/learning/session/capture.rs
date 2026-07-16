@@ -1,10 +1,12 @@
-use super::SessionProvenance;
 use crate::learning::case::{CaseDraft, CaseOutcome, CaseProvenance, DecisionCase};
-use crate::learning::eligibility::{RunFacts, RunObjective, RunOutcome};
+use crate::learning::eligibility::{RunFacts, RunOutcome};
 use crate::learning::telemetry::DecisionIdGenerator;
 use crate::state::NormalizedState;
 
+mod observation;
 mod retention;
+pub(super) use observation::facts;
+use observation::{is_active_combat, new_encounter};
 use retention::retain_bounded_cases;
 
 #[derive(Default)]
@@ -13,6 +15,7 @@ pub(super) struct RunCapture {
     encounter: Option<Encounter>,
     pending: Vec<PendingCase>,
     generator: Option<(String, DecisionIdGenerator)>,
+    trial_lesson_id: Option<String>,
 }
 
 struct Encounter {
@@ -33,6 +36,32 @@ struct PendingCase {
 }
 
 impl RunCapture {
+    pub(super) fn trial_lesson_id(&self) -> Option<&str> {
+        self.trial_lesson_id.as_deref()
+    }
+
+    pub(super) fn lock_trial_lesson(&mut self, lesson_id: String) {
+        self.trial_lesson_id.get_or_insert(lesson_id);
+    }
+
+    pub(super) fn benchmark(
+        &self,
+        facts: &RunFacts,
+        compatibility_sha256: &str,
+    ) -> Option<crate::learning::lesson::LessonBenchmark> {
+        let run_id = self.pending.first()?.draft.run_id.clone();
+        let victory = facts.terminal_outcome? == RunOutcome::Victory;
+        Some(crate::learning::lesson::LessonBenchmark {
+            origin_run_id: run_id,
+            character: facts.character.clone()?,
+            ascension_level: facts.ascension_level?,
+            objective: facts.objective?,
+            final_floor: self.last_state.as_ref()?.floor?,
+            victory,
+            compatibility_sha256: compatibility_sha256.to_string(),
+        })
+    }
+
     pub(super) fn observe(&mut self, state: &NormalizedState) {
         let observation_hash = state.observation_hash();
         for pending in &mut self.pending {
@@ -203,60 +232,4 @@ impl RunCapture {
             pending.outcome.combat_turns = combat_turns;
         }
     }
-}
-
-pub(super) fn facts(
-    capture: &RunCapture,
-    provenance: &SessionProvenance,
-    reason: &str,
-) -> RunFacts {
-    let state = capture.last_state.as_ref();
-    let terminal_outcome = (reason == "game_over").then(|| {
-        if state.and_then(|state| state.current_hp).unwrap_or(0) > 0 {
-            RunOutcome::Victory
-        } else {
-            RunOutcome::Defeat
-        }
-    });
-    RunFacts {
-        ascension_level: state.and_then(|state| state.ascension_level),
-        terminal_outcome,
-        character: state.and_then(|state| state.character.clone()),
-        seed: state.and_then(|state| state.seed),
-        objective: Some(RunObjective::Act3Victory),
-        app_version: Some(env!("CARGO_PKG_VERSION").into()),
-        model_profile_sha256: Some(provenance.model_profile_sha256.clone()),
-        prompt_schema_version: Some(1),
-        locale: Some(provenance.locale.clone()),
-        synthetic_input: provenance.synthetic_input,
-        stdin_test: provenance.synthetic_input,
-        telemetry_consistent: capture
-            .pending
-            .iter()
-            .all(|case| case.outcome.command_succeeded && case.outcome.combat_completed),
-        ..RunFacts::default()
-    }
-}
-
-fn is_active_combat(state: &NormalizedState) -> bool {
-    state.screen_type.as_ref().map(|screen| screen.as_str()) == Some("NONE")
-        && state
-            .monsters
-            .iter()
-            .any(|monster| monster.current_hp.unwrap_or(0) > 0)
-}
-
-fn new_encounter(state: &NormalizedState) -> Option<Encounter> {
-    let mut ids = state
-        .monsters
-        .iter()
-        .map(|monster| monster.monster_id.clone())
-        .collect::<Option<Vec<_>>>()?;
-    ids.sort();
-    Some(Encounter {
-        floor: state.floor,
-        ids,
-        start_hp: state.current_hp.unwrap_or(0),
-        potions_used: vec![],
-    })
 }

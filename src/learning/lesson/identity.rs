@@ -1,8 +1,17 @@
-use super::{ActionPattern, Lesson, LessonError, LessonScope, LessonTrigger, OutcomeCode};
+use super::{
+    ActionPattern, Lesson, LessonBenchmark, LessonError, LessonScope, LessonTrigger, OutcomeCode,
+    StrategicHypothesis,
+};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 pub(super) fn family_key(lesson: &Lesson) -> Result<String, LessonError> {
+    if let Some(strategy) = lesson.strategy.as_ref() {
+        return hash(&StrategicFamilyIdentity {
+            scope: &lesson.scope,
+            strategy,
+        });
+    }
     hash(&FamilyIdentity {
         scope: &lesson.scope,
         trigger: &lesson.trigger,
@@ -13,6 +22,20 @@ pub(super) fn family_key(lesson: &Lesson) -> Result<String, LessonError> {
 }
 
 pub(super) fn lesson_id(lesson: &Lesson) -> Result<String, LessonError> {
+    if let (Some(strategy), Some(lifecycle)) = (lesson.strategy.as_ref(), lesson.lifecycle.as_ref())
+    {
+        return hash(&StrategicLessonIdentity {
+            family_key: &lesson.family_key,
+            language: &lesson.language,
+            strategy,
+            source_case_ids: &lesson.source_case_ids,
+            critic_model_profile_sha256: &lesson.critic.model_profile_sha256,
+            confidence_millis: lesson.critic.confidence_millis,
+            benchmark: &lifecycle.benchmark,
+            parent_lesson_id: lifecycle.parent_lesson_id.as_deref(),
+            generation: lifecycle.generation,
+        });
+    }
     hash(&LessonIdentity {
         family_key: &lesson.family_key,
         language: &lesson.language,
@@ -49,4 +72,23 @@ struct LessonIdentity<'a> {
     source_case_ids: &'a [String],
     critic_model_profile_sha256: &'a str,
     confidence_millis: u16,
+}
+
+#[derive(Serialize)]
+struct StrategicFamilyIdentity<'a> {
+    scope: &'a LessonScope,
+    strategy: &'a StrategicHypothesis,
+}
+
+#[derive(Serialize)]
+struct StrategicLessonIdentity<'a> {
+    family_key: &'a str,
+    language: &'a str,
+    strategy: &'a StrategicHypothesis,
+    source_case_ids: &'a [String],
+    critic_model_profile_sha256: &'a str,
+    confidence_millis: u16,
+    benchmark: &'a LessonBenchmark,
+    parent_lesson_id: Option<&'a str>,
+    generation: u32,
 }

@@ -30,21 +30,39 @@ fn item_value(item: &RetrievalItem) -> Value {
     match item {
         RetrievalItem::Lesson {
             lesson, similarity, ..
-        } => json!({
-            "memory_id": lesson.lesson_id,
-            "kind": "lesson",
-            "status": lesson.status,
-            "similarity": similarity,
-            "guidance_kind": lesson.guidance.kind,
-            "guidance": truncate(&lesson.guidance.text, 256),
-            "critic_confidence_millis": lesson.critic.confidence_millis,
-            "support": {
-                "independent_cases": lesson.support.independent_cases,
-                "dependent_cases": lesson.support.dependent_cases,
-                "contradictions": lesson.support.contradicting_cases,
-            },
-            "caveat": "Observational association, not proof that this action is optimal.",
-        }),
+        } => {
+            if let (Some(strategy), Some(lifecycle)) =
+                (lesson.strategy.as_ref(), lesson.lifecycle.as_ref())
+            {
+                json!({
+                    "memory_id": lesson.lesson_id,
+                    "kind": "strategic_hypothesis",
+                    "status": lesson.status,
+                    "similarity": similarity,
+                    "strategy": truncate(&strategy.text, 384),
+                    "applies_when": truncate(&strategy.applies_when, 256),
+                    "expected_effect": truncate(&strategy.expected_effect, 256),
+                    "uncertainty": truncate(&strategy.uncertainty, 256),
+                    "trial_progress": {
+                        "qualifying_runs": lifecycle.qualifying_runs,
+                        "consecutive_degraded_runs": lifecycle.consecutive_degraded_runs,
+                        "retire_after": 2,
+                    },
+                    "caveat": "Experimental strategic hypothesis; future comparable run outcomes determine whether it survives.",
+                })
+            } else {
+                json!({
+                    "memory_id": lesson.lesson_id,
+                    "kind": "lesson",
+                    "status": lesson.status,
+                    "similarity": similarity,
+                    "guidance_kind": lesson.guidance.kind,
+                    "guidance": truncate(&lesson.guidance.text, 256),
+                    "critic_confidence_millis": lesson.critic.confidence_millis,
+                    "caveat": "Observational association, not proof that this action is optimal.",
+                })
+            }
+        }
         RetrievalItem::Case {
             case, similarity, ..
         } => json!({

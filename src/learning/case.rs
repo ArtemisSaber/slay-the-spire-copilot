@@ -1,5 +1,5 @@
 use crate::learning::action::SemanticAction;
-use crate::learning::descriptor::SituationDescriptor;
+use crate::learning::descriptor::{AscensionBand, SituationDescriptor};
 use crate::learning::telemetry::{DecisionSource, RecordedRankedAction};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -50,6 +50,8 @@ pub struct DecisionCase {
     pub seed_hash: String,
     pub situation_hash: String,
     pub situation: SituationDescriptor,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ascension_level: Option<i64>,
     pub selected_action: SemanticAction,
     pub decision_source: DecisionSource,
     pub available_semantic_actions: Vec<SemanticAction>,
@@ -66,6 +68,7 @@ pub struct CaseDraft {
     pub decision_id: String,
     pub seed_hash: String,
     pub situation: SituationDescriptor,
+    pub ascension_level: Option<i64>,
     pub selected_action: SemanticAction,
     pub decision_source: DecisionSource,
     pub available_semantic_actions: Vec<SemanticAction>,
@@ -80,6 +83,7 @@ pub enum CaseError {
     TooManyRankedSuggestions,
     SelectedActionUnavailable,
     IncompleteOutcome,
+    InvalidAscension,
     InvalidIdentifier,
     Serialization,
 }
@@ -103,6 +107,7 @@ impl CaseDraft {
             seed_hash: self.seed_hash,
             situation_hash,
             situation: self.situation,
+            ascension_level: self.ascension_level,
             selected_action: self.selected_action,
             decision_source: self.decision_source,
             available_semantic_actions: self.available_semantic_actions,
@@ -136,6 +141,9 @@ impl CaseDraft {
         if !complete_outcome(outcome) {
             return Err(CaseError::IncompleteOutcome);
         }
+        if !valid_ascension(self.ascension_level, self.situation.ascension_band) {
+            return Err(CaseError::InvalidAscension);
+        }
         let ids = [
             self.run_id.as_str(),
             self.decision_id.as_str(),
@@ -167,6 +175,7 @@ impl DecisionCase {
                 .available_semantic_actions
                 .contains(&self.selected_action)
             && complete_outcome(&self.outcome)
+            && valid_ascension(self.ascension_level, self.situation.ascension_band)
             && self
                 .situation
                 .situation_hash()
@@ -182,6 +191,7 @@ impl DecisionCase {
             seed_hash: &self.seed_hash,
             situation_hash: &self.situation_hash,
             situation: &self.situation,
+            ascension_level: self.ascension_level,
             selected_action: &self.selected_action,
             decision_source: self.decision_source,
             available_semantic_actions: &self.available_semantic_actions,
@@ -204,6 +214,8 @@ struct CaseIdentity<'a> {
     seed_hash: &'a str,
     situation_hash: &'a str,
     situation: &'a SituationDescriptor,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ascension_level: Option<i64>,
     selected_action: &'a SemanticAction,
     decision_source: DecisionSource,
     available_semantic_actions: &'a [SemanticAction],
@@ -233,4 +245,8 @@ fn complete_outcome(outcome: &CaseOutcome) -> bool {
         && outcome.combat_won.is_some()
         && outcome.run_completed
         && outcome.run_victory.is_some()
+}
+
+fn valid_ascension(level: Option<i64>, band: AscensionBand) -> bool {
+    level.is_none_or(|level| AscensionBand::from_level(level) == Some(band))
 }

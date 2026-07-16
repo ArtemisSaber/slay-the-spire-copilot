@@ -7,6 +7,7 @@ use sha2::{Digest, Sha256};
 pub enum LessonEventKind {
     Proposed,
     Recalculated,
+    Evaluated,
     Validated,
     Contested,
     Retired,
@@ -73,7 +74,7 @@ fn validate_transition(
         LessonEventKind::Contested => Some(LessonStatus::Contested),
         LessonEventKind::Retired => Some(LessonStatus::Retired),
         LessonEventKind::Proposed => Some(LessonStatus::Proposed),
-        LessonEventKind::Recalculated => None,
+        LessonEventKind::Recalculated | LessonEventKind::Evaluated => None,
     };
     if expected.is_some_and(|status| lesson.status != status) {
         return Err(LessonError::InvalidHumanStatus);

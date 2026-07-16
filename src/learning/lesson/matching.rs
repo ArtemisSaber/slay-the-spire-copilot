@@ -1,8 +1,11 @@
-use super::{ActionKind, Lesson, LessonProposal, OutcomeCode, SupportStats};
+#[cfg(test)]
+use super::LessonProposal;
+use super::{ActionKind, Lesson, OutcomeCode, SupportStats};
 use crate::learning::action::SemanticAction;
 use crate::learning::case::DecisionCase;
 use std::collections::HashSet;
 
+#[cfg(test)]
 pub(super) fn matches_proposal(proposal: &LessonProposal, case: &DecisionCase) -> bool {
     scope_trigger(&proposal.scope, &proposal.trigger, case)
         && action_matches(&proposal.action_pattern, case)
@@ -53,7 +56,7 @@ fn lesson_scope_trigger(
     scope.character == situation.character
         && scope.objective == situation.objective
         && scope.ascension_bands.contains(&situation.ascension_band)
-        && scope.encounter_ids == situation.encounter_ids
+        && (scope.encounter_ids.is_empty() || scope.encounter_ids == situation.encounter_ids)
         && member_or_any(&trigger.turn_buckets, &situation.turn_bucket)
         && member_or_any(
             &trigger.block_threat_buckets,
@@ -127,6 +130,7 @@ fn action_matches(pattern: &super::ActionPattern, case: &DecisionCase) -> bool {
             pattern.potion_ids.is_empty() || pattern.potion_ids.contains(potion_id)
         }
         (ActionKind::EndTurn, SemanticAction::EndTurn) => true,
+        (ActionKind::StrategicPolicy, _) => false,
         _ => false,
     }
 }
@@ -146,5 +150,6 @@ pub(super) fn outcome_matches(code: OutcomeCode, case: &DecisionCase) -> Option<
         OutcomeCode::CombatCompletedQuickly => outcome
             .combat_turns
             .map(|turns| outcome.combat_completed && turns <= 3),
+        OutcomeCode::RunProgression => None,
     }
 }

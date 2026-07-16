@@ -1,5 +1,4 @@
 mod action_tests;
-mod audit_tests;
 mod bootstrap_tests;
 mod bundle_tests;
 mod capture_outcome_tests;
@@ -16,6 +15,8 @@ mod eligibility_tests;
 mod lesson_event_tests;
 mod lesson_quality_tests;
 mod lesson_tests;
+mod lifecycle_e2e_tests;
+mod lifecycle_tests;
 mod retrieval_tests;
 mod session_tests;
 mod snapshot_tests;

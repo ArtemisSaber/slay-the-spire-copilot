@@ -145,6 +145,7 @@ fn finalized_case(
         decision_id: decision_id.into(),
         seed_hash: seed_hash(42, "mods"),
         situation,
+        ascension_level: Some(0),
         selected_action,
         decision_source: DecisionSource::Llm,
         available_semantic_actions,

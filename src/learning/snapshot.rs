@@ -98,6 +98,12 @@ impl KnowledgeSnapshot {
         }) {
             return Err(SnapshotError::MissingLessonSource);
         }
+        if lessons
+            .values()
+            .any(|lesson| !lesson.sources_are_valid(&all_cases))
+        {
+            return Err(SnapshotError::InvalidLesson);
+        }
         for lesson in lessons.values_mut() {
             lesson.recalculate_support(&all_cases);
         }

@@ -1,5 +1,8 @@
-use super::{ActionKind, GuidanceKind, Lesson, LessonError, LessonProposal, OutcomeCode};
+#[cfg(test)]
+use super::LessonProposal;
+use super::{ActionKind, GuidanceKind, Lesson, LessonError, OutcomeCode};
 
+#[cfg(test)]
 pub(super) fn validate_and_canonicalize(proposal: &mut LessonProposal) -> Result<(), LessonError> {
     if proposal.confidence_millis > 1_000 {
         return Err(LessonError::InvalidConfidence);
@@ -13,6 +16,7 @@ pub(super) fn validate_and_canonicalize(proposal: &mut LessonProposal) -> Result
                 || !pattern.card_ids.is_empty()
                 || !pattern.potion_ids.is_empty()
         }
+        ActionKind::StrategicPolicy => true,
     };
     if invalid_pattern {
         return Err(LessonError::InvalidActionPattern);
@@ -65,6 +69,10 @@ pub(super) fn validate_guidance_coherence(
                 && matches!(guidance_kind, GuidanceKind::Prefer | GuidanceKind::Consider)
         }
         OutcomeCode::PotionPreserved => return Err(LessonError::UnsupportedOutcome),
+        OutcomeCode::RunProgression => {
+            action_kind == ActionKind::StrategicPolicy
+                && guidance_kind == GuidanceKind::Experimental
+        }
     };
     if !coherent {
         return Err(LessonError::IncoherentGuidance);
@@ -81,11 +89,13 @@ pub(crate) fn lesson_guidance_is_coherent(lesson: &Lesson) -> bool {
     .is_ok()
 }
 
+#[cfg(test)]
 fn sort_dedup(values: &mut Vec<String>) {
     values.sort();
     values.dedup();
 }
 
+#[cfg(test)]
 fn valid_identifier(value: &str) -> bool {
     !value.is_empty()
         && value.trim() == value
@@ -93,6 +103,7 @@ fn valid_identifier(value: &str) -> bool {
         && !value.chars().any(char::is_control)
 }
 
+#[cfg(test)]
 fn safe_text(value: &str, max: usize) -> bool {
     let lower = value.to_ascii_lowercase();
     !value.trim().is_empty()

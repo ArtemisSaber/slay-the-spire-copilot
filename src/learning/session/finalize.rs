@@ -14,9 +14,15 @@ impl LearningSession {
     fn commit_finalized_run(&mut self, reason: &str) -> anyhow::Result<FinalizeSummary> {
         let run_facts = facts(&self.capture, &self.provenance, reason);
         let eligibility = evaluate(&run_facts);
+        let benchmark = eligibility.knowledge_eligible.then(|| {
+            self.capture
+                .benchmark(&run_facts, &self.provenance.compatibility_sha256)
+        });
+        let benchmark = benchmark.flatten();
         self.last_eligibility = Some(eligibility.clone());
         let mut appended_cases = 0;
         let mut skipped_cases = 0;
+        let mut lifecycle = super::lifecycle::LifecycleSummary::default();
         if eligibility.knowledge_eligible {
             let provenance = CaseProvenance {
                 app_version: env!("CARGO_PKG_VERSION").into(),
@@ -37,7 +43,11 @@ impl LearningSession {
             let bundle = embedded_bundle()
                 .map_err(|error| anyhow::anyhow!("embedded bundle invalid: {error:?}"))?;
             self.snapshot = self.store.rebuild(&[bundle])?;
+            if let Some(benchmark) = benchmark.as_ref() {
+                lifecycle = self.evaluate_lesson_lifecycle(&cases, benchmark)?;
+            }
         }
+        self.last_completed_benchmark = benchmark;
         self.store.write_status(
             &self.snapshot,
             self.config.mode,
@@ -48,6 +58,8 @@ impl LearningSession {
             appended_cases,
             skipped_cases,
             snapshot_id: self.snapshot.snapshot_id.clone(),
+            evaluated_lessons: lifecycle.evaluated,
+            retired_lessons: lifecycle.retired,
         })
     }
 }

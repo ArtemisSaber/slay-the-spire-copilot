@@ -65,6 +65,8 @@ async fn finalize(
                     "eligibility": summary.eligibility,
                     "appended_cases": summary.appended_cases,
                     "skipped_cases": summary.skipped_cases,
+                    "evaluated_lessons": summary.evaluated_lessons,
+                    "retired_lessons": summary.retired_lessons,
                     "snapshot_id": summary.snapshot_id,
                 }));
                 if let Some(path) = overlay_path {
