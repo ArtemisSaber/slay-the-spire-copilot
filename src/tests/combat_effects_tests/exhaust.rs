@@ -86,6 +86,14 @@ fn parse_exhaust_en_chosen() {
 }
 
 #[test]
+fn parse_exhaust_all_damage_per_card_shape() {
+    assert_eq!(
+        parse_exhaust("消耗所有手牌。每消耗一张牌，造成 7 点伤害。", &zh_locale()),
+        ExhaustKind::ExhaustAllDamagePerCard
+    );
+}
+
+#[test]
 fn parse_exhaust_no_match() {
     assert_eq!(
         parse_exhaust("just a skill", &en_locale()),

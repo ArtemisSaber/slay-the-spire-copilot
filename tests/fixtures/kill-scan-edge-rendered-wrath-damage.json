@@ -1,0 +1,67 @@
+{
+  "available_commands": ["play", "end", "state"],
+  "ready_for_command": true,
+  "in_game": true,
+  "game_state": {
+    "screen_type": "NONE",
+    "screen_state": {},
+    "room_type": "MonsterRoom",
+    "current_hp": 72,
+    "max_hp": 72,
+    "relics": [],
+    "potions": [],
+    "deck": [],
+    "combat_state": {
+      "turn": 1,
+      "draw_pile": [],
+      "discard_pile": [],
+      "exhaust_pile": [],
+      "player": {
+        "current_hp": 72,
+        "max_hp": 72,
+        "block": 0,
+        "energy": 1,
+        "powers": [
+          {
+            "id": "Wrath",
+            "name": "愤怒",
+            "amount": 1
+          }
+        ],
+        "orbs": []
+      },
+      "hand": [
+        {
+          "id": "Strike_P",
+          "name": "打击",
+          "type": "ATTACK",
+          "cost": 1,
+          "description": "造成 12 点伤害。",
+          "uuid": "edge-wrath-strike",
+          "is_playable": true,
+          "has_target": true,
+          "exhausts": false,
+          "ethereal": false,
+          "upgrades": 0,
+          "rarity": "BASIC"
+        }
+      ],
+      "monsters": [
+        {
+          "id": "JawWorm",
+          "name": "大颚虫",
+          "current_hp": 20,
+          "max_hp": 20,
+          "block": 0,
+          "intent": "ATTACK",
+          "move_base_damage": 5,
+          "move_adjusted_damage": 5,
+          "move_hits": 1,
+          "is_gone": false,
+          "half_dead": false,
+          "powers": []
+        }
+      ]
+    }
+  }
+}

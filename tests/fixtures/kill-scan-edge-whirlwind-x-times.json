@@ -1,0 +1,61 @@
+{
+  "available_commands": ["play", "end", "state"],
+  "ready_for_command": true,
+  "in_game": true,
+  "game_state": {
+    "screen_type": "NONE",
+    "screen_state": {},
+    "room_type": "MonsterRoom",
+    "current_hp": 75,
+    "max_hp": 75,
+    "relics": [],
+    "potions": [],
+    "deck": [],
+    "combat_state": {
+      "turn": 1,
+      "draw_pile": [],
+      "discard_pile": [],
+      "exhaust_pile": [],
+      "player": {
+        "current_hp": 75,
+        "max_hp": 75,
+        "block": 0,
+        "energy": 2,
+        "powers": [],
+        "orbs": []
+      },
+      "hand": [
+        {
+          "id": "Whirlwind",
+          "name": "旋风斩",
+          "type": "ATTACK",
+          "cost": -1,
+          "description": "对所有敌人造成 7 点伤害X次。",
+          "uuid": "edge-whirlwind",
+          "is_playable": true,
+          "has_target": false,
+          "exhausts": false,
+          "ethereal": false,
+          "upgrades": 0,
+          "rarity": "UNCOMMON"
+        }
+      ],
+      "monsters": [
+        {
+          "id": "JawWorm",
+          "name": "异鸟",
+          "current_hp": 20,
+          "max_hp": 20,
+          "block": 0,
+          "intent": "ATTACK",
+          "move_base_damage": 5,
+          "move_adjusted_damage": 5,
+          "move_hits": 1,
+          "is_gone": false,
+          "half_dead": false,
+          "powers": []
+        }
+      ]
+    }
+  }
+}

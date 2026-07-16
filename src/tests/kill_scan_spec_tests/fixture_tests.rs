@@ -25,6 +25,13 @@ fn run_fixture_list() -> Vec<serde_json::Value> {
     serde_json::from_str(&content).unwrap()
 }
 
+fn edge_fixture_list() -> Vec<serde_json::Value> {
+    let content = std::fs::read_to_string("tests/fixtures/kill-scan-edge-fixtures.json").unwrap();
+    serde_json::from_str(&content).unwrap()
+}
+
+#[path = "fixture_tests/edge_regressions.rs"]
+mod edge_regressions;
 #[path = "fixture_tests/run_fixtures.rs"]
 mod run_fixtures;
 #[path = "fixture_tests/standard.rs"]

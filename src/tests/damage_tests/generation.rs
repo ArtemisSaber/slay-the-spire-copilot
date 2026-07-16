@@ -21,7 +21,8 @@ fn generate_plays_untargeted_aoe_card_returns_one_branch() {
         ms_with_index(0, 10, 0, vec![]),
         ms_with_index(1, 10, 0, vec![]),
     ];
-    let cards = vec![card(1, "s1")];
+    let mut cards = vec![card(1, "s1")];
+    cards[0].has_target = false;
     let ctx = ctx_with(3, monsters, cards);
     let effect = effect_damage(6, HitCount::Fixed(1), TargetType::AoE);
 
@@ -129,6 +130,25 @@ fn generate_plays_execute_makes_card_targeted() {
 
     let branches = generate_plays(0, &effect, &ctx);
     assert_eq!(branches.len(), 2);
+}
+
+#[test]
+fn generate_plays_respects_card_target_metadata_for_setup_effects() {
+    let monsters = vec![
+        ms_with_index(0, 10, 0, vec![]),
+        ms_with_index(1, 10, 0, vec![]),
+    ];
+    let mut cards = vec![card(1, "targeted-setup")];
+    cards[0].card_type = "SKILL".into();
+    cards[0].has_target = true;
+    let ctx = ctx_with(3, monsters, cards);
+    let mut effect = effect_no_damage();
+    effect.strength_gain = 3;
+
+    let branches = generate_plays(0, &effect, &ctx);
+
+    assert_eq!(branches.len(), 2);
+    assert!(branches.iter().all(|branch| branch.target_index.is_some()));
 }
 
 #[test]

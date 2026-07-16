@@ -1,0 +1,30 @@
+[
+  {
+    "label": "whirlwind-x-times-does-not-square-x",
+    "filename": "kill-scan-edge-whirlwind-x-times.json"
+  },
+  {
+    "label": "flying-knee-energy-is-next-turn",
+    "filename": "kill-scan-edge-flying-knee-next-turn-energy.json"
+  },
+  {
+    "label": "dropkick-energy-requires-vulnerable",
+    "filename": "kill-scan-edge-dropkick-conditional-energy.json"
+  },
+  {
+    "label": "fiend-fire-removes-the-rest-of-the-hand",
+    "filename": "kill-scan-edge-fiend-fire-exhausts-hand.json"
+  },
+  {
+    "label": "rendered-wrath-damage-is-not-doubled-again",
+    "filename": "kill-scan-edge-rendered-wrath-damage.json"
+  },
+  {
+    "label": "heavy-blade-multiplier-is-not-strength-gain",
+    "filename": "kill-scan-edge-heavy-blade-strength-text.json"
+  },
+  {
+    "label": "spot-weakness-requires-an-attacking-target",
+    "filename": "kill-scan-edge-spot-weakness-non-attacking.json"
+  }
+]

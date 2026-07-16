@@ -1,4 +1,5 @@
 use crate::combat::damage::{combat_ended, resolve_play};
+use crate::combat::effects::ExhaustKind;
 use crate::combat::{CombatScanContext, MonsterSnapshot, Stance};
 
 use super::search::{DfsContext, PlayStep, dfs};
@@ -18,7 +19,13 @@ pub(crate) fn try_play_card(
     monsters: &[MonsterSnapshot],
     ctx: &mut DfsContext<'_>,
 ) -> Option<Vec<PlayStep>> {
-    let effect = ctx.effects.get(card_idx).and_then(|e| e.as_ref())?;
+    let mut effect = ctx.effects.get(card_idx).and_then(|e| e.as_ref())?.clone();
+    if effect.exhaust == ExhaustKind::ExhaustAllDamagePerCard
+        && let Some(damage) = effect.damage.as_mut()
+    {
+        let exhausted_cards = remaining_mask.count_ones().saturating_sub(1) as i16;
+        damage.hits = crate::combat::effects::HitCount::Fixed(exhausted_cards);
+    }
 
     let cost = if effect.x_cost {
         energy
@@ -33,7 +40,7 @@ pub(crate) fn try_play_card(
     let play_ctx = CombatScanContext {
         cards: ctx.cards.to_vec(),
         energy,
-        initial_stance: stance,
+        initial_stance: ctx.initial_stance,
         current_stance: stance,
         strength_delta,
         x_cost_bonus: ctx.x_cost_bonus,
@@ -41,11 +48,12 @@ pub(crate) fn try_play_card(
         remaining_card_plays: 1,
     };
 
-    let is_targeted = effect
-        .damage
-        .as_ref()
-        .map(|d| matches!(d.target_type, crate::combat::effects::TargetType::Targeted))
-        .unwrap_or(false)
+    let is_targeted = ctx.cards[card_idx].has_target
+        || effect
+            .damage
+            .as_ref()
+            .map(|d| matches!(d.target_type, crate::combat::effects::TargetType::Targeted))
+            .unwrap_or(false)
         || effect.vulnerable.is_some()
         || effect.execute.is_some();
 
@@ -84,7 +92,7 @@ pub(crate) fn try_play_card(
     };
 
     for target_idx in &targets {
-        let resolved = resolve_play(card_idx, *target_idx, effect, &play_ctx);
+        let resolved = resolve_play(card_idx, *target_idx, &effect, &play_ctx);
 
         let mut new_energy = resolved.energy;
         let mut new_stance = resolved.current_stance;
@@ -99,8 +107,6 @@ pub(crate) fn try_play_card(
             new_energy += 3;
         }
 
-        let new_mask = remaining_mask & !(1u32 << card_idx);
-
         if combat_ended(&resolved.monsters) {
             let cmd_target = target_idx.map(|ti| resolved.monsters[ti].command_index);
             return Some(vec![PlayStep {
@@ -108,6 +114,12 @@ pub(crate) fn try_play_card(
                 target: cmd_target,
             }]);
         }
+
+        let Some(new_mask) =
+            remaining_mask_after_exhaust(remaining_mask, card_idx, &effect.exhaust, ctx.cards)
+        else {
+            continue;
+        };
 
         if let Some(mut suffix) = dfs(
             new_mask,
@@ -132,4 +144,36 @@ pub(crate) fn try_play_card(
     }
 
     None
+}
+
+fn remaining_mask_after_exhaust(
+    remaining_mask: u32,
+    card_idx: usize,
+    exhaust: &ExhaustKind,
+    cards: &[crate::state::CardInfo],
+) -> Option<u32> {
+    let played_removed = remaining_mask & !(1u32 << card_idx);
+    match exhaust {
+        ExhaustKind::None | ExhaustKind::Self_ => Some(played_removed),
+        ExhaustKind::All | ExhaustKind::ExhaustAllDamagePerCard => Some(0),
+        ExhaustKind::NonAttacks => Some(filter_remaining_cards(played_removed, cards, |card| {
+            card.card_type == "ATTACK"
+        })),
+        ExhaustKind::Attacks => Some(filter_remaining_cards(played_removed, cards, |card| {
+            card.card_type != "ATTACK"
+        })),
+        ExhaustKind::Random | ExhaustKind::Chosen => None,
+    }
+}
+
+fn filter_remaining_cards(
+    remaining_mask: u32,
+    cards: &[crate::state::CardInfo],
+    keep: impl Fn(&crate::state::CardInfo) -> bool,
+) -> u32 {
+    cards
+        .iter()
+        .enumerate()
+        .filter(|(index, card)| remaining_mask & (1u32 << index) != 0 && keep(card))
+        .fold(0, |mask, (index, _)| mask | (1u32 << index))
 }

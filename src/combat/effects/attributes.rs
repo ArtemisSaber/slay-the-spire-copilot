@@ -3,34 +3,75 @@ use crate::parsing::extract_first_integer;
 
 use super::{ExhaustKind, StanceEffect};
 
+fn has_unsupported_condition_or_timing(segment: &str) -> bool {
+    let lower = segment.to_lowercase();
+    let english = [
+        "if ",
+        "when ",
+        "whenever",
+        "next turn",
+        "at the start of",
+        "at start of",
+        "for each",
+    ];
+    let localized = [
+        "如果",
+        "若",
+        "每当",
+        "下一回合",
+        "下回合",
+        "回合开始",
+        "每消耗",
+        "場合",
+        "たび",
+        "次のターン",
+        "開始時",
+        "경우",
+        "때",
+        "마다",
+        "다음 턴",
+    ];
+
+    english.iter().any(|marker| lower.contains(marker))
+        || localized.iter().any(|marker| segment.contains(marker))
+}
+
+fn has_strength_gain_verb(segment: &str) -> bool {
+    let lower = segment.to_lowercase();
+    lower.contains("gain")
+        || segment.contains("获得")
+        || segment.contains("得到")
+        || segment.contains("得る")
+        || segment.contains("獲得")
+        || segment.contains("얻")
+        || segment.contains("획득")
+}
+
 pub(super) fn parse_energy_gain(desc: &str) -> i16 {
-    desc.matches("[E]").count() as i16 + desc.matches("能量").count() as i16
+    desc.split(['。', '.'])
+        .filter(|segment| !has_unsupported_condition_or_timing(segment))
+        .map(|segment| {
+            segment.matches("[E]").count() as i16 + segment.matches("能量").count() as i16
+        })
+        .sum()
 }
 
 pub(super) fn parse_strength_gain(desc: &str, locale: &EffectParserLocale) -> i16 {
     let loss = &locale.strength_lose_keyword;
-    for segment in desc.split('。') {
+    for segment in desc.split(['。', '.']) {
         let segment = segment.trim();
-        if segment.contains(&locale.strength_gain_keyword) || segment.contains("Strength") {
-            if segment.contains(loss) {
-                continue;
-            }
-            if let Some(n) = extract_first_integer(segment) {
-                return n;
-            }
-        }
-    }
-    for segment in desc.split('.') {
-        let segment = segment.trim();
-        if segment.to_lowercase().contains("strength")
-            || segment.contains(&locale.strength_gain_keyword)
+        let lower = segment.to_lowercase();
+        let mentions_strength =
+            lower.contains("strength") || segment.contains(&locale.strength_gain_keyword);
+        if !mentions_strength
+            || !has_strength_gain_verb(segment)
+            || has_unsupported_condition_or_timing(segment)
+            || lower.contains(&loss.to_lowercase())
         {
-            if segment.to_lowercase().contains(&loss.to_lowercase()) {
-                continue;
-            }
-            if let Some(n) = extract_first_integer(segment) {
-                return n;
-            }
+            continue;
+        }
+        if let Some(n) = extract_first_integer(segment) {
+            return n;
         }
     }
     0
@@ -38,15 +79,11 @@ pub(super) fn parse_strength_gain(desc: &str, locale: &EffectParserLocale) -> i1
 
 pub(super) fn parse_vulnerable(desc: &str, locale: &EffectParserLocale) -> Option<i16> {
     let keyword = &locale.vulnerable_keyword;
-    for segment in desc.split('。') {
+    for segment in desc.split(['。', '.']) {
         let segment = segment.trim();
-        if segment.contains(keyword) || segment.contains("Vulnerable") {
-            let n = extract_first_integer(segment).unwrap_or(1);
-            return Some(n);
+        if has_unsupported_condition_or_timing(segment) {
+            continue;
         }
-    }
-    for segment in desc.split('.') {
-        let segment = segment.trim();
         if segment.to_lowercase().contains("vulnerable") || segment.contains(keyword) {
             let n = extract_first_integer(segment).unwrap_or(1);
             return Some(n);
@@ -56,45 +93,44 @@ pub(super) fn parse_vulnerable(desc: &str, locale: &EffectParserLocale) -> Optio
 }
 
 pub(super) fn parse_stance(desc: &str, locale: &EffectParserLocale) -> StanceEffect {
-    let lower = desc.to_lowercase();
+    for segment in desc.split(['。', '.']) {
+        if has_unsupported_condition_or_timing(segment) {
+            continue;
+        }
+        let lower = segment.to_lowercase();
+        let matches_all = |keywords: &[String]| {
+            keywords
+                .iter()
+                .all(|keyword| lower.contains(&keyword.to_lowercase()))
+        };
 
-    let wrath_match = locale
-        .enter_wrath_keywords
-        .iter()
-        .all(|keyword| lower.contains(&keyword.to_lowercase()));
-    let calm_match = locale
-        .enter_calm_keywords
-        .iter()
-        .all(|keyword| lower.contains(&keyword.to_lowercase()));
-    let exit_match = locale
-        .exit_stance_keywords
-        .iter()
-        .all(|keyword| lower.contains(&keyword.to_lowercase()));
-    let divinity_match = locale
-        .enter_divinity_keywords
-        .iter()
-        .all(|keyword| lower.contains(&keyword.to_lowercase()));
-
-    if wrath_match {
-        StanceEffect::EnterWrath
-    } else if calm_match {
-        StanceEffect::EnterCalm
-    } else if exit_match {
-        StanceEffect::ExitStance
-    } else if divinity_match {
-        StanceEffect::EnterDivinity
-    } else {
-        StanceEffect::None
+        if matches_all(&locale.enter_wrath_keywords) {
+            return StanceEffect::EnterWrath;
+        }
+        if matches_all(&locale.enter_calm_keywords) {
+            return StanceEffect::EnterCalm;
+        }
+        if matches_all(&locale.exit_stance_keywords) {
+            return StanceEffect::ExitStance;
+        }
+        if matches_all(&locale.enter_divinity_keywords) {
+            return StanceEffect::EnterDivinity;
+        }
     }
+    StanceEffect::None
 }
 
 pub(super) fn parse_mantra(desc: &str, locale: &EffectParserLocale) -> i16 {
     let keyword = &locale.mantra_keyword;
-    if desc.contains(keyword) || desc.to_lowercase().contains("mantra") {
-        extract_first_integer(desc).unwrap_or(1)
-    } else {
-        0
+    for segment in desc.split(['。', '.']) {
+        if has_unsupported_condition_or_timing(segment) {
+            continue;
+        }
+        if segment.contains(keyword) || segment.to_lowercase().contains("mantra") {
+            return extract_first_integer(segment).unwrap_or(1);
+        }
     }
+    0
 }
 
 pub(super) fn parse_execute(desc: &str, locale: &EffectParserLocale) -> Option<i16> {
@@ -120,7 +156,11 @@ pub(super) fn parse_exhaust(desc: &str, locale: &EffectParserLocale) -> ExhaustK
     if !has_exhaust {
         return ExhaustKind::None;
     }
-    if lower.contains("所有非攻击牌") || lower.contains("all non-attack") {
+    if (lower.contains("每消耗一张") || lower.contains("for each exhausted card"))
+        && (lower.contains("所有手牌") || lower.contains("all cards"))
+    {
+        ExhaustKind::ExhaustAllDamagePerCard
+    } else if lower.contains("所有非攻击牌") || lower.contains("all non-attack") {
         ExhaustKind::NonAttacks
     } else if lower.contains("所有攻击牌") || lower.contains("all attack") {
         ExhaustKind::Attacks

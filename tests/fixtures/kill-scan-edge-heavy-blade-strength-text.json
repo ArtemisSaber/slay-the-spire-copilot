@@ -1,0 +1,75 @@
+{
+  "available_commands": ["play", "end", "state"],
+  "ready_for_command": true,
+  "in_game": true,
+  "game_state": {
+    "screen_type": "NONE",
+    "screen_state": {},
+    "room_type": "MonsterRoom",
+    "current_hp": 75,
+    "max_hp": 75,
+    "relics": [],
+    "potions": [],
+    "deck": [],
+    "combat_state": {
+      "turn": 1,
+      "draw_pile": [],
+      "discard_pile": [],
+      "exhaust_pile": [],
+      "player": {
+        "current_hp": 75,
+        "max_hp": 75,
+        "block": 0,
+        "energy": 3,
+        "powers": [],
+        "orbs": []
+      },
+      "hand": [
+        {
+          "id": "Heavy Blade",
+          "name": "重刃",
+          "type": "ATTACK",
+          "cost": 2,
+          "description": "造成 10 点伤害。力量 在 重刃 上发挥 3 倍效果。",
+          "uuid": "edge-heavy-blade",
+          "is_playable": true,
+          "has_target": true,
+          "exhausts": false,
+          "ethereal": false,
+          "upgrades": 0,
+          "rarity": "COMMON"
+        },
+        {
+          "id": "Strike_R",
+          "name": "打击",
+          "type": "ATTACK",
+          "cost": 1,
+          "description": "造成 6 点伤害。",
+          "uuid": "edge-heavy-blade-strike",
+          "is_playable": true,
+          "has_target": true,
+          "exhausts": false,
+          "ethereal": false,
+          "upgrades": 0,
+          "rarity": "BASIC"
+        }
+      ],
+      "monsters": [
+        {
+          "id": "JawWorm",
+          "name": "大颚虫",
+          "current_hp": 18,
+          "max_hp": 18,
+          "block": 0,
+          "intent": "ATTACK",
+          "move_base_damage": 5,
+          "move_adjusted_damage": 5,
+          "move_hits": 1,
+          "is_gone": false,
+          "half_dead": false,
+          "powers": []
+        }
+      ]
+    }
+  }
+}

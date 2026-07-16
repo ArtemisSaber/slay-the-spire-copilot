@@ -57,6 +57,7 @@ pub(crate) fn find_kill_sequence_inner(
         expanded: 0,
         deadline: Instant::now() + options.deadline,
         x_cost_bonus: ctx.x_cost_bonus,
+        initial_stance: ctx.initial_stance,
     };
 
     let result = dfs(

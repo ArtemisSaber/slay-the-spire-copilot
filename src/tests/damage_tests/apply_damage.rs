@@ -21,7 +21,10 @@ fn apply_damage_x_times_with_outstanding_x_value() {
         target_type: TargetType::Targeted,
     };
     apply_damage(&dmg, Some(0), Some(3), &mut monsters, Stance::Neutral, 0);
-    assert_eq!(monsters[0].hp, 6);
+    assert_eq!(
+        monsters[0].hp, 42,
+        "6 damage X times with X=3 must deal 18, not 54"
+    );
 }
 
 #[test]

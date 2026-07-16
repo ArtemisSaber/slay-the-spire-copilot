@@ -53,3 +53,17 @@ fn resolve_play_stance_none_keeps_current_stance() {
     let result = resolve_play(0, None, &effect, &ctx);
     assert_eq!(result.current_stance, Stance::Wrath);
 }
+
+#[test]
+fn resolve_play_does_not_reapply_initial_wrath_to_rendered_damage() {
+    let monster = ms(20, 0, vec![]);
+    let cards = vec![card(1, "wrath-strike")];
+    let mut ctx = ctx_with(1, vec![monster], cards);
+    ctx.initial_stance = Stance::Wrath;
+    ctx.current_stance = Stance::Wrath;
+    let effect = effect_damage(12, HitCount::Fixed(1), TargetType::Targeted);
+
+    let result = resolve_play(0, Some(0), &effect, &ctx);
+
+    assert_eq!(result.monsters[0].hp, 8);
+}

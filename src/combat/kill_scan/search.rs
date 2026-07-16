@@ -55,6 +55,7 @@ pub(crate) struct DfsContext<'a> {
     pub(crate) expanded: usize,
     pub(crate) deadline: Instant,
     pub(crate) x_cost_bonus: i16,
+    pub(crate) initial_stance: Stance,
 }
 
 #[allow(

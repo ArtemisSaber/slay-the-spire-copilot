@@ -96,8 +96,8 @@ fn parse_x_cost_zh_x_in_desc() {
 }
 
 #[test]
-fn parse_card_effect_power_rejected() {
+fn delayed_strength_power_is_not_immediate() {
     let c = power("At the start of your turn, gain 2 Strength.");
-    let e = parse_card_effect(&c, &en_locale()).unwrap();
-    assert_eq!(e.strength_gain, 2);
+    let e = parse_card_effect(&c, &en_locale());
+    assert!(e.is_none() || e.unwrap().strength_gain == 0);
 }

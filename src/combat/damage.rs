@@ -7,7 +7,9 @@ use crate::combat::effects::TargetType;
 mod application;
 mod powers;
 
+#[cfg(test)]
 pub(crate) use application::apply_damage;
+pub(crate) use application::apply_damage_from_rendered;
 #[cfg(test)]
 pub(crate) use application::calc_effective_damage;
 pub(crate) use powers::{
@@ -49,11 +51,12 @@ pub fn generate_plays(
         return vec![];
     }
 
-    let is_targeted = effect
-        .damage
-        .as_ref()
-        .map(|d| d.target_type == TargetType::Targeted)
-        .unwrap_or(false)
+    let is_targeted = ctx.cards[card_index].has_target
+        || effect
+            .damage
+            .as_ref()
+            .map(|d| d.target_type == TargetType::Targeted)
+            .unwrap_or(false)
         || effect.vulnerable.is_some()
         || effect.execute.is_some();
 
@@ -101,11 +104,12 @@ pub(crate) fn resolve_play(
     energy = if effect.x_cost { 0 } else { energy - cost };
 
     if let Some(dmg) = &effect.damage {
-        apply_damage(
+        apply_damage_from_rendered(
             dmg,
             target_monster_idx,
             x_value,
             &mut monsters,
+            ctx.initial_stance,
             stance,
             strength_delta,
         );

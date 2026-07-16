@@ -1,0 +1,75 @@
+{
+  "available_commands": ["play", "end", "state"],
+  "ready_for_command": true,
+  "in_game": true,
+  "game_state": {
+    "screen_type": "NONE",
+    "screen_state": {},
+    "room_type": "MonsterRoom",
+    "current_hp": 70,
+    "max_hp": 70,
+    "relics": [],
+    "potions": [],
+    "deck": [],
+    "combat_state": {
+      "turn": 1,
+      "draw_pile": [],
+      "discard_pile": [],
+      "exhaust_pile": [],
+      "player": {
+        "current_hp": 70,
+        "max_hp": 70,
+        "block": 0,
+        "energy": 1,
+        "powers": [],
+        "orbs": []
+      },
+      "hand": [
+        {
+          "id": "Flying Knee",
+          "name": "飞膝",
+          "type": "ATTACK",
+          "cost": 1,
+          "description": "造成 8 点伤害。下一回合获得 [E] 。",
+          "uuid": "edge-flying-knee",
+          "is_playable": true,
+          "has_target": true,
+          "exhausts": false,
+          "ethereal": false,
+          "upgrades": 0,
+          "rarity": "COMMON"
+        },
+        {
+          "id": "Strike_G",
+          "name": "打击",
+          "type": "ATTACK",
+          "cost": 1,
+          "description": "造成 6 点伤害。",
+          "uuid": "edge-flying-knee-strike",
+          "is_playable": true,
+          "has_target": true,
+          "exhausts": false,
+          "ethereal": false,
+          "upgrades": 0,
+          "rarity": "BASIC"
+        }
+      ],
+      "monsters": [
+        {
+          "id": "Cultist",
+          "name": "邪教徒",
+          "current_hp": 14,
+          "max_hp": 14,
+          "block": 0,
+          "intent": "BUFF",
+          "move_base_damage": -1,
+          "move_adjusted_damage": -1,
+          "move_hits": 1,
+          "is_gone": false,
+          "half_dead": false,
+          "powers": []
+        }
+      ]
+    }
+  }
+}

@@ -11,6 +11,22 @@ fn parse_energy_gain_zero() {
 }
 
 #[test]
+fn parse_energy_gain_ignores_next_turn_energy() {
+    assert_eq!(
+        super::parse_energy_gain("造成 8 点伤害。下一回合获得 [E] 。"),
+        0
+    );
+}
+
+#[test]
+fn parse_energy_gain_ignores_conditional_energy() {
+    assert_eq!(
+        super::parse_energy_gain("如果敌人有 易伤 状态，获得 [E] 并且抽1张牌。"),
+        0
+    );
+}
+
+#[test]
 fn parse_strength_gain_en() {
     let c = skill("Gain 3 Strength.");
     let e = parse_card_effect(&c, &en_locale()).unwrap();
@@ -21,6 +37,30 @@ fn parse_strength_gain_en() {
 fn parse_strength_gain_no_match() {
     assert_eq!(
         super::parse_strength_gain("no strength here.", &en_locale()),
+        0
+    );
+}
+
+#[test]
+fn parse_strength_gain_ignores_heavy_blade_multiplier() {
+    assert_eq!(
+        super::parse_strength_gain("力量 在 重刃 上发挥 3 倍效果。", &zh_locale()),
+        0
+    );
+}
+
+#[test]
+fn parse_strength_gain_ignores_conditional_spot_weakness() {
+    assert_eq!(
+        super::parse_strength_gain("如果一名敌人的意图是攻击，你获得 3 点 力量。", &zh_locale()),
+        0
+    );
+}
+
+#[test]
+fn parse_strength_gain_ignores_future_turn_gain() {
+    assert_eq!(
+        super::parse_strength_gain("At the start of your turn, gain 2 Strength.", &en_locale()),
         0
     );
 }
@@ -56,6 +96,14 @@ fn parse_vulnerable_en_default_one() {
 #[test]
 fn parse_vulnerable_no_match() {
     assert_eq!(super::parse_vulnerable("just a skill", &en_locale()), None);
+}
+
+#[test]
+fn parse_vulnerable_ignores_conditional_requirement() {
+    assert_eq!(
+        super::parse_vulnerable("如果敌人有 易伤 状态，获得 [E]。", &zh_locale()),
+        None
+    );
 }
 
 #[test]

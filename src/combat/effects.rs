@@ -45,11 +45,7 @@ pub enum ExhaustKind {
     Attacks,
     Random,
     Chosen,
-    #[allow(
-        dead_code,
-        reason = "exists for completeness; no current locale data triggers it"
-    )]
-    FiendFire,
+    ExhaustAllDamagePerCard,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

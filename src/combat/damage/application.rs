@@ -1,12 +1,43 @@
 use crate::combat::effects::{DamageEffect, HitCount, TargetType};
 use crate::combat::{MonsterSnapshot, Stance};
 
+mod modifiers;
+
+#[cfg(test)]
+pub(crate) use modifiers::calc_effective_damage;
+use modifiers::calc_effective_damage_from_rendered;
+
+#[cfg(test)]
 pub(crate) fn apply_damage(
     dmg: &DamageEffect,
     target_idx: Option<usize>,
     x_value: Option<i16>,
     monsters: &mut [MonsterSnapshot],
     stance: Stance,
+    strength_delta: i16,
+) {
+    apply_damage_from_rendered(
+        dmg,
+        target_idx,
+        x_value,
+        monsters,
+        Stance::Neutral,
+        stance,
+        strength_delta,
+    );
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "rendered damage needs both initial and simulated stance"
+)]
+pub(crate) fn apply_damage_from_rendered(
+    dmg: &DamageEffect,
+    target_idx: Option<usize>,
+    x_value: Option<i16>,
+    monsters: &mut [MonsterSnapshot],
+    initial_stance: Stance,
+    current_stance: Stance,
     strength_delta: i16,
 ) {
     let (base_per_hit, hits) = match &dmg.hits {
@@ -20,7 +51,7 @@ pub(crate) fn apply_damage(
         }
         HitCount::XTimes => {
             let xv = x_value.unwrap_or(0);
-            (dmg.amount * xv, xv)
+            (dmg.amount, xv)
         }
         HitCount::XPlus(offset) => {
             let xv = x_value.unwrap_or(0);
@@ -37,8 +68,13 @@ pub(crate) fn apply_damage(
                         continue;
                     }
                     pre_hit_curl_up(&mut monsters[mi]);
-                    let effective =
-                        calc_effective_damage(base_per_hit, &monsters[mi], stance, strength_delta);
+                    let effective = calc_effective_damage_from_rendered(
+                        base_per_hit,
+                        &monsters[mi],
+                        initial_stance,
+                        current_stance,
+                        strength_delta,
+                    );
                     let unblocked = apply_block(&mut monsters[mi], effective);
                     apply_hp_loss_with_invincible(monsters, mi, unblocked);
                     post_hit_effects(&mut monsters[mi], unblocked > 0);
@@ -56,8 +92,13 @@ pub(crate) fn apply_damage(
                     break;
                 }
                 pre_hit_curl_up(&mut monsters[ti]);
-                let effective =
-                    calc_effective_damage(base_per_hit, &monsters[ti], stance, strength_delta);
+                let effective = calc_effective_damage_from_rendered(
+                    base_per_hit,
+                    &monsters[ti],
+                    initial_stance,
+                    current_stance,
+                    strength_delta,
+                );
                 let unblocked = apply_block(&mut monsters[ti], effective);
                 apply_hp_loss_with_invincible(monsters, ti, unblocked);
                 post_hit_effects(&mut monsters[ti], unblocked > 0);
@@ -74,66 +115,19 @@ pub(crate) fn apply_damage(
                 }
                 let ti = living[0];
                 pre_hit_curl_up(&mut monsters[ti]);
-                let effective =
-                    calc_effective_damage(base_per_hit, &monsters[ti], stance, strength_delta);
+                let effective = calc_effective_damage_from_rendered(
+                    base_per_hit,
+                    &monsters[ti],
+                    initial_stance,
+                    current_stance,
+                    strength_delta,
+                );
                 let unblocked = apply_block(&mut monsters[ti], effective);
                 apply_hp_loss_with_invincible(monsters, ti, unblocked);
                 post_hit_effects(&mut monsters[ti], unblocked > 0);
             }
             apply_pending_curl_up_blocks(monsters);
         }
-    }
-}
-
-pub(crate) fn calc_effective_damage(
-    base: i16,
-    monster: &MonsterSnapshot,
-    stance: Stance,
-    strength_delta: i16,
-) -> i16 {
-    let stance_mult = stance_damage_multiplier(stance);
-    let initial_mult = stance_damage_multiplier(Stance::Neutral);
-    let damage = if initial_mult > 0 {
-        (base as i32 * stance_mult as i32 / initial_mult as i32) as i16
-    } else {
-        base
-    };
-    let damage = damage + strength_delta * stance_mult;
-    let damage = damage.max(0);
-
-    if has_power(monster, "Intangible") && damage > 0 {
-        return 1;
-    }
-
-    let mut damage = damage as f64;
-
-    if has_power(monster, "Slow") {
-        let slow_amount = monster
-            .powers
-            .iter()
-            .find(|p| p.id == "Slow" || p.id == "缓慢")
-            .map(|p| p.amount)
-            .unwrap_or(0) as f64;
-        damage = (damage * (1.0 + 0.1 * slow_amount)).floor();
-    }
-
-    if has_power(monster, "Vulnerable") || monster.powers.iter().any(|p| p.id == "易伤") {
-        damage = (damage * 1.5).floor();
-    }
-
-    if has_power(monster, "Flight") {
-        damage = (damage * 0.5).floor();
-    }
-
-    damage as i16
-}
-
-fn stance_damage_multiplier(stance: Stance) -> i16 {
-    match stance {
-        Stance::Neutral => 1,
-        Stance::Calm => 1,
-        Stance::Wrath => 2,
-        Stance::Divinity => 3,
     }
 }
 

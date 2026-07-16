@@ -151,6 +151,7 @@ pub(crate) fn test_scan(
         expanded: 0,
         deadline: Instant::now() + std::time::Duration::from_secs(30),
         x_cost_bonus,
+        initial_stance: stance,
     };
 
     let result = dfs(
