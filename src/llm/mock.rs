@@ -14,6 +14,33 @@ pub(crate) fn mock_card_reward_candidate_response(prompt: &str) -> String {
     .to_string()
 }
 
+pub(crate) fn mock_card_reward_comparison_response(prompt: &str) -> String {
+    let prompt_json: serde_json::Value = serde_json::from_str(prompt).unwrap_or_default();
+    let preferred_ref = prompt_json
+        .get("resulting_states")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|states| {
+            states.iter().max_by_key(|state| {
+                state
+                    .get("deck")
+                    .and_then(serde_json::Value::as_array)
+                    .map_or(0, Vec::len)
+            })
+        })
+        .and_then(|state| state.get("ref"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    serde_json::json!({
+        "schema_version": 1,
+        "verdict": "prefer",
+        "preferred_ref": preferred_ref,
+        "reason": "Mock preferred the resulting state with the larger deck.",
+        "risk": "",
+        "memory_ids_used": [],
+    })
+    .to_string()
+}
+
 pub(crate) fn mock_autoplay_action_response(prompt: &str) -> String {
     let prompt_json: serde_json::Value = serde_json::from_str(prompt).unwrap_or_default();
     let test_marker = prompt_json

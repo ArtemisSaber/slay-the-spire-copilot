@@ -13,9 +13,13 @@ mod deterministic;
 mod fallback;
 mod prompting;
 
-use card_reward::select_best_card;
+use card_reward::plan_card_reward;
 #[cfg(test)]
-use card_reward::{build_card_candidate_prompt, parse_card_candidate_response};
+use card_reward::{
+    CardCandidateSelection, CardComparisonVerdict, build_card_candidate_prompt,
+    build_card_comparison_case_with_entropy, parse_card_candidate_response,
+    parse_card_comparison_response,
+};
 pub(crate) use decision::PlannedAction;
 use decision::planned_action;
 use deterministic::{potion_in_full_slots_was_rejected, try_deterministic_action};
@@ -130,10 +134,8 @@ pub(crate) async fn plan_action_with_memory(
         )));
     }
 
-    if state.screen_type.as_ref().map(|st| st.as_str()) == Some("CARD_REWARD")
-        && !state.skip_available
-    {
-        match select_best_card(
+    if state.screen_type.as_ref().map(|st| st.as_str()) == Some("CARD_REWARD") {
+        match plan_card_reward(
             provider,
             session,
             state,
@@ -145,17 +147,14 @@ pub(crate) async fn plan_action_with_memory(
         )
         .await
         {
-            Ok(selection) => {
-                let candidate = &candidates[selection.candidate_index];
-                return Ok(Some(PlannedAction {
-                    action: AutoPlayAction::Choose(selection.choice_index),
-                    source: DecisionSource::Llm,
-                    selected_action_id: candidate.action_id.clone(),
-                    memory_ids_used: selection.memory_ids_used,
-                }));
+            Ok(planned) => {
+                if matches!(planned.action, AutoPlayAction::Skip) {
+                    session.skipped_combat_reward_card = true;
+                }
+                return Ok(Some(planned));
             }
             Err(error) => {
-                tracing::warn!("forced card reward selector failed: {error}");
+                tracing::warn!("two-stage card reward planner failed: {error}");
             }
         }
     }

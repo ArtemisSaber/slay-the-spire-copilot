@@ -31,7 +31,7 @@ async fn mock_provider_plans_with_llm_json() {
     .await
     .unwrap();
 
-    assert_eq!(action, Some(AutoPlayAction::Skip));
+    assert_eq!(action, Some(AutoPlayAction::Choose(0)));
 }
 
 #[test]

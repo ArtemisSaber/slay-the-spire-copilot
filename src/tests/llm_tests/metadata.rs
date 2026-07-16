@@ -85,6 +85,19 @@ fn card_reward_candidate_selector_system_prompt_is_forced_pick_only() {
 }
 
 #[test]
+fn card_reward_comparison_system_prompt_is_order_and_ref_neutral() {
+    let prompt = card_reward_comparison_system_prompt();
+
+    assert!(prompt.contains("CARD_REWARD_RESULTING_STATE_JUDGE_V1"));
+    assert!(prompt.contains("Evaluate each resulting state independently"));
+    assert!(prompt.contains("references and order are arbitrary"));
+    assert!(prompt.contains("indifferent"));
+    assert!(prompt.contains("uncertain"));
+    assert!(!prompt.contains("Deck A"));
+    assert!(!prompt.contains("Deck B"));
+}
+
+#[test]
 fn unified_preambles_do_not_globalize_boss_heal() {
     for (language, global_heal_rule, boss_reward_heal_rule) in [
         ("en", "Full heal after Boss", "HP fully heals next act"),

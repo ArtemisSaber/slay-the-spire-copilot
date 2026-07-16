@@ -173,11 +173,11 @@ async fn typed_plan_reports_llm_source_and_stable_candidate_id() {
     .unwrap()
     .unwrap();
 
-    assert_eq!(planned.action, AutoPlayAction::Skip);
+    assert_eq!(planned.action, AutoPlayAction::Choose(0));
     assert_eq!(
         planned.source,
         crate::learning::telemetry::DecisionSource::Llm
     );
-    assert_eq!(planned.selected_action_id, "card_reward:skip");
+    assert_eq!(planned.selected_action_id, "card_reward:0");
     assert!(planned.memory_ids_used.is_empty());
 }

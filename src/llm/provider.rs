@@ -152,6 +152,15 @@ impl LlmProvider {
         .await
     }
 
+    pub async fn query_card_reward_comparison(&self, prompt: &str) -> anyhow::Result<String> {
+        self.query_with_system_prompt(
+            super::prompts::card_reward_comparison_system_prompt(),
+            prompt,
+            Effort::Heavy,
+        )
+        .await
+    }
+
     async fn query_with_system_prompt(
         &self,
         system_prompt: &str,
@@ -162,6 +171,9 @@ impl LlmProvider {
             LlmProvider::Mock if prompt == "TRIGGER_LLM_ERROR" => anyhow::bail!("mock error"),
             LlmProvider::Mock if system_prompt.contains("CARD_REWARD_CANDIDATE_SELECTOR_V1") => {
                 super::mock::mock_card_reward_candidate_response(prompt)
+            }
+            LlmProvider::Mock if system_prompt.contains("CARD_REWARD_RESULTING_STATE_JUDGE_V1") => {
+                super::mock::mock_card_reward_comparison_response(prompt)
             }
             LlmProvider::Mock if system_prompt.contains("AUTO_PLAY_ACTION_PLANNER") => {
                 super::mock::mock_autoplay_action_response(prompt)

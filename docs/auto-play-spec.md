@@ -355,6 +355,10 @@ execution. Card instance IDs and internal action IDs never enter the prompt.
 Card reward candidate selection is a forced-pick ranking stage. Its prompt
 contains only offered card references and excludes Skip, so it answers which
 card is best without also answering whether any card should be taken.
+When Skip is available, a second request compares the two complete resulting
+states. They use opaque `resulting_state_<token>` references in randomized
+order, with no take/skip labels. The judge evaluates each state independently
+and returns a preferred reference, `indifferent`, or `uncertain`.
 
 The resolver must reject:
 
