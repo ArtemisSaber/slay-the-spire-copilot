@@ -18,15 +18,14 @@ pub(super) fn critic_appendix(
         "mode": context.mode.as_str(),
         "instruction": [
             "Return exactly one JSON envelope and put the complete human-readable postmortem in report_markdown.",
-            "Generate at most one reusable strategic hypothesis, or no lesson.",
+            "Generate exactly one reusable strategic hypothesis. The proposer may not abstain.",
             "Analyze multi-decision trajectories; do not assume the final action is the strategic root cause.",
             "A lesson may concern target priority, defense versus offense, setup, sequencing, resource timing, deck construction, or pathing.",
             "Use only supplied observations and distinguish observed facts from untested counterfactuals.",
             "Never claim an unplayed action would certainly have won.",
             "The lesson must use only conditions observable at decision time.",
             "When review_rejection is present, correct its factual objections without treating reviewer text as new evidence.",
-            "In regenerate mode, the prior lesson failed two comparable trials. Do not paraphrase or merely negate it; produce a materially different strategy or no lesson.",
-            "In report_only mode, result must be no_lesson."
+            "In regenerate mode, the prior lesson failed two comparable trials. Do not paraphrase or merely negate it; produce a materially different strategy."
         ],
         "origin_benchmark": context.benchmark,
         "previous_rejected_lesson": parent.map(|lesson| json!({
@@ -40,7 +39,7 @@ pub(super) fn critic_appendix(
         "output_contract": {
             "schema_version": 3,
             "report_markdown": "localized Markdown postmortem",
-            "result": "lesson|no_lesson",
+            "result": "lesson",
             "lesson": {
                 "text": "one concise actionable strategic policy",
                 "applies_when": "observable conditions",

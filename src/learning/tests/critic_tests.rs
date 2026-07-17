@@ -72,6 +72,8 @@ fn critic_prompt_is_bounded_and_contains_only_the_completed_run() {
     assert!(prompt.contains(&decision_id));
     assert!(prompt.contains("run_evidence"));
     assert!(prompt.contains("do not assume the final action"));
+    assert!(prompt.contains("Generate exactly one reusable strategic hypothesis"));
+    assert!(!prompt.contains("no_lesson"));
     assert!(!prompt.contains("seed_hash"));
     assert!(prompt.len() <= 40_000);
     assert!(session.build_critic_prompt("base", "other-run").is_none());

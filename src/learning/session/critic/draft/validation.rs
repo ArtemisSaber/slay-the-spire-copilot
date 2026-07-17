@@ -9,7 +9,7 @@ pub(super) fn regeneration_is_valid(envelope: &CriticEnvelope, mode: CriticMode<
                 .rejected_lesson_analysis
                 .as_deref()
                 .is_some_and(|analysis| safe_text(analysis, 1_024))
-                && envelope.lesson.as_ref().is_none_or(|candidate| {
+                && envelope.lesson.as_ref().is_some_and(|candidate| {
                     parent.strategy.as_ref().is_none_or(|strategy| {
                         candidate_text(candidate) != normalize(&strategy.text)
                     })

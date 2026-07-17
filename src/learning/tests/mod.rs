@@ -11,6 +11,7 @@ mod critic_budget_tests;
 mod critic_causality_support;
 mod critic_causality_tests;
 mod critic_tests;
+mod deliberation_abstention_tests;
 mod deliberation_tests;
 mod descriptor_tests;
 mod eligibility_tests;

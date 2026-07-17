@@ -16,6 +16,8 @@ pub(crate) struct ReviewResult {
     pub response_valid: bool,
     pub accepted_lessons: usize,
     pub rejected_lessons: usize,
+    pub api_calls: usize,
+    pub outcome: crate::learning::deliberation::DeliberationOutcome,
     pub report_path: PathBuf,
 }
 
@@ -115,6 +117,8 @@ pub(crate) async fn review_run_with_provider(
         response_valid: ingest.response_valid,
         accepted_lessons: ingest.accepted_lessons,
         rejected_lessons: ingest.rejected_lessons,
+        api_calls: deliberation.api_calls,
+        outcome: deliberation.outcome,
         report_path,
     })
 }

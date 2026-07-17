@@ -5,14 +5,19 @@ use crate::learning::session::{CriticDraft, CriticDraftRejection, CriticIngest, 
 use crate::llm::LlmProvider;
 use crate::locales::Locale;
 
+mod approval;
+mod fallback;
+mod proposer;
+mod report_only;
+mod support;
+
 const MAX_API_CALLS: usize = 16;
 const MAX_ROLE_ATTEMPTS: usize = 3;
-const MAX_FEEDBACK_CHARS: usize = 1_024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DeliberationOutcome {
     Approved,
-    NoLesson,
+    ReportOnly,
     BudgetExhausted,
     Failed,
 }
@@ -21,7 +26,7 @@ impl DeliberationOutcome {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::Approved => "approved",
-            Self::NoLesson => "no_lesson",
+            Self::ReportOnly => "report_only",
             Self::BudgetExhausted => "budget_exhausted",
             Self::Failed => "failed",
         }
@@ -60,11 +65,14 @@ pub(crate) async fn deliberate_lesson(
     base_report_prompt: &str,
     run_id: &str,
 ) -> anyhow::Result<DeliberationResult> {
+    if learning.critic_is_report_only(run_id) {
+        return Ok(report_only::deliberate(learning, provider, locale, base_report_prompt).await);
+    }
     let mut state = DeliberationState::default();
     let mut review_rejection: Option<Value> = None;
-    let deterministic_report = deterministic_report_from_prompt(base_report_prompt, locale);
+    let deterministic_report = support::deterministic_report(base_report_prompt, locale);
     loop {
-        let draft = match propose(
+        let draft = match proposer::propose(
             learning,
             provider,
             locale,
@@ -77,14 +85,18 @@ pub(crate) async fn deliberate_lesson(
         {
             Stage::Complete(draft) => draft,
             Stage::BudgetExhausted => {
-                return Ok(state.result(learning, DeliberationOutcome::BudgetExhausted));
+                return fallback::finish(
+                    learning,
+                    state,
+                    run_id,
+                    DeliberationOutcome::BudgetExhausted,
+                );
             }
-            Stage::Failed => return Ok(state.result(learning, DeliberationOutcome::Failed)),
+            Stage::Failed => {
+                return fallback::finish(learning, state, run_id, DeliberationOutcome::Failed);
+            }
         };
         state.remember_draft(&draft);
-        if !draft.has_lesson() {
-            return commit(learning, draft, state, DeliberationOutcome::NoLesson);
-        }
         match review(
             learning,
             provider,
@@ -96,7 +108,7 @@ pub(crate) async fn deliberate_lesson(
         .await
         {
             Stage::Complete(ReviewAction::Approve) => {
-                return commit(learning, draft, state, DeliberationOutcome::Approved);
+                return approval::commit(learning, draft, state);
             }
             Stage::Complete(ReviewAction::Reject(review)) => {
                 state.rejected_lessons += 1;
@@ -106,52 +118,18 @@ pub(crate) async fn deliberate_lesson(
                 }));
             }
             Stage::BudgetExhausted => {
-                return Ok(state.result(learning, DeliberationOutcome::BudgetExhausted));
+                return fallback::finish(
+                    learning,
+                    state,
+                    run_id,
+                    DeliberationOutcome::BudgetExhausted,
+                );
             }
-            Stage::Failed => return Ok(state.result(learning, DeliberationOutcome::Failed)),
+            Stage::Failed => {
+                return fallback::finish(learning, state, run_id, DeliberationOutcome::Failed);
+            }
         }
     }
-}
-
-#[allow(
-    clippy::too_many_arguments,
-    reason = "the proposer stage keeps its immutable evidence and shared call state explicit"
-)]
-async fn propose(
-    learning: &LearningSession,
-    provider: &LlmProvider,
-    locale: &Locale,
-    base_report_prompt: &str,
-    run_id: &str,
-    review_rejection: Option<&Value>,
-    state: &mut DeliberationState,
-) -> Stage<CriticDraft> {
-    let mut retry_feedback = vec![];
-    for _ in 0..MAX_ROLE_ATTEMPTS {
-        if state.api_calls >= MAX_API_CALLS {
-            return Stage::BudgetExhausted;
-        }
-        let Some(prompt) = learning.build_critic_prompt_with_feedback(
-            base_report_prompt,
-            run_id,
-            review_rejection,
-            &retry_feedback,
-        ) else {
-            return Stage::Failed;
-        };
-        state.api_calls += 1;
-        match provider.query_learning_postmortem(&prompt, locale).await {
-            Ok(response) => match learning.prepare_critic_response(&response, run_id) {
-                Ok(draft) => return Stage::Complete(draft),
-                Err(rejection) => {
-                    state.remember_rejection(&rejection);
-                    retry_feedback.push(rejection.feedback().to_string());
-                }
-            },
-            Err(error) => retry_feedback.push(error_feedback("proposer query failed", &error)),
-        }
-    }
-    Stage::Failed
 }
 
 async fn review(
@@ -173,16 +151,16 @@ async fn review(
             return Stage::Failed;
         };
         state.api_calls += 1;
-        let required_claims = match draft.review_claims() {
-            Some(claims) => claims,
-            None => return Stage::Failed,
-        };
+        let required_claims = draft.review_claims();
         let parsed = match provider.query_lesson_fact_review(&prompt).await {
             Ok(response) => {
                 parse_fact_review(&response, draft.allowed_decision_ids(), &required_claims)
             }
             Err(error) => {
-                retry_feedback.push(error_feedback("fact reviewer query failed", &error));
+                retry_feedback.push(support::error_feedback(
+                    "fact reviewer query failed",
+                    &error,
+                ));
                 continue;
             }
         };
@@ -192,7 +170,10 @@ async fn review(
             }
             Ok(review) => return Stage::Complete(ReviewAction::Reject(review)),
             Err(error) => {
-                retry_feedback.push(error_feedback("fact reviewer response rejected", &error));
+                retry_feedback.push(support::error_feedback(
+                    "fact reviewer response rejected",
+                    &error,
+                ));
             }
         }
     }
@@ -228,36 +209,4 @@ impl DeliberationState {
             outcome,
         }
     }
-}
-
-fn commit(
-    learning: &mut LearningSession,
-    draft: CriticDraft,
-    state: DeliberationState,
-    outcome: DeliberationOutcome,
-) -> anyhow::Result<DeliberationResult> {
-    let mut ingest = learning.commit_critic_draft(draft)?;
-    ingest.rejected_lessons += state.rejected_lessons;
-    Ok(DeliberationResult {
-        ingest,
-        api_calls: state.api_calls,
-        outcome,
-    })
-}
-
-fn error_feedback(context: &str, error: &anyhow::Error) -> String {
-    format!("{context}: {error:#}")
-        .chars()
-        .take(MAX_FEEDBACK_CHARS)
-        .collect()
-}
-
-fn deterministic_report_from_prompt<'a>(base_prompt: &'a str, locale: &Locale) -> &'a str {
-    let Some((_, review_input)) = base_prompt.split_once(&locale.postmortem.machine_summary) else {
-        return base_prompt;
-    };
-    review_input
-        .trim_start()
-        .split_once("\n\n")
-        .map_or(review_input.trim(), |(_, report)| report.trim())
 }

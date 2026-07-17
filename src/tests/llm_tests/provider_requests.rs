@@ -48,8 +48,8 @@ async fn mock_provider_returns_learning_postmortem_envelope() {
             .as_str()
             .is_some_and(|report| report.starts_with('#'))
     );
-    assert_eq!(envelope["result"], "no_lesson");
-    assert!(envelope["lesson"].is_null());
+    assert_eq!(envelope["result"], "lesson");
+    assert!(envelope["lesson"].is_object());
     assert!(envelope["rejected_lesson_analysis"].is_null());
 }
 

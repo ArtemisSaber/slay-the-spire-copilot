@@ -72,12 +72,23 @@ async fn review_interactively(
     match review::review_run(project_root, &run_id).await {
         Ok(result) if !result.response_valid => writeln!(
             output,
-            "The AI response was not valid learning JSON. No lesson was saved. Report: {}",
+            "Lesson generation failed after {} API call(s). The fail-safe saved no lesson. Report: {}",
+            result.api_calls,
             result.report_path.display()
         )?,
+        Ok(result)
+            if result.outcome == crate::learning::deliberation::DeliberationOutcome::ReportOnly =>
+        {
+            writeln!(
+                output,
+                "Review complete. The report was refreshed without requesting a duplicate lesson. Report: {}",
+                result.report_path.display()
+            )?
+        }
         Ok(result) if result.accepted_lessons == 0 => writeln!(
             output,
-            "Review complete. The AI proposed no lesson safe enough to save. Report: {}",
+            "Review complete. No lesson was approved after {} API call(s); the fail-safe saved none. Report: {}",
+            result.api_calls,
             result.report_path.display()
         )?,
         Ok(result) => writeln!(

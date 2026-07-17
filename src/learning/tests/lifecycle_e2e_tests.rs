@@ -2,10 +2,13 @@ use super::support::{decision_case, strategic_lesson_for};
 use crate::autoplay::action::AutoPlayAction;
 use crate::learning::action::SemanticAction;
 use crate::learning::config::{MemoryConfig, MemoryMode};
+use crate::learning::deliberation::{DeliberationOutcome, deliberate_lesson};
 use crate::learning::lesson::{LessonEvent, LessonEventKind, LessonStatus};
 use crate::learning::session::{ExecutedPlan, LearningSession, SessionProvenance};
 use crate::learning::store::KnowledgeStore;
 use crate::learning::telemetry::DecisionSource;
+use crate::llm::LlmProvider;
+use crate::locales::Locale;
 use crate::state::{CardInfo, MonsterInfo, NormalizedState, ScreenType};
 
 fn provenance() -> SessionProvenance {
@@ -200,25 +203,50 @@ fn two_degraded_used_runs_retire_and_regenerate_a_different_lesson() {
     assert_eq!(lifecycle.benchmark.final_floor, 39);
 }
 
-#[test]
-fn no_replacement_resolves_regeneration_without_reprompting() {
+#[tokio::test]
+async fn exhausted_regeneration_resolves_without_a_replacement() {
     let temp = tempfile::tempdir().unwrap();
-    let (mut session, parent_id, _) = retired_session(temp.path());
-    let response = serde_json::json!({
-        "schema_version": 3,
-        "report_markdown": "# No replacement\n\nThe evidence does not support a better lesson yet.",
-        "result": "no_lesson",
-        "lesson": null,
-        "rejected_lesson_analysis": "The prior lesson failed, but the supplied observations do not distinguish a reliable replacement."
-    })
-    .to_string();
+    let (mut session, parent_id, decision_id) = retired_session(temp.path());
+    let provider = LlmProvider::scripted(move |system, prompt, _effort| {
+        if system.contains("LESSON_FACT_REVIEWER_V3") {
+            let mut review: serde_json::Value =
+                serde_json::from_str(&crate::llm::mock::mock_lesson_fact_review_response(prompt))
+                    .unwrap();
+            review["verdict"] = "reject".into();
+            review["feedback"] = "The replacement remains unsupported.".into();
+            review["checks"][0]["status"] = "unsupported".into();
+            review["checks"][0]["refs"] = serde_json::json!([]);
+            return Ok(review.to_string());
+        }
+        Ok(serde_json::json!({
+            "schema_version": 3,
+            "report_markdown": "# Replacement review\n\nA replacement was attempted.",
+            "result": "lesson",
+            "lesson": {
+                "text": "Preserve HP before extending setup.",
+                "applies_when": "The recorded tactical conditions recur.",
+                "expected_effect": "This may improve survival.",
+                "evidence": [{"run_id": "trial-two", "decision_ids": [decision_id], "observed_chain": "The cited action preceded the recorded defeat."}],
+                "uncertainty": "The alternative was not observed.",
+                "confidence_millis": 700
+            },
+            "rejected_lesson_analysis": "The replacement changes the policy dimension."
+        }).to_string())
+    });
 
-    let ingest = session
-        .ingest_critic_response(&response, "trial-two")
-        .unwrap();
+    let result = deliberate_lesson(
+        &mut session,
+        &provider,
+        &Locale::load("en"),
+        "base report",
+        "trial-two",
+    )
+    .await
+    .unwrap();
 
-    assert!(ingest.response_valid);
-    assert_eq!(ingest.accepted_lessons, 0);
+    assert_eq!(result.outcome, DeliberationOutcome::BudgetExhausted);
+    assert_eq!(result.api_calls, 16);
+    assert_eq!(result.ingest.accepted_lessons, 0);
     let parent = session
         .snapshot()
         .lessons
@@ -226,6 +254,6 @@ fn no_replacement_resolves_regeneration_without_reprompting() {
         .find(|lesson| lesson.lesson_id == parent_id)
         .unwrap();
     assert!(parent.lifecycle.as_ref().unwrap().regeneration_resolved);
-    let next = session.build_critic_prompt("report", "trial-two").unwrap();
-    assert!(next.contains("\"mode\": \"report_only\""));
+    assert!(session.build_critic_prompt("report", "trial-two").is_none());
+    assert!(session.critic_is_report_only("trial-two"));
 }

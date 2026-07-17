@@ -17,7 +17,8 @@ pub(super) struct CriticEnvelope {
 #[serde(rename_all = "snake_case")]
 pub(super) enum CriticResult {
     Lesson,
-    NoLesson,
+    #[serde(rename = "no_lesson")]
+    Abstain,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -127,7 +128,7 @@ impl CandidateLesson {
 pub(super) fn valid_result_shape(envelope: &CriticEnvelope) -> bool {
     matches!(
         (envelope.result, envelope.lesson.is_some()),
-        (CriticResult::Lesson, true) | (CriticResult::NoLesson, false)
+        (CriticResult::Lesson, true)
     )
 }
 

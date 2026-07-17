@@ -131,43 +131,45 @@ fn mock_learning_postmortem_response(user_prompt: &str) -> String {
         .as_ref()
         .and_then(|value| value.get("mode"))
         .and_then(serde_json::Value::as_str)
-        .unwrap_or("report_only");
+        .unwrap_or("initial");
     let run_id = appendix
         .as_ref()
         .and_then(|value| value.pointer("/origin_benchmark/origin_run_id"))
         .and_then(serde_json::Value::as_str)
         .unwrap_or("missing");
-    let decisions: Vec<_> = appendix
+    let mut decisions: Vec<_> = appendix
         .as_ref()
         .and_then(|value| value.pointer(&format!("/run_evidence/{run_id}")))
         .and_then(serde_json::Value::as_array)
         .into_iter()
         .flatten()
         .filter_map(|case| case.get("decision_id").and_then(serde_json::Value::as_str))
+        .map(str::to_string)
         .take(3)
         .collect();
-    let lesson = (mode != "report_only" && !decisions.is_empty()).then(|| {
-        serde_json::json!({
-            "text": if mode == "regenerate" {
-                "Preserve enough HP to establish the deck's setup before committing to an extended damage sequence."
-            } else {
-                "Prioritize the opponent whose continued presence creates the greatest near-term pressure."
-            },
-            "applies_when": "Several actions or targets are available and the choice affects later turns.",
-            "expected_effect": "This may preserve more options and improve progression in comparable runs.",
-            "evidence": [{
-                "run_id": run_id,
-                "decision_ids": decisions,
-                "observed_chain": "The cited ordered decisions were followed by the recorded combat and run outcome."
-            }],
-            "uncertainty": "The alternatives were not played, so their outcomes remain untested.",
-            "confidence_millis": 700
-        })
+    if decisions.is_empty() {
+        decisions.push(format!("{run_id}:0:0:0"));
+    }
+    let lesson = serde_json::json!({
+        "text": if mode == "regenerate" {
+            "Preserve enough HP to establish the deck's setup before committing to an extended damage sequence."
+        } else {
+            "Prioritize the opponent whose continued presence creates the greatest near-term pressure."
+        },
+        "applies_when": "Several actions or targets are available and the choice affects later turns.",
+        "expected_effect": "This may preserve more options and improve progression in comparable runs.",
+        "evidence": [{
+            "run_id": run_id,
+            "decision_ids": decisions,
+            "observed_chain": "The cited ordered decisions were followed by the recorded combat and run outcome."
+        }],
+        "uncertainty": "The alternatives were not played, so their outcomes remain untested.",
+        "confidence_millis": 700
     });
     serde_json::json!({
         "schema_version": 3,
         "report_markdown": "# Mock Review\n\nThis human-readable postmortem was transported inside the JSON envelope.",
-        "result": if lesson.is_some() { "lesson" } else { "no_lesson" },
+        "result": "lesson",
         "lesson": lesson,
         "rejected_lesson_analysis": (mode == "regenerate").then_some(
             "The replacement changes the policy dimension instead of restating the rejected strategy."

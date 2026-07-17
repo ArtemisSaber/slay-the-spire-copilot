@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use super::contract::{CandidateLesson, CriticEnvelope, CriticResult, valid_result_shape};
 use super::evidence::{allowed_decisions, source_case_ids, supplied_cases};
-use super::mode::{CriticMode, context_for_run};
+use super::mode::context_for_run;
 use super::{CriticIngest, ENVELOPE_VERSION, MAX_REPORT_BYTES};
 use crate::learning::bundle::embedded_bundle;
 use crate::learning::lesson::{Lesson, LessonEvent, LessonEventKind, StrategicLessonProposal};
@@ -16,9 +16,8 @@ use validation::{regeneration_is_valid, strategic_scope};
 
 pub(crate) struct CriticDraft {
     report_markdown: String,
-    candidate: Option<CandidateLesson>,
-    lesson: Option<Lesson>,
-    regeneration_parent_id: Option<String>,
+    candidate: CandidateLesson,
+    lesson: Lesson,
     allowed_decision_ids: HashSet<String>,
 }
 
@@ -27,22 +26,16 @@ impl CriticDraft {
         &self.report_markdown
     }
 
-    pub(crate) fn has_lesson(&self) -> bool {
-        self.lesson.is_some()
-    }
-
-    pub(crate) fn candidate_json(&self) -> Option<Value> {
-        self.candidate
-            .as_ref()
-            .and_then(|candidate| serde_json::to_value(candidate).ok())
+    pub(crate) fn candidate_json(&self) -> Value {
+        serde_json::to_value(&self.candidate).expect("candidate lesson is serializable")
     }
 
     pub(crate) fn allowed_decision_ids(&self) -> &HashSet<String> {
         &self.allowed_decision_ids
     }
 
-    pub(crate) fn review_claims(&self) -> Option<BTreeMap<String, String>> {
-        self.candidate.as_ref().map(CandidateLesson::review_claims)
+    pub(crate) fn review_claims(&self) -> BTreeMap<String, String> {
+        self.candidate.review_claims()
     }
 }
 
@@ -51,6 +44,7 @@ pub(crate) struct CriticDraftRejection {
     response_valid: bool,
     rejected_lessons: usize,
     feedback: &'static str,
+    abstained: bool,
 }
 
 impl CriticDraftRejection {
@@ -70,6 +64,10 @@ impl CriticDraftRejection {
         self.rejected_lessons
     }
 
+    pub(crate) fn abstained(&self) -> bool {
+        self.abstained
+    }
+
     #[cfg(test)]
     fn into_ingest(self, learning: &LearningSession) -> CriticIngest {
         learning.deliberation_ingest(
@@ -85,6 +83,7 @@ impl CriticDraftRejection {
             response_valid: false,
             rejected_lessons: 0,
             feedback: "Return one strict lesson-proposer JSON envelope matching schema version 3.",
+            abstained: false,
         }
     }
 
@@ -93,7 +92,8 @@ impl CriticDraftRejection {
             report_markdown,
             response_valid: false,
             rejected_lessons: usize::from(had_lesson),
-            feedback: "The lesson-proposer envelope violates its report, mode, or regeneration contract.",
+            feedback: "The proposer must return a lesson candidate matching its report, mode, and regeneration contract.",
+            abstained: false,
         }
     }
 
@@ -103,6 +103,17 @@ impl CriticDraftRejection {
             response_valid: true,
             rejected_lessons: 1,
             feedback,
+            abstained: false,
+        }
+    }
+
+    fn abstention(report_markdown: String) -> Self {
+        Self {
+            report_markdown,
+            response_valid: false,
+            rejected_lessons: 0,
+            feedback: "The proposer must return a lesson candidate; abstention is not an allowed result.",
+            abstained: true,
         }
     }
 }
@@ -122,6 +133,9 @@ impl LearningSession {
                 envelope.lesson.is_some(),
             ));
         };
+        if envelope.result == CriticResult::Abstain {
+            return Err(CriticDraftRejection::abstention(envelope.report_markdown));
+        }
         let cases = supplied_cases(&self.snapshot.cases, run_id, context.mode);
         let allowed = allowed_decisions(&cases);
         let allowed_decision_ids = allowed
@@ -132,8 +146,6 @@ impl LearningSession {
             || envelope.schema_version != ENVELOPE_VERSION
             || !valid_result_shape(&envelope)
             || !regeneration_is_valid(&envelope, context.mode)
-            || (matches!(context.mode, CriticMode::ReportOnly)
-                && envelope.result != CriticResult::NoLesson)
         {
             return Err(CriticDraftRejection::invalid_envelope(
                 envelope.report_markdown,
@@ -141,16 +153,10 @@ impl LearningSession {
             ));
         }
         let Some(candidate) = envelope.lesson else {
-            return Ok(CriticDraft {
-                report_markdown: envelope.report_markdown,
-                candidate: None,
-                lesson: None,
-                regeneration_parent_id: context
-                    .mode
-                    .parent()
-                    .map(|parent| parent.lesson_id.clone()),
-                allowed_decision_ids,
-            });
+            return Err(CriticDraftRejection::invalid_envelope(
+                envelope.report_markdown,
+                false,
+            ));
         };
         if !candidate.validate(&allowed, run_id) {
             return Err(CriticDraftRejection::invalid_candidate(
@@ -204,9 +210,8 @@ impl LearningSession {
         };
         Ok(CriticDraft {
             report_markdown: envelope.report_markdown,
-            candidate: Some(candidate),
-            lesson: Some(lesson),
-            regeneration_parent_id: None,
+            candidate,
+            lesson,
             allowed_decision_ids,
         })
     }
@@ -215,15 +220,9 @@ impl LearningSession {
         &mut self,
         draft: CriticDraft,
     ) -> anyhow::Result<CriticIngest> {
-        let Some(lesson) = draft.lesson else {
-            if let Some(parent_id) = draft.regeneration_parent_id {
-                self.resolve_regeneration_without_replacement(&parent_id)?;
-            }
-            return Ok(self.valid_ingest(draft.report_markdown, 0, 0));
-        };
         let event = LessonEvent::new(
             LessonEventKind::Proposed,
-            lesson,
+            draft.lesson,
             None,
             crate::journal::timestamp_ms(),
         )

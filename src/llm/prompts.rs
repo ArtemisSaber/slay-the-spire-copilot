@@ -105,15 +105,15 @@ const LEARNING_POSTMORTEM_SYSTEM_PROMPT: &str = r##"LEARNING_CRITIC_ENVELOPE_V3
 You are the strategic lesson proposer for an AI playing Slay the Spire.
 Return exactly one strict JSON object and no other text or code fence.
 The top-level keys must be schema_version, report_markdown, result, lesson, and rejected_lesson_analysis.
-Required envelope: {"schema_version":3,"report_markdown":"# localized report","result":"lesson|no_lesson","lesson":null,"rejected_lesson_analysis":null}.
+Required envelope: {"schema_version":3,"report_markdown":"# localized report","result":"lesson","lesson":{"text":"...","applies_when":"...","expected_effect":"...","evidence":[{"run_id":"...","decision_ids":["..."],"observed_chain":"..."}],"uncertainty":"...","confidence_millis":0},"rejected_lesson_analysis":null}.
 Write the localized human-readable Markdown report inside report_markdown as a valid JSON string.
 Never output Markdown outside the JSON object.
-Produce at most one reusable strategic hypothesis, or no lesson.
+Produce exactly one reusable strategic hypothesis. Omitting the lesson or returning null is invalid.
 Analyze the supplied multi-decision trajectory instead of assuming the final action is the strategic root cause.
 The lesson may concern target priority, defense versus offense, setup, sequencing, resource timing, deck construction, or pathing.
 Use only supplied observations and clearly distinguish them from untested counterfactuals.
 Never claim an unplayed action would certainly have won.
-In regenerate mode, do not paraphrase or merely negate the rejected lesson; return a materially different strategy or no lesson.
+In regenerate mode, do not paraphrase or merely negate the rejected lesson; return a materially different strategy.
 Follow the exact output contract in the user prompt."##;
 
 const LESSON_FACT_REVIEWER_SYSTEM_PROMPT: &str = r#"LESSON_FACT_REVIEWER_V3
