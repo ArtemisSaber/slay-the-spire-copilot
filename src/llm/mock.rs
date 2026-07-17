@@ -193,29 +193,24 @@ pub(crate) fn mock_lesson_fact_review_response(prompt: &str) -> String {
                     .and_then(serde_json::Value::as_str)
             })
         });
-    let claim_checks: Vec<_> = payload
+    let checks: Vec<_> = payload
         .get("required_claims")
         .and_then(serde_json::Value::as_object)
         .into_iter()
         .flatten()
-        .map(|(path, claim)| {
+        .map(|(path, _)| {
             serde_json::json!({
                 "path": path,
-                "claim": claim,
                 "status": if reference.is_some() { "supported" } else { "unsupported" },
-                "citations": reference.map_or_else(Vec::new, |decision_id| vec![serde_json::json!({
-                    "source": "run_evidence",
-                    "reference": decision_id,
-                    "fact": "The mock cites the supplied decision record as test evidence."
-                })])
+                "refs": reference.map_or_else(Vec::new, |decision_id| vec![decision_id])
             })
         })
         .collect();
     serde_json::json!({
-        "schema_version": 2,
+        "schema_version": 3,
         "verdict": if reference.is_some() { "approve" } else { "reject" },
         "feedback": reference.is_none().then_some("No run evidence was supplied."),
-        "claim_checks": claim_checks,
+        "checks": checks,
     })
     .to_string()
 }

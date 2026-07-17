@@ -4,8 +4,9 @@ use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-const FACT_REVIEW_VERSION: u32 = 2;
-const MAX_CITATIONS: usize = 8;
+const FACT_REVIEW_VERSION: u32 = 3;
+const MAX_REFS: usize = 8;
+const DETERMINISTIC_REPORT_REF: &str = "deterministic_report";
 
 const AUTHORITATIVE_GAME_FACTS: &[(&str, &str)] = &[
     (
@@ -50,29 +51,12 @@ enum FactClaimStatus {
     Unsupported,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-enum FactSource {
-    AuthoritativeGameFact,
-    DeterministicReport,
-    RunEvidence,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-struct FactCitation {
-    source: FactSource,
-    reference: String,
-    fact: String,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct FactClaimCheck {
     path: String,
-    claim: String,
     status: FactClaimStatus,
-    citations: Vec<FactCitation>,
+    refs: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -81,7 +65,7 @@ pub(crate) struct FactReview {
     schema_version: u32,
     pub(crate) verdict: FactReviewVerdict,
     feedback: Option<String>,
-    pub(crate) claim_checks: Vec<FactClaimCheck>,
+    pub(crate) checks: Vec<FactClaimCheck>,
 }
 
 pub(crate) fn authoritative_game_fact_catalog() -> Vec<Value> {
@@ -95,31 +79,30 @@ pub(crate) fn parse_fact_review(
     response: &str,
     allowed_decision_ids: &HashSet<String>,
     required_claims: &BTreeMap<String, String>,
-    deterministic_report: &str,
 ) -> anyhow::Result<FactReview> {
     let review: FactReview = serde_json::from_str(response.trim())
         .context("fact reviewer returned invalid JSON or schema")?;
     if review.schema_version != FACT_REVIEW_VERSION {
         bail!("unsupported fact review schema version");
     }
-    if required_claims.is_empty() || review.claim_checks.len() != required_claims.len() {
+    if required_claims.is_empty() || review.checks.len() != required_claims.len() {
         bail!("fact review must check every required claim exactly once");
     }
     let mut checked_paths = HashSet::new();
-    for check in &review.claim_checks {
-        let Some(required_claim) = required_claims.get(&check.path) else {
+    for check in &review.checks {
+        if !required_claims.contains_key(&check.path) {
             bail!("fact review checked an unknown claim path");
-        };
-        if !checked_paths.insert(check.path.as_str()) || &check.claim != required_claim {
-            bail!("fact review must copy each required claim exactly once");
         }
-        validate_check(check, allowed_decision_ids, deterministic_report)?;
+        if !checked_paths.insert(check.path.as_str()) {
+            bail!("fact review must check each required claim exactly once");
+        }
+        validate_check(check, allowed_decision_ids)?;
     }
     match review.verdict {
         FactReviewVerdict::Approve
             if review.feedback.is_none()
                 && review
-                    .claim_checks
+                    .checks
                     .iter()
                     .all(|check| check.status == FactClaimStatus::Supported) => {}
         FactReviewVerdict::Reject
@@ -128,7 +111,7 @@ pub(crate) fn parse_fact_review(
                 .as_deref()
                 .is_some_and(|feedback| safe_text(feedback, 2_048))
                 && review
-                    .claim_checks
+                    .checks
                     .iter()
                     .any(|check| check.status != FactClaimStatus::Supported) => {}
         FactReviewVerdict::Approve => {
@@ -144,52 +127,35 @@ pub(crate) fn parse_fact_review(
 fn validate_check(
     check: &FactClaimCheck,
     allowed_decision_ids: &HashSet<String>,
-    deterministic_report: &str,
 ) -> anyhow::Result<()> {
-    if !safe_text(&check.path, 128) || !safe_text(&check.claim, 2_048) {
+    if !safe_text(&check.path, 128) || check.refs.len() > MAX_REFS {
         bail!("fact review claim check is malformed");
     }
-    match check.status {
-        FactClaimStatus::Unsupported if check.citations.is_empty() => return Ok(()),
+    if matches!(
+        check.status,
         FactClaimStatus::Supported | FactClaimStatus::Contradicted
-            if (1..=MAX_CITATIONS).contains(&check.citations.len()) => {}
-        _ => bail!(
-            "supported and contradicted claims require cited facts; unsupported claims do not"
-        ),
+    ) && check.refs.is_empty()
+    {
+        bail!("supported and contradicted claims require at least one reference");
     }
-    for citation in &check.citations {
-        validate_citation(citation, allowed_decision_ids, deterministic_report)?;
+    let mut unique = HashSet::new();
+    for reference in &check.refs {
+        if !safe_text(reference, 256) || !unique.insert(reference.as_str()) {
+            bail!("fact review reference is malformed or duplicated");
+        }
+        if !valid_reference(reference, allowed_decision_ids) {
+            bail!("fact review cited unknown reference {reference}");
+        }
     }
     Ok(())
 }
 
-fn validate_citation(
-    citation: &FactCitation,
-    allowed_decision_ids: &HashSet<String>,
-    deterministic_report: &str,
-) -> anyhow::Result<()> {
-    if !safe_text(&citation.reference, 256) || !safe_text(&citation.fact, 2_048) {
-        bail!("fact review citation is malformed");
-    }
-    let valid = match citation.source {
-        FactSource::AuthoritativeGameFact => AUTHORITATIVE_GAME_FACTS
+fn valid_reference(reference: &str, allowed_decision_ids: &HashSet<String>) -> bool {
+    reference == DETERMINISTIC_REPORT_REF
+        || allowed_decision_ids.contains(reference)
+        || AUTHORITATIVE_GAME_FACTS
             .iter()
-            .any(|(reference, fact)| *reference == citation.reference && *fact == citation.fact),
-        FactSource::DeterministicReport => {
-            citation.reference == "deterministic_report"
-                && deterministic_report.contains(&citation.fact)
-        }
-        FactSource::RunEvidence => allowed_decision_ids.contains(&citation.reference),
-    };
-    if !valid {
-        let label = match citation.source {
-            FactSource::RunEvidence => "unknown run evidence reference",
-            FactSource::AuthoritativeGameFact => "unknown authoritative game fact",
-            FactSource::DeterministicReport => "fact is absent from the deterministic report",
-        };
-        bail!("{label}");
-    }
-    Ok(())
+            .any(|(game_fact_ref, _)| *game_fact_ref == reference)
 }
 
 fn safe_text(value: &str, maximum: usize) -> bool {

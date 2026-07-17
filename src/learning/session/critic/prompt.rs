@@ -67,33 +67,41 @@ pub(super) fn fact_reviewer_appendix(
     deterministic_report: &str,
     retry_feedback: &[String],
 ) -> String {
+    let authoritative_game_facts = authoritative_game_fact_catalog();
+    let valid_refs: Vec<String> = std::iter::once("deterministic_report".to_string())
+        .chain(authoritative_game_facts.iter().filter_map(|fact| {
+            fact.get("reference")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        }))
+        .chain(cases.iter().map(|case| case.decision_id.clone()))
+        .collect();
     serde_json::to_string_pretty(&json!({
         "instruction": [
             "The burden of proof is on approval; missing support requires rejection.",
             "Check every required_claims entry, including every assertion within that field.",
             "Do not treat the proposed lesson, general model knowledge, or absence of contradiction as evidence.",
+            "Return one check per required claim. Copy only its path; do not repeat the claim text.",
+            "Use only exact strings from valid_refs. Never combine several references into one string.",
+            "Supported and contradicted checks need at least one ref. Unsupported checks may use an empty refs list.",
             "Do not propose a replacement strategy."
         ],
-        "authoritative_game_facts": authoritative_game_fact_catalog(),
+        "authoritative_game_facts": authoritative_game_facts,
         "deterministic_report": deterministic_report,
         "origin_benchmark": context.benchmark,
         "run_evidence": run_evidence(cases),
         "proposed_lesson": candidate,
         "required_claims": required_claims,
         "retry_context": retry_feedback,
+        "valid_refs": valid_refs,
         "output_contract": {
-            "schema_version": 2,
+            "schema_version": 3,
             "verdict": "approve|reject",
             "feedback": "null for approve; specific correction for reject",
-            "claim_checks": [{
+            "checks": [{
                 "path": "exact key from required_claims",
-                "claim": "exact value from required_claims",
                 "status": "supported|contradicted|unsupported",
-                "citations": [{
-                    "source": "authoritative_game_fact|deterministic_report|run_evidence",
-                    "reference": "supplied game-fact reference, deterministic_report, or decision_id",
-                    "fact": "exact game/report fact or precise fact grounded in the cited decision"
-                }]
+                "refs": ["zero or more exact strings from valid_refs"]
             }]
         }
     }))

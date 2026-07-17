@@ -67,8 +67,8 @@ fn rejection(prompt: &str) -> String {
     review["verdict"] = "reject".into();
     review["feedback"] =
         "Correct the HP claim and avoid asserting an unobserved causal result.".into();
-    review["claim_checks"][0]["status"] = "unsupported".into();
-    review["claim_checks"][0]["citations"] = serde_json::json!([]);
+    review["checks"][0]["status"] = "unsupported".into();
+    review["checks"][0]["refs"] = serde_json::json!([]);
     review.to_string()
 }
 
@@ -78,8 +78,12 @@ async fn approved_lesson_uses_two_heavy_calls_then_commits() {
     let (mut learning, decision_id) = session(temp.path());
     let provider = LlmProvider::scripted(move |system, prompt, effort| {
         assert_eq!(effort.as_str(), "heavy");
-        if system.contains("LESSON_FACT_REVIEWER_V2") {
-            assert!(prompt.starts_with("LESSON_FACT_REVIEWER_V2\n"));
+        if system.contains("LESSON_FACT_REVIEWER_V3") {
+            assert!(prompt.starts_with("LESSON_FACT_REVIEWER_V3\n"));
+            let payload: serde_json::Value =
+                serde_json::from_str(prompt.split_once('\n').unwrap().1).unwrap();
+            let check = payload.pointer("/output_contract/checks/0").unwrap();
+            assert_eq!(check.as_object().unwrap().len(), 3);
             Ok(approval(prompt))
         } else {
             Ok(proposal(
@@ -116,7 +120,7 @@ async fn rejected_lesson_is_revised_with_fact_reviewer_feedback() {
     let reviewer_counter = reviewer_calls.clone();
     let expected_feedback = "Correct the HP claim and avoid asserting an unobserved causal result.";
     let provider = LlmProvider::scripted(move |system, prompt, _effort| {
-        if system.contains("LESSON_FACT_REVIEWER_V2") {
+        if system.contains("LESSON_FACT_REVIEWER_V3") {
             let call = reviewer_counter.fetch_add(1, Ordering::SeqCst);
             return Ok(if call == 0 {
                 rejection(prompt)
@@ -161,7 +165,7 @@ async fn repeated_rejections_stop_at_sixteen_calls_without_a_lesson() {
     let temp = tempfile::tempdir().unwrap();
     let (mut learning, decision_id) = session(temp.path());
     let provider = LlmProvider::scripted(move |system, prompt, _effort| {
-        if system.contains("LESSON_FACT_REVIEWER_V2") {
+        if system.contains("LESSON_FACT_REVIEWER_V3") {
             Ok(rejection(prompt))
         } else {
             Ok(proposal(&decision_id, "The selected action preserved HP."))
@@ -192,13 +196,12 @@ async fn invalid_reviewer_outputs_retry_the_reviewer_three_times() {
     let reviewer_calls = Arc::new(AtomicUsize::new(0));
     let reviewer_counter = reviewer_calls.clone();
     let provider = LlmProvider::scripted(move |system, prompt, _effort| {
-        if system.contains("LESSON_FACT_REVIEWER_V2") {
+        if system.contains("LESSON_FACT_REVIEWER_V3") {
             let call = reviewer_counter.fetch_add(1, Ordering::SeqCst);
             return Ok(if call == 0 {
                 "not json".into()
             } else if call == 1 {
-                r#"{"schema_version":2,"verdict":"approve","feedback":null,"claim_checks":[]}"#
-                    .into()
+                r#"{"schema_version":3,"verdict":"approve","feedback":null,"checks":[]}"#.into()
             } else {
                 approval(prompt)
             });
@@ -232,7 +235,7 @@ async fn proposer_query_failures_are_counted_and_retried_three_times() {
     let proposer_calls = Arc::new(AtomicUsize::new(0));
     let proposer_counter = proposer_calls.clone();
     let provider = LlmProvider::scripted(move |system, prompt, _effort| {
-        if system.contains("LESSON_FACT_REVIEWER_V2") {
+        if system.contains("LESSON_FACT_REVIEWER_V3") {
             return Ok(approval(prompt));
         }
         let call = proposer_counter.fetch_add(1, Ordering::SeqCst);

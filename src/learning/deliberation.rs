@@ -178,12 +178,9 @@ async fn review(
             None => return Stage::Failed,
         };
         let parsed = match provider.query_lesson_fact_review(&prompt).await {
-            Ok(response) => parse_fact_review(
-                &response,
-                draft.allowed_decision_ids(),
-                &required_claims,
-                deterministic_report,
-            ),
+            Ok(response) => {
+                parse_fact_review(&response, draft.allowed_decision_ids(), &required_claims)
+            }
             Err(error) => {
                 retry_feedback.push(error_feedback("fact reviewer query failed", &error));
                 continue;
