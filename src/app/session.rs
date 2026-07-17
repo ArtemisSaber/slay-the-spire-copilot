@@ -149,7 +149,7 @@ impl GameRuntime {
 
             if crate::runtime::is_error(&raw) {
                 tracing::warn!("received error from CommunicationMod: {}", line.trim());
-                self.handle_error(&overlay_path, &autoplay_control_path)
+                self.handle_error(&raw, &overlay_path, &autoplay_control_path)
                     .await;
                 continue;
             }

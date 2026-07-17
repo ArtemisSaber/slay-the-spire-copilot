@@ -5,7 +5,12 @@ use std::io;
 use std::path::Path;
 
 impl GameRuntime {
-    pub(super) async fn handle_error(&mut self, overlay_path: &Path, autoplay_control_path: &Path) {
+    pub(super) async fn handle_error(
+        &mut self,
+        error: &serde_json::Value,
+        overlay_path: &Path,
+        autoplay_control_path: &Path,
+    ) {
         let Some((saved_raw, saved_normalized, saved_command_state)) =
             self.last_autoplay_state.clone()
         else {
@@ -15,6 +20,32 @@ impl GameRuntime {
         let _ = self.learning.discard_last_execution();
 
         self.consecutive_errors += 1;
+        if crate::runtime::is_non_retryable_command_error(error) {
+            let message = error
+                .get("error")
+                .and_then(|error| error.as_str())
+                .unwrap_or("unknown structural command error");
+            tracing::error!(
+                "autoplay command failed structurally; blocking without retry: {message}"
+            );
+            self.current_autoplay_control = None;
+            self.autoplay_overlay_state.mode = "off".into();
+            self.autoplay_overlay_state.status = "error".into();
+            let scenario = AdviceScenario::from_state(&saved_normalized);
+            crate::autoplay::status::write_overlay_autoplay(
+                overlay_path,
+                &OverlayMetadata {
+                    screen_type: saved_normalized.screen_type.clone(),
+                    scenario: scenario.as_str().to_string(),
+                    in_combat: crate::runtime::has_monsters(&saved_raw),
+                    state_hash: saved_normalized.stable_hash(),
+                    floor: saved_normalized.floor,
+                    character: saved_normalized.character.clone(),
+                },
+                &self.autoplay_overlay_state,
+            );
+            return;
+        }
         if self.consecutive_errors > 5 {
             tracing::error!(
                 "autoplay reached {} consecutive errors, blocking",

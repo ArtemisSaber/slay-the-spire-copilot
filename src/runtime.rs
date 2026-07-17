@@ -87,6 +87,16 @@ pub fn is_error(raw: &serde_json::Value) -> bool {
     raw.get("error").is_some()
 }
 
+pub fn is_non_retryable_command_error(raw: &serde_json::Value) -> bool {
+    raw.get("error")
+        .and_then(|error| error.as_str())
+        .is_some_and(|error| {
+            error
+                .to_ascii_lowercase()
+                .contains("out of bounds in command")
+        })
+}
+
 pub fn is_game_over_state(raw: &serde_json::Value) -> bool {
     raw.pointer("/game_state/screen_type")
         .and_then(|v| v.as_str())

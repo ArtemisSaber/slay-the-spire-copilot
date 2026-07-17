@@ -42,6 +42,24 @@ fn menu_before_any_observed_state_does_not_end_run() {
 }
 
 #[test]
+fn out_of_bounds_command_error_is_non_retryable() {
+    let error = json!({
+        "ready_for_command": true,
+        "error": "Index 2 out of bounds in command \"choose 2\""
+    });
+
+    assert!(is_non_retryable_command_error(&error));
+}
+
+#[test]
+fn ordinary_communication_error_remains_retryable() {
+    let error = json!({"error": "Command temporarily unavailable"});
+
+    assert!(!is_non_retryable_command_error(&error));
+    assert!(!is_non_retryable_command_error(&json!({"error": null})));
+}
+
+#[test]
 fn startup_check_enabled_by_default() {
     let opts = runtime_options_from([], None);
     assert!(!opts.skip_startup_check);

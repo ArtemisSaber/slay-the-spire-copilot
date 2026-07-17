@@ -1,7 +1,8 @@
 use crate::finalize_run_once;
 use crate::gate::{CombatTurnGate, MapGate, SCREEN_CONFIG, should_generate_advice};
 use crate::runtime::{
-    has_monsters, is_game_over_state, run_end_reason, runtime_options_from, should_end_run,
+    has_monsters, is_game_over_state, is_non_retryable_command_error, run_end_reason,
+    runtime_options_from, should_end_run,
 };
 use serde_json::json;
 
