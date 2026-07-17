@@ -48,6 +48,7 @@ mod fallback;
 mod experience_context;
 
 mod card_reward_comparison;
+mod card_reward_pipeline;
 mod card_reward_selection;
 mod prompt_action_labels;
 mod prompt_ranked_suggestions;

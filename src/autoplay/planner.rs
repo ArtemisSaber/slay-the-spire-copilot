@@ -135,7 +135,7 @@ pub(crate) async fn plan_action_with_memory(
     }
 
     if state.screen_type.as_ref().map(|st| st.as_str()) == Some("CARD_REWARD") {
-        match plan_card_reward(
+        let planned = match plan_card_reward(
             provider,
             session,
             state,
@@ -147,16 +147,19 @@ pub(crate) async fn plan_action_with_memory(
         )
         .await
         {
-            Ok(planned) => {
-                if matches!(planned.action, AutoPlayAction::Skip) {
-                    session.skipped_combat_reward_card = true;
-                }
-                return Ok(Some(planned));
-            }
+            Ok(planned) => planned,
             Err(error) => {
                 tracing::warn!("two-stage card reward planner failed: {error}");
+                let Some(action) = fallback_action(control, command_state, state) else {
+                    return Ok(None);
+                };
+                planned_action(action, DecisionSource::Fallback, state, &candidates, vec![])
             }
+        };
+        if matches!(planned.action, AutoPlayAction::Skip) {
+            session.skipped_combat_reward_card = true;
         }
+        return Ok(Some(planned));
     }
 
     let effort = state

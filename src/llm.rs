@@ -9,6 +9,8 @@ pub use provider::LlmProvider;
 pub use types::{AdviceScenario, Effort};
 
 #[cfg(test)]
+pub(crate) use provider::RecordedRequest;
+#[cfg(test)]
 use {logging::*, mock::*, prompts::*, provider::OpenAiConfig, requests::*};
 
 #[cfg(test)]
