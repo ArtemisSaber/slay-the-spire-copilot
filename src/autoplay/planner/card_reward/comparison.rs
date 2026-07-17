@@ -1,8 +1,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anyhow::{Context, anyhow, bail};
-use serde::Deserialize;
+use anyhow::Context;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
@@ -12,7 +11,10 @@ use crate::llm::LlmProvider;
 use crate::locales::Locale;
 use crate::state::NormalizedState;
 
-use super::{CardCandidateSelection, structured_scenario};
+use super::{CardCandidateSelection, retry, structured_scenario};
+
+mod response;
+pub(in crate::autoplay::planner) use response::parse_card_comparison_response;
 
 static COMPARISON_NONCE: AtomicU64 = AtomicU64::new(0);
 
@@ -33,16 +35,6 @@ pub(in crate::autoplay::planner) struct CardComparisonCase {
     pub(in crate::autoplay::planner) prompt: String,
     pub(in crate::autoplay::planner) added_card_ref: String,
     pub(in crate::autoplay::planner) unchanged_ref: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct CardComparisonResponse {
-    schema_version: u32,
-    verdict: String,
-    #[serde(default)]
-    preferred_ref: Option<String>,
-    #[serde(default)]
-    memory_ids_used: Vec<String>,
 }
 
 #[allow(
@@ -69,8 +61,22 @@ pub(super) async fn compare_resulting_states(
         selected,
         experience_context,
     )?;
-    let response = provider.query_card_reward_comparison(&case.prompt).await?;
-    parse_card_comparison_response(&response, &case, allowed_memory_ids)
+    let mut last_error = None;
+    for attempt in 1..=retry::MAX_STAGE_ATTEMPTS {
+        let prompt = retry::prompt_for_attempt(&case.prompt, attempt, last_error.as_ref())?;
+        let result = match provider.query_card_reward_comparison(&prompt).await {
+            Ok(response) => parse_card_comparison_response(&response, &case, allowed_memory_ids),
+            Err(error) => Err(error.context("card comparison query failed")),
+        };
+        match result {
+            Ok(decision) => return Ok(decision),
+            Err(error) => {
+                tracing::warn!("card comparison attempt={attempt} rejected: {error}");
+                last_error = Some(error);
+            }
+        }
+    }
+    Err(retry::exhausted("card comparison", last_error))
 }
 
 #[allow(
@@ -178,50 +184,6 @@ pub(in crate::autoplay::planner) fn build_card_comparison_case_with_entropy(
             .context("failed to build card reward comparison prompt")?,
         added_card_ref,
         unchanged_ref,
-    })
-}
-
-pub(in crate::autoplay::planner) fn parse_card_comparison_response(
-    response: &str,
-    case: &CardComparisonCase,
-    allowed_memory_ids: &[String],
-) -> anyhow::Result<CardComparisonDecision> {
-    let parsed: CardComparisonResponse = serde_json::from_str(response.trim())
-        .map_err(|error| anyhow!("card comparison returned invalid JSON: {error}"))?;
-    if parsed.schema_version != 1 {
-        bail!(
-            "card comparison returned unsupported schema_version {}",
-            parsed.schema_version
-        );
-    }
-    let verdict = match (parsed.verdict.as_str(), parsed.preferred_ref.as_deref()) {
-        ("prefer", Some(reference)) if reference == case.added_card_ref => {
-            CardComparisonVerdict::PreferAddedCard
-        }
-        ("prefer", Some(reference)) if reference == case.unchanged_ref => {
-            CardComparisonVerdict::PreferUnchanged
-        }
-        ("prefer", Some(reference)) => {
-            bail!("card comparison returned unknown preferred_ref {reference}")
-        }
-        ("prefer", None) => bail!("card comparison omitted preferred_ref for prefer verdict"),
-        ("indifferent", None) => CardComparisonVerdict::Indifferent,
-        ("uncertain", None) => CardComparisonVerdict::Uncertain,
-        ("indifferent" | "uncertain", Some(_)) => {
-            bail!("card comparison supplied preferred_ref without a prefer verdict")
-        }
-        (verdict, _) => bail!("card comparison returned unsupported verdict {verdict}"),
-    };
-    let mut memory_ids_used: Vec<_> = parsed
-        .memory_ids_used
-        .into_iter()
-        .filter(|id| allowed_memory_ids.contains(id))
-        .collect();
-    memory_ids_used.sort();
-    memory_ids_used.dedup();
-    Ok(CardComparisonDecision {
-        verdict,
-        memory_ids_used,
     })
 }
 

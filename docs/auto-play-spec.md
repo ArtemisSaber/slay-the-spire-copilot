@@ -359,6 +359,11 @@ When Skip is available, a second request compares the two complete resulting
 states. They use opaque `resulting_state_<token>` references in randomized
 order, with no take/skip labels. The judge evaluates each state independently
 and returns a preferred reference, `indifferent`, or `uncertain`.
+Each stage uses the planner's three-attempt budget. A rejected response retries
+only that stage with the validation or query error in `retry_context`; a judge
+retry therefore preserves the selected card and the same opaque references.
+The generic action planner is never used as a card-stage retry. Deterministic
+fallback runs only after the failed specialized stage exhausts its attempts.
 
 The resolver must reject:
 

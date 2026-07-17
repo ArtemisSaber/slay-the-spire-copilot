@@ -1,6 +1,6 @@
 use super::*;
 
-fn card_reward_fixture(
+pub(super) fn card_reward_fixture(
     skip_available: bool,
 ) -> (
     AutoPlayControl,
@@ -52,7 +52,11 @@ fn card_reward_fixture(
     )
 }
 
-fn selector_response(prompt: &str, offered_index: usize, reason: &str) -> anyhow::Result<String> {
+pub(super) fn selector_response(
+    prompt: &str,
+    offered_index: usize,
+    reason: &str,
+) -> anyhow::Result<String> {
     let payload: Value = serde_json::from_str(prompt)?;
     let selected_ref = payload["offered_cards"][offered_index]["ref"]
         .as_str()
@@ -67,7 +71,7 @@ fn selector_response(prompt: &str, offered_index: usize, reason: &str) -> anyhow
     .to_string())
 }
 
-fn prefer_larger_deck_response(prompt: &str) -> anyhow::Result<String> {
+pub(super) fn prefer_larger_deck_response(prompt: &str) -> anyhow::Result<String> {
     let payload: Value = serde_json::from_str(prompt)?;
     let states = payload["resulting_states"]
         .as_array()
@@ -92,7 +96,7 @@ fn prefer_larger_deck_response(prompt: &str) -> anyhow::Result<String> {
     .to_string())
 }
 
-async fn plan_card_reward_with(
+pub(super) async fn plan_card_reward_with(
     provider: &LlmProvider,
     skip_available: bool,
 ) -> (PlannedAction, Vec<crate::llm::RecordedRequest>) {
@@ -169,7 +173,7 @@ async fn card_reward_without_skip_only_calls_the_selector() {
 }
 
 #[tokio::test]
-async fn selector_failure_skips_without_generic_retries() {
+async fn selector_exhaustion_skips_after_three_specialized_attempts() {
     let provider = LlmProvider::scripted(|_system_prompt, _prompt, _effort| {
         anyhow::bail!("selector unavailable")
     });
@@ -179,11 +183,18 @@ async fn selector_failure_skips_without_generic_retries() {
     assert_eq!(planned.action, AutoPlayAction::Skip);
     assert_eq!(planned.source, DecisionSource::Fallback);
     assert_eq!(planned.selected_action_id, "card_reward:skip");
-    assert_eq!(requests.len(), 1);
+    assert_eq!(requests.len(), 3);
+    assert!(requests.iter().all(|request| {
+        request
+            .system_prompt
+            .contains("CARD_REWARD_CANDIDATE_SELECTOR_V1")
+    }));
+    assert!(requests[1].prompt.contains("retry_context"));
+    assert!(requests[1].prompt.contains("selector unavailable"));
 }
 
 #[tokio::test]
-async fn judge_failure_skips_without_generic_retries() {
+async fn judge_exhaustion_skips_after_three_specialized_attempts() {
     let provider = LlmProvider::scripted(|system_prompt, prompt, _effort| {
         if system_prompt.contains("CARD_REWARD_CANDIDATE_SELECTOR_V1") {
             selector_response(prompt, 0, "Best forced pick.")
@@ -197,5 +208,17 @@ async fn judge_failure_skips_without_generic_retries() {
     assert_eq!(planned.action, AutoPlayAction::Skip);
     assert_eq!(planned.source, DecisionSource::Fallback);
     assert_eq!(planned.selected_action_id, "card_reward:skip");
-    assert_eq!(requests.len(), 2);
+    assert_eq!(requests.len(), 4);
+    assert!(
+        requests[0]
+            .system_prompt
+            .contains("CARD_REWARD_CANDIDATE_SELECTOR_V1")
+    );
+    assert!(requests[1..].iter().all(|request| {
+        request
+            .system_prompt
+            .contains("CARD_REWARD_RESULTING_STATE_JUDGE_V1")
+    }));
+    assert!(requests[2].prompt.contains("retry_context"));
+    assert!(requests[2].prompt.contains("judge unavailable"));
 }
