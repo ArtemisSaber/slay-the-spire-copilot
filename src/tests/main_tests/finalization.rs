@@ -213,6 +213,8 @@ async fn eligible_finalization_creates_a_lesson_from_a_json_wrapped_report() {
     assert_eq!(learning.status().lesson_count, 1);
     let events = std::fs::read_to_string(journal.path().unwrap()).unwrap();
     assert!(events.contains("\"accepted_lessons\":1"));
+    assert!(events.contains("\"deliberation_outcome\":\"approved\""));
+    assert!(events.contains("\"api_calls\":2"));
     let report = std::fs::read_to_string(dir.path().join("runs/run-learn/postmortem.md")).unwrap();
     assert!(report.contains("# Mock Review"));
     assert!(!report.trim_start().starts_with('{'));

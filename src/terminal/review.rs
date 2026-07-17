@@ -90,11 +90,15 @@ pub(crate) async fn review_run_with_provider(
         crate::postmortem::build_ai_postmortem_prompt(&deterministic_report, locale, outcome);
     let mut learning =
         crate::learning::session::bootstrap_session(project_root, config, locale_key, false)?;
-    let prompt = learning
-        .build_critic_prompt(&base_prompt, run_id)
-        .context("saved decision cases could not be converted into a bounded review prompt")?;
-    let response = provider.query_learning_postmortem(&prompt, locale).await?;
-    let ingest = learning.ingest_critic_response(&response, run_id)?;
+    let deliberation = crate::learning::deliberation::deliberate_lesson(
+        &mut learning,
+        provider,
+        locale,
+        &base_prompt,
+        run_id,
+    )
+    .await?;
+    let ingest = &deliberation.ingest;
     let report = if ingest.response_valid {
         crate::postmortem::combine_postmortem_report(
             &ingest.report_markdown,
@@ -106,7 +110,7 @@ pub(crate) async fn review_run_with_provider(
     };
     let report_path = crate::postmortem::write_report_for_journal(&journal_path, &report)
         .map_err(anyhow::Error::msg)?;
-    append_review_event(&journal_path, run_id, &ingest);
+    append_review_event(&journal_path, run_id, &deliberation);
     Ok(ReviewResult {
         response_valid: ingest.response_valid,
         accepted_lessons: ingest.accepted_lessons,
@@ -147,8 +151,9 @@ fn journal_path(project_root: &Path, run_id: &str) -> Option<PathBuf> {
 fn append_review_event(
     journal_path: &Path,
     run_id: &str,
-    ingest: &crate::learning::session::CriticIngest,
+    deliberation: &crate::learning::deliberation::DeliberationResult,
 ) {
+    let ingest = &deliberation.ingest;
     let event = serde_json::json!({
         "schema_version": 1,
         "ts_ms": crate::journal::timestamp_ms(),
@@ -158,6 +163,8 @@ fn append_review_event(
         "accepted_lessons": ingest.accepted_lessons,
         "rejected_lessons": ingest.rejected_lessons,
         "snapshot_id": ingest.snapshot_id,
+        "deliberation_outcome": deliberation.outcome.as_str(),
+        "api_calls": deliberation.api_calls,
     });
     let Ok(mut line) = serde_json::to_vec(&event) else {
         return;

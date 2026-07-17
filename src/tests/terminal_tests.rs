@@ -82,11 +82,39 @@ async fn terminal_review_turns_an_existing_run_into_a_lesson() {
         ("LLM_PROVIDER", "mock"),
         ("MEMORY_MODE", "collect"),
     ]));
+    let decision_id = format!("{run_id}:8:2:1");
+    let provider = crate::llm::LlmProvider::scripted(move |system, _prompt, effort| {
+        assert_eq!(effort.as_str(), "heavy");
+        if system.contains("LESSON_FACT_REVIEWER_V1") {
+            return Ok(
+                r#"{"schema_version":1,"verdict":"approve","feedback":null,"issues":[]}"#.into(),
+            );
+        }
+        Ok(serde_json::json!({
+            "schema_version": 3,
+            "report_markdown": "# Reviewed run\n\nFact-grounded summary.",
+            "result": "lesson",
+            "lesson": {
+                "text": "Reduce immediate pressure before extending setup.",
+                "applies_when": "A comparable enemy threatens near-term HP loss.",
+                "expected_effect": "This may preserve HP for later encounters.",
+                "evidence": [{
+                    "run_id": run_id,
+                    "decision_ids": [decision_id],
+                    "observed_chain": "The recorded turn lost HP before combat ended."
+                }],
+                "uncertainty": "The alternative action was not observed.",
+                "confidence_millis": 700
+            },
+            "rejected_lesson_analysis": null
+        })
+        .to_string())
+    });
 
     let result = review_run_with_provider(
         temp.path(),
         &config,
-        &crate::llm::LlmProvider::Mock,
+        &provider,
         &crate::locales::Locale::load("en"),
         "en",
         run_id,
@@ -97,6 +125,13 @@ async fn terminal_review_turns_an_existing_run_into_a_lesson() {
     assert!(result.response_valid);
     assert_eq!(result.accepted_lessons, 1);
     assert_eq!(result.rejected_lessons, 0);
+    let requests = provider.recorded_requests();
+    assert_eq!(requests.len(), 2);
+    assert!(
+        requests[1]
+            .system_prompt
+            .contains("LESSON_FACT_REVIEWER_V1")
+    );
     assert!(result.report_path.is_file());
     assert!(
         !std::fs::read_to_string(result.report_path)

@@ -104,65 +104,73 @@ async fn finalize(
     };
     let base_prompt =
         crate::postmortem::build_ai_postmortem_prompt(&deterministic_report, locale, outcome);
-    let critic_prompt = if critic_enabled {
-        learning
-            .as_deref()
-            .and_then(|learning| learning.build_critic_prompt(&base_prompt, journal.run_id()))
-    } else {
-        None
-    };
-    let (prompt, critic_requested) = match critic_prompt {
-        Some(prompt) => (prompt, true),
-        None => (base_prompt, false),
-    };
-    let response = if critic_requested {
-        provider.query_learning_postmortem(&prompt, locale).await
-    } else {
-        provider.query_postmortem(&prompt, locale).await
-    };
-    match response {
-        Ok(response) => {
-            let ai_report = if critic_requested {
-                match learning {
-                    Some(learning) => match learning
-                        .ingest_critic_response(&response, journal.run_id())
-                    {
-                        Ok(result) => {
-                            journal.log_learning_event(&serde_json::json!({
-                                "schema_version": 1,
-                                "event": "learning_critic_ingested",
-                                "response_valid": result.response_valid,
-                                "accepted_lessons": result.accepted_lessons,
-                                "rejected_lessons": result.rejected_lessons,
-                                "snapshot_id": result.snapshot_id,
-                            }));
-                            if let Some(path) = overlay_path {
-                                crate::advice::write_overlay_learning(path, &learning.status());
-                            }
-                            result.report_markdown
-                        }
-                        Err(error) => {
-                            tracing::error!("failed to ingest learning critic response: {error}");
-                            response
-                        }
-                    },
-                    None => response,
+    if critic_enabled {
+        let Some(learning) = learning else {
+            tracing::error!("learning critic was enabled without a learning session");
+            return;
+        };
+        match crate::learning::deliberation::deliberate_lesson(
+            learning,
+            provider,
+            locale,
+            &base_prompt,
+            journal.run_id(),
+        )
+        .await
+        {
+            Ok(deliberation) => {
+                let ingest = &deliberation.ingest;
+                journal.log_learning_event(&serde_json::json!({
+                    "schema_version": 1,
+                    "event": "learning_critic_ingested",
+                    "response_valid": ingest.response_valid,
+                    "accepted_lessons": ingest.accepted_lessons,
+                    "rejected_lessons": ingest.rejected_lessons,
+                    "snapshot_id": ingest.snapshot_id,
+                    "deliberation_outcome": deliberation.outcome.as_str(),
+                    "api_calls": deliberation.api_calls,
+                }));
+                if let Some(path) = overlay_path {
+                    crate::advice::write_overlay_learning(path, &learning.status());
                 }
-            } else {
-                response
-            };
-            let combined = crate::postmortem::combine_postmortem_report(
-                &ai_report,
-                &deterministic_report,
-                &locale.postmortem.section_machine,
-            );
-            match crate::postmortem::write_report_for_journal(journal_path, &combined) {
-                Ok(path) => tracing::info!("wrote AI postmortem report to {}", path.display()),
-                Err(error) => tracing::error!("failed to write combined postmortem: {error}"),
+                if ingest.response_valid {
+                    write_ai_report(
+                        journal_path,
+                        &ingest.report_markdown,
+                        &deterministic_report,
+                        locale,
+                    );
+                } else {
+                    tracing::warn!(
+                        "lesson deliberation ended {} after {} calls; deterministic report saved",
+                        deliberation.outcome.as_str(),
+                        deliberation.api_calls,
+                    );
+                }
             }
+            Err(error) => tracing::error!("failed to commit reviewed lesson: {error}"),
         }
-        Err(error) => {
-            tracing::warn!("AI postmortem failed, deterministic report saved: {error}");
-        }
+        return;
+    }
+    match provider.query_postmortem(&base_prompt, locale).await {
+        Ok(response) => write_ai_report(journal_path, &response, &deterministic_report, locale),
+        Err(error) => tracing::warn!("AI postmortem failed, deterministic report saved: {error}"),
+    }
+}
+
+fn write_ai_report(
+    journal_path: &std::path::Path,
+    ai_report: &str,
+    deterministic_report: &str,
+    locale: &crate::locales::Locale,
+) {
+    let combined = crate::postmortem::combine_postmortem_report(
+        ai_report,
+        deterministic_report,
+        &locale.postmortem.section_machine,
+    );
+    match crate::postmortem::write_report_for_journal(journal_path, &combined) {
+        Ok(path) => tracing::info!("wrote AI postmortem report to {}", path.display()),
+        Err(error) => tracing::error!("failed to write combined postmortem: {error}"),
     }
 }

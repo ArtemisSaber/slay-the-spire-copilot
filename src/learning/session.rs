@@ -24,7 +24,7 @@ mod prepare;
 mod resume;
 pub use bootstrap::bootstrap_session;
 use capture::RunCapture;
-pub(crate) use critic::CriticIngest;
+pub(crate) use critic::{CriticDraft, CriticDraftRejection, CriticIngest};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionProvenance {

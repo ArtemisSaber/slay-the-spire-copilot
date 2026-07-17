@@ -175,3 +175,13 @@ fn mock_learning_postmortem_response(user_prompt: &str) -> String {
     })
     .to_string()
 }
+
+pub(crate) fn mock_lesson_fact_review_response() -> String {
+    serde_json::json!({
+        "schema_version": 1,
+        "verdict": "approve",
+        "feedback": null,
+        "issues": [],
+    })
+    .to_string()
+}

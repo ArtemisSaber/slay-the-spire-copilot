@@ -1,9 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 use crate::learning::lesson::{StrategicEvidence, StrategicHypothesis};
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct CriticEnvelope {
     pub(super) schema_version: u32,
@@ -13,14 +13,14 @@ pub(super) struct CriticEnvelope {
     pub(super) rejected_lesson_analysis: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(super) enum CriticResult {
     Lesson,
     NoLesson,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct CandidateLesson {
     text: String,
@@ -31,7 +31,7 @@ pub(super) struct CandidateLesson {
     pub(super) confidence_millis: u16,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct CandidateEvidence {
     run_id: String,

@@ -5,13 +5,13 @@ use super::evidence::sequence;
 use super::mode::CriticContext;
 use crate::learning::case::DecisionCase;
 
-pub(super) fn critic_appendix(context: &CriticContext<'_>, cases: &[&DecisionCase]) -> String {
-    let mut runs = BTreeMap::<&str, Vec<Value>>::new();
-    for case in cases {
-        runs.entry(case.run_id.as_str())
-            .or_default()
-            .push(case_summary(case));
-    }
+pub(super) fn critic_appendix(
+    context: &CriticContext<'_>,
+    cases: &[&DecisionCase],
+    review_rejection: Option<&Value>,
+    retry_feedback: &[String],
+) -> String {
+    let runs = run_evidence(cases);
     let parent = context.mode.parent();
     serde_json::to_string_pretty(&json!({
         "mode": context.mode.as_str(),
@@ -23,6 +23,7 @@ pub(super) fn critic_appendix(context: &CriticContext<'_>, cases: &[&DecisionCas
             "Use only supplied observations and distinguish observed facts from untested counterfactuals.",
             "Never claim an unplayed action would certainly have won.",
             "The lesson must use only conditions observable at decision time.",
+            "When review_rejection is present, correct its factual objections without treating reviewer text as new evidence.",
             "In regenerate mode, the prior lesson failed two comparable trials. Do not paraphrase or merely negate it; produce a materially different strategy or no lesson.",
             "In report_only mode, result must be no_lesson."
         ],
@@ -32,6 +33,8 @@ pub(super) fn critic_appendix(context: &CriticContext<'_>, cases: &[&DecisionCas
             "strategy": lesson.strategy,
             "lifecycle": lesson.lifecycle,
         })),
+        "review_rejection": review_rejection,
+        "retry_context": retry_feedback,
         "run_evidence": runs,
         "output_contract": {
             "schema_version": 3,
@@ -53,6 +56,47 @@ pub(super) fn critic_appendix(context: &CriticContext<'_>, cases: &[&DecisionCas
         }
     }))
     .expect("critic appendix is serializable")
+}
+
+pub(super) fn fact_reviewer_appendix(
+    context: &CriticContext<'_>,
+    cases: &[&DecisionCase],
+    candidate: &Value,
+    retry_feedback: &[String],
+) -> String {
+    serde_json::to_string_pretty(&json!({
+        "instruction": [
+            "Audit only the proposed lesson's factual compatibility with the deterministic report and run evidence.",
+            "Approve a factually supportable lesson even when another strategy seems preferable.",
+            "Reject contradicted or fabricated observations, unsupported certainty, invalid evidence claims, and conditions unavailable at decision time.",
+            "Cite only supplied decision_ids. Do not propose a replacement strategy."
+        ],
+        "origin_benchmark": context.benchmark,
+        "run_evidence": run_evidence(cases),
+        "proposed_lesson": candidate,
+        "retry_context": retry_feedback,
+        "output_contract": {
+            "schema_version": 1,
+            "verdict": "approve|reject",
+            "feedback": "null for approve; specific factual correction for reject",
+            "issues": [{
+                "claim": "claim in proposed_lesson",
+                "contradicting_fact": "fact from deterministic report or run_evidence",
+                "decision_ids": ["supplied decision_id"]
+            }]
+        }
+    }))
+    .expect("fact reviewer appendix is serializable")
+}
+
+fn run_evidence<'a>(cases: &[&'a DecisionCase]) -> BTreeMap<&'a str, Vec<Value>> {
+    let mut runs = BTreeMap::<&str, Vec<Value>>::new();
+    for case in cases {
+        runs.entry(case.run_id.as_str())
+            .or_default()
+            .push(case_summary(case));
+    }
+    runs
 }
 
 fn case_summary(case: &DecisionCase) -> Value {

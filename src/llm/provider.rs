@@ -81,6 +81,16 @@ impl LlmProvider {
             .await
     }
 
+    pub async fn query_lesson_fact_review(
+        &self,
+        prompt: &str,
+        locale: &Locale,
+    ) -> anyhow::Result<String> {
+        let system_prompt = super::prompts::lesson_fact_reviewer_system_prompt(locale);
+        self.query_with_system_prompt(&system_prompt, prompt, Effort::Heavy)
+            .await
+    }
+
     pub async fn query_autoplay_action(
         &self,
         prompt: &str,
@@ -126,6 +136,9 @@ impl LlmProvider {
             }
             LlmProvider::Mock if system_prompt.contains("AUTO_PLAY_ACTION_PLANNER") => {
                 super::mock::mock_autoplay_action_response(prompt)
+            }
+            LlmProvider::Mock if system_prompt.contains("LESSON_FACT_REVIEWER_V1") => {
+                super::mock::mock_lesson_fact_review_response()
             }
             LlmProvider::Mock => super::mock::mock_advice_response(system_prompt, prompt),
             #[cfg(test)]
