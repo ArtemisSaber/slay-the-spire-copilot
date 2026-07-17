@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::learning::lesson::{StrategicEvidence, StrategicHypothesis};
 
@@ -84,6 +84,25 @@ impl CandidateLesson {
         self.evidence
             .iter()
             .flat_map(|evidence| evidence.decision_ids.iter().map(String::as_str))
+    }
+
+    pub(super) fn review_claims(&self) -> BTreeMap<String, String> {
+        let mut claims = BTreeMap::from([
+            ("lesson.text".into(), self.text.clone()),
+            ("lesson.applies_when".into(), self.applies_when.clone()),
+            (
+                "lesson.expected_effect".into(),
+                self.expected_effect.clone(),
+            ),
+            ("lesson.uncertainty".into(), self.uncertainty.clone()),
+        ]);
+        for (index, evidence) in self.evidence.iter().enumerate() {
+            claims.insert(
+                format!("lesson.evidence[{index}].observed_chain"),
+                evidence.observed_chain.clone(),
+            );
+        }
+        claims
     }
 
     pub(super) fn into_strategy(self) -> StrategicHypothesis {

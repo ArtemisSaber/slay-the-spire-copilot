@@ -72,18 +72,26 @@ impl LearningSession {
 
     pub(crate) fn build_fact_review_prompt(
         &self,
-        base_report_prompt: &str,
+        deterministic_report: &str,
         run_id: &str,
         draft: &CriticDraft,
         retry_feedback: &[String],
     ) -> Option<String> {
         let context = context_for_run(self, run_id)?;
         let candidate = draft.candidate_json()?;
+        let required_claims = draft.review_claims()?;
         let mut cases = supplied_cases(&self.snapshot.cases, run_id, context.mode);
-        let base = truncate_utf8(base_report_prompt, MAX_REPORT_BYTES);
+        let report = truncate_utf8(deterministic_report, MAX_REPORT_BYTES);
         loop {
-            let appendix = fact_reviewer_appendix(&context, &cases, &candidate, retry_feedback);
-            let prompt = format!("{base}\n\nLESSON_FACT_REVIEWER_V1\n{appendix}");
+            let appendix = fact_reviewer_appendix(
+                &context,
+                &cases,
+                &candidate,
+                &required_claims,
+                report,
+                retry_feedback,
+            );
+            let prompt = format!("LESSON_FACT_REVIEWER_V2\n{appendix}");
             if prompt.len() <= MAX_PROMPT_BYTES {
                 return Some(prompt);
             }

@@ -58,32 +58,29 @@ fn proposal(decision_id: &str, text: &str) -> String {
     .to_string()
 }
 
-fn approval() -> String {
-    r#"{"schema_version":1,"verdict":"approve","feedback":null,"issues":[]}"#.into()
+fn approval(prompt: &str) -> String {
+    crate::llm::mock::mock_lesson_fact_review_response(prompt)
 }
 
-fn rejection(decision_id: &str) -> String {
-    serde_json::json!({
-        "schema_version": 1,
-        "verdict": "reject",
-        "feedback": "Correct the HP claim and avoid asserting an unobserved causal result.",
-        "issues": [{
-            "claim": "The selected action preserved HP.",
-            "contradicting_fact": "The supplied outcome records HP loss after the action.",
-            "decision_ids": [decision_id]
-        }]
-    })
-    .to_string()
+fn rejection(prompt: &str) -> String {
+    let mut review: serde_json::Value = serde_json::from_str(&approval(prompt)).unwrap();
+    review["verdict"] = "reject".into();
+    review["feedback"] =
+        "Correct the HP claim and avoid asserting an unobserved causal result.".into();
+    review["claim_checks"][0]["status"] = "unsupported".into();
+    review["claim_checks"][0]["citations"] = serde_json::json!([]);
+    review.to_string()
 }
 
 #[tokio::test]
 async fn approved_lesson_uses_two_heavy_calls_then_commits() {
     let temp = tempfile::tempdir().unwrap();
     let (mut learning, decision_id) = session(temp.path());
-    let provider = LlmProvider::scripted(move |system, _prompt, effort| {
+    let provider = LlmProvider::scripted(move |system, prompt, effort| {
         assert_eq!(effort.as_str(), "heavy");
-        if system.contains("LESSON_FACT_REVIEWER_V1") {
-            Ok(approval())
+        if system.contains("LESSON_FACT_REVIEWER_V2") {
+            assert!(prompt.starts_with("LESSON_FACT_REVIEWER_V2\n"));
+            Ok(approval(prompt))
         } else {
             Ok(proposal(
                 &decision_id,
@@ -119,12 +116,12 @@ async fn rejected_lesson_is_revised_with_fact_reviewer_feedback() {
     let reviewer_counter = reviewer_calls.clone();
     let expected_feedback = "Correct the HP claim and avoid asserting an unobserved causal result.";
     let provider = LlmProvider::scripted(move |system, prompt, _effort| {
-        if system.contains("LESSON_FACT_REVIEWER_V1") {
+        if system.contains("LESSON_FACT_REVIEWER_V2") {
             let call = reviewer_counter.fetch_add(1, Ordering::SeqCst);
             return Ok(if call == 0 {
-                rejection(&decision_id)
+                rejection(prompt)
             } else {
-                approval()
+                approval(prompt)
             });
         }
         let call = proposer_counter.fetch_add(1, Ordering::SeqCst);
@@ -163,10 +160,9 @@ async fn rejected_lesson_is_revised_with_fact_reviewer_feedback() {
 async fn repeated_rejections_stop_at_sixteen_calls_without_a_lesson() {
     let temp = tempfile::tempdir().unwrap();
     let (mut learning, decision_id) = session(temp.path());
-    let reviewer_decision = decision_id.clone();
-    let provider = LlmProvider::scripted(move |system, _prompt, _effort| {
-        if system.contains("LESSON_FACT_REVIEWER_V1") {
-            Ok(rejection(&reviewer_decision))
+    let provider = LlmProvider::scripted(move |system, prompt, _effort| {
+        if system.contains("LESSON_FACT_REVIEWER_V2") {
+            Ok(rejection(prompt))
         } else {
             Ok(proposal(&decision_id, "The selected action preserved HP."))
         }
@@ -190,18 +186,21 @@ async fn repeated_rejections_stop_at_sixteen_calls_without_a_lesson() {
 }
 
 #[tokio::test]
-async fn malformed_reviewer_output_retries_the_reviewer_three_times() {
+async fn invalid_reviewer_outputs_retry_the_reviewer_three_times() {
     let temp = tempfile::tempdir().unwrap();
     let (mut learning, decision_id) = session(temp.path());
     let reviewer_calls = Arc::new(AtomicUsize::new(0));
     let reviewer_counter = reviewer_calls.clone();
-    let provider = LlmProvider::scripted(move |system, _prompt, _effort| {
-        if system.contains("LESSON_FACT_REVIEWER_V1") {
+    let provider = LlmProvider::scripted(move |system, prompt, _effort| {
+        if system.contains("LESSON_FACT_REVIEWER_V2") {
             let call = reviewer_counter.fetch_add(1, Ordering::SeqCst);
-            return Ok(if call < 2 {
+            return Ok(if call == 0 {
                 "not json".into()
+            } else if call == 1 {
+                r#"{"schema_version":2,"verdict":"approve","feedback":null,"claim_checks":[]}"#
+                    .into()
             } else {
-                approval()
+                approval(prompt)
             });
         }
         Ok(proposal(
@@ -233,8 +232,8 @@ async fn proposer_query_failures_are_counted_and_retried_three_times() {
     let proposer_calls = Arc::new(AtomicUsize::new(0));
     let proposer_counter = proposer_calls.clone();
     let provider = LlmProvider::scripted(move |system, prompt, _effort| {
-        if system.contains("LESSON_FACT_REVIEWER_V1") {
-            return Ok(approval());
+        if system.contains("LESSON_FACT_REVIEWER_V2") {
+            return Ok(approval(prompt));
         }
         let call = proposer_counter.fetch_add(1, Ordering::SeqCst);
         if call < 2 {

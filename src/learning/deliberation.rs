@@ -62,6 +62,7 @@ pub(crate) async fn deliberate_lesson(
 ) -> anyhow::Result<DeliberationResult> {
     let mut state = DeliberationState::default();
     let mut review_rejection: Option<Value> = None;
+    let deterministic_report = deterministic_report_from_prompt(base_report_prompt, locale);
     loop {
         let draft = match propose(
             learning,
@@ -87,8 +88,7 @@ pub(crate) async fn deliberate_lesson(
         match review(
             learning,
             provider,
-            locale,
-            base_report_prompt,
+            deterministic_report,
             run_id,
             &draft,
             &mut state,
@@ -154,15 +154,10 @@ async fn propose(
     Stage::Failed
 }
 
-#[allow(
-    clippy::too_many_arguments,
-    reason = "the reviewer stage keeps its immutable evidence and shared call state explicit"
-)]
 async fn review(
     learning: &LearningSession,
     provider: &LlmProvider,
-    locale: &Locale,
-    base_report_prompt: &str,
+    deterministic_report: &str,
     run_id: &str,
     draft: &CriticDraft,
     state: &mut DeliberationState,
@@ -173,13 +168,22 @@ async fn review(
             return Stage::BudgetExhausted;
         }
         let Some(prompt) =
-            learning.build_fact_review_prompt(base_report_prompt, run_id, draft, &retry_feedback)
+            learning.build_fact_review_prompt(deterministic_report, run_id, draft, &retry_feedback)
         else {
             return Stage::Failed;
         };
         state.api_calls += 1;
-        let parsed = match provider.query_lesson_fact_review(&prompt, locale).await {
-            Ok(response) => parse_fact_review(&response, draft.allowed_decision_ids()),
+        let required_claims = match draft.review_claims() {
+            Some(claims) => claims,
+            None => return Stage::Failed,
+        };
+        let parsed = match provider.query_lesson_fact_review(&prompt).await {
+            Ok(response) => parse_fact_review(
+                &response,
+                draft.allowed_decision_ids(),
+                &required_claims,
+                deterministic_report,
+            ),
             Err(error) => {
                 retry_feedback.push(error_feedback("fact reviewer query failed", &error));
                 continue;
@@ -249,4 +253,14 @@ fn error_feedback(context: &str, error: &anyhow::Error) -> String {
         .chars()
         .take(MAX_FEEDBACK_CHARS)
         .collect()
+}
+
+fn deterministic_report_from_prompt<'a>(base_prompt: &'a str, locale: &Locale) -> &'a str {
+    let Some((_, review_input)) = base_prompt.split_once(&locale.postmortem.machine_summary) else {
+        return base_prompt;
+    };
+    review_input
+        .trim_start()
+        .split_once("\n\n")
+        .map_or(review_input.trim(), |(_, report)| report.trim())
 }

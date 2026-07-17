@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use super::evidence::sequence;
 use super::mode::CriticContext;
 use crate::learning::case::DecisionCase;
+use crate::learning::fact_review::authoritative_game_fact_catalog;
 
 pub(super) fn critic_appendix(
     context: &CriticContext<'_>,
@@ -62,27 +63,37 @@ pub(super) fn fact_reviewer_appendix(
     context: &CriticContext<'_>,
     cases: &[&DecisionCase],
     candidate: &Value,
+    required_claims: &BTreeMap<String, String>,
+    deterministic_report: &str,
     retry_feedback: &[String],
 ) -> String {
     serde_json::to_string_pretty(&json!({
         "instruction": [
-            "Audit only the proposed lesson's factual compatibility with the deterministic report and run evidence.",
-            "Approve a factually supportable lesson even when another strategy seems preferable.",
-            "Reject contradicted or fabricated observations, unsupported certainty, invalid evidence claims, and conditions unavailable at decision time.",
-            "Cite only supplied decision_ids. Do not propose a replacement strategy."
+            "The burden of proof is on approval; missing support requires rejection.",
+            "Check every required_claims entry, including every assertion within that field.",
+            "Do not treat the proposed lesson, general model knowledge, or absence of contradiction as evidence.",
+            "Do not propose a replacement strategy."
         ],
+        "authoritative_game_facts": authoritative_game_fact_catalog(),
+        "deterministic_report": deterministic_report,
         "origin_benchmark": context.benchmark,
         "run_evidence": run_evidence(cases),
         "proposed_lesson": candidate,
+        "required_claims": required_claims,
         "retry_context": retry_feedback,
         "output_contract": {
-            "schema_version": 1,
+            "schema_version": 2,
             "verdict": "approve|reject",
-            "feedback": "null for approve; specific factual correction for reject",
-            "issues": [{
-                "claim": "claim in proposed_lesson",
-                "contradicting_fact": "fact from deterministic report or run_evidence",
-                "decision_ids": ["supplied decision_id"]
+            "feedback": "null for approve; specific correction for reject",
+            "claim_checks": [{
+                "path": "exact key from required_claims",
+                "claim": "exact value from required_claims",
+                "status": "supported|contradicted|unsupported",
+                "citations": [{
+                    "source": "authoritative_game_fact|deterministic_report|run_evidence",
+                    "reference": "supplied game-fact reference, deterministic_report, or decision_id",
+                    "fact": "exact game/report fact or precise fact grounded in the cited decision"
+                }]
             }]
         }
     }))

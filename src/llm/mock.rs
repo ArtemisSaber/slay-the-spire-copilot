@@ -176,12 +176,46 @@ fn mock_learning_postmortem_response(user_prompt: &str) -> String {
     .to_string()
 }
 
-pub(crate) fn mock_lesson_fact_review_response() -> String {
+pub(crate) fn mock_lesson_fact_review_response(prompt: &str) -> String {
+    let payload = prompt
+        .split_once('\n')
+        .and_then(|(_, appendix)| serde_json::from_str::<serde_json::Value>(appendix).ok())
+        .unwrap_or_default();
+    let reference = payload
+        .get("run_evidence")
+        .and_then(serde_json::Value::as_object)
+        .and_then(|runs| {
+            runs.values().find_map(|cases| {
+                cases
+                    .as_array()
+                    .and_then(|cases| cases.first())
+                    .and_then(|case| case.get("decision_id"))
+                    .and_then(serde_json::Value::as_str)
+            })
+        });
+    let claim_checks: Vec<_> = payload
+        .get("required_claims")
+        .and_then(serde_json::Value::as_object)
+        .into_iter()
+        .flatten()
+        .map(|(path, claim)| {
+            serde_json::json!({
+                "path": path,
+                "claim": claim,
+                "status": if reference.is_some() { "supported" } else { "unsupported" },
+                "citations": reference.map_or_else(Vec::new, |decision_id| vec![serde_json::json!({
+                    "source": "run_evidence",
+                    "reference": decision_id,
+                    "fact": "The mock cites the supplied decision record as test evidence."
+                })])
+            })
+        })
+        .collect();
     serde_json::json!({
-        "schema_version": 1,
-        "verdict": "approve",
-        "feedback": null,
-        "issues": [],
+        "schema_version": 2,
+        "verdict": if reference.is_some() { "approve" } else { "reject" },
+        "feedback": reference.is_none().then_some("No run evidence was supplied."),
+        "claim_checks": claim_checks,
     })
     .to_string()
 }

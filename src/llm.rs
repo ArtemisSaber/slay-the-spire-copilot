@@ -1,5 +1,5 @@
 mod logging;
-mod mock;
+pub(crate) mod mock;
 mod prompts;
 mod provider;
 mod requests;

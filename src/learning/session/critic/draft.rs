@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
 use serde_json::Value;
 
@@ -39,6 +39,10 @@ impl CriticDraft {
 
     pub(crate) fn allowed_decision_ids(&self) -> &HashSet<String> {
         &self.allowed_decision_ids
+    }
+
+    pub(crate) fn review_claims(&self) -> Option<BTreeMap<String, String>> {
+        self.candidate.as_ref().map(CandidateLesson::review_claims)
     }
 }
 
