@@ -112,3 +112,46 @@ fn event_choices_from_choice_list_fallback() {
         vec!["Option A".to_string(), "Option B".to_string()]
     );
 }
+
+#[test]
+fn event_choices_exclude_disabled_options_and_follow_explicit_indices() {
+    let locale = test_locale();
+    let raw = json!({
+        "in_game": true,
+        "game_state": {
+            "screen_type": "EVENT",
+            "choice_list": ["Heal", "Leave"],
+            "screen_state": {
+                "event_name": "The Cleric",
+                "options": [
+                    {
+                        "choice_index": 1,
+                        "disabled": false,
+                        "text": "[Leave]",
+                        "label": "Leave"
+                    },
+                    {
+                        "disabled": true,
+                        "text": "[Locked] Requires 50 Gold.",
+                        "label": "Locked"
+                    },
+                    {
+                        "choice_index": 0,
+                        "disabled": false,
+                        "text": "[Heal] 35 Gold: Heal 20 HP.",
+                        "label": "Heal"
+                    }
+                ]
+            }
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, locale);
+
+    assert_eq!(
+        state.event_choices,
+        vec![
+            "[Heal] 35 Gold: Heal 20 HP.".to_string(),
+            "[Leave]".to_string(),
+        ]
+    );
+}

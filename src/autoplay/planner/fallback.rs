@@ -21,7 +21,7 @@ pub(super) fn fallback_action(
             && command_state.has_command("choose"))
         .then_some(AutoPlayAction::Choose(0)),
         Some("REST") if control.allow_rest => fallback_rest_action(command_state, state),
-        Some("EVENT") if control.allow_events => (!state.event_choices.is_empty()
+        Some("EVENT") if control.allow_events => (!command_state.choice_list.is_empty()
             && command_state.has_command("choose"))
         .then_some(AutoPlayAction::Choose(0)),
         Some("SHOP_ROOM" | "SHOP_SCREEN") if control.allow_shop => command_state

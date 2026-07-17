@@ -3,13 +3,14 @@ use serde_json::Value;
 use crate::locales::Locale;
 
 use super::combat::{detect_stance_from_powers, extract_monsters, extract_orbs};
+use super::event::extract_event_fields;
 use super::parse::{
     extract_card_names, extract_cards, extract_potion_infos, extract_powers, extract_relic_infos,
     first_array,
 };
 use super::screen_data::{
-    extract_empty_potion_slots, extract_event_fields, extract_grid_fields,
-    extract_hand_select_fields, extract_map_nodes, extract_shop_fields,
+    extract_empty_potion_slots, extract_grid_fields, extract_hand_select_fields, extract_map_nodes,
+    extract_shop_fields,
 };
 use super::{CardInfo, DangerFlags, NormalizedState, RoomType, ScreenType};
 

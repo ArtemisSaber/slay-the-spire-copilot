@@ -16,14 +16,22 @@ pub(super) fn event_candidates(
         return vec![];
     }
 
-    let candidates: Vec<_> = state
-        .event_choices
+    let detailed_choices = (state.event_choices.len() == command_state.choice_list.len())
+        .then_some(state.event_choices.as_slice());
+    let candidates: Vec<_> = command_state
+        .choice_list
         .iter()
         .enumerate()
-        .map(|(index, choice)| candidate("choose", format!("event:{index}"), choice.clone()))
+        .map(|(index, choice)| {
+            let label = detailed_choices
+                .and_then(|choices| choices.get(index))
+                .unwrap_or(choice)
+                .clone();
+            candidate("choose", format!("event:{index}"), label)
+        })
         .collect();
     if candidates.is_empty() {
-        tracing::info!("event_candidates empty: event_choices is empty");
+        tracing::info!("event_candidates empty: executable choice_list is empty");
     }
     candidates
 }

@@ -1,5 +1,6 @@
 mod combat;
 mod danger;
+mod event;
 mod model;
 mod normalization;
 mod normalized;

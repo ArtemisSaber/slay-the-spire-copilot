@@ -7,6 +7,7 @@ fn try_deterministic_single_candidate_returns_action() {
         "ready_for_command": true,
         "game_state": {
             "screen_type": "EVENT",
+            "choice_list": ["Proceed"],
             "screen_state": {
                 "choices": ["Proceed"]
             }
@@ -40,6 +41,7 @@ fn try_deterministic_multiple_candidates_returns_none() {
         "ready_for_command": true,
         "game_state": {
             "screen_type": "EVENT",
+            "choice_list": ["Fight", "Leave"],
             "screen_state": {
                 "choices": ["Fight", "Leave"]
             }

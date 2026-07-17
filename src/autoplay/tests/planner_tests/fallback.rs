@@ -52,6 +52,26 @@ fn fallback_event_with_multiple_choices_returns_first() {
 }
 
 #[test]
+fn fallback_event_requires_an_executable_wire_choice() {
+    let raw = json!({
+        "available_commands": ["choose"],
+        "game_state": {
+            "screen_type": "EVENT",
+            "choice_list": [],
+            "screen_state": {
+                "options": [{"label": "Displayed but not executable"}]
+            }
+        }
+    });
+    let control = AutoPlayControl::default_enabled();
+    let command_state = CommandState::from_raw(&raw);
+    let state = state(raw);
+
+    let action = fallback_action(&control, &command_state, &state);
+    assert_eq!(action, None);
+}
+
+#[test]
 fn fallback_map_with_multiple_children_returns_first() {
     let raw = json!({
         "available_commands": ["choose"],

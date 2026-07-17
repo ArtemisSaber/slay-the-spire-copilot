@@ -1,19 +1,7 @@
 use serde_json::Value;
 
-use crate::locales::Locale;
-
-use super::parse::{
-    extract_cards, extract_event_choice, extract_potion_infos, extract_relic_infos, first_array,
-    first_raw_string, first_string, is_readable_text,
-};
+use super::parse::{extract_cards, extract_potion_infos, extract_relic_infos};
 use super::{CardInfo, MapCoord, PotionInfo, RelicInfo};
-
-pub(super) struct EventFields {
-    pub(super) id: Option<String>,
-    pub(super) name: Option<String>,
-    pub(super) body: Option<String>,
-    pub(super) choices: Vec<String>,
-}
 
 pub(super) struct ShopFields {
     pub(super) cards: Vec<CardInfo>,
@@ -36,44 +24,6 @@ pub(super) struct GridFields {
     pub(super) for_transform: bool,
     pub(super) for_purge: bool,
     pub(super) num_cards: Option<i64>,
-}
-
-pub(super) fn extract_event_fields(
-    screen_state: Option<&Value>,
-    game_state: Option<&Value>,
-    locale: &Locale,
-) -> EventFields {
-    let id = screen_state
-        .and_then(|state| first_raw_string(state, &["event_id", "eventId", "id"]))
-        .filter(|text| is_readable_text(text));
-    let name = screen_state.and_then(|state| first_string(state, &["event_name", "name", "title"]));
-    let body = screen_state
-        .and_then(|state| first_string(state, &["body", "body_text", "event_text", "description"]));
-    let choices = screen_state
-        .and_then(|state| first_array(state, &["options", "choices", "buttons"]))
-        .or_else(|| game_state.and_then(|state| first_array(state, &["choice_list"])))
-        .map(|choices| {
-            choices
-                .iter()
-                .enumerate()
-                .map(|(index, choice)| {
-                    extract_event_choice(choice).unwrap_or_else(|| {
-                        locale
-                            .fallback
-                            .event_unreadable_choice
-                            .replace("{idx}", &(index + 1).to_string())
-                    })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    EventFields {
-        id,
-        name,
-        body,
-        choices,
-    }
 }
 
 pub(super) fn extract_shop_fields(screen_state: Option<&Value>) -> ShopFields {

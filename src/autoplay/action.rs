@@ -144,7 +144,9 @@ pub fn resolve_requested_action(
         Some("CARD_REWARD") => resolve_requested_card_reward(command_state, state, request),
         Some("BOSS_REWARD") => resolve_requested_boss_reward(state, request),
         Some("REST") => resolve_requested_rest(state, request),
-        Some("EVENT") => resolve_requested_indexed("event:", state.event_choices.len(), request),
+        Some("EVENT") => {
+            resolve_requested_indexed("event:", command_state.choice_list.len(), request)
+        }
         Some("SHOP_ROOM" | "SHOP_SCREEN") => resolve_requested_shop(command_state, request),
         Some("MAP") => {
             resolve_requested_indexed("map:choice:", command_state.choice_list.len(), request)
