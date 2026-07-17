@@ -29,6 +29,7 @@ impl NormalizedState {
 
     pub fn is_boss_card_reward(&self) -> bool {
         self.screen_type.as_ref() == Some(&ScreenType::CardReward)
+            && !self.is_in_combat()
             && matches!(self.floor, Some(16 | 33 | 50))
     }
 

@@ -12,6 +12,10 @@ use super::projection::{
     potion_value, relic_value, with_index,
 };
 
+mod card_choice;
+
+use card_choice::combat_card_choice_context;
+
 pub(super) fn add_screen_context(
     scenario: &mut Map<String, Value>,
     kind: &str,
@@ -22,6 +26,11 @@ pub(super) fn add_screen_context(
 ) {
     match kind {
         "combat" => insert(scenario, "combat", combat_context(state, locale)),
+        "combat_card_choice" => insert(
+            scenario,
+            "card_choice",
+            combat_card_choice_context(state, locale),
+        ),
         "card_reward" | "boss_card_reward" => {
             insert(
                 scenario,
@@ -68,11 +77,13 @@ pub(super) fn add_screen_context(
         }
         "hand_select" => insert(scenario, "hand_select", hand_select_context(state, locale)),
         "grid" => {
-            insert(
-                scenario,
-                "deck",
-                deck_value(&state.master_cards, &state.deck_names, locale),
-            );
+            if !state.is_in_combat() {
+                insert(
+                    scenario,
+                    "deck",
+                    deck_value(&state.master_cards, &state.deck_names, locale),
+                );
+            }
             insert(scenario, "grid", grid_context(session, state, locale));
         }
         "combat_reward" => insert(
@@ -85,6 +96,10 @@ pub(super) fn add_screen_context(
             }),
         ),
         _ => insert(scenario, "generic", generic_context(state, locale)),
+    }
+
+    if state.is_in_combat() && kind != "combat" {
+        insert(scenario, "combat", combat_context(state, locale));
     }
 }
 
@@ -210,6 +225,7 @@ fn grid_context(session: &AutoPlaySession, state: &NormalizedState, locale: &Loc
         &state.grid_cards
     };
     json!({
+        "current_action": state.current_action,
         "purpose": grid_purpose(session, state),
         "num_cards": state.grid_num_cards,
         "triggered_by_relic": session.pending_boss_relic_grid,

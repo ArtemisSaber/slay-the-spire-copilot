@@ -77,6 +77,7 @@ pub(in crate::autoplay::planner) fn structured_scenario(
 
 fn scenario_kind(state: &NormalizedState) -> &'static str {
     match state.screen_type.as_ref().map(|screen| screen.as_str()) {
+        Some("CARD_REWARD") if state.is_in_combat() => "combat_card_choice",
         Some("CARD_REWARD") if state.is_boss_card_reward() => "boss_card_reward",
         Some("CARD_REWARD") => "card_reward",
         Some("BOSS_REWARD") => "boss_relic",
