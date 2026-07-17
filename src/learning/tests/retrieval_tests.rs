@@ -38,7 +38,6 @@ fn hard_filters_exclude_same_seed_and_different_compatibility_profiles() {
             ascension_level: Some(20),
             seed_hash: crate::learning::case::seed_hash(1, "mods"),
             compatibility_sha256: "mods".into(),
-            language: "en".into(),
         },
         &MemoryConfig::default(),
     );
@@ -48,34 +47,27 @@ fn hard_filters_exclude_same_seed_and_different_compatibility_profiles() {
 }
 
 #[test]
-fn strategic_lesson_requires_language_and_exact_ascension_match() {
+fn strategic_lesson_ignores_language_but_requires_exact_ascension_match() {
     let case = decision_case("source", 1);
     let lesson = strategic_lesson_for(&case);
     let snapshot =
         KnowledgeSnapshot::build_with_lessons(vec![case], vec![lesson.clone()], &[]).unwrap();
-    let query = |language: &str| RetrievalQuery {
+    let query = || RetrievalQuery {
         situation: situation(),
         ascension_level: Some(20),
         seed_hash: crate::learning::case::seed_hash(99, "mods"),
         compatibility_sha256: "mods".into(),
-        language: language.into(),
     };
 
-    let matching = retrieve(&snapshot, &query("en"), &MemoryConfig::default());
+    assert_eq!(lesson.language, "en");
+    let matching = retrieve(&snapshot, &query(), &MemoryConfig::default());
     assert!(
         matching
             .items
             .iter()
             .any(|item| item.id() == lesson.lesson_id)
     );
-    let wrong_language = retrieve(&snapshot, &query("zh"), &MemoryConfig::default());
-    assert!(
-        !wrong_language
-            .items
-            .iter()
-            .any(|item| item.id() == lesson.lesson_id)
-    );
-    let mut wrong_ascension = query("en");
+    let mut wrong_ascension = query();
     wrong_ascension.ascension_level = Some(19);
     assert!(
         !retrieve(&snapshot, &wrong_ascension, &MemoryConfig::default())
@@ -98,7 +90,6 @@ fn unvalidated_legacy_lesson_is_not_retrieved_even_with_high_confidence() {
             ascension_level: Some(20),
             seed_hash: crate::learning::case::seed_hash(99, "mods"),
             compatibility_sha256: "mods".into(),
-            language: "en".into(),
         },
         &MemoryConfig::default(),
     );
@@ -126,7 +117,6 @@ fn validated_lesson_ranks_above_a_raw_case_but_both_remain_observational() {
             ascension_level: Some(20),
             seed_hash: crate::learning::case::seed_hash(99, "mods"),
             compatibility_sha256: "mods".into(),
-            language: "en".into(),
         },
         &MemoryConfig::default(),
     );
@@ -151,7 +141,6 @@ fn contested_and_retired_lessons_are_not_retrieved() {
                 ascension_level: Some(20),
                 seed_hash: crate::learning::case::seed_hash(99, "mods"),
                 compatibility_sha256: "mods".into(),
-                language: "en".into(),
             },
             &MemoryConfig::default(),
         );
@@ -176,7 +165,6 @@ fn lesson_cannot_reveal_itself_to_its_only_source_seed() {
             ascension_level: Some(20),
             seed_hash: crate::learning::case::seed_hash(1, "mods"),
             compatibility_sha256: "mods".into(),
-            language: "en".into(),
         },
         &MemoryConfig::default(),
     );
@@ -220,7 +208,6 @@ fn multi_source_lesson_is_hidden_when_any_source_uses_the_current_seed() {
             ascension_level: Some(20),
             seed_hash: crate::learning::case::seed_hash(1, "mods"),
             compatibility_sha256: "mods".into(),
-            language: "en".into(),
         },
         &MemoryConfig::default(),
     );

@@ -37,7 +37,6 @@ impl LearningSession {
                     ascension_level: state.ascension_level,
                     seed_hash: seed_hash(seed, compatibility),
                     compatibility_sha256: compatibility.clone(),
-                    language: self.provenance.locale.clone(),
                 },
                 &self.config,
             );

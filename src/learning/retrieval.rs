@@ -14,7 +14,6 @@ pub struct RetrievalQuery {
     pub ascension_level: Option<i64>,
     pub seed_hash: String,
     pub compatibility_sha256: String,
-    pub language: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -120,7 +119,6 @@ fn lesson_candidates(
     snapshot
         .lessons
         .iter()
-        .filter(|lesson| lesson.language == query.language)
         .filter(|lesson| {
             !snapshot.cases.iter().any(|case| {
                 case.seed_hash == query.seed_hash && lesson.source_case_ids.contains(&case.case_id)

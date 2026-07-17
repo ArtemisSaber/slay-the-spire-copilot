@@ -18,7 +18,6 @@ fn result(with_lesson: bool) -> crate::learning::retrieval::RetrievalResult {
             ascension_level: Some(20),
             seed_hash: crate::learning::case::seed_hash(99, "mods"),
             compatibility_sha256: "mods".into(),
-            language: "en".into(),
         },
         &MemoryConfig::default(),
     )
@@ -59,7 +58,6 @@ fn no_retrieval_produces_no_prompt_field() {
             ascension_level: Some(20),
             seed_hash: "sha256:none".into(),
             compatibility_sha256: "mods".into(),
-            language: "en".into(),
         },
         &MemoryConfig::default(),
     );
