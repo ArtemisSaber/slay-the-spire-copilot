@@ -77,12 +77,15 @@ pub(super) fn fact_reviewer_appendix(
         .collect();
     serde_json::to_string_pretty(&json!({
         "instruction": [
-            "The burden of proof is on approval; missing support requires rejection.",
-            "Check every required_claims entry, including every assertion within that field.",
-            "Do not treat the proposed lesson, general model knowledge, or absence of contradiction as evidence.",
+            "Check every required_claims entry, including every material assertion within that field.",
+            "Use supplied evidence for run-specific facts, but allow established base-game knowledge, ordinary inference, arithmetic, and strategic reasoning.",
+            "A conclusion need not be quoted verbatim when it reasonably follows from cited premises.",
+            "Use plausible for a grounded but untested counterfactual with a sound mechanism and calibrated uncertainty.",
+            "Observed_chain fields must be supported by run evidence; plausible is not valid for observations.",
+            "Do not treat the proposed lesson or absence of contradiction as evidence, and do not guess unknown or modded mechanics.",
             "Return one check per required claim. Copy only its path; do not repeat the claim text.",
             "Use only exact strings from valid_refs. Never combine several references into one string.",
-            "Supported and contradicted checks need at least one ref. Unsupported checks may use an empty refs list.",
+            "Supported, plausible, and contradicted checks need at least one ref. Unsupported checks may use an empty refs list.",
             "Do not propose a replacement strategy."
         ],
         "authoritative_game_facts": authoritative_game_facts,
@@ -94,12 +97,12 @@ pub(super) fn fact_reviewer_appendix(
         "retry_context": retry_feedback,
         "valid_refs": valid_refs,
         "output_contract": {
-            "schema_version": 3,
+            "schema_version": 4,
             "verdict": "approve|reject",
             "feedback": "null for approve; specific correction for reject",
             "checks": [{
                 "path": "exact key from required_claims",
-                "status": "supported|contradicted|unsupported",
+                "status": "supported|plausible|contradicted|unsupported",
                 "refs": ["zero or more exact strings from valid_refs"]
             }]
         }

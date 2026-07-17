@@ -133,7 +133,7 @@ impl LlmProvider {
             LlmProvider::Mock if system_prompt.contains("AUTO_PLAY_ACTION_PLANNER") => {
                 super::mock::mock_autoplay_action_response(prompt)
             }
-            LlmProvider::Mock if system_prompt.contains("LESSON_FACT_REVIEWER_V3") => {
+            LlmProvider::Mock if system_prompt.contains("LESSON_FACT_REVIEWER_V4") => {
                 super::mock::mock_lesson_fact_review_response(prompt)
             }
             LlmProvider::Mock => super::mock::mock_advice_response(system_prompt, prompt),

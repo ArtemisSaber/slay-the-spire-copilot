@@ -74,7 +74,7 @@ async fn proposer_abstention_is_rejected_and_retried() {
     let proposer_calls = Arc::new(AtomicUsize::new(0));
     let proposer_counter = proposer_calls.clone();
     let provider = LlmProvider::scripted(move |system, prompt, _effort| {
-        if system.contains("LESSON_FACT_REVIEWER_V3") {
+        if system.contains("LESSON_FACT_REVIEWER_V4") {
             return Ok(crate::llm::mock::mock_lesson_fact_review_response(prompt));
         }
         let call = proposer_counter.fetch_add(1, Ordering::SeqCst);
@@ -107,7 +107,7 @@ async fn repeated_proposer_abstentions_exhaust_the_full_budget_before_failing_sa
     let temp = tempfile::tempdir().unwrap();
     let (mut learning, _) = session(temp.path());
     let provider = LlmProvider::scripted(|system, _prompt, _effort| {
-        assert!(!system.contains("LESSON_FACT_REVIEWER_V3"));
+        assert!(!system.contains("LESSON_FACT_REVIEWER_V4"));
         Ok(abstention())
     });
 
@@ -140,7 +140,7 @@ async fn already_reviewed_run_uses_report_only_call_without_proposer_abstention(
     let provider = LlmProvider::scripted(|system, _prompt, effort| {
         assert_eq!(effort.as_str(), "heavy");
         assert!(!system.contains("LEARNING_CRITIC_ENVELOPE_V3"));
-        assert!(!system.contains("LESSON_FACT_REVIEWER_V3"));
+        assert!(!system.contains("LESSON_FACT_REVIEWER_V4"));
         Ok("# Refreshed Review\n\nNo duplicate lesson was requested.".into())
     });
 

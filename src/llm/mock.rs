@@ -201,15 +201,22 @@ pub(crate) fn mock_lesson_fact_review_response(prompt: &str) -> String {
         .into_iter()
         .flatten()
         .map(|(path, _)| {
+            let status = if reference.is_none() {
+                "unsupported"
+            } else if path.starts_with("lesson.evidence[") {
+                "supported"
+            } else {
+                "plausible"
+            };
             serde_json::json!({
                 "path": path,
-                "status": if reference.is_some() { "supported" } else { "unsupported" },
+                "status": status,
                 "refs": reference.map_or_else(Vec::new, |decision_id| vec![decision_id])
             })
         })
         .collect();
     serde_json::json!({
-        "schema_version": 3,
+        "schema_version": 4,
         "verdict": if reference.is_some() { "approve" } else { "reject" },
         "feedback": reference.is_none().then_some("No run evidence was supplied."),
         "checks": checks,

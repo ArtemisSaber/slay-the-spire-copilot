@@ -4,7 +4,7 @@ use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-const FACT_REVIEW_VERSION: u32 = 3;
+const FACT_REVIEW_VERSION: u32 = 4;
 const MAX_REFS: usize = 8;
 const DETERMINISTIC_REPORT_REF: &str = "deterministic_report";
 
@@ -47,6 +47,7 @@ pub(crate) enum FactReviewVerdict {
 #[serde(rename_all = "snake_case")]
 enum FactClaimStatus {
     Supported,
+    Plausible,
     Contradicted,
     Unsupported,
 }
@@ -97,25 +98,32 @@ pub(crate) fn parse_fact_review(
             bail!("fact review must check each required claim exactly once");
         }
         validate_check(check, allowed_decision_ids)?;
+        if is_observed_chain(&check.path) && check.status != FactClaimStatus::Supported {
+            bail!("observed chains require support from supplied run evidence");
+        }
     }
     match review.verdict {
         FactReviewVerdict::Approve
             if review.feedback.is_none()
-                && review
-                    .checks
-                    .iter()
-                    .all(|check| check.status == FactClaimStatus::Supported) => {}
+                && review.checks.iter().all(|check| {
+                    matches!(
+                        check.status,
+                        FactClaimStatus::Supported | FactClaimStatus::Plausible
+                    )
+                }) => {}
         FactReviewVerdict::Reject
             if review
                 .feedback
                 .as_deref()
                 .is_some_and(|feedback| safe_text(feedback, 2_048))
-                && review
-                    .checks
-                    .iter()
-                    .any(|check| check.status != FactClaimStatus::Supported) => {}
+                && review.checks.iter().any(|check| {
+                    matches!(
+                        check.status,
+                        FactClaimStatus::Contradicted | FactClaimStatus::Unsupported
+                    )
+                }) => {}
         FactReviewVerdict::Approve => {
-            bail!("approval requires positive support for every required claim")
+            bail!("approval requires every claim to be supported or grounded and plausible")
         }
         FactReviewVerdict::Reject => {
             bail!("rejection requires feedback and an unsupported or contradicted claim")
@@ -133,10 +141,10 @@ fn validate_check(
     }
     if matches!(
         check.status,
-        FactClaimStatus::Supported | FactClaimStatus::Contradicted
+        FactClaimStatus::Supported | FactClaimStatus::Plausible | FactClaimStatus::Contradicted
     ) && check.refs.is_empty()
     {
-        bail!("supported and contradicted claims require at least one reference");
+        bail!("grounded statuses require at least one reference");
     }
     let mut unique = HashSet::new();
     for reference in &check.refs {
@@ -148,6 +156,10 @@ fn validate_check(
         }
     }
     Ok(())
+}
+
+fn is_observed_chain(path: &str) -> bool {
+    path.starts_with("lesson.evidence[") && path.ends_with("].observed_chain")
 }
 
 fn valid_reference(reference: &str, allowed_decision_ids: &HashSet<String>) -> bool {

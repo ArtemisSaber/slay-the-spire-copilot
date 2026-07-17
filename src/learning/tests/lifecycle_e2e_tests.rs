@@ -208,7 +208,7 @@ async fn exhausted_regeneration_resolves_without_a_replacement() {
     let temp = tempfile::tempdir().unwrap();
     let (mut session, parent_id, decision_id) = retired_session(temp.path());
     let provider = LlmProvider::scripted(move |system, prompt, _effort| {
-        if system.contains("LESSON_FACT_REVIEWER_V3") {
+        if system.contains("LESSON_FACT_REVIEWER_V4") {
             let mut review: serde_json::Value =
                 serde_json::from_str(&crate::llm::mock::mock_lesson_fact_review_response(prompt))
                     .unwrap();

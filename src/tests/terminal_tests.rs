@@ -85,7 +85,7 @@ async fn terminal_review_turns_an_existing_run_into_a_lesson() {
     let decision_id = format!("{run_id}:8:2:1");
     let provider = crate::llm::LlmProvider::scripted(move |system, prompt, effort| {
         assert_eq!(effort.as_str(), "heavy");
-        if system.contains("LESSON_FACT_REVIEWER_V3") {
+        if system.contains("LESSON_FACT_REVIEWER_V4") {
             assert!(!prompt.contains("Rewrite the machine-generated run summary"));
             return Ok(crate::llm::mock::mock_lesson_fact_review_response(prompt));
         }
@@ -129,7 +129,7 @@ async fn terminal_review_turns_an_existing_run_into_a_lesson() {
     assert!(
         requests[1]
             .system_prompt
-            .contains("LESSON_FACT_REVIEWER_V3")
+            .contains("LESSON_FACT_REVIEWER_V4")
     );
     assert!(result.report_path.is_file());
     assert!(

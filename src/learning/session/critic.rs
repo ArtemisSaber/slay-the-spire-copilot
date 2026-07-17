@@ -108,7 +108,7 @@ impl LearningSession {
                 report,
                 retry_feedback,
             );
-            let prompt = format!("LESSON_FACT_REVIEWER_V3\n{appendix}");
+            let prompt = format!("LESSON_FACT_REVIEWER_V4\n{appendix}");
             if prompt.len() <= MAX_PROMPT_BYTES {
                 return Some(prompt);
             }
