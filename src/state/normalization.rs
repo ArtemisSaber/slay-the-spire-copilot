@@ -36,6 +36,10 @@ impl NormalizedState {
         let room_type = game_state
             .and_then(|state| state.get("room_type"))
             .and_then(|value| serde_json::from_value::<RoomType>(value.clone()).ok());
+        let room_phase = game_state
+            .and_then(|state| state.get("room_phase"))
+            .and_then(|value| value.as_str())
+            .map(str::to_string);
         let character = game_state
             .and_then(|state| state.get("class"))
             .and_then(|value| value.as_str())
@@ -194,6 +198,7 @@ impl NormalizedState {
         NormalizedState {
             screen_type,
             room_type,
+            room_phase,
             character,
             seed,
             ascension_level,

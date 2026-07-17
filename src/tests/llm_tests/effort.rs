@@ -75,3 +75,13 @@ fn effort_unknown_fast_when_in_combat() {
         Effort::Fast
     ));
 }
+
+#[test]
+fn effort_overrides_every_screen_tier_when_in_combat() {
+    for screen_type in ["CARD_REWARD", "BOSS_REWARD", "MAP", "GRID", "UNKNOWN"] {
+        assert!(matches!(
+            Effort::from_screen_type(screen_type, true),
+            Effort::Fast
+        ));
+    }
+}

@@ -12,6 +12,7 @@ pub(super) fn insert_base_fields(
 ) {
     insert_opt_str(map, "screen_type", &state.screen_type);
     insert_opt_str(map, "room_type", &state.room_type);
+    insert_opt_str(map, "room_phase", &state.room_phase);
     insert_opt_str(map, "character", &state.character);
     insert_opt_i64(map, "floor", state.floor);
     insert_opt_i64(map, "current_hp", state.current_hp);

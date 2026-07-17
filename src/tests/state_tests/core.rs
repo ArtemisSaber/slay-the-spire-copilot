@@ -190,3 +190,18 @@ fn has_active_monsters_false_without_monsters() {
     let state = NormalizedState::from_raw(&raw, test_locale());
     assert!(!state.has_active_monsters());
 }
+
+#[test]
+fn in_combat_uses_room_phase_even_without_active_monsters() {
+    let raw = json!({
+        "game_state": {
+            "screen_type": "CARD_REWARD",
+            "room_phase": "COMBAT",
+            "combat_state": {"monsters": []}
+        }
+    });
+    let state = NormalizedState::from_raw(&raw, test_locale());
+
+    assert!(!state.has_active_monsters());
+    assert!(state.is_in_combat());
+}

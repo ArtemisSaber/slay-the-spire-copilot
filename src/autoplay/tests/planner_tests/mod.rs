@@ -46,6 +46,7 @@ mod deterministic_skip_flags;
 mod fallback;
 
 mod experience_context;
+mod in_combat_routing;
 
 mod card_reward_comparison;
 mod card_reward_pipeline;

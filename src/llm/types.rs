@@ -10,13 +10,14 @@ pub enum Effort {
 
 impl Effort {
     pub fn from_screen_type(screen_type: &str, in_combat: bool) -> Self {
+        if in_combat {
+            return Effort::Fast;
+        }
+
         match screen_type {
-            "CARD_REWARD" if in_combat => Effort::Fast,
             "CARD_REWARD" | "BOSS_REWARD" | "MAP" => Effort::Heavy,
             "NONE" | "HAND_SELECT" => Effort::Fast,
-            "GRID" if in_combat => Effort::Fast,
             "GRID" => Effort::Medium,
-            _ if in_combat => Effort::Fast,
             _ => Effort::Medium,
         }
     }

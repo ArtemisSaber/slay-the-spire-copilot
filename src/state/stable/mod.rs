@@ -23,6 +23,10 @@ impl NormalizedState {
         !self.monsters.is_empty()
     }
 
+    pub fn is_in_combat(&self) -> bool {
+        self.room_phase.as_deref() == Some("COMBAT") || self.has_active_monsters()
+    }
+
     pub fn is_boss_card_reward(&self) -> bool {
         self.screen_type.as_ref() == Some(&ScreenType::CardReward)
             && matches!(self.floor, Some(16 | 33 | 50))

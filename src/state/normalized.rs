@@ -10,6 +10,7 @@ use super::{
 pub struct NormalizedState {
     pub screen_type: Option<ScreenType>,
     pub room_type: Option<RoomType>,
+    pub room_phase: Option<String>,
     pub character: Option<String>,
     pub seed: Option<i64>,
     pub ascension_level: Option<i64>,

@@ -41,7 +41,7 @@ impl GameRuntime {
         let metadata = OverlayMetadata {
             screen_type: normalized.screen_type.clone(),
             scenario: scenario.as_str().to_string(),
-            in_combat: crate::runtime::has_monsters(&raw),
+            in_combat: normalized.is_in_combat(),
             state_hash: hash.clone(),
             floor: normalized.floor,
             character: normalized.character.clone(),

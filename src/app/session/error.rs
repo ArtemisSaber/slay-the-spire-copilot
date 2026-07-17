@@ -11,8 +11,7 @@ impl GameRuntime {
         overlay_path: &Path,
         autoplay_control_path: &Path,
     ) {
-        let Some((saved_raw, saved_normalized, saved_command_state)) =
-            self.last_autoplay_state.clone()
+        let Some((_, saved_normalized, saved_command_state)) = self.last_autoplay_state.clone()
         else {
             return;
         };
@@ -37,7 +36,7 @@ impl GameRuntime {
                 &OverlayMetadata {
                     screen_type: saved_normalized.screen_type.clone(),
                     scenario: scenario.as_str().to_string(),
-                    in_combat: crate::runtime::has_monsters(&saved_raw),
+                    in_combat: saved_normalized.is_in_combat(),
                     state_hash: saved_normalized.stable_hash(),
                     floor: saved_normalized.floor,
                     character: saved_normalized.character.clone(),
@@ -121,7 +120,7 @@ impl GameRuntime {
                             &OverlayMetadata {
                                 screen_type: saved_normalized.screen_type.clone(),
                                 scenario: retry_scenario.as_str().to_string(),
-                                in_combat: crate::runtime::has_monsters(&saved_raw),
+                                in_combat: saved_normalized.is_in_combat(),
                                 state_hash: saved_normalized.stable_hash(),
                                 floor: saved_normalized.floor,
                                 character: saved_normalized.character.clone(),

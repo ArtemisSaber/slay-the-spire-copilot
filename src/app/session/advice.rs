@@ -56,8 +56,7 @@ impl GameRuntime {
             state.normalized.danger.level,
         );
 
-        let effort =
-            Effort::from_screen_type(state.screen_type, crate::runtime::has_monsters(state.raw));
+        let effort = Effort::from_screen_type(state.screen_type, state.normalized.is_in_combat());
         let prompt =
             crate::prompt::build_prompt(state.normalized, &self.locale, self.map_gate.shop_visited);
         tracing::debug!(

@@ -134,7 +134,9 @@ pub(crate) async fn plan_action_with_memory(
         )));
     }
 
-    if state.screen_type.as_ref().map(|st| st.as_str()) == Some("CARD_REWARD") {
+    if state.screen_type.as_ref().map(|st| st.as_str()) == Some("CARD_REWARD")
+        && !state.is_in_combat()
+    {
         let planned = match plan_card_reward(
             provider,
             session,
@@ -162,11 +164,11 @@ pub(crate) async fn plan_action_with_memory(
         return Ok(Some(planned));
     }
 
-    let effort = state
+    let screen_type = state
         .screen_type
         .as_ref()
-        .map(|st| Effort::from_screen_type(st.as_str(), !state.monsters.is_empty()))
-        .unwrap_or(Effort::Medium);
+        .map_or("UNKNOWN", |screen| screen.as_str());
+    let effort = Effort::from_screen_type(screen_type, state.is_in_combat());
 
     let mut rejections = vec![];
     for attempt in 1..=MAX_LLM_ATTEMPTS {
@@ -207,6 +209,7 @@ pub(crate) async fn plan_action_with_memory(
                             session.skipped_combat_reward_potion = true;
                         }
                         if state.screen_type.as_ref().map(|st| st.as_str()) == Some("CARD_REWARD")
+                            && !state.is_in_combat()
                             && matches!(&parsed.action, AutoPlayAction::Skip)
                         {
                             session.skipped_combat_reward_card = true;
